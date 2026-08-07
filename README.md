@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can eventually edit a game, build it, run it headlessly, advance simulation time explicitly, inspect structured runtime state, inject input, assert behavior, and capture visuals when pixels actually matter.
 
-> Current status: **P0 — project foundation**. The repository currently provides the C++20 build/test foundation and the first machine-readable CLI surface. Engine runtime features are intentionally not claimed until implemented and tested.
+> Current status: **P3 — structured observability foundation**. P0 project setup, P1 deterministic runtime control, and P2 stable scene identity plus text-authored deterministic scene serialization are implemented and tested. Runtime inspection, semantic queries, virtual input, gameplay assertions, and rendering/capture remain planned work unless explicitly documented otherwise.
 
 ## Project navigation
 
@@ -14,12 +14,30 @@ For coding agents or contributors continuing development, start here:
 
 - [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — current phase, active work, validation state, and next execution order
+- [Scene text format](docs/SCENE_FORMAT.md) — version-1 authored TOML schema and canonical serialization rules
 - [Public Release Plan](docs/PUBLIC_RELEASE.md) — exact gates for `v0.1.0-alpha.1`
 - [Roadmap](docs/ROADMAP.md) — long-term P0-P8 development phases
 - [Architecture](docs/ARCHITECTURE.md) — module/dependency direction
 - [Agent-first design principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
 
 A future coding-agent session should be able to continue the project from these repository files without requiring previous chat history.
+
+## Implemented foundation
+
+The current repository already includes:
+
+- reproducible C++20 / CMake / pinned-vcpkg project setup
+- Windows MSVC CI with warnings treated as errors
+- SDL3 hidden behind a Trace2D-owned platform boundary
+- explicit headless and windowed startup modes
+- deterministic fixed-step runtime control with explicit `Step(count)` advancement
+- observable simulation frame, fixed timestep, simulation time, deterministic seed, and reset state
+- generation-safe runtime `EntityId` handles with stale-handle invalidation
+- stable authored semantic IDs, names, sorted unique tags, and `Transform2D`
+- deterministic allocation-free runtime entity iteration
+- TOML `*.trace2d.toml` authored scenes with strict validation and source diagnostics
+- deterministic canonical scene serialization sorted by semantic entity ID
+- round-trip tests proving stable semantic scene state
 
 ## Design goals
 
@@ -60,15 +78,18 @@ Visual capture
         +---- failure context ----> Agent
 ```
 
+The full workflow above is the Public Alpha target. The README status and `PROJECT_STATUS.md` distinguish implemented stages from planned ones.
+
 ## Technology direction
 
 - **Language:** C++20
 - **Build:** CMake + CMake Presets
 - **Dependencies:** vcpkg manifest mode with a pinned baseline
-- **Platform layer:** SDL3 (P1)
-- **2D rendering:** SDL3 GPU (P5)
-- **Physics:** Box2D (P6)
-- **Tests:** GoogleTest
+- **Platform layer:** SDL3
+- **Scene text:** TOML via toml++ behind the scene implementation boundary
+- **2D rendering:** SDL3 GPU (planned P5)
+- **Physics:** Box2D or a smaller measured collision slice (decision deferred to P6)
+- **Tests:** GoogleTest / CTest
 - **CI:** GitHub Actions / MSVC
 
 Dependencies are added only when the phase that needs them begins.
@@ -81,11 +102,14 @@ Trace2D/
 ├─ PROJECT_STATUS.md      live project/handoff state
 ├─ cmake/                 CMake policy/helpers
 ├─ engine/
-│  └─ core/               platform-independent engine core
+│  ├─ core/               platform-independent engine core
+│  ├─ platform/           SDL3 boundary and startup ownership
+│  ├─ runtime/            deterministic simulation-time control
+│  └─ scene/              entity identity and text-authored scene state
 ├─ tools/
 │  └─ trace2d/            CLI for humans, scripts, CI, and agents
 ├─ tests/                 automated tests
-├─ docs/                  architecture and release documents
+├─ docs/                  architecture, scene format, and release documents
 └─ .github/workflows/     CI
 ```
 
@@ -128,21 +152,50 @@ cmake --build --preset windows-release --parallel
 
 ## CLI
 
-The first CLI surface is deliberately tiny and stable.
+The implemented CLI surface is deliberately small and automation-friendly.
 
 ```powershell
 trace2d version
 trace2d doctor
 trace2d doctor --json
+trace2d run --headless --frames 120 --seed 1
+trace2d run --headless --frames 120 --seed 1 --json
+trace2d run --windowed
 ```
 
-Example machine-readable output:
+Example machine-readable doctor output:
 
 ```json
 {"engine":"Trace2D","version":"0.1.0","cpp_standard":20,"status":"ok"}
 ```
 
-Future commands will grow from a small composable vocabulary such as `run`, `inspect`, `query`, `input`, `step`, `assert`, `capture`, and `test`.
+`inspect`, `query`, `input`, `assert`, `capture`, and higher-level test commands are planned as later phases establish their protocol-independent engine APIs.
+
+## Text-authored scenes
+
+Trace2D version-1 authored scenes use TOML and are designed to be directly editable by humans and coding agents.
+
+```toml
+format_version = 1
+
+[scene]
+id = "arena"
+name = "Arena"
+
+[[entities]]
+id = "player"
+name = "Player"
+tags = ["controllable", "hero"]
+
+[entities.transform]
+position = [0.0, 0.0]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+```
+
+The loader rejects unknown fields, duplicate semantic IDs, invalid types, and malformed transforms with actionable diagnostics. Saving produces a canonical representation with deterministic entity ordering for useful Git diffs.
+
+See [docs/SCENE_FORMAT.md](docs/SCENE_FORMAT.md) for the complete schema and serialization contract.
 
 ## Public Alpha target
 
@@ -156,7 +209,7 @@ See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) for the release gates and G
 
 The complete phased plan is maintained in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-The next milestone after project foundation is **P1 — Deterministic runtime foundation**, which introduces SDL3, headless/windowed startup, a fixed simulation timestep, explicit frame stepping, and deterministic seed ownership.
+The next implementation milestone is **P3 — Structured observability**. Issue **#6** adds the protocol-independent inspection facade and initial deterministic structured inspection boundary; semantic selectors follow in Issue **#7**.
 
 ## Project policy
 
