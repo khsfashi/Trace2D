@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can eventually edit a game, build it, run it headlessly, advance simulation time explicitly, inspect structured runtime state, inject input, assert behavior, and capture visuals when pixels actually matter.
 
-> Current status: **P4 — deterministic interaction and gameplay-test foundation**. P0 project setup, P1 deterministic runtime control, P2 stable scene identity/text serialization, P3 structured inspection/semantic queries, and P4 deterministic virtual input are implemented. Gameplay assertions are the next executable milestone; rendering/capture remain later work.
+> Current status: **P5 — minimal SDL3 GPU 2D renderer and capture path**. P0 project setup, P1 deterministic runtime control, P2 stable scene identity/text serialization, P3 structured inspection/semantic queries, and P4 deterministic input/gameplay testing are implemented. Minimal rendering and deterministic frame capture are the next executable milestone.
 
 ## Project navigation
 
@@ -17,6 +17,7 @@ For coding agents or contributors continuing development, start here:
 - [Runtime inspection contract](docs/INSPECTION.md) — protocol-independent snapshot schema, deterministic CLI JSON, and exit codes
 - [Semantic query contract](docs/QUERY.md) — selectors, deterministic result ordering, and query errors
 - [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence, frame scheduling, and reset semantics
+- [Deterministic gameplay testing](docs/GAMEPLAY_TESTING.md) — scenario lifecycle, semantic assertions, failure reports, and determinism rules
 - [Scene text format](docs/SCENE_FORMAT.md) — version-1 authored TOML schema and canonical serialization rules
 - [Public Release Plan](docs/PUBLIC_RELEASE.md) — exact gates for `v0.1.0-alpha.1`
 - [Roadmap](docs/ROADMAP.md) — long-term P0-P8 development phases
@@ -51,6 +52,11 @@ The current repository already includes:
 - deterministic press/release/held transitions and frame-indexed virtual input scheduling
 - SDL3 keyboard/mouse translation into the same engine-owned input event path
 - resettable virtual input source and exact runtime-lockstep input tests
+- protocol-independent `Trace2D::Testing` gameplay scenario runner over the existing scene/runtime/input/query systems
+- deterministic scene load/reset/input/run/assert/report workflow
+- semantic component-field assertions with explicit no-match and ambiguity failures
+- structured failure reports containing expected/observed state, frame, seed, selector, relevant input, runtime, and entity snapshots
+- CTest-visible gameplay scenarios including repeat-failure determinism coverage
 
 ## Design goals
 
@@ -100,7 +106,7 @@ The full workflow above is the Public Alpha target. The README status and `PROJE
 - **Dependencies:** vcpkg manifest mode with a pinned baseline
 - **Platform layer:** SDL3
 - **Scene text:** TOML via toml++ behind the scene implementation boundary
-- **2D rendering:** SDL3 GPU (planned P5)
+- **2D rendering:** SDL3 GPU (P5 in progress)
 - **Physics:** Box2D or a smaller measured collision slice (decision deferred to P6)
 - **Tests:** GoogleTest / CTest
 - **CI:** GitHub Actions / MSVC
@@ -120,11 +126,12 @@ Trace2D/
 │  ├─ platform/           SDL3 boundary and physical input translation
 │  ├─ runtime/            deterministic simulation-time control
 │  ├─ scene/              entity identity and text-authored scene state
-│  └─ agent/              protocol-independent inspection/automation facade
+│  ├─ agent/              protocol-independent inspection/automation facade
+│  └─ testing/            deterministic gameplay scenario/assertion facade
 ├─ tools/
 │  └─ trace2d/            CLI for humans, scripts, CI, and agents
 ├─ tests/                 automated tests and deterministic fixtures
-├─ docs/                  architecture, inspection, query, input, scene, and release documents
+├─ docs/                  architecture, inspection, query, input, gameplay-testing, scene, and release documents
 └─ .github/workflows/     CI
 ```
 
@@ -194,7 +201,7 @@ Example machine-readable doctor output:
 
 See [docs/INSPECTION.md](docs/INSPECTION.md) and [docs/QUERY.md](docs/QUERY.md) for the current structured contracts.
 
-Virtual input currently exposes an engine/test API rather than a CLI command; this keeps SDL, CLI, JSON, and future MCP types out of the gameplay-facing input contract. Gameplay assertion/test-runner commands are the next P4 milestone.
+Virtual input and deterministic gameplay scenarios currently expose engine/test APIs rather than CLI commands. This keeps SDL, CLI, JSON, and future MCP types out of the gameplay-facing input and assertion contracts. See [docs/INPUT.md](docs/INPUT.md) and [docs/GAMEPLAY_TESTING.md](docs/GAMEPLAY_TESTING.md).
 
 ## Text-authored scenes
 
@@ -234,7 +241,7 @@ See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) for the release gates and G
 
 The complete phased plan is maintained in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-The current implementation milestone is **P4 — Virtual input and gameplay tests**. Issue **#8** established deterministic engine-level virtual/physical input convergence and frame scheduling; Issue **#9** adds the deterministic gameplay test runner and assertions next.
+P4 — Virtual input and gameplay tests — is complete through Issues **#8** and **#9**. The current implementation milestone is **P5 — minimal SDL3 GPU 2D renderer and capture path**, tracked by Issue **#10**.
 
 ## Project policy
 
