@@ -2,11 +2,15 @@
 
 #include <trace2d/input/Input.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
 namespace trace2d::platform
 {
+using WindowId = std::uint32_t;
+inline constexpr WindowId InvalidWindowId = 0;
+
 enum class StartupMode
 {
     Headless,
@@ -47,6 +51,7 @@ public:
 
     [[nodiscard]] StartupMode Mode() const noexcept;
     [[nodiscard]] bool HasWindow() const noexcept;
+    [[nodiscard]] WindowId WindowIdValue() const noexcept;
     [[nodiscard]] bool PollEvent(PlatformEvent& event) noexcept;
 
 private:
