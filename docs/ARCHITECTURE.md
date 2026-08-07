@@ -12,7 +12,7 @@ The architecture intentionally separates the engine's automation contract from a
 tools / adapters
       |
       v
- agent facade          (planned)
+ agent facade
       |
       v
    runtime
@@ -142,7 +142,6 @@ Current authored text boundary:
 
 Planned extensions in P3:
 
-- component inspection through the protocol-independent agent facade
 - semantic selectors and queries
 
 ### `engine/input` (planned)
@@ -163,19 +162,41 @@ The first renderer should remain intentionally small:
 
 Renderer performance will be benchmarked before more advanced systems are added.
 
-### `engine/agent` (planned)
+### `engine/agent`
 
-Protocol-independent automation facade over runtime capabilities.
+Protocol-independent automation facade over authoritative runtime and scene state.
 
-Target operations:
+Current P3 responsibilities:
+
+- non-owning binding to the active deterministic runtime and scene
+- stable Trace2D-owned inspection snapshot and error types
+- runtime frame, seed, fixed-step, and simulation-time inspection
+- scene semantic identity and deterministic entity inspection
+- generation-safe runtime handle, semantic ID, name, tags, and transform inspection
+- explicit nullable bounds in the inspection schema
+- generic typed component-field snapshots, initially exposing `Transform2D`
+- deterministic snapshot ordering suitable for adapters
+
+Current API rules:
+
+- `engine/agent` may depend on runtime and scene; runtime and scene never depend on the agent facade
+- public inspection types contain no JSON, MCP, SDL, or LLM-specific protocol objects
+- JSON serialization belongs to the CLI/tool boundary, not this module
+- inspection snapshots own copied observation data and allocate only when inspection is explicitly requested
+- no inspection copying or JSON generation occurs in the per-frame simulation path
+- bounds stay `null` until renderer/physics state can provide authoritative values; the facade does not guess bounds from coordinates or transform scale
+
+The detailed contract is documented in [INSPECTION.md](INSPECTION.md).
+
+Target operations as later phases arrive:
 
 ```text
-inspect
-query
-input
-step
-assert
-capture
+inspect   (implemented)
+query     (P3)
+input     (P4)
+step      (runtime primitive exists; facade operation later)
+assert    (P4)
+capture   (P5)
 ```
 
 This layer is the source of truth for CLI, JSON-RPC, and eventual MCP integration.
@@ -190,11 +211,14 @@ Current commands:
 trace2d version
 trace2d doctor [--json]
 trace2d run (--headless|--windowed) [--frames N] [--seed N] [--json]
+trace2d inspect --scene PATH [--frames N] [--seed N] [--json]
 ```
 
 `run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping.
 
-The CLI should keep stable exit codes and machine-readable output for automation-sensitive commands.
+`inspect` loads authored scene text at the tool boundary, advances a deterministic runtime by the requested number of frames, invokes `AgentFacade::Inspect()`, and serializes the resulting Trace2D-owned snapshot. The engine inspection API itself is not JSON-aware.
+
+The CLI keeps stable non-zero exit categories and machine-readable error objects for automation-sensitive inspection failures. See [INSPECTION.md](INSPECTION.md) for the current contract.
 
 ## Runtime execution model
 
