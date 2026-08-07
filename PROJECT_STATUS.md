@@ -24,13 +24,16 @@ The first public release proves this loop. It is not intended to be a complete g
 
 ## Current phase
 
-**P1 — Deterministic runtime foundation**
+**P2 — Text-authored scene foundation**
 
 P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
 
-Issue **#2 — Add SDL3 platform boundary and startup modes** is complete. PR **#16** passed CI and was squash-merged to `main`.
+P1 deterministic runtime foundation is complete:
 
-Issue **#3 — Implement deterministic fixed-step runtime control** is implemented in draft PR **#17** on branch `agent/deterministic-fixed-step-runtime`. Finish its validation and merge before beginning Issue #4.
+- Issue **#2 — Add SDL3 platform boundary and startup modes** completed in PR **#16**
+- Issue **#3 — Implement deterministic fixed-step runtime control** completed in PR **#17**
+
+The next executable task is Issue **#4 — Define stable entity identity and scene registry**.
 
 P0 established:
 
@@ -46,34 +49,35 @@ P0 established:
 - coding style/editor settings
 - architecture, roadmap, public-release, ADR, and agent handoff documentation
 
-P1 now additionally has:
+P1 established:
 
 - SDL3 pinned through the project vcpkg manifest
 - SDL3 hidden behind `Trace2D::Platform`
 - RAII SDL subsystem/window ownership with final SDL cleanup
 - explicit headless and windowed startup modes
 - engine-owned quit event translation
-- deterministic `Trace2D::Runtime` boundary in PR #17
+- deterministic `Trace2D::Runtime` boundary
 - explicit `Step(count)` simulation-frame control without sleeping
 - runtime-owned frame, fixed timestep, simulation time, and deterministic seed/reset state
 - wall-clock accumulation separated from explicit stepping
 - monotonic `steady_clock` wrapper for later interactive-loop integration
 - `trace2d run --frames N --seed N` machine-controlled runtime smoke path
+- unit coverage for zero/one/multi-frame stepping, exact 120-frame advancement, reset determinism, wall-clock remainder, and monotonic clock behavior
 
 ## Current validation status
 
-The P0 bootstrap is validated on a clean GitHub-hosted Windows runner.
+The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
 
-An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` uses a Visual Studio 2026 runner while the local developer preset intentionally targets Visual Studio 2022. The project now separates:
+The project separates:
 
 - local `windows-msvc`: Visual Studio 2022
 - CI `ci-windows-msvc`: Visual Studio 2026 generator with `v143` toolset
 
-The final PR #1 CI run (**#12**) completed successfully through dependency install, configure, build, and test before merge.
+Validated milestones:
 
-PR **#16** latest-head CI run (**#19**) also completed successfully through pinned vcpkg install, SDL3 configure, Windows MSVC build, and all GoogleTest/CTest checks before squash merge.
-
-PR **#17** is the active P1 runtime-control change. Its final-head GitHub Actions run must pass configure, build, runtime unit tests, existing platform/core tests, and the 120-frame headless CLI smoke before Issue #3 is considered complete.
+- PR **#1** final CI run **#12**: configure, build, test successful before merge
+- PR **#16** final-head CI run **#19**: SDL3 configure, Windows MSVC build, and all tests successful before merge
+- PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke all successful before squash merge
 
 ## P0 exit criteria
 
@@ -90,46 +94,50 @@ PR **#17** is the active P1 runtime-control change. Its final-head GitHub Action
 - [x] clean-checkout CI passes configure/build/test
 - [x] PR #1 squash-merged to `main`
 
-## P1 progress
+## P1 exit criteria
 
 - [x] **#2 — SDL3 platform boundary and startup modes** — PR #16 merged after green CI
-- [ ] **#3 — deterministic fixed-step runtime control** — implemented in draft PR #17; pending final green CI and merge
+- [x] **#3 — deterministic fixed-step runtime control** — PR #17 merged after green CI
+- [x] headless execution does not require a visible window
+- [x] explicit fixed-frame stepping does not sleep or read wall-clock time
+- [x] deterministic seed/reset ownership is in the runtime layer
+- [x] wall-clock accumulation is separate from explicit stepping
+- [x] runtime code has no SDL, CLI, JSON, or MCP dependency
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Finish **PR #17 / #3 — P1: Implement deterministic fixed-step runtime control**
-2. **#4 — P2: Define stable entity identity and scene registry**
-3. **#5 — P2: Add text-first scene format and deterministic serialization**
-4. **#6 — P3: Build protocol-independent runtime inspection API**
-5. **#7 — P3: Add semantic selectors and runtime queries**
-6. **#8 — P4: Implement virtual input with frame scheduling**
-7. **#9 — P4: Add deterministic gameplay test runner and assertions**
-8. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-9. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-10. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-11. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-12. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#4 — P2: Define stable entity identity and scene registry**
+2. **#5 — P2: Add text-first scene format and deterministic serialization**
+3. **#6 — P3: Build protocol-independent runtime inspection API**
+4. **#7 — P3: Add semantic selectors and runtime queries**
+5. **#8 — P4: Implement virtual input with frame scheduling**
+6. **#9 — P4: Add deterministic gameplay test runner and assertions**
+7. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+8. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+9. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+10. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+11. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Finish draft PR #17 for Issue #3.**
+**Issue #4 — Define stable entity identity and scene registry.**
 
-Required validation before merge:
+Required outcomes from Issue #4:
 
-- `Trace2D::Runtime` builds without SDL/CLI/MCP dependencies
-- a headless test advances exactly 120 frames without sleeping
-- zero, one, and multi-frame stepping are covered
-- same initial state/seed produces identical runtime state
-- reset clears frame, simulation time, and wall-clock remainder while installing the requested seed
-- elapsed wall-clock accumulation preserves sub-step remainder deterministically
-- `trace2d run --headless --frames 120 --seed 42 --json` exits successfully and reports frame 120
-- all pre-existing tests remain green
+- stable `EntityId` / generation-safe handle design
+- scene-owned entity lifetime
+- name and semantic tag metadata
+- transform component
+- deterministic iteration policy for observable systems
+- safe entity create/destroy/query behavior
+- stale-handle detection after destruction/reuse
+- tests for lifecycle, stale handles, and deterministic iteration
 
-After PR #17 is green and squash-merged, update this file to mark P1 complete and make Issue **#4 — Define stable entity identity and scene registry** the next executable task.
+Keep the first scene model intentionally small. Do not introduce a full generic ECS unless measured requirements justify it. Automation-facing identity must never be a raw pointer.
 
-Do not begin scene/entity work in Issue #4 until #3 has a green merged PR unless a blocking dependency requires a documented change.
+Do not begin Issue #5 serialization work until #4 has a green merged PR unless a blocking dependency requires a documented change.
 
 ## Public Alpha blockers
 
@@ -175,6 +183,8 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
 - Authored scene/project state is text-first.
+- Automation-facing entity identity must not be a raw pointer.
+- Observable iteration order must be deterministic where behavior depends on order.
 - Structured state beats pixel inference for gameplay QA.
 - Semantic selectors beat coordinate-based targeting where identity exists.
 - Optimization complexity follows measurement.
