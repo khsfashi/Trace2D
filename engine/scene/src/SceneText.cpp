@@ -10,6 +10,7 @@
 #include <limits>
 #include <locale>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -272,8 +273,9 @@ std::string EscapeTomlString(const std::string_view value)
     escaped.reserve(value.size() + 2U);
     escaped.push_back('"');
 
-    for (const unsigned char character : value)
+    for (const char rawCharacter : value)
     {
+        const unsigned char character = static_cast<unsigned char>(rawCharacter);
         switch (character)
         {
         case '"':
@@ -495,17 +497,18 @@ SceneLoadResult LoadSceneToml(const std::string_view text, const std::string_vie
                     continue;
                 }
 
-                if (scene.FindBySemanticId(descriptor.semanticId).has_value())
+                try
+                {
+                    static_cast<void>(scene.CreateEntity(std::move(descriptor)));
+                }
+                catch (const std::invalid_argument&)
                 {
                     AddDiagnostic(
                         result.diagnostics,
                         entityPath + ".id",
-                        "Duplicate entity semantic ID '" + descriptor.semanticId + "'.",
+                        "Duplicate entity semantic ID '" + *semanticId + "'.",
                         entityTable->get("id"));
-                    continue;
                 }
-
-                static_cast<void>(scene.CreateEntity(std::move(descriptor)));
             }
         }
     }
