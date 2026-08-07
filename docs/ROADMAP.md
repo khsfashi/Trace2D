@@ -65,23 +65,24 @@ A scene can be authored as text, loaded into the scene model, modified through r
 
 ## P3 — Structured observability
 
-Status: **in progress**
+Status: **complete**
 
-Deliverables:
+Delivered:
 
 - protocol-independent agent facade
 - entity/component inspection
-- semantic selectors
-- structured JSON output
-- spatial/bounds queries
-- stable error schema and exit codes
+- exact semantic selectors
+- deterministic single-result and multi-result queries
+- structured deterministic JSON at the CLI boundary
+- stable inspection/query errors and exit categories
+- explicit nullable bounds until renderer/physics can provide authoritative spatial data
 
-Target examples:
+Current examples:
 
 ```text
-trace2d inspect scene --json
-trace2d query '#player' --json
-trace2d query 'tag:enemy' --json
+trace2d inspect --scene path/to/scene.trace2d.toml --json
+trace2d query --scene path/to/scene.trace2d.toml --selector '#player' --one --json
+trace2d query --scene path/to/scene.trace2d.toml --selector 'tag:enemy' --json
 ```
 
 Exit criteria:
@@ -90,15 +91,23 @@ An external script can identify and read gameplay state without parsing logs or 
 
 ## P4 — Virtual input and gameplay tests
 
-Status: **planned**
+Status: **in progress**
 
-Deliverables:
+Implemented:
 
-- virtual keyboard/mouse/controller input
+- engine-level input state independent of SDL events
+- physical SDL keyboard/mouse translation into engine input events
+- virtual input source for tests/agents
+- deterministic press/release/held transitions
 - deterministic input scheduling by frame
-- gameplay assertion API
-- test scenario format
-- failure snapshots with structured state
+- predictable scenario reset
+- exact runtime-lockstep input tests
+
+Remaining deliverables:
+
+- deterministic gameplay assertion API
+- gameplay test/scenario runner
+- structured assertion failure snapshots
 
 Target workflow:
 
