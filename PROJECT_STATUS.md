@@ -28,7 +28,9 @@ The first public release proves this loop. It is not intended to be a complete g
 
 P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
 
-Issue **#2 — Add SDL3 platform boundary and startup modes** is implemented on branch `agent/sdl3-platform-boundary` in draft PR **#16**. Finish its validation and merge before beginning Issue #3.
+Issue **#2 — Add SDL3 platform boundary and startup modes** is complete. PR **#16** passed CI and was squash-merged to `main`.
+
+The next executable task is Issue **#3 — Implement deterministic fixed-step runtime control**.
 
 P0 established:
 
@@ -44,6 +46,16 @@ P0 established:
 - coding style/editor settings
 - architecture, roadmap, public-release, ADR, and agent handoff documentation
 
+P1 now additionally has:
+
+- SDL3 pinned through the project vcpkg manifest
+- SDL3 hidden behind `Trace2D::Platform`
+- RAII SDL subsystem/window ownership with final SDL cleanup
+- explicit headless and windowed startup modes
+- engine-owned quit event translation
+- `trace2d run --headless|--windowed [--json]` startup smoke path
+- CI-safe headless platform and CLI tests
+
 ## Current validation status
 
 The P0 bootstrap is validated on a clean GitHub-hosted Windows runner.
@@ -55,7 +67,7 @@ An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` us
 
 The final PR #1 CI run (**#12**) completed successfully through dependency install, configure, build, and test before merge.
 
-PR **#16** adds SDL3, the `engine/platform` boundary, explicit headless/windowed startup, a basic event pump, and CI-safe headless tests. Its latest GitHub Actions run must be green before the PR is considered complete.
+PR **#16** latest-head CI run (**#19**) also completed successfully through pinned vcpkg install, SDL3 configure, Windows MSVC build, and all GoogleTest/CTest checks before squash merge.
 
 ## P0 exit criteria
 
@@ -74,36 +86,44 @@ PR **#16** adds SDL3, the `engine/platform` boundary, explicit headless/windowed
 
 ## P1 progress
 
-- [ ] **#2 — SDL3 platform boundary and startup modes** — implemented in draft PR #16; pending final green CI and merge
-- [ ] **#3 — deterministic fixed-step runtime control** — blocked until #2 is merged
+- [x] **#2 — SDL3 platform boundary and startup modes** — PR #16 merged after green CI
+- [ ] **#3 — deterministic fixed-step runtime control** — next executable task
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Finish **PR #16 / #2 — P1: Add SDL3 platform boundary and startup modes**
-2. **#3 — P1: Implement deterministic fixed-step runtime control**
-3. **#4 — P2: Define stable entity identity and scene registry**
-4. **#5 — P2: Add text-first scene format and deterministic serialization**
-5. **#6 — P3: Build protocol-independent runtime inspection API**
-6. **#7 — P3: Add semantic selectors and runtime queries**
-7. **#8 — P4: Implement virtual input with frame scheduling**
-8. **#9 — P4: Add deterministic gameplay test runner and assertions**
-9. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-10. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-11. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-12. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-13. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#3 — P1: Implement deterministic fixed-step runtime control**
+2. **#4 — P2: Define stable entity identity and scene registry**
+3. **#5 — P2: Add text-first scene format and deterministic serialization**
+4. **#6 — P3: Build protocol-independent runtime inspection API**
+5. **#7 — P3: Add semantic selectors and runtime queries**
+6. **#8 — P4: Implement virtual input with frame scheduling**
+7. **#9 — P4: Add deterministic gameplay test runner and assertions**
+8. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+9. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+10. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+11. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+12. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Finish draft PR #16 for Issue #2.**
+**Issue #3 — Implement deterministic fixed-step runtime control.**
 
-Validate that the pinned SDL3 dependency configures on the clean Windows runner, the platform library builds without exposing SDL through `engine/core`, the headless tests run without a visible window, and the CLI headless smoke exits successfully.
+Build `engine/runtime` on top of the platform boundary without moving simulation ownership into SDL or the CLI.
 
-Once PR #16 is green and merged, Issue **#3 — Implement deterministic fixed-step runtime control** becomes the next executable task.
+Required outcomes from Issue #3:
 
-Do not begin Issue #3 while PR #16 has failing CI unless the failure is unrelated and explicitly documented.
+- fixed simulation timestep configuration
+- monotonic wall-clock abstraction for interactive/windowed mode
+- explicit simulation frame counter
+- `Step(count)` API that advances without sleeping
+- deterministic seed ownership/reset point
+- windowed loop may accumulate wall-clock time while tests advance exact frames directly
+- tests for zero, one, and multi-frame stepping
+- repeated runs from the same initial state/seed report identical frame/state results
+
+Do not begin scene/entity work in Issue #4 until #3 has a green merged PR unless a blocking dependency requires a documented change.
 
 ## Public Alpha blockers
 
