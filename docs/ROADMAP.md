@@ -2,9 +2,11 @@
 
 Trace2D is built vertically: every phase should leave behind a runnable, testable slice instead of a collection of disconnected engine subsystems.
 
+`PROJECT_STATUS.md` is the operational source for the exact next issue and validation state. This roadmap describes the longer phase sequence.
+
 ## P0 — Project foundation
 
-Status: in progress
+Status: **complete**
 
 Deliverables:
 
@@ -28,6 +30,8 @@ all succeed from a clean checkout with `VCPKG_ROOT` configured.
 
 ## P1 — Deterministic runtime foundation
 
+Status: **complete**
+
 Deliverables:
 
 - SDL3 platform module
@@ -44,6 +48,8 @@ A headless test can advance exactly 120 simulation frames without waiting for wa
 
 ## P2 — Scene and entity model
 
+Status: **complete**
+
 Deliverables:
 
 - stable `EntityId` / handle model
@@ -55,9 +61,11 @@ Deliverables:
 
 Exit criteria:
 
-A scene can be authored as text, loaded headlessly, inspected, modified through runtime APIs, and round-tripped deterministically.
+A scene can be authored as text, loaded into the scene model, modified through runtime-facing APIs, and round-tripped deterministically with actionable validation diagnostics.
 
 ## P3 — Structured observability
+
+Status: **in progress**
 
 Deliverables:
 
@@ -81,6 +89,8 @@ Exit criteria:
 An external script can identify and read gameplay state without parsing logs or pixels.
 
 ## P4 — Virtual input and gameplay tests
+
+Status: **planned**
 
 Deliverables:
 
@@ -106,6 +116,8 @@ CI can reproduce a gameplay test failure with the same seed, input sequence, fra
 
 ## P5 — 2D renderer and capture
 
+Status: **planned**
+
 Deliverables:
 
 - SDL3 GPU renderer
@@ -122,10 +134,12 @@ The same scene can run headlessly for logic QA and windowed for visual QA, while
 
 ## P6 — Practical 2D engine slice
 
+Status: **planned**
+
 Deliverables:
 
 - asset registry/cache
-- Box2D integration
+- Box2D integration or a deliberately smaller collision slice selected from measured requirements
 - basic UI and semantic UI tree
 - animation
 - text rendering
@@ -136,6 +150,8 @@ Exit criteria:
 A small real game can be authored without modifying engine internals.
 
 ## P7 — Agent adapters
+
+Status: **planned**
 
 Deliverables:
 
@@ -148,6 +164,8 @@ Exit criteria:
 At least two different coding-agent clients can drive the same automation surface without changes to runtime internals.
 
 ## P8 — Portfolio proof
+
+Status: **planned**
 
 Deliverables:
 
