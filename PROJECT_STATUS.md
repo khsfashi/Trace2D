@@ -39,8 +39,9 @@ Completed phase milestones:
 - P4 deterministic gameplay test runner / assertions — Issue **#9**, PR **#23**
 - P5 renderer/GPU presentation foundation — Issue **#10**, PR **#24**
 - P5 orthographic camera / sprite render-data contract — Issue **#10**, PR **#25**
+- P5 textured sprite GPU submission baseline — Issue **#10**, PR **#26**
 
-P0-P4 are complete. PRs **#24** and **#25** are merged and establish the first two P5 slices: renderer/GPU ownership plus a deterministic CPU-side orthographic camera and minimal sprite render-data contract. The next executable task remains inside Issue **#10**: render textured sprites in windowed mode using that contract, then measure submission/batching behavior before adding complexity.
+P0-P4 are complete. PRs **#24**, **#25**, and **#26** establish the first three P5 slices: renderer/GPU ownership, deterministic CPU-side orthographic camera/render data, and a real one-sprite textured GPU draw with persistent renderer-owned resources. The next executable task remains inside Issue **#10**: expand to deterministic multi-sprite submission and record the unbatched draw-call baseline before integrating culling or batching.
 
 ## Foundation currently established
 
@@ -163,20 +164,31 @@ See `docs/GAMEPLAY_TESTING.md` for the scenario, assertion, determinism, and fai
 
 ### P5 orthographic camera / sprite render data — PR #25
 
-- CPU-only `trace2d::render` camera and sprite contracts contain no SDL/GPU handles
+- CPU-only `trace2d::render` camera and sprite contracts contain no SDL/backend GPU objects
 - `OrthographicCamera` stores center plus full visible vertical world size
 - target width/height are converted once into `OrthographicView` half extents and cached reciprocal `clipScale`
 - per-position `WorldToClip` uses subtraction/multiplication only; no per-sprite matrix construction or division is required
 - Trace2D keeps world/NDC +Y upward and leaves backend coordinate adaptation to SDL GPU
 - invalid target size, non-finite camera state, and non-positive vertical size are rejected while clearing the output view
-- `SpriteRenderData` is a minimal axis-aligned presentation input: center, half extents, layer, and deterministic `stableOrder`
+- `SpriteRenderData` establishes the axis-aligned presentation contract: center, half extents, layer, and deterministic `stableOrder`; PR #26 later adds Trace2D-owned texture identity
 - draw ordering compares layer first and stable order second; callers provide unique stable order within a layer when a total order is required
 - inclusive CPU AABB camera overlap establishes the first visibility/culling decision baseline without adding a spatial index
 - camera/view/sprite structs are trivially copyable; camera construction, world-to-clip, ordering, and visibility helpers perform no dynamic allocation
-- texture handles, UVs, tint, rotation, shader/resource handles, and batching policy remain intentionally deferred to the textured sprite slice
-- GPU `drawCalls` / `submittedSprites` metrics remain zero until actual sprite submission is wired
 
-See `docs/RENDERING.md` for the ownership, camera, render-data, ordering, culling, allocation, and remaining P5 contracts.
+### P5 textured sprite GPU baseline — PR #26
+
+- `SpriteRenderData` now carries a Trace2D-owned 32-bit `TextureHandle`; SDL/backend texture pointers remain private to `engine/render`
+- explicit `CreateTextureRgba8` performs one upload and returns a stable direct-indexed renderer handle; destroyed handles remain tombstones and are not reused in the P5 baseline
+- renderer owns persistent unit-quad vertex buffer, nearest/clamp sampler, graphics pipeline, and live texture resources rather than recreating them in `RenderFrame`
+- the first shader pair is embedded HLSL compiled once during renderer construction through the repository-pinned `sdl3-shadercross`; shadercross state and temporary shader objects do not enter the frame hot path
+- one textured sprite uses a 16-byte clip-space transform uniform plus persistent buffer/pipeline/sampler/texture bindings and one six-vertex draw
+- successful sprite submission increments `drawCalls` and `submittedSprites` from the actual encoded GPU draw
+- minimized/unavailable swapchain frames submit no sprite draw and therefore do not inflate draw/sprite metrics
+- windowed `trace2d run` creates a small RGBA8 sample texture and exercises the one-sprite textured submission path; headless execution remains renderer/GPU independent
+- resource-table growth and texture upload may allocate during explicit resource creation; the one-sprite frame path performs no persistent-resource creation, shader compilation, texture upload, sorting, or container growth
+- construction-time shadercross is the current correctness-first packaging baseline; offline shader artifacts remain an optimization candidate only if measured startup, packaging, or CI dependency cost justifies changing it
+
+See `docs/RENDERING.md` for the ownership, camera, render-data, texture, shader, frame-path, metrics, and remaining P5 contracts.
 
 ## Current validation status
 
@@ -200,14 +212,19 @@ Validated milestones:
 - PR **#23** final-head CI run **#54**: configure, Windows MSVC build, and **55/55 CTest tests** successful, including scheduled/immediate gameplay input, structured assertion failure snapshots, query ambiguity propagation, reset restoration, and repeated-failure report determinism before squash merge
 - PR **#24** final-head CI run **#64**: pinned SDL3 3.4.14 configure, Windows MSVC build, render/platform/runtime/CLI targets, render headless-isolation tests, and full CTest suite successful before squash merge
 - PR **#25** final-head CI run **#68**: pinned dependency configure, Windows/MSVC build, and full CTest suite including the new CPU-only render-data camera/order/culling tests successful before squash merge
+- PR **#26** final-head CI run **#71**: pinned dependency configure including `sdl3-shadercross`, Windows/MSVC warning-clean build, and full CTest suite including render-data tests successful before squash merge
 
 PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba826ee5730abb` and Issue **#9** closed as completed.
 
 PR **#24** was squash-merged to `main` as commit `637d8c2ab7839720f7b43e11e554f078b6a5c548`.
 
-PR **#25** was squash-merged to `main` as commit `6c54a64210fc0a8e28544c3e70b4e6c6575833c0`. Issue **#10** remains open because textured sprite GPU submission, measured batching/culling integration, offscreen rendering, and deterministic capture are still P5 work.
+PR **#25** was squash-merged to `main` as commit `6c54a64210fc0a8e28544c3e70b4e6c6575833c0`.
+
+PR **#26** was squash-merged to `main` as commit `e5a260577e6aa2d6666e13c00845940ba82e4c76`. Issue **#10** remains open because measured multi-sprite batching/culling integration, offscreen rendering, and deterministic capture are still P5 work.
 
 CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with WinHTTP `0x00002F78`; rerunning the failed job passed bootstrap/configure. The subsequent build exposed only an `EXPECT_THROW` macro parsing issue in the new renderer test, which was fixed before final green run #64. Renderer and CLI targets had already compiled/linked successfully before that test-only fix.
+
+CI/dependency note for PR #26: `sdl3-shadercross` expands the configure-time dependency graph through DXC/spirv-cross. The final build/test is green and no shader compilation occurs in `RenderFrame`; offline shader packaging should be considered only after measuring whether startup, distribution, or repeated-CI cost warrants the additional build tooling/artifacts.
 
 ## Phase exit criteria
 
@@ -276,20 +293,20 @@ CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with 
 - [ ] **#10 — minimal SDL3 GPU 2D renderer and capture path**
 - [x] SDL3 GPU device and swapchain integration isolated from simulation ownership — PR **#24**
 - [x] orthographic camera and CPU sprite render-data contract — PR **#25**
-- [ ] textured sprite rendering
+- [x] textured sprite rendering with renderer-owned persistent resources — PR **#26**
 - [ ] measured sprite batching baseline
 - [ ] visibility/culling integrated into actual sprite submission — CPU AABB decision baseline exists in PR **#25**
 - [ ] offscreen render target where supported
 - [ ] deterministic screenshot capture at an explicitly requested simulation frame
-- [x] basic renderer metrics suitable for profiling — PR **#24**
-- [x] headless gameplay tests remain independent of GPU presentation — PR **#24**
+- [x] basic renderer metrics suitable for profiling — PR **#24**, actual sprite draw counts wired in PR **#26**
+- [x] headless gameplay tests remain independent of GPU presentation — PR **#24**, preserved by PR **#26**
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Continue **#10** with the minimal textured sprite GPU pipeline consuming `OrthographicView` / `SpriteRenderData`.
-2. Record actual draw-call / submitted-sprite metrics, establish the first measured batching baseline, and wire the CPU visibility decision into real submission before adding batching complexity.
+1. Continue **#10** with deterministic multi-sprite submission and record the unbatched `drawCalls == submittedSprites` baseline using the current persistent resources.
+2. Integrate the existing CPU visibility decision into real submission, expose enough metrics to measure culled versus submitted sprites, and only then introduce the smallest batching optimization justified by the measurements.
 3. Add offscreen rendering and deterministic frame-selected screenshot capture to complete **#10**.
 4. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
 5. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
@@ -298,20 +315,21 @@ A fresh agent should work in this order unless a blocking dependency requires a 
 
 ## Immediate next task
 
-Remain inside **Issue #10** and implement the next smallest GPU-backed vertical slice:
+Remain inside **Issue #10** and implement the next smallest measurable GPU-backed vertical slice:
 
-- consume the PR #25 `OrthographicView` / `SpriteRenderData` contract rather than inventing a second camera or sprite model
-- define the smallest renderer-owned texture/resource handle needed to keep one texture alive across frames; do not build the broader P6 asset registry yet
-- choose and document the minimal SDL3 GPU shader packaging needed by the pinned dependency/backends without leaking SDL shader/resource handles into public simulation APIs
-- create persistent pipeline/buffer/sampler/texture resources with renderer-owned lifetimes instead of recreating them every frame
-- submit at least one textured quad in windowed mode and update `drawCalls` / `submittedSprites` from actual submission
-- keep headless tests GPU-independent and add CPU/resource-lifetime tests where the GPU cannot be required in CI
-- establish correctness with one sprite before introducing batching caches, texture atlases, bindless abstractions, or custom allocators
+- add a multi-sprite submission surface using `std::span<const SpriteRenderData>` or an equivalently non-owning contiguous view; do not allocate/copy a frame list inside the renderer
+- build the `OrthographicView` once per target/frame and reuse it for every submitted sprite
+- preserve the supplied span order as the baseline GPU draw order; callers that need painter ordering should prepare their reusable storage with `SpriteDrawOrderLess` rather than forcing an internal per-frame sort/allocation
+- resolve the existing `TextureHandle`, push the 16-byte transform uniform, and issue one draw per sprite with the already persistent pipeline/buffer/sampler resources
+- exercise a deterministic multi-sprite sample using shared textures and record the expected unbatched relationship `drawCalls == submittedSprites == N`
+- keep culling disabled in this first multi-sprite measurement so the raw submission baseline is explicit; integrate `IsSpriteVisible` in the immediately following slice and add/adjust metrics so its effect is observable
+- do not add atlas packing, bindless descriptors, texture-state sorting, instancing, custom allocators, or other batching machinery until the unbatched and culled baselines exist
+- keep headless tests GPU-independent and add CPU-level ordering/input-contract tests where practical
 
 The following #10 outcomes remain after that slice:
 
-- measured batching baseline
-- visibility/culling integrated into actual submission
+- visibility/culling integrated into actual submission with measured effect
+- smallest justified sprite batching optimization and post-change metrics
 - offscreen render target
 - deterministic frame-selected capture artifact
 
@@ -326,7 +344,7 @@ The following capabilities are release blockers for `v0.1.0-alpha.1`:
 - [x] semantic selectors
 - [x] virtual input
 - [x] gameplay assertions
-- [ ] minimal sprite renderer
+- [x] minimal sprite renderer — PR **#26**
 - [ ] capture at a known simulation frame
 - [ ] one tiny end-to-end sample proving the workflow
 - [ ] clean Windows build/test documentation for the release candidate
@@ -357,7 +375,8 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - `engine/platform` owns SDL initialization/window lifetime; renderer integration receives a Trace2D-owned numeric window ID rather than `SDL_Window*` in public APIs.
 - `engine/render` may depend on `engine/platform` and SDL3, but runtime/scene/input/agent/testing do not depend on render presentation state.
 - renderer-owned GPU device/swapchain/command-buffer state is presentation state and never authoritative simulation state.
-- CPU camera/sprite render data is Trace2D-owned, trivially copyable derived presentation input; it contains no SDL/GPU handles and is never authoritative gameplay state.
+- CPU camera/sprite render data is Trace2D-owned, trivially copyable derived presentation input; it contains no SDL/backend GPU objects, and texture identity is a Trace2D-owned scalar `TextureHandle` rather than a backend pointer.
+- renderer persistent resource creation/upload is explicit setup work; `RenderFrame` must not recreate persistent pipeline/buffer/sampler/texture resources per frame.
 - `engine/input` gameplay-facing state contains no SDL, CLI, JSON, or MCP types.
 - Physical platform input and virtual test/agent input converge on the same `trace2d::input::InputEvent` / `InputSystem` path.
 - Input hot-path state uses direct indexed storage; scheduled scenario authoring may allocate, frame consumption does not.
@@ -390,7 +409,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 Resolve these only when their implementation phase arrives:
 
-- exact minimal renderer-owned texture/resource handle and shader packaging strategy for the textured P5 sprite path
+- whether construction-time shadercross should be replaced by offline precompiled shader artifacts before Public Alpha; change only if measured startup, distribution, or CI cost justifies the extra packaging machinery
 - exact offscreen/readback image format and capture artifact contract for P5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
