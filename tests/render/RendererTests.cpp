@@ -26,6 +26,8 @@ TEST(RendererTests, RendererRejectsHeadlessPlatformBeforeGpuInitialization)
     const trace2d::platform::Platform platform{platformConfig};
     const trace2d::render::RendererConfig rendererConfig{};
 
-    EXPECT_THROW((void)trace2d::render::Renderer{rendererConfig, platform}, std::invalid_argument);
+    EXPECT_THROW(
+        static_cast<void>(trace2d::render::Renderer(rendererConfig, platform)),
+        std::invalid_argument);
 }
 } // namespace
