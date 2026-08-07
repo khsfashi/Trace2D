@@ -2,11 +2,32 @@
 
 #include <SDL3/SDL.h>
 
+#include <cstddef>
 #include <stdexcept>
 #include <string>
 
 namespace trace2d::platform
 {
+namespace
+{
+std::size_t gSdlOwnerCount = 0;
+
+void ReleaseSdl(const SDL_InitFlags initializedSubsystems) noexcept
+{
+    SDL_QuitSubSystem(initializedSubsystems);
+
+    if (gSdlOwnerCount > 0)
+    {
+        --gSdlOwnerCount;
+    }
+
+    if (gSdlOwnerCount == 0)
+    {
+        SDL_Quit();
+    }
+}
+} // namespace
+
 class Platform::Impl final
 {
 public:
@@ -16,8 +37,14 @@ public:
     {
         if (!SDL_Init(initializedSubsystems_))
         {
+            if (gSdlOwnerCount == 0)
+            {
+                SDL_Quit();
+            }
             throw std::runtime_error{"SDL initialization failed: " + std::string{SDL_GetError()}};
         }
+
+        ++gSdlOwnerCount;
 
         if (mode_ == StartupMode::Windowed)
         {
@@ -27,7 +54,7 @@ public:
             if (window_ == nullptr)
             {
                 const std::string error{SDL_GetError()};
-                SDL_QuitSubSystem(initializedSubsystems_);
+                ReleaseSdl(initializedSubsystems_);
                 initializedSubsystems_ = 0;
                 throw std::runtime_error{"SDL window creation failed: " + error};
             }
@@ -44,7 +71,8 @@ public:
 
         if (initializedSubsystems_ != 0)
         {
-            SDL_QuitSubSystem(initializedSubsystems_);
+            ReleaseSdl(initializedSubsystems_);
+            initializedSubsystems_ = 0;
         }
     }
 
