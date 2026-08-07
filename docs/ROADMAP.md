@@ -91,9 +91,9 @@ An external script can identify and read gameplay state without parsing logs or 
 
 ## P4 — Virtual input and gameplay tests
 
-Status: **in progress**
+Status: **complete**
 
-Implemented:
+Delivered:
 
 - engine-level input state independent of SDL events
 - physical SDL keyboard/mouse translation into engine input events
@@ -102,12 +102,10 @@ Implemented:
 - deterministic input scheduling by frame
 - predictable scenario reset
 - exact runtime-lockstep input tests
-
-Remaining deliverables:
-
-- deterministic gameplay assertion API
-- gameplay test/scenario runner
+- deterministic gameplay scenario lifecycle
+- semantic component-field assertions
 - structured assertion failure snapshots
+- repeated-failure determinism coverage
 
 Target workflow:
 
@@ -125,7 +123,15 @@ CI can reproduce a gameplay test failure with the same seed, input sequence, fra
 
 ## P5 — 2D renderer and capture
 
-Status: **planned**
+Status: **in progress**
+
+Current implementation order:
+
+1. SDL3 GPU device/swapchain ownership and renderer module boundary — PR **#24**
+2. orthographic camera and minimal sprite render data
+3. textured sprite pipeline with a measured batching baseline
+4. visibility/culling baseline and renderer metrics
+5. offscreen render target and deterministic screenshot capture
 
 Deliverables:
 

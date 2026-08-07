@@ -7,6 +7,7 @@ target_link_libraries(trace2d
     PRIVATE
         Trace2D::Core
         Trace2D::Platform
+        Trace2D::Render
         Trace2D::Runtime
         Trace2D::Scene
         Trace2D::Agent
