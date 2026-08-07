@@ -182,6 +182,16 @@ public:
         return window_ != nullptr;
     }
 
+    [[nodiscard]] WindowId WindowIdValue() const noexcept
+    {
+        if (window_ == nullptr)
+        {
+            return InvalidWindowId;
+        }
+
+        return static_cast<WindowId>(SDL_GetWindowID(window_));
+    }
+
     [[nodiscard]] bool PollEvent(PlatformEvent& event) noexcept
     {
         event = {};
@@ -252,6 +262,11 @@ StartupMode Platform::Mode() const noexcept
 bool Platform::HasWindow() const noexcept
 {
     return impl_->HasWindow();
+}
+
+WindowId Platform::WindowIdValue() const noexcept
+{
+    return impl_->WindowIdValue();
 }
 
 bool Platform::PollEvent(PlatformEvent& event) noexcept
