@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -30,7 +31,7 @@ const SceneTextDiagnostic* FindDiagnostic(
         result.diagnostics.end(),
         [path](const SceneTextDiagnostic& diagnostic)
         {
-            return diagnostic.path == path;
+            return std::string_view{diagnostic.path} == path;
         });
     return iterator == result.diagnostics.end() ? nullptr : &*iterator;
 }
