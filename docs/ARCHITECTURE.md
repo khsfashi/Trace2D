@@ -53,18 +53,20 @@ Current responsibilities:
 - RAII ownership of initialized SDL subsystems
 - explicit headless versus windowed startup
 - window creation/destruction for interactive startup
-- basic engine-owned event translation
+- engine-owned quit-event translation
+- keyboard and mouse translation into engine-owned input events
 
-Initial API rules:
+Current API rules:
 
 - public platform headers expose Trace2D types, not SDL types
 - headless startup initializes only the event subsystem and creates no window
 - windowed startup initializes SDL video and owns the window lifetime
 - higher layers consume `PlatformEvent` rather than `SDL_Event`
+- physical keyboard and mouse events are translated into `trace2d::input::InputEvent`
 
 Planned extensions when their phases require them:
 
-- keyboard, mouse, and controller event translation
+- controller event translation
 - additional filesystem/platform services where needed
 
 ### `engine/runtime`
@@ -140,13 +142,29 @@ Current authored text boundary:
 - comments and original whitespace are not preserved by save; serialization produces canonical semantic state
 - full version-1 schema is documented in [SCENE_FORMAT.md](SCENE_FORMAT.md)
 
-Planned extensions in P3:
+### `engine/input`
 
-- semantic selectors and queries
+Owns gameplay-facing input state independently of SDL event objects and physical devices.
 
-### `engine/input` (planned)
+Current responsibilities:
 
-Will own engine-level input state independently of SDL event objects, including virtual frame-scheduled input for deterministic tests.
+- stable engine-level keyboard and mouse control identifiers
+- press, release, and held state
+- one-frame `pressed` and `released` transitions
+- deterministic frame-indexed input scheduling
+- virtual input source for tests and coding agents
+- predictable scenario reset
+
+Current API rules:
+
+- gameplay reads `InputSystem`; it never consumes `SDL_Event`
+- physical platform events and virtual events use the same `InputEvent` type
+- scheduled input is applied in deterministic frame order and insertion order for ties
+- input frames never move backwards
+- per-frame state advancement performs no heap allocation after the schedule has been authored
+- scheduling is setup work and may allocate; reset retains vector capacity for reuse
+
+The detailed contract is documented in [INPUT.md](INPUT.md).
 
 ### `engine/render` (planned)
 
@@ -176,24 +194,25 @@ Current P3 responsibilities:
 - explicit nullable bounds in the inspection schema
 - generic typed component-field snapshots, initially exposing `Transform2D`
 - deterministic snapshot ordering suitable for adapters
+- exact semantic selectors and deterministic single/multi-result queries
 
 Current API rules:
 
 - `engine/agent` may depend on runtime and scene; runtime and scene never depend on the agent facade
-- public inspection types contain no JSON, MCP, SDL, or LLM-specific protocol objects
+- public inspection/query types contain no JSON, MCP, SDL, or LLM-specific protocol objects
 - JSON serialization belongs to the CLI/tool boundary, not this module
-- inspection snapshots own copied observation data and allocate only when inspection is explicitly requested
+- inspection/query snapshots own copied observation data and allocate only when explicitly requested
 - no inspection copying or JSON generation occurs in the per-frame simulation path
 - bounds stay `null` until renderer/physics state can provide authoritative values; the facade does not guess bounds from coordinates or transform scale
 
-The detailed contract is documented in [INSPECTION.md](INSPECTION.md).
+The detailed contracts are documented in [INSPECTION.md](INSPECTION.md) and [QUERY.md](QUERY.md).
 
 Target operations as later phases arrive:
 
 ```text
 inspect   (implemented)
-query     (P3)
-input     (P4)
+query     (implemented)
+input     (P4 engine primitive implemented; facade operation later)
 step      (runtime primitive exists; facade operation later)
 assert    (P4)
 capture   (P5)
@@ -212,26 +231,27 @@ trace2d version
 trace2d doctor [--json]
 trace2d run (--headless|--windowed) [--frames N] [--seed N] [--json]
 trace2d inspect --scene PATH [--frames N] [--seed N] [--json]
+trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]
 ```
 
 `run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping.
 
-`inspect` loads authored scene text at the tool boundary, advances a deterministic runtime by the requested number of frames, invokes `AgentFacade::Inspect()`, and serializes the resulting Trace2D-owned snapshot. The engine inspection API itself is not JSON-aware.
-
-The CLI keeps stable non-zero exit categories and machine-readable error objects for automation-sensitive inspection failures. See [INSPECTION.md](INSPECTION.md) for the current contract.
+`inspect` and `query` keep serialization at the tool boundary. The engine inspection/query APIs themselves are not JSON-aware.
 
 ## Runtime execution model
 
-The intended deterministic test execution model is:
+The deterministic test execution model is:
 
 ```text
 Load project
     |
-Reset seed and simulation state
+Reset seed, simulation, and input state
     |
-Apply virtual input
+Schedule virtual input
     |
-Advance N fixed frames
+Advance input to frame N
+    |
+Advance one fixed simulation frame
     |
 Inspect/query structured state
     |

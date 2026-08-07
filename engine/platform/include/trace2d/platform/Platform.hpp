@@ -1,5 +1,7 @@
 #pragma once
 
+#include <trace2d/input/Input.hpp>
+
 #include <memory>
 #include <string>
 
@@ -23,11 +25,13 @@ enum class PlatformEventType
 {
     None,
     QuitRequested,
+    Input,
 };
 
 struct PlatformEvent
 {
     PlatformEventType type{PlatformEventType::None};
+    input::InputEvent input{};
 };
 
 class Platform final
