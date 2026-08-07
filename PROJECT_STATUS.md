@@ -24,91 +24,91 @@ The first public release proves this loop. It is not intended to be a complete g
 
 ## Current phase
 
-**P3 — Structured observability foundation**
+**P4 — Deterministic interaction and gameplay-test foundation**
 
-P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
+Completed phase milestones:
 
-P1 deterministic runtime foundation is complete:
+- P0 project foundation — PR **#1**
+- P1 SDL3 platform boundary — Issue **#2**, PR **#16**
+- P1 deterministic fixed-step runtime — Issue **#3**, PR **#17**
+- P2 stable entity identity / scene registry — Issue **#4**, PR **#18**
+- P2 text-first deterministic scene format — Issue **#5**, PR **#19**
+- P3 protocol-independent runtime inspection — Issue **#6**, PR **#20**
+- P3 semantic selectors and runtime queries — Issue **#7**, PR **#21**
 
-- Issue **#2 — Add SDL3 platform boundary and startup modes** completed in PR **#16**
-- Issue **#3 — Implement deterministic fixed-step runtime control** completed in PR **#17**
+P3 is complete. The next executable task is **Issue #8 — P4: Implement virtual input with frame scheduling**.
 
-P2 scene and authored-data foundation is complete:
+Do not begin Issue #9 gameplay assertions before #8 is merged and green unless a blocking dependency requires a documented change.
 
-- Issue **#4 — Define stable entity identity and scene registry** completed in PR **#18**
-- Issue **#5 — Add text-first scene format and deterministic serialization** completed in PR **#19**
+## Foundation currently established
 
-P3 structured observability is in progress:
-
-- Issue **#6 — Build protocol-independent runtime inspection API** completed in PR **#20**
-
-The next executable task is **Issue #7 — Add semantic selectors and runtime queries**.
-
-P0 established:
+### Project / build
 
 - C++20 root CMake project
-- MSVC warning policy
-- shared CMake Presets
+- shared local and CI CMake Presets
 - pinned vcpkg baseline
-- platform-independent `Trace2D::Core`
-- `trace2d` CLI bootstrap
-- machine-readable `doctor --json`
+- strict warning policy
 - GoogleTest / CTest
-- Windows CI
-- coding style/editor settings
+- Windows GitHub Actions CI
+- coding style/editor configuration
 - architecture, roadmap, public-release, ADR, and agent handoff documentation
 
-P1 established:
+### Platform / deterministic runtime
 
-- SDL3 pinned through the project vcpkg manifest
-- SDL3 hidden behind `Trace2D::Platform`
-- RAII SDL subsystem/window ownership with final SDL cleanup
+- SDL3 isolated behind `Trace2D::Platform`
 - explicit headless and windowed startup modes
-- engine-owned quit event translation
-- deterministic `Trace2D::Runtime` boundary
+- engine-owned quit-event translation
+- deterministic `Trace2D::Runtime`
 - explicit `Step(count)` simulation-frame control without sleeping
-- runtime-owned frame, fixed timestep, simulation time, and deterministic seed/reset state
-- wall-clock accumulation separated from explicit stepping
+- runtime-owned frame, fixed timestep, simulation time, deterministic seed, and reset state
+- wall-clock accumulation separated from explicit simulation stepping
 - monotonic `steady_clock` wrapper for later interactive-loop integration
-- `trace2d run --frames N --seed N` machine-controlled runtime smoke path
-- unit coverage for zero/one/multi-frame stepping, exact 120-frame advancement, reset determinism, wall-clock remainder, and monotonic clock behavior
+- `trace2d run --frames N --seed N` machine-controlled smoke path
 
-P2 established:
+### Scene / authored data
 
-- `Trace2D::Scene` module with scene-owned entity lifetime
+- `Trace2D::Scene` owns entity lifetime
 - generation-safe `EntityId` runtime handles using slot index + generation
 - stale-handle invalidation across destruction and slot reuse
-- unique non-empty semantic IDs separated from runtime handles
+- unique non-empty authored semantic IDs separated from runtime handles
 - authored scene semantic ID and human-readable scene name
 - human-readable entity names and normalized semantic tags
 - mutable `Transform2D` state
 - deterministic observable runtime iteration in ascending slot-index order
 - allocation-free runtime entity iteration without a temporary result collection
-- TOML version-1 authored scene format using `*.trace2d.toml`
-- `LoadSceneToml` / `SaveSceneToml` without exposing toml++ types in public headers
-- strict schema validation for required IDs, types, unknown fields, duplicate semantic IDs, tags, and transforms
-- actionable diagnostics with semantic field paths and source line/column when available
-- canonical serialization with fixed field order and entities sorted lexicographically by semantic ID
+- versioned TOML `*.trace2d.toml` authored scene format
+- strict schema validation with actionable diagnostics
+- canonical serialization with fixed field order and semantic-ID entity ordering
 - locale-independent float formatting sufficient for 32-bit float round trips
-- runtime-only entities without semantic identity rejected from authored serialization
-- lifecycle, identity, tag, transform, stale-handle, reuse, deterministic-order, schema-validation, and round-trip tests
-- scene-format and architecture documentation for identity, iteration, and serialization rules
+- load -> save -> load semantic round-trip coverage
 
-P3 now established:
+### Agent observability / semantic queries
 
 - `Trace2D::Agent` protocol-independent facade over runtime and scene state
 - non-owning active runtime/scene binding without reversing dependency direction
 - owned runtime, scene, entity, transform, nullable-bounds, and generic component-field snapshots
-- stable engine-level `InspectionErrorCode` values independent of JSON/MCP
+- stable engine-level inspection and query error codes independent of JSON/MCP
 - deterministic entity/tag/component/field ordering in inspection snapshots
-- `Transform2D` exposed both as a direct snapshot and initial typed generic component fields
-- bounds represented explicitly as unavailable until renderer/physics state can provide authoritative values
-- inspection allocations occur only when inspection is requested, not in the per-frame simulation path
+- `Transform2D` exposed as a direct snapshot and initial typed generic component fields
+- bounds explicitly nullable until renderer/physics state can provide authoritative values
 - `trace2d inspect --scene PATH --frames N --seed N [--json]`
-- deterministic one-line JSON serialization only at the CLI boundary
-- stable inspect exit categories for usage, file I/O, scene validation, and inspection failures
-- structured scene-load diagnostics preserved through the CLI JSON error boundary
-- unit tests, deterministic CLI fixture coverage, architecture docs, and `docs/INSPECTION.md`
+- exact, case-sensitive semantic selector grammar:
+  - `#<semantic-id>`
+  - `name:<entity-name>`
+  - `tag:<tag>`
+  - `type:<component-type>`
+- `AgentFacade::Query` multi-result API with deterministic scene-order results
+- zero-match multi-query is a successful empty result
+- `AgentFacade::QueryOne` requires exactly one match and returns `no_match` / `ambiguous_match` instead of choosing arbitrarily
+- `QueryOne` scans deterministically and materializes at most one entity snapshot, avoiding full ambiguous-result snapshot allocation
+- invalid selector syntax returns stable structured `invalid_selector` diagnostics
+- `type:Transform2D` is the initial authoritative component-type selector; spatial queries remain deferred until authoritative bounds exist
+- `trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]`
+- query and inspection JSON serialization remain CLI/tool-boundary concerns, not engine contracts
+- inspection/query allocations happen only when explicitly requested; no per-frame observation work was introduced
+- initial query implementation intentionally uses a deterministic linear live-entity scan rather than maintaining an unmeasured index/cache
+
+See `docs/INSPECTION.md` and `docs/QUERY.md` for the current public contracts.
 
 ## Current validation status
 
@@ -123,111 +123,125 @@ Validated milestones:
 
 - PR **#1** final CI run **#12**: configure, build, test successful before merge
 - PR **#16** final-head CI run **#19**: SDL3 configure, Windows MSVC build, and all tests successful before merge
-- PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke all successful before squash merge
-- PR **#18** final-head CI run **#28**: pinned dependencies, configure, Windows MSVC build, and full CTest suite including scene lifecycle/determinism tests all successful before squash merge
-- PR **#19** final-head CI run **#35**: pinned dependencies including toml++, configure, Windows MSVC build, and full CTest suite including text-scene validation/deterministic round-trip tests all successful before squash merge
-- PR **#20** final-head CI run **#40**: pinned dependencies, configure, Windows MSVC build, full CTest suite, agent inspection unit tests, and deterministic CLI inspect fixture all successful before squash merge
+- PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke successful before squash merge
+- PR **#18** final-head CI run **#28**: configure, Windows MSVC build, and full CTest suite including scene lifecycle/determinism tests successful before squash merge
+- PR **#19** final-head CI run **#35**: configure, Windows MSVC build, and full CTest suite including text-scene validation/deterministic round-trip tests successful before squash merge
+- PR **#20** final-head CI run **#40**: configure, Windows MSVC build, full CTest suite, agent inspection unit tests, and deterministic CLI inspect fixture successful before squash merge
+- PR **#21** final-head CI run **#44**: configure, Windows MSVC build, full CTest suite, semantic selector/query unit tests, and deterministic CLI query coverage successful before squash merge
 
-## P0 exit criteria
+## Phase exit criteria
+
+### P0 — complete
 
 - [x] C++20 project structure
 - [x] CMake Presets
-- [x] vcpkg manifest/baseline
+- [x] pinned vcpkg manifest/baseline
 - [x] warning policy
-- [x] core library bootstrap
-- [x] CLI bootstrap
+- [x] core library and CLI bootstrap
 - [x] unit-test integration
-- [x] CI workflow created
-- [x] architecture and roadmap documented
-- [x] agent operating/handoff structure documented
-- [x] clean-checkout CI passes configure/build/test
-- [x] PR #1 squash-merged to `main`
+- [x] Windows CI
+- [x] architecture / roadmap / agent handoff documentation
 
-## P1 exit criteria
+### P1 — complete
 
-- [x] **#2 — SDL3 platform boundary and startup modes** — PR #16 merged after green CI
-- [x] **#3 — deterministic fixed-step runtime control** — PR #17 merged after green CI
-- [x] headless execution does not require a visible window
-- [x] explicit fixed-frame stepping does not sleep or read wall-clock time
-- [x] deterministic seed/reset ownership is in the runtime layer
-- [x] wall-clock accumulation is separate from explicit stepping
-- [x] runtime code has no SDL, CLI, JSON, or MCP dependency
+- [x] **#2 — SDL3 platform boundary and startup modes**
+- [x] **#3 — deterministic fixed-step runtime control**
+- [x] headless execution requires no visible window
+- [x] explicit frame stepping does not sleep or read wall-clock time
+- [x] deterministic seed/reset ownership lives in runtime
+- [x] runtime has no SDL, CLI, JSON, or MCP dependency
 
-## P2 exit criteria
+### P2 — complete
 
-- [x] **#4 — stable entity identity / scene registry** — PR #18 merged after green CI
-- [x] scene owns entity creation/destruction and runtime handle validity
-- [x] stale handles are rejected after destruction and slot reuse
-- [x] authored semantic IDs are distinct from generation-safe runtime handles
-- [x] observable runtime entity iteration order is deterministic and allocation-free
-- [x] **#5 — text-first scene format / deterministic serialization** — PR #19 merged after green CI
-- [x] minimal authored scene can be loaded entirely from text
-- [x] invalid scene input produces actionable diagnostics
-- [x] load -> save -> load preserves semantic state
-- [x] serialization output ordering is stable for Git diffs
-- [x] authored scene syntax and serialization dependency are documented
+- [x] **#4 — stable entity identity / scene registry**
+- [x] generation-safe stale-handle rejection
+- [x] semantic authored identity separated from runtime handles
+- [x] deterministic allocation-free observable entity iteration
+- [x] **#5 — text-first scene format / deterministic serialization**
+- [x] actionable scene validation diagnostics
+- [x] semantic round-trip preservation
+- [x] stable serialization ordering for Git diffs
 
-## P3 progress
+### P3 — complete
 
-- [x] **#6 — protocol-independent runtime inspection API** — PR #20 merged after green CI
-- [x] active runtime frame and scene state can be inspected through Trace2D-owned types
-- [x] entity identity, name, tags, transform, nullable bounds, and initial component fields are inspectable without parsing logs or pixels
-- [x] inspection result/error schema is stable and independent of JSON/MCP
-- [x] initial CLI `inspect` boundary emits deterministic structured JSON
-- [ ] **#7 — semantic selectors / runtime queries**
+- [x] **#6 — protocol-independent runtime inspection API**
+- [x] structured runtime/scene/entity state inspection without parsing logs or pixels
+- [x] stable protocol-independent inspection schema/errors
+- [x] deterministic CLI `inspect --json`
+- [x] **#7 — semantic selectors / runtime queries** — PR **#21**
+- [x] authored ID, name, tag, and initial component-type selectors
+- [x] deterministic single-result and multi-result query APIs
+- [x] clear no-match, ambiguity, invalid-syntax, and unavailable-scene errors
+- [x] deterministic CLI `query --json`
+- [x] query tests cover ID, name, tag, type, no-match, multi-match, ambiguity, invalid syntax, and deterministic ordering
+
+### P4 — in progress
+
+- [ ] **#8 — virtual input with frame scheduling**
+- [ ] engine-level input state independent of SDL event objects
+- [ ] physical SDL and virtual test/agent sources feed the same gameplay-facing input state
+- [ ] deterministic press / release / held transitions
+- [ ] frame-indexed input scheduling
+- [ ] predictable reset between test scenarios
+- [ ] **#9 — deterministic gameplay test runner and assertions**
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#7 — P3: Add semantic selectors and runtime queries**
-2. **#8 — P4: Implement virtual input with frame scheduling**
-3. **#9 — P4: Add deterministic gameplay test runner and assertions**
-4. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-5. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-6. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-7. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-8. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#8 — P4: Implement virtual input with frame scheduling**
+2. **#9 — P4: Add deterministic gameplay test runner and assertions**
+3. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+4. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+5. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+6. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+7. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #7 — Add semantic selectors and runtime queries.**
+**Issue #8 — P4: Implement virtual input with frame scheduling.**
 
-Required outcomes from Issue #7:
+Goal: allow tests and agents to inject input independently of physical devices and schedule it against deterministic simulation frames.
 
-- add a small selector grammar for semantic authored ID, name, tag, and type
-- support stable initial selectors such as `#player`, `#boss`, and `tag:enemy`
-- keep query behavior in the protocol-independent `engine/agent` facade rather than the CLI/MCP layer
-- return deterministic query result ordering
-- provide single-result and multi-result query APIs
-- fail ambiguous single-result queries clearly instead of choosing an arbitrary entity
-- return structured diagnostics for invalid selector syntax
-- expose an initial CLI `query` command with deterministic JSON output
-- cover authored ID, tag, no-match, multi-match, ambiguity, and invalid-syntax cases
-- leave spatial bounds/distance queries as hooks unless #7 requires a minimal authoritative implementation
+Required outcomes:
 
-Preserve the dependency direction: selectors and queries belong in the agent facade over scene/runtime state. Do not move selector parsing into `engine/scene`, and do not make CLI JSON or future MCP types the engine query contract.
+- introduce gameplay-facing engine input state that contains no SDL event types
+- provide a physical SDL adapter and a virtual input source that converge on the same engine state
+- support key/button press, release, and held state
+- support frame-indexed scheduling against deterministic simulation frames
+- expose a minimal test API or CLI boundary for injecting virtual input
+- make reset semantics explicit and deterministic between scenarios
+- test exact press -> held -> release transitions across explicitly stepped frames
+- test scheduled events at known frame indices
+- preserve current runtime determinism and dependency direction
 
-Do not begin Issue #8 virtual-input work until #7 has a green merged PR unless a blocking dependency requires a documented change.
+Implementation guidance:
+
+- keep physical-device translation at the platform/input adapter boundary; gameplay code must not branch on physical versus virtual origin
+- define frame semantics precisely before implementation (for example, when an event scheduled for frame N becomes visible relative to `Step`)
+- avoid per-frame heap allocation for steady input-state updates; scheduling may allocate when a scenario is authored, but consumption should use stable prebuilt state where practical
+- use compact state representations and direct indexed lookup for the small initial key/button domain rather than maps or strings in the simulation hot path
+- do not make SDL scancodes, JSON values, CLI argument structures, or future MCP types the engine input contract
+- do not begin #9 assertion-runner work until #8 is green and merged unless a blocking dependency requires a documented exception
 
 ## Public Alpha blockers
 
 The following capabilities are release blockers for `v0.1.0-alpha.1`:
 
-- deterministic headless execution
-- explicit frame stepping
-- stable text-authored scene/entity identity
-- structured runtime inspection
-- semantic selectors
-- virtual input
-- gameplay assertions
-- minimal sprite renderer
-- capture at a known simulation frame
-- one tiny end-to-end sample proving the workflow
-- clean Windows build/test documentation
-- green CI
-- repository license and third-party license review before visibility changes to Public
-- documentation that clearly distinguishes implemented features from planned features
+- [x] deterministic headless execution
+- [x] explicit frame stepping
+- [x] stable text-authored scene/entity identity
+- [x] structured runtime inspection
+- [x] semantic selectors
+- [ ] virtual input
+- [ ] gameplay assertions
+- [ ] minimal sprite renderer
+- [ ] capture at a known simulation frame
+- [ ] one tiny end-to-end sample proving the workflow
+- [ ] clean Windows build/test documentation for the release candidate
+- [ ] green release-candidate CI
+- [ ] repository license and third-party license review before visibility changes to Public
+- [ ] documentation that clearly distinguishes implemented features from planned features
 
 See `docs/PUBLIC_RELEASE.md` for exact release gates.
 
@@ -254,7 +268,9 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - `engine/agent` may depend on runtime/scene, but runtime/scene never depend on `engine/agent`.
 - Agent facade result/error types contain no JSON, MCP, SDL, or LLM-specific protocol types.
 - JSON serialization is an adapter/tool-boundary concern, not an engine/runtime concern.
-- Inspection snapshot allocation happens only when explicitly requested; no per-frame inspection copying is introduced.
+- Inspection and semantic-query snapshot allocation happens only when explicitly requested; no per-frame copying is introduced.
+- Semantic query result order follows deterministic scene observable order.
+- Single-result semantic queries fail on ambiguity rather than choosing an arbitrary entity.
 - MCP is never the source of truth for engine behavior.
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
@@ -282,13 +298,17 @@ When one is decided, record the rationale in architecture documentation or an AD
 
 ## Handoff rule
 
-Every PR that materially advances a phase should update this file so these sections remain true:
+Every PR that materially advances a phase should keep this file aligned with live repository state. If a phase PR is merged before the handoff edit, follow it immediately with a status-only commit as done for previous milestones.
+
+At minimum keep these sections true:
 
 - Current phase
 - Current validation status
-- Exit criteria/progress
+- Phase exit criteria
 - Next execution order
+- Immediate next task
 - Public Alpha blockers
+- Architecture invariants
 - Known decisions still open
 
 A future conversation should be able to continue from this repository without relying on previous chat context.
