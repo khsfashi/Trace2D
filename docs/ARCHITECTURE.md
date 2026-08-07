@@ -20,11 +20,13 @@ tools / adapters
 scene input render
    \   |   /
       core
+
+render -> platform -> input
 ```
 
 Dependencies point inward. Core must not depend on SDL, rendering, MCP, or an editor.
 
-Platform-specific SDL3 ownership lives in `engine/platform`; SDL types must not leak into `engine/core` or gameplay-facing APIs.
+Platform-specific SDL3 ownership lives behind `engine/platform` and `engine/render`; SDL types must not leak into `engine/core`, simulation modules, or gameplay-facing APIs. `engine/render` may depend on the platform boundary to identify the window, but simulation/runtime modules do not depend on rendering.
 
 ## Modules
 
@@ -55,6 +57,7 @@ Current responsibilities:
 - window creation/destruction for interactive startup
 - engine-owned quit-event translation
 - keyboard and mouse translation into engine-owned input events
+- SDL-free numeric window identity for renderer handoff
 
 Current API rules:
 
@@ -63,6 +66,8 @@ Current API rules:
 - windowed startup initializes SDL video and owns the window lifetime
 - higher layers consume `PlatformEvent` rather than `SDL_Event`
 - physical keyboard and mouse events are translated into `trace2d::input::InputEvent`
+- renderer integration receives `WindowId`; public APIs do not expose `SDL_Window*`
+- `Platform` must outlive a `Renderer` created from its window identity
 
 Planned extensions when their phases require them:
 
@@ -88,7 +93,7 @@ Current API rules:
 - tests and coding agents advance simulation with explicit fixed-frame stepping
 - wall-clock time enters through a separate accumulation path and never changes explicit-step behavior
 - reset clears frame, simulation time, and accumulated wall time while installing the requested seed
-- runtime code has no SDL, CLI, JSON, or MCP dependency
+- runtime code has no SDL, renderer, CLI, JSON, or MCP dependency
 
 Planned extensions when later systems arrive:
 
@@ -166,19 +171,41 @@ Current API rules:
 
 The detailed contract is documented in [INPUT.md](INPUT.md).
 
-### `engine/render` (planned)
+### `engine/render` — P5 in progress
 
-2D rendering through SDL3 GPU.
+Owns presentation and visual-QA state through SDL3 GPU without becoming authoritative gameplay state.
 
-The first renderer should remain intentionally small:
+Current P5 foundation responsibilities:
 
-- camera
-- textured sprites
-- batching
-- visibility/culling
-- offscreen capture
+- renderer-owned SDL3 GPU device lifetime
+- claim/release of the platform-owned window for GPU presentation
+- command-buffer acquisition and submission
+- swapchain texture acquisition
+- minimal clear/store render pass and presentation
+- basic renderer metrics and backend-name observation
+- explicit rejection of headless platforms before GPU initialization
 
-Renderer performance will be benchmarked before more advanced systems are added.
+Current API rules:
+
+- public renderer headers expose Trace2D-owned types, not SDL GPU handles
+- the renderer receives a `Platform` and resolves its numeric `WindowId` internally
+- SDL3 GPU device, swapchain, command-buffer, render-pass, and texture handles remain private to the renderer implementation
+- the renderer owns presentation resources; it does not own runtime, scene, input, or gameplay truth
+- headless gameplay execution does not construct a renderer or require a GPU device
+- persistent GPU resources should have renderer-owned lifetimes rather than being recreated every frame
+- renderer metrics are observational profiling state, not simulation state
+
+Remaining P5 responsibilities:
+
+- orthographic camera
+- minimal sprite render-data contract
+- textured sprite rendering
+- measured batching baseline
+- visibility/culling baseline
+- offscreen render target
+- deterministic frame-selected visual capture
+
+Renderer performance will be measured before more advanced systems are added. The detailed P5 contract is documented in [RENDERING.md](RENDERING.md).
 
 ### `engine/agent`
 
@@ -214,7 +241,7 @@ inspect   (implemented)
 query     (implemented)
 input     (P4 engine primitive implemented; facade operation later)
 step      (runtime primitive exists; facade operation later)
-assert    (P4)
+assert    (P4 engine primitive implemented)
 capture   (P5)
 ```
 
@@ -234,7 +261,7 @@ trace2d inspect --scene PATH [--frames N] [--seed N] [--json]
 trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]
 ```
 
-`run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping.
+`run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping. During P5, windowed `run` additionally creates the renderer and submits the current minimal clear frame; headless `run` does not initialize the GPU renderer.
 
 `inspect` and `query` keep serialization at the tool boundary. The engine inspection/query APIs themselves are not JSON-aware.
 
@@ -257,10 +284,10 @@ Inspect/query structured state
     |
 Assert behavior
     |
-Optionally capture rendered output
+Optionally render/capture that explicitly selected state
 ```
 
-Wall-clock-driven rendering may interpolate between simulation states, but automated gameplay tests must be able to control simulation advancement explicitly.
+Wall-clock-driven rendering may interpolate between simulation states, but automated gameplay tests must be able to control simulation advancement explicitly. Visual capture must identify its simulation frame explicitly rather than infer it from presentation timing.
 
 ## Authored versus generated data
 
