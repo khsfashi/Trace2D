@@ -54,6 +54,21 @@ const Transform2D& Entity::Transform() const noexcept
     return transform_;
 }
 
+Scene::Scene(SceneMetadata metadata)
+    : metadata_{std::move(metadata)}
+{
+}
+
+SceneMetadata& Scene::Metadata() noexcept
+{
+    return metadata_;
+}
+
+const SceneMetadata& Scene::Metadata() const noexcept
+{
+    return metadata_;
+}
+
 EntityId Scene::CreateEntity(EntityDescriptor descriptor)
 {
     if (!descriptor.semanticId.empty() && FindBySemanticId(descriptor.semanticId).has_value())

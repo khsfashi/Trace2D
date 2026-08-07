@@ -96,16 +96,19 @@ Planned extensions when later systems arrive:
 
 ### `engine/scene`
 
-Owns the minimum entity and authored-state model needed for deterministic inspection and later text serialization.
+Owns the minimum entity and authored-state model needed for deterministic inspection and text-first scene authoring.
 
 Current responsibilities:
 
 - generation-safe runtime `EntityId` handles
 - scene-owned entity creation, destruction, lookup, and slot reuse
 - stable non-empty semantic IDs for authored/automation-facing identity
-- human-readable names and normalized semantic tags
+- authored scene semantic ID and human-readable scene name
+- human-readable entity names and normalized semantic tags
 - mutable 2D transform state
-- deterministic allocation-free observable iteration
+- deterministic allocation-free observable runtime iteration
+- versioned TOML scene loading and deterministic serialization
+- structured field-path diagnostics with source line/column when available
 
 Current identity rules:
 
@@ -114,19 +117,31 @@ Current identity rules:
 - a replacement entity may reuse the slot index but receives the incremented generation
 - non-empty semantic IDs are unique within a scene and remain distinct from runtime handles
 - entities without semantic IDs are allowed for runtime-spawned objects
+- authored serialization requires non-empty semantic IDs and rejects runtime-only entities
 - automation must never use a raw pointer as entity identity
 
-Current iteration policy:
+Current iteration and serialization policy:
 
-- observable entity iteration scans live slots in ascending slot-index order
-- iteration allocates no temporary result collection
-- repeated execution with the same create/destroy sequence produces the same order
+- observable runtime entity iteration scans live slots in ascending slot-index order
+- runtime iteration allocates no temporary result collection
+- repeated execution with the same create/destroy sequence produces the same runtime iteration order
+- authored serialization is intentionally independent from runtime slot order
+- serialized entities are sorted lexicographically by semantic ID for stable Git diffs
+- tags are normalized into sorted unique order
+- canonical serialization uses fixed field ordering and locale-independent float formatting
 - the implementation intentionally avoids a generic ECS until measured requirements justify one
 
-Planned extensions in P2/P3:
+Current authored text boundary:
 
-- text-first authored scene load/save
-- deterministic serialization ordering
+- authored scene files use TOML with the `*.trace2d.toml` suffix
+- `toml++` is private to the scene implementation and does not appear in public Trace2D headers
+- unknown fields are rejected so misspelled authored data does not silently change behavior
+- syntax/schema diagnostics identify semantic paths and source positions where available
+- comments and original whitespace are not preserved by save; serialization produces canonical semantic state
+- full version-1 schema is documented in [SCENE_FORMAT.md](SCENE_FORMAT.md)
+
+Planned extensions in P3:
+
 - component inspection through the protocol-independent agent facade
 - semantic selectors and queries
 
