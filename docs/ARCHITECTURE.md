@@ -15,7 +15,7 @@ tools / adapters
  agent facade          (planned)
       |
       v
-   runtime             (planned)
+   runtime
    /  |   \
 scene input render     (planned)
    \   |   /
@@ -68,17 +68,32 @@ Planned extensions when their phases require them:
 - keyboard, mouse, and controller event translation
 - additional filesystem/platform services where needed
 
-### `engine/runtime` (planned)
+### `engine/runtime`
 
-Owns the simulation lifecycle.
+Owns deterministic simulation-time control independently of SDL and the CLI.
 
-Responsibilities:
+Current responsibilities:
 
-- fixed-step update loop
-- explicit frame stepping
-- deterministic seed/state ownership
+- fixed simulation timestep configuration
+- explicit simulation frame counter
+- `Step(count)` advancement without sleeping or reading wall-clock time
+- deterministic seed ownership and reset point
+- simulation-time reporting derived from fixed-step advancement
+- sub-step wall-clock accumulation for interactive callers
+- monotonic `steady_clock` wrapper for windowed/runtime integration
+
+Current API rules:
+
+- tests and coding agents advance simulation with explicit fixed-frame stepping
+- wall-clock time enters through a separate accumulation path and never changes explicit-step behavior
+- reset clears frame, simulation time, and accumulated wall time while installing the requested seed
+- runtime code has no SDL, CLI, JSON, or MCP dependency
+
+Planned extensions when scene/input systems arrive:
+
 - active scene lifecycle
-- headless/windowed parity
+- per-frame gameplay update dispatch
+- windowed loop integration that consumes monotonic elapsed time
 
 ### `engine/scene` (planned)
 
@@ -131,10 +146,10 @@ Current commands:
 ```text
 trace2d version
 trace2d doctor [--json]
-trace2d run (--headless|--windowed) [--json]
+trace2d run (--headless|--windowed) [--frames N] [--seed N] [--json]
 ```
 
-`run` is currently a platform/startup smoke surface. Issue #3 will extend the same path with deterministic runtime control instead of creating a separate headless engine.
+`run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping.
 
 The CLI should keep stable exit codes and machine-readable output for automation-sensitive commands.
 
