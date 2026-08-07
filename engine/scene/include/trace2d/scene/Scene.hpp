@@ -51,6 +51,14 @@ struct EntityDescriptor final
     Transform2D transform{};
 };
 
+struct SceneMetadata final
+{
+    std::string semanticId{};
+    std::string name{};
+
+    [[nodiscard]] bool operator==(const SceneMetadata&) const noexcept = default;
+};
+
 class Entity final
 {
 public:
@@ -83,6 +91,10 @@ class Scene final
 {
 public:
     Scene() = default;
+    explicit Scene(SceneMetadata metadata);
+
+    [[nodiscard]] SceneMetadata& Metadata() noexcept;
+    [[nodiscard]] const SceneMetadata& Metadata() const noexcept;
 
     [[nodiscard]] EntityId CreateEntity(EntityDescriptor descriptor);
     [[nodiscard]] bool DestroyEntity(EntityId id) noexcept;
@@ -138,6 +150,7 @@ private:
         std::optional<Entity> entity{};
     };
 
+    SceneMetadata metadata_{};
     std::vector<Slot> slots_{};
     std::vector<std::uint32_t> freeSlots_{};
     std::size_t entityCount_{0};
