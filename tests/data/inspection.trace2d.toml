@@ -1,0 +1,25 @@
+format_version = 1
+
+[scene]
+id = "inspection_fixture"
+name = "Inspection Fixture"
+
+[[entities]]
+id = "player"
+name = "Player"
+tags = ["hero", "controllable"]
+
+[entities.transform]
+position = [1.5, -2.0]
+rotation_radians = 0.25
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "enemy"
+name = "Enemy"
+tags = ["enemy"]
+
+[entities.transform]
+position = [8.0, 4.0]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
