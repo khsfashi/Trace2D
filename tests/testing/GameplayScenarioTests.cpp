@@ -8,6 +8,8 @@
 namespace
 {
 using trace2d::input::InputControl;
+using trace2d::input::InputEvent;
+using trace2d::input::InputEventType;
 using trace2d::scene::Entity;
 using trace2d::testing::GameplayAssertionFailureCode;
 using trace2d::testing::GameplayFrameContext;
@@ -124,6 +126,32 @@ TEST(GameplayScenarioTests, LoadsResetsSchedulesRunsAndAssertsAuthoritativeState
     EXPECT_TRUE(report.inputEvents[0].scheduled);
     EXPECT_TRUE(report.inputEvents[1].scheduled);
     EXPECT_EQ(scenario.Input().CurrentFrame(), scenario.Runtime().State().frame);
+}
+
+TEST(GameplayScenarioTests, ImmediateInputInjectionFeedsTheSameGameplayStateAndReport)
+{
+    GameplayScenario scenario{};
+    ASSERT_TRUE(scenario.LoadSceneToml(GameplaySceneText, "immediate.trace2d.toml").Succeeded());
+
+    scenario.InjectInput(InputEvent{
+        .control = InputControl::KeyD,
+        .type = InputEventType::Press,
+    });
+    scenario.RunFrames(1U, MovePlayerWhileRightHeld);
+
+    EXPECT_TRUE(scenario.AssertFloatFieldEquals(
+        "#player",
+        "Transform2D",
+        "position.x",
+        1.0F));
+
+    const GameplayScenarioReport& report = scenario.Report();
+    ASSERT_EQ(report.inputEvents.size(), 1U);
+    EXPECT_EQ(report.inputEvents[0].frame, 0U);
+    EXPECT_FALSE(report.inputEvents[0].scheduled);
+    EXPECT_EQ(report.inputEvents[0].event.control, InputControl::KeyD);
+    EXPECT_EQ(report.inputEvents[0].event.type, InputEventType::Press);
+    EXPECT_TRUE(scenario.Input().Held(InputControl::KeyD));
 }
 
 TEST(GameplayScenarioTests, FailureReportsExpectedObservedFrameSeedSelectorAndSnapshot)
