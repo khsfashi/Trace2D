@@ -58,6 +58,7 @@ public:
 
     void RenderFrame();
     void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite);
+    void RenderFrame(const OrthographicCamera& camera, std::span<const SpriteRenderData> sprites);
 
     [[nodiscard]] const RendererConfig& Config() const noexcept;
     [[nodiscard]] const RenderMetrics& Metrics() const noexcept;
