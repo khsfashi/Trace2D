@@ -25,12 +25,12 @@ public:
     Impl(const RendererConfig& config, const platform::Platform& platform)
         : config_{config}
     {
-        if (!platform.HasWindow() || platform.WindowId() == platform::InvalidWindowId)
+        if (!platform.HasWindow() || platform.WindowIdValue() == platform::InvalidWindowId)
         {
             throw std::invalid_argument{"Trace2D renderer requires a windowed Platform instance."};
         }
 
-        window_ = SDL_GetWindowFromID(platform.WindowId());
+        window_ = SDL_GetWindowFromID(platform.WindowIdValue());
         if (window_ == nullptr)
         {
             throw MakeSdlError("SDL window lookup failed");
