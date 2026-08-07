@@ -26,7 +26,7 @@ The first public release proves this loop. It is not intended to be a complete g
 
 **P1 — Deterministic runtime foundation**
 
-P0 project foundation is complete in PR **#1 — Bootstrap Trace2D project foundation** and is ready for squash merge after the final CI run for this status update is green.
+P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
 
 P0 established:
 
@@ -44,14 +44,14 @@ P0 established:
 
 ## Current validation status
 
-The bootstrap CI is validated on a clean GitHub-hosted Windows runner.
+The bootstrap is validated on a clean GitHub-hosted Windows runner.
 
 An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` uses a Visual Studio 2026 runner while the local developer preset intentionally targets Visual Studio 2022. The project now separates:
 
 - local `windows-msvc`: Visual Studio 2022
 - CI `ci-windows-msvc`: Visual Studio 2026 generator with `v143` toolset
 
-CI run **#11** completed successfully through vcpkg install, configure, build, and test. Any later commit to PR #1 must also finish with green CI before merge.
+The final PR #1 CI run (**#12**) completed successfully through dependency install, configure, build, and test before merge.
 
 ## P0 exit criteria
 
@@ -66,7 +66,7 @@ CI run **#11** completed successfully through vcpkg install, configure, build, a
 - [x] architecture and roadmap documented
 - [x] agent operating/handoff structure documented
 - [x] clean-checkout CI passes configure/build/test
-- [x] PR #1 ready for squash merge to `main`
+- [x] PR #1 squash-merged to `main`
 
 ## Next execution order
 
