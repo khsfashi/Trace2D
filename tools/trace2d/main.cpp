@@ -2,12 +2,14 @@
 
 #include <trace2d/core/Version.hpp>
 #include <trace2d/platform/Platform.hpp>
+#include <trace2d/render/Renderer.hpp>
 #include <trace2d/runtime/FixedStepRuntime.hpp>
 
 #include <charconv>
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -193,6 +195,12 @@ int RunRuntime(const int argc, char* argv[])
     {
         trace2d::platform::Platform platform{platformConfig};
         trace2d::runtime::FixedStepRuntime runtime{runtimeConfig};
+        std::unique_ptr<trace2d::render::Renderer> renderer{};
+
+        if (mode == trace2d::platform::StartupMode::Windowed)
+        {
+            renderer = std::make_unique<trace2d::render::Renderer>(trace2d::render::RendererConfig{}, platform);
+        }
 
         trace2d::platform::PlatformEvent event{};
         while (platform.PollEvent(event))
@@ -204,6 +212,12 @@ int RunRuntime(const int argc, char* argv[])
         }
 
         runtime.Step(frameCount);
+
+        if (renderer != nullptr)
+        {
+            renderer->RenderFrame();
+        }
+
         const trace2d::runtime::RuntimeState state = runtime.State();
 
         if (json)
@@ -219,8 +233,15 @@ int RunRuntime(const int argc, char* argv[])
 
         std::cout << "Trace2D runtime\n"
                   << "  mode: " << trace2d::platform::ToString(platform.Mode()) << '\n'
-                  << "  window created: " << (platform.HasWindow() ? "yes" : "no") << '\n'
-                  << "  frame: " << state.frame << '\n'
+                  << "  window created: " << (platform.HasWindow() ? "yes" : "no") << '\n';
+
+        if (renderer != nullptr)
+        {
+            std::cout << "  gpu driver: " << renderer->DriverName() << '\n'
+                      << "  rendered frames: " << renderer->Metrics().presentedFrames << '\n';
+        }
+
+        std::cout << "  frame: " << state.frame << '\n'
                   << "  seed: " << state.seed << '\n'
                   << "  fixed step: " << runtime.Config().fixedTimestep.count() << " ns\n"
                   << "  simulation time: " << state.simulationTime.count() << " ns\n"
