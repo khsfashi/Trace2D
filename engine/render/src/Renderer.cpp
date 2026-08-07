@@ -346,12 +346,17 @@ public:
 
     void RenderFrame()
     {
-        RenderFrameInternal(nullptr, nullptr);
+        RenderFrameInternal(nullptr, {});
     }
 
     void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
     {
-        RenderFrameInternal(&camera, &sprite);
+        RenderFrame(camera, std::span<const SpriteRenderData>{&sprite, 1});
+    }
+
+    void RenderFrame(const OrthographicCamera& camera, const std::span<const SpriteRenderData> sprites)
+    {
+        RenderFrameInternal(&camera, sprites);
     }
 
     [[nodiscard]] const RendererConfig& Config() const noexcept
@@ -572,12 +577,26 @@ private:
         return textures_[index];
     }
 
-    void RenderFrameInternal(const OrthographicCamera* const camera, const SpriteRenderData* const sprite)
+    void ValidateSpriteTextures(const std::span<const SpriteRenderData> sprites) const
     {
-        SDL_GPUTexture* spriteTexture = nullptr;
-        if (sprite != nullptr)
+        for (const SpriteRenderData& sprite : sprites)
         {
-            spriteTexture = ResolveTexture(sprite->texture);
+            static_cast<void>(ResolveTexture(sprite.texture));
+        }
+    }
+
+    void RenderFrameInternal(
+        const OrthographicCamera* const camera,
+        const std::span<const SpriteRenderData> sprites)
+    {
+        if (!sprites.empty())
+        {
+            if (camera == nullptr)
+            {
+                throw std::invalid_argument{"Sprite rendering requires an orthographic camera."};
+            }
+
+            ValidateSpriteTextures(sprites);
         }
 
         SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
@@ -599,28 +618,15 @@ private:
         }
 
         bool encodedRenderPass = false;
-        bool encodedSpriteDraw = false;
+        std::uint64_t encodedSpriteDraws = 0;
 
         if (swapchainTexture != nullptr)
         {
             OrthographicView view{};
-            if (sprite != nullptr &&
-                (camera == nullptr || !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view)))
+            if (!sprites.empty() && !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view))
             {
                 SDL_CancelGPUCommandBuffer(commandBuffer);
                 throw std::invalid_argument{"Sprite rendering requires a valid orthographic camera and render target."};
-            }
-
-            if (sprite != nullptr)
-            {
-                const Float2 centerClip = WorldToClip(view, sprite->center);
-                const SpriteUniforms uniforms{
-                    centerClip.x,
-                    centerClip.y,
-                    sprite->halfExtents.x * view.clipScale.x,
-                    sprite->halfExtents.y * view.clipScale.y,
-                };
-                SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
             }
 
             SDL_GPUColorTargetInfo colorTarget{};
@@ -642,20 +648,33 @@ private:
                 throw std::runtime_error{"SDL GPU render pass creation failed: " + error};
             }
 
-            if (sprite != nullptr)
+            if (!sprites.empty())
             {
                 SDL_GPUBufferBinding vertexBinding{};
                 vertexBinding.buffer = spriteVertexBuffer_;
 
-                SDL_GPUTextureSamplerBinding textureBinding{};
-                textureBinding.texture = spriteTexture;
-                textureBinding.sampler = spriteSampler_;
-
                 SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
                 SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
-                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
-                SDL_DrawGPUPrimitives(renderPass, static_cast<Uint32>(SpriteVertices.size()), 1, 0, 0);
-                encodedSpriteDraw = true;
+
+                for (const SpriteRenderData& sprite : sprites)
+                {
+                    const Float2 centerClip = WorldToClip(view, sprite.center);
+                    const SpriteUniforms uniforms{
+                        centerClip.x,
+                        centerClip.y,
+                        sprite.halfExtents.x * view.clipScale.x,
+                        sprite.halfExtents.y * view.clipScale.y,
+                    };
+                    SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
+
+                    SDL_GPUTextureSamplerBinding textureBinding{};
+                    textureBinding.texture = ResolveTexture(sprite.texture);
+                    textureBinding.sampler = spriteSampler_;
+
+                    SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+                    SDL_DrawGPUPrimitives(renderPass, static_cast<Uint32>(SpriteVertices.size()), 1, 0, 0);
+                    ++encodedSpriteDraws;
+                }
             }
 
             SDL_EndGPURenderPass(renderPass);
@@ -681,11 +700,8 @@ private:
             ++metrics_.renderPasses;
         }
 
-        if (encodedSpriteDraw)
-        {
-            ++metrics_.drawCalls;
-            ++metrics_.submittedSprites;
-        }
+        metrics_.drawCalls += encodedSpriteDraws;
+        metrics_.submittedSprites += encodedSpriteDraws;
     }
 
     void Cleanup() noexcept
@@ -772,6 +788,13 @@ void Renderer::RenderFrame()
 void Renderer::RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
 {
     impl_->RenderFrame(camera, sprite);
+}
+
+void Renderer::RenderFrame(
+    const OrthographicCamera& camera,
+    const std::span<const SpriteRenderData> sprites)
+{
+    impl_->RenderFrame(camera, sprites);
 }
 
 const RendererConfig& Renderer::Config() const noexcept
