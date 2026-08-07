@@ -24,7 +24,7 @@ The first public release proves this loop. It is not intended to be a complete g
 
 ## Current phase
 
-**P2 — Text-authored scene foundation**
+**P3 — Structured observability foundation**
 
 P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
 
@@ -33,10 +33,12 @@ P1 deterministic runtime foundation is complete:
 - Issue **#2 — Add SDL3 platform boundary and startup modes** completed in PR **#16**
 - Issue **#3 — Implement deterministic fixed-step runtime control** completed in PR **#17**
 
-P2 scene identity foundation has started:
+P2 scene and authored-data foundation is complete:
 
 - Issue **#4 — Define stable entity identity and scene registry** completed in PR **#18**
-- Issue **#5 — Add text-first scene format and deterministic serialization** is the next executable task
+- Issue **#5 — Add text-first scene format and deterministic serialization** completed in PR **#19**
+
+The next executable task is **Issue #6 — Build protocol-independent runtime inspection API**.
 
 P0 established:
 
@@ -67,18 +69,26 @@ P1 established:
 - `trace2d run --frames N --seed N` machine-controlled runtime smoke path
 - unit coverage for zero/one/multi-frame stepping, exact 120-frame advancement, reset determinism, wall-clock remainder, and monotonic clock behavior
 
-P2 currently established:
+P2 established:
 
 - `Trace2D::Scene` module with scene-owned entity lifetime
 - generation-safe `EntityId` runtime handles using slot index + generation
 - stale-handle invalidation across destruction and slot reuse
 - unique non-empty semantic IDs separated from runtime handles
-- human-readable names and normalized semantic tags
+- authored scene semantic ID and human-readable scene name
+- human-readable entity names and normalized semantic tags
 - mutable `Transform2D` state
-- deterministic observable iteration in ascending slot-index order
-- allocation-free entity iteration without a temporary result collection
-- lifecycle, semantic identity, tag, transform, stale-handle, reuse, and deterministic-order tests
-- architecture documentation for identity and iteration rules
+- deterministic observable runtime iteration in ascending slot-index order
+- allocation-free runtime entity iteration without a temporary result collection
+- TOML version-1 authored scene format using `*.trace2d.toml`
+- `LoadSceneToml` / `SaveSceneToml` without exposing toml++ types in public headers
+- strict schema validation for required IDs, types, unknown fields, duplicate semantic IDs, tags, and transforms
+- actionable diagnostics with semantic field paths and source line/column when available
+- canonical serialization with fixed field order and entities sorted lexicographically by semantic ID
+- locale-independent float formatting sufficient for 32-bit float round trips
+- runtime-only entities without semantic identity rejected from authored serialization
+- lifecycle, identity, tag, transform, stale-handle, reuse, deterministic-order, schema-validation, and round-trip tests
+- scene-format and architecture documentation for identity, iteration, and serialization rules
 
 ## Current validation status
 
@@ -95,6 +105,7 @@ Validated milestones:
 - PR **#16** final-head CI run **#19**: SDL3 configure, Windows MSVC build, and all tests successful before merge
 - PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke all successful before squash merge
 - PR **#18** final-head CI run **#28**: pinned dependencies, configure, Windows MSVC build, and full CTest suite including scene lifecycle/determinism tests all successful before squash merge
+- PR **#19** final-head CI run **#35**: pinned dependencies including toml++, configure, Windows MSVC build, and full CTest suite including text-scene validation/deterministic round-trip tests all successful before squash merge
 
 ## P0 exit criteria
 
@@ -121,50 +132,60 @@ Validated milestones:
 - [x] wall-clock accumulation is separate from explicit stepping
 - [x] runtime code has no SDL, CLI, JSON, or MCP dependency
 
-## P2 progress
+## P2 exit criteria
 
 - [x] **#4 — stable entity identity / scene registry** — PR #18 merged after green CI
 - [x] scene owns entity creation/destruction and runtime handle validity
 - [x] stale handles are rejected after destruction and slot reuse
 - [x] authored semantic IDs are distinct from generation-safe runtime handles
-- [x] observable entity iteration order is deterministic and allocation-free
-- [ ] **#5 — text-first scene format / deterministic serialization**
-- [ ] minimal authored scene can be loaded entirely from text
-- [ ] invalid scene input produces actionable diagnostics
-- [ ] load -> save -> load preserves semantic state
-- [ ] serialization output ordering is stable for Git diffs
+- [x] observable runtime entity iteration order is deterministic and allocation-free
+- [x] **#5 — text-first scene format / deterministic serialization** — PR #19 merged after green CI
+- [x] minimal authored scene can be loaded entirely from text
+- [x] invalid scene input produces actionable diagnostics
+- [x] load -> save -> load preserves semantic state
+- [x] serialization output ordering is stable for Git diffs
+- [x] authored scene syntax and serialization dependency are documented
+
+## P3 progress
+
+- [ ] **#6 — protocol-independent runtime inspection API**
+- [ ] active runtime frame and scene state can be inspected through Trace2D-owned types
+- [ ] entity identity, name, tags, transform, and initial component fields are inspectable without parsing logs or pixels
+- [ ] inspection result/error schema is stable and independent of JSON/MCP
+- [ ] initial CLI `inspect` boundary can emit deterministic structured JSON
+- [ ] **#7 — semantic selectors / runtime queries**
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#5 — P2: Add text-first scene format and deterministic serialization**
-2. **#6 — P3: Build protocol-independent runtime inspection API**
-3. **#7 — P3: Add semantic selectors and runtime queries**
-4. **#8 — P4: Implement virtual input with frame scheduling**
-5. **#9 — P4: Add deterministic gameplay test runner and assertions**
-6. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-7. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-8. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-9. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-10. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#6 — P3: Build protocol-independent runtime inspection API**
+2. **#7 — P3: Add semantic selectors and runtime queries**
+3. **#8 — P4: Implement virtual input with frame scheduling**
+4. **#9 — P4: Add deterministic gameplay test runner and assertions**
+5. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+6. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+7. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+8. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+9. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #5 — Add text-first scene format and deterministic serialization.**
+**Issue #6 — Build protocol-independent runtime inspection API.**
 
-Required outcomes from Issue #5:
+Required outcomes from Issue #6:
 
-- choose and document the initial scene text format
-- define schema for scene metadata, semantic IDs, names, tags, and transforms
-- load authored text into the existing `Trace2D::Scene` model
-- validate required fields and duplicate semantic IDs with actionable diagnostics
-- serialize scene state in deterministic ordering suitable for Git diffs
-- add round-trip tests proving load -> save -> load preserves semantic state
+- add an `engine/agent` facade over authoritative runtime/scene state
+- inspect the active scene and runtime frame without coupling engine internals to CLI, JSON, MCP, or a specific LLM
+- expose entity identity, transform, tags, bounds, and initial component fields through stable Trace2D-owned result types
+- define stable result/error structures suitable for later adapters
+- add JSON serialization only at the tool boundary
+- expose the initial CLI `inspect` command with deterministic output
+- return stable non-zero exit behavior and actionable diagnostics for inspection failures
 
-Preserve the identity rules established by Issue #4: semantic authored identity stays separate from runtime `EntityId`, observable ordering remains deterministic, and serialization must not depend on raw pointers or incidental container addresses.
+Preserve the dependency direction: the protocol-independent agent facade may depend on runtime/scene, but runtime/scene must not depend on JSON, CLI, or MCP. Do not make MCP the source of truth for inspection behavior.
 
-Do not begin Issue #6 inspection work until #5 has a green merged PR unless a blocking dependency requires a documented change.
+Do not begin Issue #7 selector work until #6 has a green merged PR unless a blocking dependency requires a documented change.
 
 ## Public Alpha blockers
 
@@ -210,9 +231,12 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
 - Authored scene/project state is text-first.
+- Authored scene files use versioned TOML and serialize into a canonical deterministic representation.
+- toml++ remains private to the scene text implementation boundary.
 - Runtime entity identity uses generation-safe handles; automation-facing identity must not be a raw pointer.
 - Non-empty semantic IDs are unique within a scene and distinct from runtime handles.
-- Observable entity iteration uses deterministic ascending slot-index order.
+- Observable runtime entity iteration uses deterministic ascending slot-index order.
+- Authored serialization ordering is independent of runtime slot order and uses semantic IDs.
 - Structured state beats pixel inference for gameplay QA.
 - Semantic selectors beat coordinate-based targeting where identity exists.
 - Optimization complexity follows measurement.
@@ -221,7 +245,6 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 Resolve these only when their implementation phase arrives:
 
-- exact authored scene syntax/serialization library — resolve in Issue #5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
 - project license before the repository becomes Public
