@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last repository-state update: **2026-08-07**
+Last repository-state update: **2026-08-08**
 
 This document is the operational snapshot for the next contributor or coding agent. Live repository state wins over stale prose.
 
@@ -38,7 +38,7 @@ Completed phase milestones:
 - P4 deterministic virtual input / frame scheduling — Issue **#8**, PR **#22**
 - P4 deterministic gameplay test runner / assertions — Issue **#9**, PR **#23**
 
-P0-P4 are complete. The next executable task is **Issue #10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**.
+P0-P4 are complete. **PR #24** is the first P5 vertical slice: renderer module ownership, SDL3 GPU device/swapchain integration, clear/present frame submission, baseline metrics, and explicit headless isolation. After #24 is validated/merged, continue Issue **#10** with the orthographic camera and minimal sprite render-data slice.
 
 ## Foundation currently established
 
@@ -58,6 +58,7 @@ P0-P4 are complete. The next executable task is **Issue #10 — P5: Implement mi
 - SDL3 isolated behind `Trace2D::Platform`
 - explicit headless and windowed startup modes
 - engine-owned quit-event translation
+- SDL-free numeric window identity for renderer handoff; `SDL_Window*` remains private to SDL-backed implementation code
 - deterministic `Trace2D::Runtime`
 - explicit `Step(count)` simulation-frame control without sleeping
 - runtime-owned frame, fixed timestep, simulation time, deterministic seed, and reset state
@@ -144,6 +145,23 @@ See `docs/INPUT.md` for frame semantics and the physical/virtual input contract.
 
 See `docs/GAMEPLAY_TESTING.md` for the scenario, assertion, determinism, and failure-report contract.
 
+### P5 renderer foundation — PR #24
+
+- dedicated `Trace2D::Render` module with SDL3 linked privately
+- renderer public API contains Trace2D-owned config/metrics types rather than SDL GPU handles
+- platform retains SDL window ownership and exposes only a numeric window identifier
+- renderer owns SDL3 GPU device lifetime and claims/releases the platform window swapchain
+- current frame path acquires one command buffer, waits for a swapchain texture, clears/stores it in one render pass, and submits for presentation
+- minimized/unavailable swapchain textures are valid no-presentation frames rather than simulation failures
+- windowed `trace2d run` creates a renderer and submits one clear frame after explicit simulation stepping
+- renderer exposes backend name plus submitted/presented-frame, render-pass, draw-call, sprite-count, and last-target-size metrics
+- current `drawCalls` / `submittedSprites` remain zero until the sprite slice is implemented
+- renderer rejects headless `Platform` before GPU initialization
+- render-module tests cover headless window-ID behavior and GPU-independent rejection
+- runtime/scene/input/agent/testing modules do not depend on `Trace2D::Render`
+
+See `docs/RENDERING.md` for the ownership, frame-path, metrics, and P5 scope contract.
+
 ## Current validation status
 
 The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
@@ -166,6 +184,8 @@ Validated milestones:
 - PR **#23** final-head CI run **#54**: configure, Windows MSVC build, and **55/55 CTest tests** successful, including scheduled/immediate gameplay input, structured assertion failure snapshots, query ambiguity propagation, reset restoration, and repeated-failure report determinism before squash merge
 
 PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba826ee5730abb` and Issue **#9** closed as completed.
+
+PR **#24** is the active P5 renderer-foundation validation target. Its final CI result must be recorded here or in an immediate post-merge status update before moving to the next P5 slice.
 
 ## Phase exit criteria
 
@@ -232,54 +252,48 @@ PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba82
 ### P5 — in progress
 
 - [ ] **#10 — minimal SDL3 GPU 2D renderer and capture path**
-- [ ] SDL3 GPU device and swapchain integration isolated from simulation ownership
+- [x] SDL3 GPU device and swapchain integration isolated from simulation ownership — PR **#24**
 - [ ] orthographic camera
 - [ ] textured sprite rendering
 - [ ] measured sprite batching baseline
 - [ ] visibility/culling baseline
 - [ ] offscreen render target where supported
 - [ ] deterministic screenshot capture at an explicitly requested simulation frame
-- [ ] basic renderer metrics suitable for profiling
-- [ ] headless gameplay tests remain independent of GPU presentation
+- [x] basic renderer metrics suitable for profiling — PR **#24**
+- [x] headless gameplay tests remain independent of GPU presentation — PR **#24**
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-2. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-3. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-4. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-5. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. Finish validation/merge of **PR #24 — P5 renderer foundation** if it is still open.
+2. Continue **#10** with the orthographic camera + minimal sprite render-data vertical slice.
+3. Add textured sprite rendering, then measure the simple batching/culling baseline before introducing renderer complexity.
+4. Add offscreen rendering and deterministic frame-selected screenshot capture to complete **#10**.
+5. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+6. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+7. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+8. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path.**
+If **PR #24** is open, finish its Windows/MSVC CI validation and merge it before adding more renderer scope.
 
-Goal: add the smallest practical renderer required for game samples and visual QA while keeping structured simulation state authoritative.
+After #24 is merged, remain inside **Issue #10** and implement the next smallest vertical slice:
 
-Required outcomes:
+- define a Trace2D-owned orthographic camera API with deterministic world-to-clip math
+- define the minimum sprite render-data contract needed for one sample without making renderer state authoritative
+- keep SDL/shader/resource handles private to `engine/render`
+- add pure CPU unit tests for camera math and sprite ordering/culling decisions where practical
+- do not begin texture-cache sophistication or batching optimizations until one sprite path exists and metrics can measure it
 
-- integrate an SDL3 GPU device and window swapchain without coupling simulation/runtime ownership to rendering
-- define a minimal orthographic 2D camera
-- render textured sprites in windowed mode
-- establish a simple sprite-batching path and expose metrics before introducing batching complexity
-- establish a visibility/culling baseline
-- support an offscreen render target where the selected SDL3 GPU path permits it
-- capture a deterministic screenshot artifact at an explicitly requested simulation frame
-- expose basic render metrics that can be used for later CPU/GPU submission profiling
-- keep all existing headless gameplay scenarios functional without GPU presentation
+The following #10 outcomes remain after that slice:
 
-Implementation guidance:
-
-- begin by reading the current SDL3 platform boundary and SDL3 GPU API used by the pinned dependency; do not leak SDL-owned handles into runtime/scene/agent contracts unnecessarily
-- keep renderer state derived from authoritative scene/game state; rendering must not become gameplay truth
-- choose the smallest sprite data/model extension needed for one rendered sample instead of designing a full material/render-graph system
-- establish correctness and measurable submission/batching metrics before specialized allocators, persistent GPU resource caches, bindless abstractions, or advanced culling
-- avoid per-frame resource creation when resources can have stable renderer-owned lifetimes
-- keep capture frame selection explicit and deterministic; do not infer the requested state from wall-clock timing
-- preserve the existing headless path so gameplay tests do not require a GPU device or visible window
-- do not add lighting, PBR, editor rendering, broad asset-pipeline machinery, or physics just to satisfy P5
+- textured sprites in windowed mode
+- measured batching baseline
+- visibility/culling baseline
+- offscreen render target
+- deterministic frame-selected capture artifact
 
 ## Public Alpha blockers
 
@@ -320,6 +334,9 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership and types remain behind platform/rendering boundaries rather than entering core simulation contracts.
+- `engine/platform` owns SDL initialization/window lifetime; renderer integration receives a Trace2D-owned numeric window ID rather than `SDL_Window*` in public APIs.
+- `engine/render` may depend on `engine/platform` and SDL3, but runtime/scene/input/agent/testing do not depend on render presentation state.
+- renderer-owned GPU device/swapchain/command-buffer state is presentation state and never authoritative simulation state.
 - `engine/input` gameplay-facing state contains no SDL, CLI, JSON, or MCP types.
 - Physical platform input and virtual test/agent input converge on the same `trace2d::input::InputEvent` / `InputSystem` path.
 - Input hot-path state uses direct indexed storage; scheduled scenario authoring may allocate, frame consumption does not.
@@ -352,7 +369,8 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 Resolve these only when their implementation phase arrives:
 
-- exact SDL3 GPU backend/device details and minimal sprite resource model for P5
+- exact minimal sprite resource/data model and shader packaging strategy for P5
+- exact offscreen/readback image format and capture artifact contract for P5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
 - project license before the repository becomes Public
