@@ -118,7 +118,7 @@ public:
     void LoadScene(scene::Scene scene);
     void Reset(std::uint64_t seed);
 
-    void InjectInput(const input::InputEvent& event) noexcept;
+    void InjectInput(const input::InputEvent& event);
     void ScheduleInput(std::uint64_t frame, const input::InputEvent& event);
     void SchedulePress(std::uint64_t frame, input::InputControl control);
     void ScheduleRelease(std::uint64_t frame, input::InputControl control);
