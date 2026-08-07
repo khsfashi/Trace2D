@@ -8,6 +8,19 @@ The project is designed so an agent can eventually edit a game, build it, run it
 
 > Current status: **P0 — project foundation**. The repository currently provides the C++20 build/test foundation and the first machine-readable CLI surface. Engine runtime features are intentionally not claimed until implemented and tested.
 
+## Project navigation
+
+For coding agents or contributors continuing development, start here:
+
+- [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) — current phase, active work, validation state, and next execution order
+- [Public Release Plan](docs/PUBLIC_RELEASE.md) — exact gates for `v0.1.0-alpha.1`
+- [Roadmap](docs/ROADMAP.md) — long-term P0-P8 development phases
+- [Architecture](docs/ARCHITECTURE.md) — module/dependency direction
+- [Agent-first design principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
+
+A future coding-agent session should be able to continue the project from these repository files without requiring previous chat history.
+
 ## Design goals
 
 - deterministic, fixed-step gameplay testing
@@ -20,8 +33,6 @@ The project is designed so an agent can eventually edit a game, build it, run it
 - a small protocol-independent automation API
 - MCP as an adapter, not as the engine architecture
 - measured C++ performance with explicit ownership and predictable lifetimes
-
-See [Agent-first design principles](docs/AGENT_FIRST_PRINCIPLES.md) and [Architecture](docs/ARCHITECTURE.md).
 
 ## Intended agent workflow
 
@@ -66,13 +77,15 @@ Dependencies are added only when the phase that needs them begins.
 
 ```text
 Trace2D/
+├─ AGENTS.md              coding-agent operating guide
+├─ PROJECT_STATUS.md      live project/handoff state
 ├─ cmake/                 CMake policy/helpers
 ├─ engine/
 │  └─ core/               platform-independent engine core
 ├─ tools/
 │  └─ trace2d/            CLI for humans, scripts, CI, and agents
 ├─ tests/                 automated tests
-├─ docs/                  architecture and design documents
+├─ docs/                  architecture and release documents
 └─ .github/workflows/     CI
 ```
 
@@ -131,14 +144,22 @@ Example machine-readable output:
 
 Future commands will grow from a small composable vocabulary such as `run`, `inspect`, `query`, `input`, `step`, `assert`, `capture`, and `test`.
 
+## Public Alpha target
+
+The first public milestone is **`v0.1.0-alpha.1`**.
+
+It is intentionally scoped to prove one complete agent-first vertical loop rather than to imitate the feature breadth of Godot. MCP, a graphical editor, advanced rendering, networking, audio, and broad platform support are explicitly not required for the first public release.
+
+See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) for the release gates and GitHub issue **#14** for the live release checklist.
+
 ## Roadmap
 
 The complete phased plan is maintained in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-The next milestone is **P1 — Deterministic runtime foundation**, which introduces SDL3, headless/windowed startup, a fixed simulation timestep, explicit frame stepping, and deterministic seed ownership.
+The next milestone after project foundation is **P1 — Deterministic runtime foundation**, which introduces SDL3, headless/windowed startup, a fixed simulation timestep, explicit frame stepping, and deterministic seed ownership.
 
 ## Project policy
 
 Trace2D prefers simple, searchable C++ APIs and explicit ownership over unnecessary abstraction. Performance-sensitive designs are profiled and benchmarked before specialized allocators, lock-free structures, or other complexity are introduced.
 
-The project is currently private and has no license while its architecture is still being established.
+The project is currently private and has no license while its architecture is still being established. A license and third-party license review are required before the repository becomes Public.
