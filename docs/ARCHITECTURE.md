@@ -24,6 +24,8 @@ scene input render     (planned)
 
 Dependencies point inward. Core must not depend on SDL, rendering, MCP, or an editor.
 
+Platform-specific SDL3 ownership lives in `engine/platform`; SDL types must not leak into `engine/core` or gameplay-facing APIs.
+
 ## Modules
 
 ### `engine/core`
@@ -43,18 +45,28 @@ Planned responsibilities:
 - deterministic utilities
 - low-level profiling hooks
 
-### `engine/platform` (planned)
+### `engine/platform`
 
 SDL3-backed platform boundary.
 
-Responsibilities:
+Current responsibilities:
 
-- process/window lifecycle
-- keyboard, mouse, and controller events
-- filesystem/platform services where needed
-- windowed versus headless platform setup
+- RAII ownership of initialized SDL subsystems
+- explicit headless versus windowed startup
+- window creation/destruction for interactive startup
+- basic engine-owned event translation
 
-SDL must not leak unnecessarily into higher-level gameplay APIs.
+Initial API rules:
+
+- public platform headers expose Trace2D types, not SDL types
+- headless startup initializes only the event subsystem and creates no window
+- windowed startup initializes SDL video and owns the window lifetime
+- higher layers consume `PlatformEvent` rather than `SDL_Event`
+
+Planned extensions when their phases require them:
+
+- keyboard, mouse, and controller event translation
+- additional filesystem/platform services where needed
 
 ### `engine/runtime` (planned)
 
@@ -119,7 +131,10 @@ Current commands:
 ```text
 trace2d version
 trace2d doctor [--json]
+trace2d run (--headless|--windowed) [--json]
 ```
+
+`run` is currently a platform/startup smoke surface. Issue #3 will extend the same path with deterministic runtime control instead of creating a separate headless engine.
 
 The CLI should keep stable exit codes and machine-readable output for automation-sensitive commands.
 
