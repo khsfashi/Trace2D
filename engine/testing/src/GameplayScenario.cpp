@@ -112,22 +112,31 @@ void GameplayScenario::Reset(const std::uint64_t seed)
 
 void GameplayScenario::InjectInput(const input::InputEvent& event)
 {
-    input_.ApplyEvent(event);
     report_.inputEvents.push_back(ScenarioInputEvent{
         .frame = input_.CurrentFrame(),
         .event = event,
         .scheduled = false,
     });
+    input_.ApplyEvent(event);
 }
 
 void GameplayScenario::ScheduleInput(const std::uint64_t frame, const input::InputEvent& event)
 {
-    input_.Schedule(frame, event);
     report_.inputEvents.push_back(ScenarioInputEvent{
         .frame = frame,
         .event = event,
         .scheduled = true,
     });
+
+    try
+    {
+        input_.Schedule(frame, event);
+    }
+    catch (...)
+    {
+        report_.inputEvents.pop_back();
+        throw;
+    }
 }
 
 void GameplayScenario::SchedulePress(const std::uint64_t frame, const input::InputControl control)
