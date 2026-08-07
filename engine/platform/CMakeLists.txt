@@ -11,7 +11,13 @@ target_include_directories(trace2d_platform
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(trace2d_platform PRIVATE SDL3::SDL3)
+target_link_libraries(trace2d_platform
+    PUBLIC
+        Trace2D::Input
+    PRIVATE
+        SDL3::SDL3
+)
+
 target_compile_features(trace2d_platform PUBLIC cxx_std_20)
 
 trace2d_enable_warnings(trace2d_platform)
