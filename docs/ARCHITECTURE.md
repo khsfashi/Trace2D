@@ -17,7 +17,7 @@ tools / adapters
       v
    runtime
    /  |   \
-scene input render     (planned)
+scene input render
    \   |   /
       core
 ```
@@ -38,8 +38,7 @@ Initial responsibilities:
 
 Planned responsibilities:
 
-- stable identifiers and handles
-- result/error types
+- shared result/error types
 - timing primitives
 - diagnostics
 - deterministic utilities
@@ -89,22 +88,51 @@ Current API rules:
 - reset clears frame, simulation time, and accumulated wall time while installing the requested seed
 - runtime code has no SDL, CLI, JSON, or MCP dependency
 
-Planned extensions when scene/input systems arrive:
+Planned extensions when later systems arrive:
 
 - active scene lifecycle
 - per-frame gameplay update dispatch
 - windowed loop integration that consumes monotonic elapsed time
 
-### `engine/scene` (planned)
+### `engine/scene`
 
-Owns entities, components, authored scene data, and serialization.
+Owns the minimum entity and authored-state model needed for deterministic inspection and later text serialization.
 
-Key requirements:
+Current responsibilities:
 
-- stable entity identity
-- deterministic iteration where observable behavior depends on order
-- text-first source format
-- machine-readable component inspection
+- generation-safe runtime `EntityId` handles
+- scene-owned entity creation, destruction, lookup, and slot reuse
+- stable non-empty semantic IDs for authored/automation-facing identity
+- human-readable names and normalized semantic tags
+- mutable 2D transform state
+- deterministic allocation-free observable iteration
+
+Current identity rules:
+
+- `EntityId` is a runtime handle composed of a 32-bit slot index and 32-bit generation
+- destroying an entity invalidates its handle before that slot can be reused
+- a replacement entity may reuse the slot index but receives the incremented generation
+- non-empty semantic IDs are unique within a scene and remain distinct from runtime handles
+- entities without semantic IDs are allowed for runtime-spawned objects
+- automation must never use a raw pointer as entity identity
+
+Current iteration policy:
+
+- observable entity iteration scans live slots in ascending slot-index order
+- iteration allocates no temporary result collection
+- repeated execution with the same create/destroy sequence produces the same order
+- the implementation intentionally avoids a generic ECS until measured requirements justify one
+
+Planned extensions in P2/P3:
+
+- text-first authored scene load/save
+- deterministic serialization ordering
+- component inspection through the protocol-independent agent facade
+- semantic selectors and queries
+
+### `engine/input` (planned)
+
+Will own engine-level input state independently of SDL event objects, including virtual frame-scheduled input for deterministic tests.
 
 ### `engine/render` (planned)
 
