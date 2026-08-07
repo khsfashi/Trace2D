@@ -6,3 +6,7 @@ target_link_libraries(trace2d PRIVATE Trace2D::Core)
 target_compile_features(trace2d PRIVATE cxx_std_20)
 
 trace2d_enable_warnings(trace2d)
+
+if(BUILD_TESTING)
+    add_test(NAME trace2d_cli_doctor COMMAND trace2d doctor --json)
+endif()
