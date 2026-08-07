@@ -2,6 +2,7 @@
 
 #include <trace2d/scene/Scene.hpp>
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -224,19 +225,45 @@ QueryResult AgentFacade::Query(const std::string_view selectorText) const
 
 QueryOneResult AgentFacade::QueryOne(const std::string_view selectorText) const
 {
-    QueryResult many = Query(selectorText);
-
     QueryOneResult result{};
-    result.selector = std::move(many.selector);
 
-    if (many.error.has_value())
+    if (scene_ == nullptr)
     {
-        result.error = std::move(many.error);
+        result.error = QueryError{
+            .code = QueryErrorCode::SceneUnavailable,
+            .message = "No active scene is bound to the agent facade.",
+        };
         return result;
     }
 
-    if (many.matches.empty())
+    SelectorParseResult parsed = ParseSelector(selectorText);
+    if (!parsed.selector.has_value())
     {
+        result.error = std::move(parsed.error);
+        return result;
+    }
+
+    result.selector = std::move(parsed.selector);
+
+    std::size_t matchCount = 0;
+    scene_->ForEachEntity(
+        [&result, &matchCount](const scene::EntityId id, const scene::Entity& entity)
+        {
+            if (!MatchesSelector(entity, *result.selector))
+            {
+                return;
+            }
+
+            ++matchCount;
+            if (matchCount == 1U)
+            {
+                result.match = MakeEntitySnapshot(id, entity);
+            }
+        });
+
+    if (matchCount == 0U)
+    {
+        result.match.reset();
         result.error = QueryError{
             .code = QueryErrorCode::NoMatch,
             .message = "Selector matched no entities.",
@@ -244,17 +271,17 @@ QueryOneResult AgentFacade::QueryOne(const std::string_view selectorText) const
         return result;
     }
 
-    if (many.matches.size() != 1U)
+    if (matchCount != 1U)
     {
+        result.match.reset();
         result.error = QueryError{
             .code = QueryErrorCode::AmbiguousMatch,
-            .message = "Selector matched " + std::to_string(many.matches.size()) +
+            .message = "Selector matched " + std::to_string(matchCount) +
                        " entities; single-result query requires exactly one match.",
         };
         return result;
     }
 
-    result.match = std::move(many.matches.front());
     return result;
 }
 } // namespace trace2d::agent
