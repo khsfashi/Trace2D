@@ -2,7 +2,7 @@
 
 Last repository-state update: **2026-08-07**
 
-This document is the operational snapshot for the next contributor or coding agent. It should stay concise and current. Long-term intent belongs in the architecture/roadmap documents.
+This document is the operational snapshot for the next contributor or coding agent. Live repository state wins over stale prose.
 
 ## Current mission
 
@@ -24,18 +24,15 @@ The first public release proves this loop. It is not intended to be a complete g
 
 ## Current phase
 
-**P0 — Project foundation**
+**P1 — Deterministic runtime foundation**
 
-Current active work:
+P0 project foundation is complete in PR **#1 — Bootstrap Trace2D project foundation** and is ready for squash merge after the final CI run for this status update is green.
 
-- Draft PR **#1 — Bootstrap Trace2D project foundation**
-- Branch: `agent/project-bootstrap`
-
-P0 currently includes:
+P0 established:
 
 - C++20 root CMake project
 - MSVC warning policy
-- CMake Presets
+- shared CMake Presets
 - pinned vcpkg baseline
 - platform-independent `Trace2D::Core`
 - `trace2d` CLI bootstrap
@@ -43,19 +40,18 @@ P0 currently includes:
 - GoogleTest / CTest
 - Windows CI
 - coding style/editor settings
-- architecture, roadmap, agent-first principles
-- repository agent operating guide
+- architecture, roadmap, public-release, ADR, and agent handoff documentation
 
 ## Current validation status
 
-The first CI attempt exposed an environment assumption: GitHub `windows-latest` now uses a Visual Studio 2026 runner while the local preset intentionally targets Visual Studio 2022.
+The bootstrap CI is validated on a clean GitHub-hosted Windows runner.
 
-The bootstrap branch now separates:
+An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` uses a Visual Studio 2026 runner while the local developer preset intentionally targets Visual Studio 2022. The project now separates:
 
 - local `windows-msvc`: Visual Studio 2022
 - CI `ci-windows-msvc`: Visual Studio 2026 generator with `v143` toolset
 
-The active PR must not be merged until its latest CI run is green.
+CI run **#11** completed successfully through vcpkg install, configure, build, and test. Any later commit to PR #1 must also finish with green CI before merge.
 
 ## P0 exit criteria
 
@@ -69,27 +65,34 @@ The active PR must not be merged until its latest CI run is green.
 - [x] CI workflow created
 - [x] architecture and roadmap documented
 - [x] agent operating/handoff structure documented
-- [ ] latest clean-checkout CI passes configure/build/test
-- [ ] PR #1 merged to `main`
+- [x] clean-checkout CI passes configure/build/test
+- [x] PR #1 ready for squash merge to `main`
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **Finish PR #1** and make CI green.
-2. **#2 — P1: Add SDL3 platform boundary and startup modes**
-3. **#3 — P1: Implement deterministic fixed-step runtime control**
-4. **#4 — P2: Define stable entity identity and scene registry**
-5. **#5 — P2: Add text-first scene format and deterministic serialization**
-6. **#6 — P3: Build protocol-independent runtime inspection API**
-7. **#7 — P3: Add semantic selectors and runtime queries**
-8. **#8 — P4: Implement virtual input with frame scheduling**
-9. **#9 — P4: Add deterministic gameplay test runner and assertions**
-10. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-11. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-12. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-13. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-14. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#2 — P1: Add SDL3 platform boundary and startup modes**
+2. **#3 — P1: Implement deterministic fixed-step runtime control**
+3. **#4 — P2: Define stable entity identity and scene registry**
+4. **#5 — P2: Add text-first scene format and deterministic serialization**
+5. **#6 — P3: Build protocol-independent runtime inspection API**
+6. **#7 — P3: Add semantic selectors and runtime queries**
+7. **#8 — P4: Implement virtual input with frame scheduling**
+8. **#9 — P4: Add deterministic gameplay test runner and assertions**
+9. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+10. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+11. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+12. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+13. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+
+## Immediate next task
+
+**Issue #2 — Add SDL3 platform boundary and startup modes.**
+
+The goal is to introduce SDL3 without leaking SDL types or lifetime rules into `engine/core`, while establishing both interactive/windowed and headless startup paths that share authoritative runtime logic.
+
+Do not begin Issue #3 until #2 has a green merged PR unless the two tasks are deliberately combined and the reason is documented.
 
 ## Public Alpha blockers
 
@@ -132,14 +135,14 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - MCP is never the source of truth for engine behavior.
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
-- authored scene/project state is text-first.
-- structured state beats pixel inference for gameplay QA.
-- semantic selectors beat coordinate-based targeting where identity exists.
-- optimization complexity follows measurement.
+- Authored scene/project state is text-first.
+- Structured state beats pixel inference for gameplay QA.
+- Semantic selectors beat coordinate-based targeting where identity exists.
+- Optimization complexity follows measurement.
 
 ## Known decisions still open
 
-These must be resolved when their implementation phase arrives, not prematurely:
+Resolve these only when their implementation phase arrives:
 
 - exact authored scene syntax/serialization library
 - exact protocol/transport used before MCP adapter
