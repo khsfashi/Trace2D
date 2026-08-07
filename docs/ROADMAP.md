@@ -128,9 +128,9 @@ Status: **in progress**
 Current implementation order:
 
 1. SDL3 GPU device/swapchain ownership and renderer module boundary — PR **#24**
-2. orthographic camera and minimal sprite render data
+2. orthographic camera and minimal sprite render data — PR **#25**
 3. textured sprite pipeline with a measured batching baseline
-4. visibility/culling baseline and renderer metrics
+4. integrate the visibility/culling baseline into actual sprite submission and renderer metrics
 5. offscreen render target and deterministic screenshot capture
 
 Deliverables:
