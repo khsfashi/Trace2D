@@ -1,5 +1,6 @@
 add_library(trace2d_agent STATIC
     src/Inspection.cpp
+    src/Query.cpp
 )
 
 add_library(Trace2D::Agent ALIAS trace2d_agent)

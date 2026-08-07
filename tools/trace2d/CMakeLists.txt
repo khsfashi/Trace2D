@@ -1,5 +1,6 @@
 add_executable(trace2d
     main.cpp
+    AgentCommands.cpp
 )
 
 target_link_libraries(trace2d
@@ -31,5 +32,20 @@ if(BUILD_TESTING)
         trace2d_cli_inspect
         PROPERTIES
             PASS_REGULAR_EXPRESSION "\\\"command\\\":\\\"inspect\\\".*\\\"frame\\\":12.*\\\"id\\\":\\\"inspection_fixture\\\""
+    )
+
+    add_test(
+        NAME trace2d_cli_query
+        COMMAND trace2d query
+            --scene "${CMAKE_SOURCE_DIR}/tests/data/inspection.trace2d.toml"
+            --selector "tag:enemy"
+            --frames 12
+            --seed 42
+            --json
+    )
+    set_tests_properties(
+        trace2d_cli_query
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "\\\"command\\\":\\\"query\\\".*\\\"kind\\\":\\\"tag\\\".*\\\"match_count\\\":1.*\\\"id\\\":\\\"enemy\\\""
     )
 endif()
