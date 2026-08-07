@@ -128,10 +128,16 @@ std::optional<float> ReadFiniteFloat(
     const std::string_view path,
     std::vector<SceneTextDiagnostic>& diagnostics)
 {
+    if (!node.is_number())
+    {
+        AddDiagnostic(diagnostics, std::string{path}, "Expected a number.", &node);
+        return std::nullopt;
+    }
+
     const std::optional<double> value = node.value<double>();
     if (!value.has_value())
     {
-        AddDiagnostic(diagnostics, std::string{path}, "Expected a number.", &node);
+        AddDiagnostic(diagnostics, std::string{path}, "Number cannot be represented as a double.", &node);
         return std::nullopt;
     }
 
@@ -369,12 +375,16 @@ SceneLoadResult LoadSceneToml(const std::string_view text, const std::string_vie
     {
         AddDiagnostic(result.diagnostics, "format_version", "Required field is missing.");
     }
+    else if (!formatNode->is_integer())
+    {
+        AddDiagnostic(result.diagnostics, "format_version", "Expected an integer.", formatNode);
+    }
     else
     {
         const std::optional<std::int64_t> version = formatNode->value<std::int64_t>();
         if (!version.has_value())
         {
-            AddDiagnostic(result.diagnostics, "format_version", "Expected an integer.", formatNode);
+            AddDiagnostic(result.diagnostics, "format_version", "Integer value is not representable.", formatNode);
         }
         else if (*version != SceneFormatVersion)
         {
