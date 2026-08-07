@@ -37,11 +37,12 @@ public:
     {
         if (!SDL_Init(initializedSubsystems_))
         {
+            const std::string error{SDL_GetError()};
             if (gSdlOwnerCount == 0)
             {
                 SDL_Quit();
             }
-            throw std::runtime_error{"SDL initialization failed: " + std::string{SDL_GetError()}};
+            throw std::runtime_error{"SDL initialization failed: " + error};
         }
 
         ++gSdlOwnerCount;
