@@ -30,7 +30,7 @@ P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundat
 
 Issue **#2 — Add SDL3 platform boundary and startup modes** is complete. PR **#16** passed CI and was squash-merged to `main`.
 
-The next executable task is Issue **#3 — Implement deterministic fixed-step runtime control**.
+Issue **#3 — Implement deterministic fixed-step runtime control** is implemented in draft PR **#17** on branch `agent/deterministic-fixed-step-runtime`. Finish its validation and merge before beginning Issue #4.
 
 P0 established:
 
@@ -53,8 +53,12 @@ P1 now additionally has:
 - RAII SDL subsystem/window ownership with final SDL cleanup
 - explicit headless and windowed startup modes
 - engine-owned quit event translation
-- `trace2d run --headless|--windowed [--json]` startup smoke path
-- CI-safe headless platform and CLI tests
+- deterministic `Trace2D::Runtime` boundary in PR #17
+- explicit `Step(count)` simulation-frame control without sleeping
+- runtime-owned frame, fixed timestep, simulation time, and deterministic seed/reset state
+- wall-clock accumulation separated from explicit stepping
+- monotonic `steady_clock` wrapper for later interactive-loop integration
+- `trace2d run --frames N --seed N` machine-controlled runtime smoke path
 
 ## Current validation status
 
@@ -68,6 +72,8 @@ An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` us
 The final PR #1 CI run (**#12**) completed successfully through dependency install, configure, build, and test before merge.
 
 PR **#16** latest-head CI run (**#19**) also completed successfully through pinned vcpkg install, SDL3 configure, Windows MSVC build, and all GoogleTest/CTest checks before squash merge.
+
+PR **#17** is the active P1 runtime-control change. Its final-head GitHub Actions run must pass configure, build, runtime unit tests, existing platform/core tests, and the 120-frame headless CLI smoke before Issue #3 is considered complete.
 
 ## P0 exit criteria
 
@@ -87,13 +93,13 @@ PR **#16** latest-head CI run (**#19**) also completed successfully through pinn
 ## P1 progress
 
 - [x] **#2 — SDL3 platform boundary and startup modes** — PR #16 merged after green CI
-- [ ] **#3 — deterministic fixed-step runtime control** — next executable task
+- [ ] **#3 — deterministic fixed-step runtime control** — implemented in draft PR #17; pending final green CI and merge
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#3 — P1: Implement deterministic fixed-step runtime control**
+1. Finish **PR #17 / #3 — P1: Implement deterministic fixed-step runtime control**
 2. **#4 — P2: Define stable entity identity and scene registry**
 3. **#5 — P2: Add text-first scene format and deterministic serialization**
 4. **#6 — P3: Build protocol-independent runtime inspection API**
@@ -108,20 +114,20 @@ A fresh agent should work in this order unless a blocking dependency requires a 
 
 ## Immediate next task
 
-**Issue #3 — Implement deterministic fixed-step runtime control.**
+**Finish draft PR #17 for Issue #3.**
 
-Build `engine/runtime` on top of the platform boundary without moving simulation ownership into SDL or the CLI.
+Required validation before merge:
 
-Required outcomes from Issue #3:
+- `Trace2D::Runtime` builds without SDL/CLI/MCP dependencies
+- a headless test advances exactly 120 frames without sleeping
+- zero, one, and multi-frame stepping are covered
+- same initial state/seed produces identical runtime state
+- reset clears frame, simulation time, and wall-clock remainder while installing the requested seed
+- elapsed wall-clock accumulation preserves sub-step remainder deterministically
+- `trace2d run --headless --frames 120 --seed 42 --json` exits successfully and reports frame 120
+- all pre-existing tests remain green
 
-- fixed simulation timestep configuration
-- monotonic wall-clock abstraction for interactive/windowed mode
-- explicit simulation frame counter
-- `Step(count)` API that advances without sleeping
-- deterministic seed ownership/reset point
-- windowed loop may accumulate wall-clock time while tests advance exact frames directly
-- tests for zero, one, and multi-frame stepping
-- repeated runs from the same initial state/seed report identical frame/state results
+After PR #17 is green and squash-merged, update this file to mark P1 complete and make Issue **#4 — Define stable entity identity and scene registry** the next executable task.
 
 Do not begin scene/entity work in Issue #4 until #3 has a green merged PR unless a blocking dependency requires a documented change.
 
@@ -164,6 +170,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership and types remain behind `engine/platform`.
+- `engine/runtime` has no SDL, CLI, JSON, or MCP dependency.
 - MCP is never the source of truth for engine behavior.
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
