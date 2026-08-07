@@ -33,7 +33,10 @@ P1 deterministic runtime foundation is complete:
 - Issue **#2 — Add SDL3 platform boundary and startup modes** completed in PR **#16**
 - Issue **#3 — Implement deterministic fixed-step runtime control** completed in PR **#17**
 
-The next executable task is Issue **#4 — Define stable entity identity and scene registry**.
+P2 scene identity foundation has started:
+
+- Issue **#4 — Define stable entity identity and scene registry** completed in PR **#18**
+- Issue **#5 — Add text-first scene format and deterministic serialization** is the next executable task
 
 P0 established:
 
@@ -64,6 +67,19 @@ P1 established:
 - `trace2d run --frames N --seed N` machine-controlled runtime smoke path
 - unit coverage for zero/one/multi-frame stepping, exact 120-frame advancement, reset determinism, wall-clock remainder, and monotonic clock behavior
 
+P2 currently established:
+
+- `Trace2D::Scene` module with scene-owned entity lifetime
+- generation-safe `EntityId` runtime handles using slot index + generation
+- stale-handle invalidation across destruction and slot reuse
+- unique non-empty semantic IDs separated from runtime handles
+- human-readable names and normalized semantic tags
+- mutable `Transform2D` state
+- deterministic observable iteration in ascending slot-index order
+- allocation-free entity iteration without a temporary result collection
+- lifecycle, semantic identity, tag, transform, stale-handle, reuse, and deterministic-order tests
+- architecture documentation for identity and iteration rules
+
 ## Current validation status
 
 The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
@@ -78,6 +94,7 @@ Validated milestones:
 - PR **#1** final CI run **#12**: configure, build, test successful before merge
 - PR **#16** final-head CI run **#19**: SDL3 configure, Windows MSVC build, and all tests successful before merge
 - PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke all successful before squash merge
+- PR **#18** final-head CI run **#28**: pinned dependencies, configure, Windows MSVC build, and full CTest suite including scene lifecycle/determinism tests all successful before squash merge
 
 ## P0 exit criteria
 
@@ -104,40 +121,50 @@ Validated milestones:
 - [x] wall-clock accumulation is separate from explicit stepping
 - [x] runtime code has no SDL, CLI, JSON, or MCP dependency
 
+## P2 progress
+
+- [x] **#4 — stable entity identity / scene registry** — PR #18 merged after green CI
+- [x] scene owns entity creation/destruction and runtime handle validity
+- [x] stale handles are rejected after destruction and slot reuse
+- [x] authored semantic IDs are distinct from generation-safe runtime handles
+- [x] observable entity iteration order is deterministic and allocation-free
+- [ ] **#5 — text-first scene format / deterministic serialization**
+- [ ] minimal authored scene can be loaded entirely from text
+- [ ] invalid scene input produces actionable diagnostics
+- [ ] load -> save -> load preserves semantic state
+- [ ] serialization output ordering is stable for Git diffs
+
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#4 — P2: Define stable entity identity and scene registry**
-2. **#5 — P2: Add text-first scene format and deterministic serialization**
-3. **#6 — P3: Build protocol-independent runtime inspection API**
-4. **#7 — P3: Add semantic selectors and runtime queries**
-5. **#8 — P4: Implement virtual input with frame scheduling**
-6. **#9 — P4: Add deterministic gameplay test runner and assertions**
-7. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-8. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-9. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-10. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-11. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#5 — P2: Add text-first scene format and deterministic serialization**
+2. **#6 — P3: Build protocol-independent runtime inspection API**
+3. **#7 — P3: Add semantic selectors and runtime queries**
+4. **#8 — P4: Implement virtual input with frame scheduling**
+5. **#9 — P4: Add deterministic gameplay test runner and assertions**
+6. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+7. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+8. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+9. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+10. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #4 — Define stable entity identity and scene registry.**
+**Issue #5 — Add text-first scene format and deterministic serialization.**
 
-Required outcomes from Issue #4:
+Required outcomes from Issue #5:
 
-- stable `EntityId` / generation-safe handle design
-- scene-owned entity lifetime
-- name and semantic tag metadata
-- transform component
-- deterministic iteration policy for observable systems
-- safe entity create/destroy/query behavior
-- stale-handle detection after destruction/reuse
-- tests for lifecycle, stale handles, and deterministic iteration
+- choose and document the initial scene text format
+- define schema for scene metadata, semantic IDs, names, tags, and transforms
+- load authored text into the existing `Trace2D::Scene` model
+- validate required fields and duplicate semantic IDs with actionable diagnostics
+- serialize scene state in deterministic ordering suitable for Git diffs
+- add round-trip tests proving load -> save -> load preserves semantic state
 
-Keep the first scene model intentionally small. Do not introduce a full generic ECS unless measured requirements justify it. Automation-facing identity must never be a raw pointer.
+Preserve the identity rules established by Issue #4: semantic authored identity stays separate from runtime `EntityId`, observable ordering remains deterministic, and serialization must not depend on raw pointers or incidental container addresses.
 
-Do not begin Issue #5 serialization work until #4 has a green merged PR unless a blocking dependency requires a documented change.
+Do not begin Issue #6 inspection work until #5 has a green merged PR unless a blocking dependency requires a documented change.
 
 ## Public Alpha blockers
 
@@ -183,8 +210,9 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
 - Authored scene/project state is text-first.
-- Automation-facing entity identity must not be a raw pointer.
-- Observable iteration order must be deterministic where behavior depends on order.
+- Runtime entity identity uses generation-safe handles; automation-facing identity must not be a raw pointer.
+- Non-empty semantic IDs are unique within a scene and distinct from runtime handles.
+- Observable entity iteration uses deterministic ascending slot-index order.
 - Structured state beats pixel inference for gameplay QA.
 - Semantic selectors beat coordinate-based targeting where identity exists.
 - Optimization complexity follows measurement.
@@ -193,7 +221,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 Resolve these only when their implementation phase arrives:
 
-- exact authored scene syntax/serialization library
+- exact authored scene syntax/serialization library — resolve in Issue #5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
 - project license before the repository becomes Public
@@ -207,7 +235,7 @@ Every PR that materially advances a phase should update this file so these secti
 
 - Current phase
 - Current validation status
-- Exit criteria
+- Exit criteria/progress
 - Next execution order
 - Public Alpha blockers
 - Known decisions still open
