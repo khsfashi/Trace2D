@@ -157,6 +157,66 @@ struct InspectionResult final
     }
 };
 
+enum class SelectorKind
+{
+    SemanticId,
+    Name,
+    Tag,
+    Type,
+};
+
+[[nodiscard]] std::string_view ToString(SelectorKind kind) noexcept;
+
+struct SemanticSelector final
+{
+    SelectorKind kind{SelectorKind::SemanticId};
+    std::string value{};
+
+    [[nodiscard]] bool operator==(const SemanticSelector&) const noexcept = default;
+};
+
+enum class QueryErrorCode
+{
+    SceneUnavailable,
+    InvalidSelector,
+    NoMatch,
+    AmbiguousMatch,
+};
+
+[[nodiscard]] std::string_view ToString(QueryErrorCode code) noexcept;
+
+struct QueryError final
+{
+    QueryErrorCode code{QueryErrorCode::InvalidSelector};
+    std::string message{};
+
+    [[nodiscard]] bool operator==(const QueryError&) const noexcept = default;
+};
+
+struct QueryResult final
+{
+    std::optional<SemanticSelector> selector{};
+    std::vector<EntitySnapshot> matches{};
+    std::optional<QueryError> error{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return selector.has_value() && !error.has_value();
+    }
+};
+
+struct QueryOneResult final
+{
+    std::optional<SemanticSelector> selector{};
+    std::optional<EntitySnapshot> match{};
+    std::optional<QueryError> error{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return selector.has_value() && match.has_value() && !error.has_value();
+    }
+};
+
 class AgentFacade final
 {
 public:
@@ -169,6 +229,8 @@ public:
     void BindScene(const scene::Scene* scene) noexcept;
 
     [[nodiscard]] InspectionResult Inspect() const;
+    [[nodiscard]] QueryResult Query(std::string_view selector) const;
+    [[nodiscard]] QueryOneResult QueryOne(std::string_view selector) const;
 
 private:
     const runtime::FixedStepRuntime* runtime_{nullptr};
