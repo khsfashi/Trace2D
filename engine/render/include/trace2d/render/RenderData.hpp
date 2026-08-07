@@ -5,6 +5,9 @@
 
 namespace trace2d::render
 {
+using TextureHandle = std::uint32_t;
+inline constexpr TextureHandle InvalidTextureHandle = 0;
+
 struct Float2 final
 {
     float x{0.0F};
@@ -34,6 +37,7 @@ struct SpriteRenderData final
 {
     Float2 center{};
     Float2 halfExtents{0.5F, 0.5F};
+    TextureHandle texture{InvalidTextureHandle};
     std::int32_t layer{0};
     std::uint64_t stableOrder{0};
 
