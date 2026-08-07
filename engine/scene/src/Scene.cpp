@@ -32,7 +32,7 @@ const std::vector<std::string>& Entity::Tags() const noexcept
 
 bool Entity::HasTag(const std::string_view tag) const noexcept
 {
-    return std::binary_search(
+    const auto iterator = std::lower_bound(
         tags_.begin(),
         tags_.end(),
         tag,
@@ -40,6 +40,8 @@ bool Entity::HasTag(const std::string_view tag) const noexcept
         {
             return std::string_view{left} < right;
         });
+
+    return iterator != tags_.end() && std::string_view{*iterator} == tag;
 }
 
 Transform2D& Entity::Transform() noexcept
@@ -107,7 +109,7 @@ bool Scene::DestroyEntity(const EntityId id) noexcept
 
 bool Scene::Contains(const EntityId id) const noexcept
 {
-    if (!id.IsValid() || id.index >= slots_.size())
+    if (!id.IsValid() || static_cast<std::size_t>(id.index) >= slots_.size())
     {
         return false;
     }
