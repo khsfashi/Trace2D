@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pinned vcpkg
         shell: pwsh
@@ -29,10 +29,10 @@ jobs:
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Configure
-        run: cmake --preset windows-msvc
+        run: cmake --preset ci-windows-msvc
 
       - name: Build
-        run: cmake --build --preset windows-debug --parallel
+        run: cmake --build --preset ci-windows-debug --parallel
 
       - name: Test
-        run: ctest --preset windows-debug
+        run: ctest --preset ci-windows-debug
