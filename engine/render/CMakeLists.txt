@@ -1,6 +1,7 @@
 find_package(SDL3 CONFIG REQUIRED)
 
 add_library(trace2d_render STATIC
+    src/RenderData.cpp
     src/Renderer.cpp
 )
 
