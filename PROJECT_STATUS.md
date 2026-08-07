@@ -24,7 +24,7 @@ The first public release proves this loop. It is not intended to be a complete g
 
 ## Current phase
 
-**P4 — Deterministic interaction and gameplay-test foundation**
+**P5 — Minimal SDL3 GPU 2D renderer and capture path**
 
 Completed phase milestones:
 
@@ -36,10 +36,9 @@ Completed phase milestones:
 - P3 protocol-independent runtime inspection — Issue **#6**, PR **#20**
 - P3 semantic selectors and runtime queries — Issue **#7**, PR **#21**
 - P4 deterministic virtual input / frame scheduling — Issue **#8**, PR **#22**
+- P4 deterministic gameplay test runner / assertions — Issue **#9**, PR **#23**
 
-P3 is complete. P4 input is complete. The next executable task is **Issue #9 — P4: Add deterministic gameplay test runner and assertions**.
-
-Do not begin Issue #10 renderer/capture work before #9 is merged and green unless a blocking dependency requires a documented change.
+P0-P4 are complete. The next executable task is **Issue #10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**.
 
 ## Foundation currently established
 
@@ -128,6 +127,23 @@ See `docs/INSPECTION.md` and `docs/QUERY.md` for the current public contracts.
 
 See `docs/INPUT.md` for frame semantics and the physical/virtual input contract.
 
+### Deterministic gameplay testing
+
+- protocol-independent `Trace2D::Testing` module composes existing scene, runtime, input, and semantic-query systems
+- scenario lifecycle supports authored-scene load, baseline reset, immediate/scheduled input, exact frame execution, semantic assertion, and structured report
+- `RunFrames` advances input and runtime one frame at a time before invoking the gameplay update callback, preserving transient input semantics
+- runner rejects pre-existing input/runtime frame divergence
+- exact float-field assertion surface is intentionally limited to currently authoritative component state rather than adding reflection or guessed spatial state
+- assertions reuse `AgentFacade::QueryOne` no-match/ambiguity behavior
+- structured failures include stable code, selector, component/field, expected/observed values, frame, deterministic seed, detail, runtime snapshot, relevant input state, and resolved entity snapshot when available
+- detailed failure/entity snapshots are materialized only at assertion/failure time; scenario execution does not add per-frame inspection allocation
+- scenario report records immediate and scheduled input metadata for reproduction
+- reset restores the baseline scene and clears runtime/input/report state
+- repeated failing scenarios are covered by complete report equality checks
+- `trace2d_gameplay_tests` is discovered by CTest and remains separate from the engine-level testing contract
+
+See `docs/GAMEPLAY_TESTING.md` for the scenario, assertion, determinism, and failure-report contract.
+
 ## Current validation status
 
 The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
@@ -147,6 +163,9 @@ Validated milestones:
 - PR **#20** final-head CI run **#40**: configure, Windows MSVC build, full CTest suite, agent inspection unit tests, and deterministic CLI inspect fixture successful before squash merge
 - PR **#21** final-head CI run **#44**: configure, Windows MSVC build, full CTest suite, semantic selector/query unit tests, and deterministic CLI query coverage successful before squash merge
 - PR **#22** final-head CI run **#47**: configure, Windows MSVC build, full CTest suite, deterministic virtual-input transition/scheduling tests, and runtime-lockstep input coverage successful before squash merge
+- PR **#23** final-head CI run **#54**: configure, Windows MSVC build, and **55/55 CTest tests** successful, including scheduled/immediate gameplay input, structured assertion failure snapshots, query ambiguity propagation, reset restoration, and repeated-failure report determinism before squash merge
+
+PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba826ee5730abb` and Issue **#9** closed as completed.
 
 ## Phase exit criteria
 
@@ -194,7 +213,7 @@ Validated milestones:
 - [x] deterministic CLI `query --json`
 - [x] query tests cover ID, name, tag, type, no-match, multi-match, ambiguity, invalid syntax, and deterministic ordering
 
-### P4 — in progress
+### P4 — complete
 
 - [x] **#8 — virtual input with frame scheduling** — PR **#22**
 - [x] engine-level input state independent of SDL event objects
@@ -202,50 +221,65 @@ Validated milestones:
 - [x] deterministic press / release / held transitions
 - [x] frame-indexed input scheduling
 - [x] predictable reset between test scenarios
-- [ ] **#9 — deterministic gameplay test runner and assertions**
-- [ ] scenario lifecycle: load / reset / run / report
-- [ ] semantic-selector assertions over component state
-- [ ] deterministic seed/input/frame metadata in reports
-- [ ] structured failure output with relevant runtime-state snapshot
-- [ ] CI-visible gameplay scenario target
+- [x] **#9 — deterministic gameplay test runner and assertions** — PR **#23**
+- [x] scenario lifecycle: load / reset / run / report
+- [x] semantic-selector assertions over authoritative component state
+- [x] deterministic seed/input/frame metadata in reports
+- [x] structured failure output with relevant runtime/entity/input snapshot
+- [x] CI-visible gameplay scenario target
+- [x] repeated failing scenarios reproduce identical reports
+
+### P5 — in progress
+
+- [ ] **#10 — minimal SDL3 GPU 2D renderer and capture path**
+- [ ] SDL3 GPU device and swapchain integration isolated from simulation ownership
+- [ ] orthographic camera
+- [ ] textured sprite rendering
+- [ ] measured sprite batching baseline
+- [ ] visibility/culling baseline
+- [ ] offscreen render target where supported
+- [ ] deterministic screenshot capture at an explicitly requested simulation frame
+- [ ] basic renderer metrics suitable for profiling
+- [ ] headless gameplay tests remain independent of GPU presentation
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#9 — P4: Add deterministic gameplay test runner and assertions**
-2. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-3. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-4. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-5. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-6. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+2. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+3. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+4. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+5. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #9 — P4: Add deterministic gameplay test runner and assertions.**
+**Issue #10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path.**
 
-Goal: make gameplay behavior a first-class automated test surface rather than a collection of ad-hoc scripts.
+Goal: add the smallest practical renderer required for game samples and visual QA while keeping structured simulation state authoritative.
 
 Required outcomes:
 
-- define a deterministic scenario lifecycle: load, reset, schedule/inject input, run exact frames, assert, report
-- reuse existing `Scene`, `FixedStepRuntime`, `InputSystem`, and semantic query primitives rather than duplicating them
-- provide assertions over semantic selectors and authoritative component state
-- include selector, expected value, observed value, frame number, deterministic seed, and relevant input metadata in failures
-- capture a structured snapshot of relevant runtime/entity state on failure
-- make repeated failures reproduce at the same frame with the same observed state
-- expose gameplay tests through CTest or an equivalent CI-visible target
-- keep JSON/CLI/MCP representation outside the engine-level assertion/test-runner contract
+- integrate an SDL3 GPU device and window swapchain without coupling simulation/runtime ownership to rendering
+- define a minimal orthographic 2D camera
+- render textured sprites in windowed mode
+- establish a simple sprite-batching path and expose metrics before introducing batching complexity
+- establish a visibility/culling baseline
+- support an offscreen render target where the selected SDL3 GPU path permits it
+- capture a deterministic screenshot artifact at an explicitly requested simulation frame
+- expose basic render metrics that can be used for later CPU/GPU submission profiling
+- keep all existing headless gameplay scenarios functional without GPU presentation
 
 Implementation guidance:
 
-- prefer a small protocol-independent runner module over shelling out to the CLI from unit tests
-- keep scenario execution deterministic by advancing input and runtime one frame at a time when transient input state can matter
-- define assertion value types narrowly around currently authoritative state; do not invent renderer/physics bounds or generic reflection
-- reuse `AgentFacade::QueryOne` ambiguity/no-match semantics instead of silently selecting entities
-- structure failure data first, then add text/JSON formatting at adapter or test-report boundaries
-- avoid per-frame snapshot allocation; materialize detailed failure context only when an assertion actually fails
-- do not begin #10 renderer/capture work until #9 is green and merged unless a blocking dependency requires a documented exception
+- begin by reading the current SDL3 platform boundary and SDL3 GPU API used by the pinned dependency; do not leak SDL-owned handles into runtime/scene/agent contracts unnecessarily
+- keep renderer state derived from authoritative scene/game state; rendering must not become gameplay truth
+- choose the smallest sprite data/model extension needed for one rendered sample instead of designing a full material/render-graph system
+- establish correctness and measurable submission/batching metrics before specialized allocators, persistent GPU resource caches, bindless abstractions, or advanced culling
+- avoid per-frame resource creation when resources can have stable renderer-owned lifetimes
+- keep capture frame selection explicit and deterministic; do not infer the requested state from wall-clock timing
+- preserve the existing headless path so gameplay tests do not require a GPU device or visible window
+- do not add lighting, PBR, editor rendering, broad asset-pipeline machinery, or physics just to satisfy P5
 
 ## Public Alpha blockers
 
@@ -257,7 +291,7 @@ The following capabilities are release blockers for `v0.1.0-alpha.1`:
 - [x] structured runtime inspection
 - [x] semantic selectors
 - [x] virtual input
-- [ ] gameplay assertions
+- [x] gameplay assertions
 - [ ] minimal sprite renderer
 - [ ] capture at a known simulation frame
 - [ ] one tiny end-to-end sample proving the workflow
@@ -285,20 +319,22 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 ## Architecture invariants currently in force
 
 - `engine/core` has no SDL dependency.
-- SDL-specific ownership and types remain behind `engine/platform`.
+- SDL-specific ownership and types remain behind platform/rendering boundaries rather than entering core simulation contracts.
 - `engine/input` gameplay-facing state contains no SDL, CLI, JSON, or MCP types.
 - Physical platform input and virtual test/agent input converge on the same `trace2d::input::InputEvent` / `InputSystem` path.
 - Input hot-path state uses direct indexed storage; scheduled scenario authoring may allocate, frame consumption does not.
-- `engine/runtime` has no SDL, CLI, JSON, or MCP dependency.
-- `engine/scene` has no agent, CLI, JSON, or MCP dependency.
+- `engine/runtime` has no SDL, renderer, CLI, JSON, or MCP dependency.
+- `engine/scene` has no agent, testing, renderer, CLI, JSON, or MCP dependency unless a future authored render component is deliberately introduced at the scene/data layer with documented ownership.
 - `engine/agent` may depend on runtime/scene, but runtime/scene never depend on `engine/agent`.
-- Agent facade result/error types contain no JSON, MCP, SDL, or LLM-specific protocol types.
+- `engine/testing` may compose agent/input/runtime/scene but those lower-level modules do not depend on testing.
+- Gameplay-scenario execution does not request per-frame inspection snapshots; detailed failure context is materialized only at assertions/failures.
+- Agent facade and gameplay-test result/error types contain no JSON, MCP, SDL, or LLM-specific protocol types.
 - JSON serialization is an adapter/tool-boundary concern, not an engine/runtime concern.
 - Inspection and semantic-query snapshot allocation happens only when explicitly requested; no per-frame copying is introduced.
 - Semantic query result order follows deterministic scene observable order.
 - Single-result semantic queries fail on ambiguity rather than choosing an arbitrary entity.
 - MCP is never the source of truth for engine behavior.
-- Headless and windowed execution share runtime logic.
+- Headless and windowed execution share simulation/runtime logic.
 - Automated tests own simulation time through fixed-step control.
 - Authored scene/project state is text-first.
 - Authored scene files use versioned TOML and serialize into a canonical deterministic representation.
@@ -309,12 +345,14 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - Authored serialization ordering is independent of runtime slot order and uses semantic IDs.
 - Structured state beats pixel inference for gameplay QA.
 - Semantic selectors beat coordinate-based targeting where identity exists.
+- Rendering is presentation/QA state, not authoritative gameplay state.
 - Optimization complexity follows measurement.
 
 ## Known decisions still open
 
 Resolve these only when their implementation phase arrives:
 
+- exact SDL3 GPU backend/device details and minimal sprite resource model for P5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
 - project license before the repository becomes Public
