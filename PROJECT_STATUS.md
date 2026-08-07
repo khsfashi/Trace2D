@@ -38,7 +38,11 @@ P2 scene and authored-data foundation is complete:
 - Issue **#4 — Define stable entity identity and scene registry** completed in PR **#18**
 - Issue **#5 — Add text-first scene format and deterministic serialization** completed in PR **#19**
 
-The next executable task is **Issue #6 — Build protocol-independent runtime inspection API**.
+P3 structured observability is in progress:
+
+- Issue **#6 — Build protocol-independent runtime inspection API** completed in PR **#20**
+
+The next executable task is **Issue #7 — Add semantic selectors and runtime queries**.
 
 P0 established:
 
@@ -90,6 +94,22 @@ P2 established:
 - lifecycle, identity, tag, transform, stale-handle, reuse, deterministic-order, schema-validation, and round-trip tests
 - scene-format and architecture documentation for identity, iteration, and serialization rules
 
+P3 now established:
+
+- `Trace2D::Agent` protocol-independent facade over runtime and scene state
+- non-owning active runtime/scene binding without reversing dependency direction
+- owned runtime, scene, entity, transform, nullable-bounds, and generic component-field snapshots
+- stable engine-level `InspectionErrorCode` values independent of JSON/MCP
+- deterministic entity/tag/component/field ordering in inspection snapshots
+- `Transform2D` exposed both as a direct snapshot and initial typed generic component fields
+- bounds represented explicitly as unavailable until renderer/physics state can provide authoritative values
+- inspection allocations occur only when inspection is requested, not in the per-frame simulation path
+- `trace2d inspect --scene PATH --frames N --seed N [--json]`
+- deterministic one-line JSON serialization only at the CLI boundary
+- stable inspect exit categories for usage, file I/O, scene validation, and inspection failures
+- structured scene-load diagnostics preserved through the CLI JSON error boundary
+- unit tests, deterministic CLI fixture coverage, architecture docs, and `docs/INSPECTION.md`
+
 ## Current validation status
 
 The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
@@ -106,6 +126,7 @@ Validated milestones:
 - PR **#17** final-head CI run **#24**: configure, build, runtime tests, pre-existing tests, and 120-frame headless CLI smoke all successful before squash merge
 - PR **#18** final-head CI run **#28**: pinned dependencies, configure, Windows MSVC build, and full CTest suite including scene lifecycle/determinism tests all successful before squash merge
 - PR **#19** final-head CI run **#35**: pinned dependencies including toml++, configure, Windows MSVC build, and full CTest suite including text-scene validation/deterministic round-trip tests all successful before squash merge
+- PR **#20** final-head CI run **#40**: pinned dependencies, configure, Windows MSVC build, full CTest suite, agent inspection unit tests, and deterministic CLI inspect fixture all successful before squash merge
 
 ## P0 exit criteria
 
@@ -148,44 +169,46 @@ Validated milestones:
 
 ## P3 progress
 
-- [ ] **#6 — protocol-independent runtime inspection API**
-- [ ] active runtime frame and scene state can be inspected through Trace2D-owned types
-- [ ] entity identity, name, tags, transform, and initial component fields are inspectable without parsing logs or pixels
-- [ ] inspection result/error schema is stable and independent of JSON/MCP
-- [ ] initial CLI `inspect` boundary can emit deterministic structured JSON
+- [x] **#6 — protocol-independent runtime inspection API** — PR #20 merged after green CI
+- [x] active runtime frame and scene state can be inspected through Trace2D-owned types
+- [x] entity identity, name, tags, transform, nullable bounds, and initial component fields are inspectable without parsing logs or pixels
+- [x] inspection result/error schema is stable and independent of JSON/MCP
+- [x] initial CLI `inspect` boundary emits deterministic structured JSON
 - [ ] **#7 — semantic selectors / runtime queries**
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#6 — P3: Build protocol-independent runtime inspection API**
-2. **#7 — P3: Add semantic selectors and runtime queries**
-3. **#8 — P4: Implement virtual input with frame scheduling**
-4. **#9 — P4: Add deterministic gameplay test runner and assertions**
-5. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-6. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-7. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-8. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-9. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#7 — P3: Add semantic selectors and runtime queries**
+2. **#8 — P4: Implement virtual input with frame scheduling**
+3. **#9 — P4: Add deterministic gameplay test runner and assertions**
+4. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+5. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+6. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+7. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+8. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #6 — Build protocol-independent runtime inspection API.**
+**Issue #7 — Add semantic selectors and runtime queries.**
 
-Required outcomes from Issue #6:
+Required outcomes from Issue #7:
 
-- add an `engine/agent` facade over authoritative runtime/scene state
-- inspect the active scene and runtime frame without coupling engine internals to CLI, JSON, MCP, or a specific LLM
-- expose entity identity, transform, tags, bounds, and initial component fields through stable Trace2D-owned result types
-- define stable result/error structures suitable for later adapters
-- add JSON serialization only at the tool boundary
-- expose the initial CLI `inspect` command with deterministic output
-- return stable non-zero exit behavior and actionable diagnostics for inspection failures
+- add a small selector grammar for semantic authored ID, name, tag, and type
+- support stable initial selectors such as `#player`, `#boss`, and `tag:enemy`
+- keep query behavior in the protocol-independent `engine/agent` facade rather than the CLI/MCP layer
+- return deterministic query result ordering
+- provide single-result and multi-result query APIs
+- fail ambiguous single-result queries clearly instead of choosing an arbitrary entity
+- return structured diagnostics for invalid selector syntax
+- expose an initial CLI `query` command with deterministic JSON output
+- cover authored ID, tag, no-match, multi-match, ambiguity, and invalid-syntax cases
+- leave spatial bounds/distance queries as hooks unless #7 requires a minimal authoritative implementation
 
-Preserve the dependency direction: the protocol-independent agent facade may depend on runtime/scene, but runtime/scene must not depend on JSON, CLI, or MCP. Do not make MCP the source of truth for inspection behavior.
+Preserve the dependency direction: selectors and queries belong in the agent facade over scene/runtime state. Do not move selector parsing into `engine/scene`, and do not make CLI JSON or future MCP types the engine query contract.
 
-Do not begin Issue #7 selector work until #6 has a green merged PR unless a blocking dependency requires a documented change.
+Do not begin Issue #8 virtual-input work until #7 has a green merged PR unless a blocking dependency requires a documented change.
 
 ## Public Alpha blockers
 
@@ -227,6 +250,11 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership and types remain behind `engine/platform`.
 - `engine/runtime` has no SDL, CLI, JSON, or MCP dependency.
+- `engine/scene` has no agent, CLI, JSON, or MCP dependency.
+- `engine/agent` may depend on runtime/scene, but runtime/scene never depend on `engine/agent`.
+- Agent facade result/error types contain no JSON, MCP, SDL, or LLM-specific protocol types.
+- JSON serialization is an adapter/tool-boundary concern, not an engine/runtime concern.
+- Inspection snapshot allocation happens only when explicitly requested; no per-frame inspection copying is introduced.
 - MCP is never the source of truth for engine behavior.
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
