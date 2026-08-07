@@ -35,10 +35,11 @@ Completed phase milestones:
 - P2 text-first deterministic scene format — Issue **#5**, PR **#19**
 - P3 protocol-independent runtime inspection — Issue **#6**, PR **#20**
 - P3 semantic selectors and runtime queries — Issue **#7**, PR **#21**
+- P4 deterministic virtual input / frame scheduling — Issue **#8**, PR **#22**
 
-P3 is complete. The next executable task is **Issue #8 — P4: Implement virtual input with frame scheduling**.
+P3 is complete. P4 input is complete. The next executable task is **Issue #9 — P4: Add deterministic gameplay test runner and assertions**.
 
-Do not begin Issue #9 gameplay assertions before #8 is merged and green unless a blocking dependency requires a documented change.
+Do not begin Issue #10 renderer/capture work before #9 is merged and green unless a blocking dependency requires a documented change.
 
 ## Foundation currently established
 
@@ -110,6 +111,23 @@ Do not begin Issue #9 gameplay assertions before #8 is merged and green unless a
 
 See `docs/INSPECTION.md` and `docs/QUERY.md` for the current public contracts.
 
+### Deterministic input
+
+- `Trace2D::Input` owns gameplay-facing input state independently of SDL event objects
+- fixed-size direct-indexed control state for A-Z, arrows, Space/Enter/Escape, and initial mouse buttons
+- deterministic held / pressed / released transitions
+- transient press/release flags clear on frame advancement while held state persists
+- frame-indexed scheduled input with insertion-order stability for same-frame events
+- `VirtualInputSource` supports immediate and scheduled test/agent injection
+- physical SDL keyboard/mouse events translate into the same engine-owned `InputEvent` type
+- gameplay code consumes one `InputSystem` state regardless of physical versus virtual origin
+- reset clears control state, frame, scheduler cursor, and pending schedule while vector capacity remains reusable
+- per-frame `ApplyEvent`, state lookup, transient clearing, and schedule consumption allocate no memory
+- scheduling is setup work and may allocate/move vector elements
+- tests cover immediate transitions, scheduled press/held/release, same-frame ordering, out-of-order schedule authoring, reset, invalid frame/control rejection, repeat determinism, and exact Runtime lockstep
+
+See `docs/INPUT.md` for frame semantics and the physical/virtual input contract.
+
 ## Current validation status
 
 The project is validated on clean GitHub-hosted Windows runners using the repository's pinned vcpkg baseline and MSVC toolchain configuration.
@@ -128,6 +146,7 @@ Validated milestones:
 - PR **#19** final-head CI run **#35**: configure, Windows MSVC build, and full CTest suite including text-scene validation/deterministic round-trip tests successful before squash merge
 - PR **#20** final-head CI run **#40**: configure, Windows MSVC build, full CTest suite, agent inspection unit tests, and deterministic CLI inspect fixture successful before squash merge
 - PR **#21** final-head CI run **#44**: configure, Windows MSVC build, full CTest suite, semantic selector/query unit tests, and deterministic CLI query coverage successful before squash merge
+- PR **#22** final-head CI run **#47**: configure, Windows MSVC build, full CTest suite, deterministic virtual-input transition/scheduling tests, and runtime-lockstep input coverage successful before squash merge
 
 ## Phase exit criteria
 
@@ -177,52 +196,56 @@ Validated milestones:
 
 ### P4 — in progress
 
-- [ ] **#8 — virtual input with frame scheduling**
-- [ ] engine-level input state independent of SDL event objects
-- [ ] physical SDL and virtual test/agent sources feed the same gameplay-facing input state
-- [ ] deterministic press / release / held transitions
-- [ ] frame-indexed input scheduling
-- [ ] predictable reset between test scenarios
+- [x] **#8 — virtual input with frame scheduling** — PR **#22**
+- [x] engine-level input state independent of SDL event objects
+- [x] physical SDL and virtual test/agent sources feed the same gameplay-facing input state
+- [x] deterministic press / release / held transitions
+- [x] frame-indexed input scheduling
+- [x] predictable reset between test scenarios
 - [ ] **#9 — deterministic gameplay test runner and assertions**
+- [ ] scenario lifecycle: load / reset / run / report
+- [ ] semantic-selector assertions over component state
+- [ ] deterministic seed/input/frame metadata in reports
+- [ ] structured failure output with relevant runtime-state snapshot
+- [ ] CI-visible gameplay scenario target
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#8 — P4: Implement virtual input with frame scheduling**
-2. **#9 — P4: Add deterministic gameplay test runner and assertions**
-3. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
-4. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-5. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-6. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-7. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. **#9 — P4: Add deterministic gameplay test runner and assertions**
+2. **#10 — P5: Implement minimal SDL3 GPU 2D renderer and capture path**
+3. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+4. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+5. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+6. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-**Issue #8 — P4: Implement virtual input with frame scheduling.**
+**Issue #9 — P4: Add deterministic gameplay test runner and assertions.**
 
-Goal: allow tests and agents to inject input independently of physical devices and schedule it against deterministic simulation frames.
+Goal: make gameplay behavior a first-class automated test surface rather than a collection of ad-hoc scripts.
 
 Required outcomes:
 
-- introduce gameplay-facing engine input state that contains no SDL event types
-- provide a physical SDL adapter and a virtual input source that converge on the same engine state
-- support key/button press, release, and held state
-- support frame-indexed scheduling against deterministic simulation frames
-- expose a minimal test API or CLI boundary for injecting virtual input
-- make reset semantics explicit and deterministic between scenarios
-- test exact press -> held -> release transitions across explicitly stepped frames
-- test scheduled events at known frame indices
-- preserve current runtime determinism and dependency direction
+- define a deterministic scenario lifecycle: load, reset, schedule/inject input, run exact frames, assert, report
+- reuse existing `Scene`, `FixedStepRuntime`, `InputSystem`, and semantic query primitives rather than duplicating them
+- provide assertions over semantic selectors and authoritative component state
+- include selector, expected value, observed value, frame number, deterministic seed, and relevant input metadata in failures
+- capture a structured snapshot of relevant runtime/entity state on failure
+- make repeated failures reproduce at the same frame with the same observed state
+- expose gameplay tests through CTest or an equivalent CI-visible target
+- keep JSON/CLI/MCP representation outside the engine-level assertion/test-runner contract
 
 Implementation guidance:
 
-- keep physical-device translation at the platform/input adapter boundary; gameplay code must not branch on physical versus virtual origin
-- define frame semantics precisely before implementation (for example, when an event scheduled for frame N becomes visible relative to `Step`)
-- avoid per-frame heap allocation for steady input-state updates; scheduling may allocate when a scenario is authored, but consumption should use stable prebuilt state where practical
-- use compact state representations and direct indexed lookup for the small initial key/button domain rather than maps or strings in the simulation hot path
-- do not make SDL scancodes, JSON values, CLI argument structures, or future MCP types the engine input contract
-- do not begin #9 assertion-runner work until #8 is green and merged unless a blocking dependency requires a documented exception
+- prefer a small protocol-independent runner module over shelling out to the CLI from unit tests
+- keep scenario execution deterministic by advancing input and runtime one frame at a time when transient input state can matter
+- define assertion value types narrowly around currently authoritative state; do not invent renderer/physics bounds or generic reflection
+- reuse `AgentFacade::QueryOne` ambiguity/no-match semantics instead of silently selecting entities
+- structure failure data first, then add text/JSON formatting at adapter or test-report boundaries
+- avoid per-frame snapshot allocation; materialize detailed failure context only when an assertion actually fails
+- do not begin #10 renderer/capture work until #9 is green and merged unless a blocking dependency requires a documented exception
 
 ## Public Alpha blockers
 
@@ -233,7 +256,7 @@ The following capabilities are release blockers for `v0.1.0-alpha.1`:
 - [x] stable text-authored scene/entity identity
 - [x] structured runtime inspection
 - [x] semantic selectors
-- [ ] virtual input
+- [x] virtual input
 - [ ] gameplay assertions
 - [ ] minimal sprite renderer
 - [ ] capture at a known simulation frame
@@ -263,6 +286,9 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership and types remain behind `engine/platform`.
+- `engine/input` gameplay-facing state contains no SDL, CLI, JSON, or MCP types.
+- Physical platform input and virtual test/agent input converge on the same `trace2d::input::InputEvent` / `InputSystem` path.
+- Input hot-path state uses direct indexed storage; scheduled scenario authoring may allocate, frame consumption does not.
 - `engine/runtime` has no SDL, CLI, JSON, or MCP dependency.
 - `engine/scene` has no agent, CLI, JSON, or MCP dependency.
 - `engine/agent` may depend on runtime/scene, but runtime/scene never depend on `engine/agent`.
