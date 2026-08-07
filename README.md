@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can eventually edit a game, build it, run it headlessly, advance simulation time explicitly, inspect structured runtime state, inject input, assert behavior, and capture visuals when pixels actually matter.
 
-> Current status: **P3 — structured observability foundation**. P0 project setup, P1 deterministic runtime control, P2 stable scene identity/text serialization, and the initial protocol-independent runtime inspection facade are implemented. Semantic queries, virtual input, gameplay assertions, and rendering/capture remain planned work unless explicitly documented otherwise.
+> Current status: **P4 — deterministic interaction and gameplay-test foundation**. P0 project setup, P1 deterministic runtime control, P2 stable scene identity/text serialization, P3 structured inspection/semantic queries, and P4 deterministic virtual input are implemented. Gameplay assertions are the next executable milestone; rendering/capture remain later work.
 
 ## Project navigation
 
@@ -15,6 +15,8 @@ For coding agents or contributors continuing development, start here:
 - [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — current phase, active work, validation state, and next execution order
 - [Runtime inspection contract](docs/INSPECTION.md) — protocol-independent snapshot schema, deterministic CLI JSON, and exit codes
+- [Semantic query contract](docs/QUERY.md) — selectors, deterministic result ordering, and query errors
+- [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence, frame scheduling, and reset semantics
 - [Scene text format](docs/SCENE_FORMAT.md) — version-1 authored TOML schema and canonical serialization rules
 - [Public Release Plan](docs/PUBLIC_RELEASE.md) — exact gates for `v0.1.0-alpha.1`
 - [Roadmap](docs/ROADMAP.md) — long-term P0-P8 development phases
@@ -42,6 +44,13 @@ The current repository already includes:
 - protocol-independent `Trace2D::Agent` inspection facade over runtime and scene state
 - stable runtime/scene/entity/component snapshot types with structured errors
 - deterministic CLI `inspect` JSON output with stable non-zero error categories
+- exact semantic selectors for authored ID, name, tag, and component type
+- deterministic single-result and multi-result runtime queries with ambiguity/no-match handling
+- deterministic CLI `query` JSON output
+- engine-level `Trace2D::Input` state independent of SDL event objects
+- deterministic press/release/held transitions and frame-indexed virtual input scheduling
+- SDL3 keyboard/mouse translation into the same engine-owned input event path
+- resettable virtual input source and exact runtime-lockstep input tests
 
 ## Design goals
 
@@ -107,14 +116,15 @@ Trace2D/
 ├─ cmake/                 CMake policy/helpers
 ├─ engine/
 │  ├─ core/               platform-independent engine core
-│  ├─ platform/           SDL3 boundary and startup ownership
+│  ├─ input/              deterministic gameplay-facing input state
+│  ├─ platform/           SDL3 boundary and physical input translation
 │  ├─ runtime/            deterministic simulation-time control
 │  ├─ scene/              entity identity and text-authored scene state
 │  └─ agent/              protocol-independent inspection/automation facade
 ├─ tools/
 │  └─ trace2d/            CLI for humans, scripts, CI, and agents
 ├─ tests/                 automated tests and deterministic fixtures
-├─ docs/                  architecture, inspection, scene format, and release documents
+├─ docs/                  architecture, inspection, query, input, scene, and release documents
 └─ .github/workflows/     CI
 ```
 
@@ -168,6 +178,8 @@ trace2d run --headless --frames 120 --seed 1 --json
 trace2d run --windowed
 trace2d inspect --scene tests/data/inspection.trace2d.toml --frames 12 --seed 42
 trace2d inspect --scene tests/data/inspection.trace2d.toml --frames 12 --seed 42 --json
+trace2d query --scene tests/data/inspection.trace2d.toml --selector '#player' --one --json
+trace2d query --scene tests/data/inspection.trace2d.toml --selector 'tag:enemy' --json
 ```
 
 Example machine-readable doctor output:
@@ -178,9 +190,11 @@ Example machine-readable doctor output:
 
 `inspect` loads a text-authored scene, advances the deterministic runtime by the requested frame count, and emits a snapshot containing runtime state, scene identity, entity handles/semantic IDs, tags, transforms, nullable bounds, and generic component fields. JSON serialization stays in the CLI rather than the engine facade.
 
-See [docs/INSPECTION.md](docs/INSPECTION.md) for the current structured schema and exit-code contract.
+`query` uses the same protocol-independent agent boundary to select entities by semantic ID, name, tag, or currently authoritative component type. Single-result queries fail explicitly on ambiguity rather than choosing an arbitrary entity.
 
-`query`, `input`, `assert`, `capture`, and higher-level test commands remain planned as later phases establish their protocol-independent engine APIs.
+See [docs/INSPECTION.md](docs/INSPECTION.md) and [docs/QUERY.md](docs/QUERY.md) for the current structured contracts.
+
+Virtual input currently exposes an engine/test API rather than a CLI command; this keeps SDL, CLI, JSON, and future MCP types out of the gameplay-facing input contract. Gameplay assertion/test-runner commands are the next P4 milestone.
 
 ## Text-authored scenes
 
@@ -220,7 +234,7 @@ See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) for the release gates and G
 
 The complete phased plan is maintained in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-The current implementation milestone is **P3 — Structured observability**. Issue **#6** establishes the protocol-independent inspection facade and deterministic structured inspection boundary; Issue **#7** adds semantic selectors and runtime queries next.
+The current implementation milestone is **P4 — Virtual input and gameplay tests**. Issue **#8** established deterministic engine-level virtual/physical input convergence and frame scheduling; Issue **#9** adds the deterministic gameplay test runner and assertions next.
 
 ## Project policy
 
