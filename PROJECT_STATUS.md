@@ -38,8 +38,9 @@ Completed phase milestones:
 - P4 deterministic virtual input / frame scheduling — Issue **#8**, PR **#22**
 - P4 deterministic gameplay test runner / assertions — Issue **#9**, PR **#23**
 - P5 renderer/GPU presentation foundation — Issue **#10**, PR **#24**
+- P5 orthographic camera / sprite render-data contract — Issue **#10**, PR **#25**
 
-P0-P4 are complete. PR **#24** is merged and establishes the first P5 vertical slice: renderer module ownership, SDL3 GPU device/swapchain integration, clear/present frame submission, baseline metrics, and explicit headless isolation. The next executable task remains inside Issue **#10**: implement the orthographic camera and minimum sprite render-data slice.
+P0-P4 are complete. PRs **#24** and **#25** are merged and establish the first two P5 slices: renderer/GPU ownership plus a deterministic CPU-side orthographic camera and minimal sprite render-data contract. The next executable task remains inside Issue **#10**: render textured sprites in windowed mode using that contract, then measure submission/batching behavior before adding complexity.
 
 ## Foundation currently established
 
@@ -156,12 +157,26 @@ See `docs/GAMEPLAY_TESTING.md` for the scenario, assertion, determinism, and fai
 - minimized/unavailable swapchain textures are valid no-presentation frames rather than simulation failures
 - windowed `trace2d run` creates a renderer and submits one clear frame after explicit simulation stepping
 - renderer exposes backend name plus submitted/presented-frame, render-pass, draw-call, sprite-count, and last-target-size metrics
-- current `drawCalls` / `submittedSprites` remain zero until the sprite slice is implemented
 - renderer rejects headless `Platform` before GPU initialization
 - render-module tests cover headless window-ID behavior and GPU-independent rejection
 - runtime/scene/input/agent/testing modules do not depend on `Trace2D::Render`
 
-See `docs/RENDERING.md` for the ownership, frame-path, metrics, and P5 scope contract.
+### P5 orthographic camera / sprite render data — PR #25
+
+- CPU-only `trace2d::render` camera and sprite contracts contain no SDL/GPU handles
+- `OrthographicCamera` stores center plus full visible vertical world size
+- target width/height are converted once into `OrthographicView` half extents and cached reciprocal `clipScale`
+- per-position `WorldToClip` uses subtraction/multiplication only; no per-sprite matrix construction or division is required
+- Trace2D keeps world/NDC +Y upward and leaves backend coordinate adaptation to SDL GPU
+- invalid target size, non-finite camera state, and non-positive vertical size are rejected while clearing the output view
+- `SpriteRenderData` is a minimal axis-aligned presentation input: center, half extents, layer, and deterministic `stableOrder`
+- draw ordering compares layer first and stable order second; callers provide unique stable order within a layer when a total order is required
+- inclusive CPU AABB camera overlap establishes the first visibility/culling decision baseline without adding a spatial index
+- camera/view/sprite structs are trivially copyable; camera construction, world-to-clip, ordering, and visibility helpers perform no dynamic allocation
+- texture handles, UVs, tint, rotation, shader/resource handles, and batching policy remain intentionally deferred to the textured sprite slice
+- GPU `drawCalls` / `submittedSprites` metrics remain zero until actual sprite submission is wired
+
+See `docs/RENDERING.md` for the ownership, camera, render-data, ordering, culling, allocation, and remaining P5 contracts.
 
 ## Current validation status
 
@@ -184,10 +199,13 @@ Validated milestones:
 - PR **#22** final-head CI run **#47**: configure, Windows MSVC build, full CTest suite, deterministic virtual-input transition/scheduling tests, and runtime-lockstep input coverage successful before squash merge
 - PR **#23** final-head CI run **#54**: configure, Windows MSVC build, and **55/55 CTest tests** successful, including scheduled/immediate gameplay input, structured assertion failure snapshots, query ambiguity propagation, reset restoration, and repeated-failure report determinism before squash merge
 - PR **#24** final-head CI run **#64**: pinned SDL3 3.4.14 configure, Windows MSVC build, render/platform/runtime/CLI targets, render headless-isolation tests, and full CTest suite successful before squash merge
+- PR **#25** final-head CI run **#68**: pinned dependency configure, Windows/MSVC build, and full CTest suite including the new CPU-only render-data camera/order/culling tests successful before squash merge
 
 PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba826ee5730abb` and Issue **#9** closed as completed.
 
-PR **#24** was squash-merged to `main` as commit `637d8c2ab7839720f7b43e11e554f078b6a5c548`. Issue **#10** remains open because orthographic camera, textured sprites, batching/culling, offscreen rendering, and deterministic capture are still P5 work.
+PR **#24** was squash-merged to `main` as commit `637d8c2ab7839720f7b43e11e554f078b6a5c548`.
+
+PR **#25** was squash-merged to `main` as commit `6c54a64210fc0a8e28544c3e70b4e6c6575833c0`. Issue **#10** remains open because textured sprite GPU submission, measured batching/culling integration, offscreen rendering, and deterministic capture are still P5 work.
 
 CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with WinHTTP `0x00002F78`; rerunning the failed job passed bootstrap/configure. The subsequent build exposed only an `EXPECT_THROW` macro parsing issue in the new renderer test, which was fixed before final green run #64. Renderer and CLI targets had already compiled/linked successfully before that test-only fix.
 
@@ -257,10 +275,10 @@ CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with 
 
 - [ ] **#10 — minimal SDL3 GPU 2D renderer and capture path**
 - [x] SDL3 GPU device and swapchain integration isolated from simulation ownership — PR **#24**
-- [ ] orthographic camera
+- [x] orthographic camera and CPU sprite render-data contract — PR **#25**
 - [ ] textured sprite rendering
 - [ ] measured sprite batching baseline
-- [ ] visibility/culling baseline
+- [ ] visibility/culling integrated into actual sprite submission — CPU AABB decision baseline exists in PR **#25**
 - [ ] offscreen render target where supported
 - [ ] deterministic screenshot capture at an explicitly requested simulation frame
 - [x] basic renderer metrics suitable for profiling — PR **#24**
@@ -270,8 +288,8 @@ CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with 
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Continue **#10** with the orthographic camera + minimal sprite render-data vertical slice.
-2. Add textured sprite rendering, then measure the simple batching/culling baseline before introducing renderer complexity.
+1. Continue **#10** with the minimal textured sprite GPU pipeline consuming `OrthographicView` / `SpriteRenderData`.
+2. Record actual draw-call / submitted-sprite metrics, establish the first measured batching baseline, and wire the CPU visibility decision into real submission before adding batching complexity.
 3. Add offscreen rendering and deterministic frame-selected screenshot capture to complete **#10**.
 4. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
 5. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
@@ -280,19 +298,20 @@ A fresh agent should work in this order unless a blocking dependency requires a 
 
 ## Immediate next task
 
-Remain inside **Issue #10** and implement the next smallest vertical slice:
+Remain inside **Issue #10** and implement the next smallest GPU-backed vertical slice:
 
-- define a Trace2D-owned orthographic camera API with deterministic world-to-clip math
-- define the minimum sprite render-data contract needed for one sample without making renderer state authoritative
-- keep SDL/shader/resource handles private to `engine/render`
-- add pure CPU unit tests for camera math and sprite ordering/culling decisions where practical
-- do not begin texture-cache sophistication or batching optimizations until one sprite path exists and metrics can measure it
+- consume the PR #25 `OrthographicView` / `SpriteRenderData` contract rather than inventing a second camera or sprite model
+- define the smallest renderer-owned texture/resource handle needed to keep one texture alive across frames; do not build the broader P6 asset registry yet
+- choose and document the minimal SDL3 GPU shader packaging needed by the pinned dependency/backends without leaking SDL shader/resource handles into public simulation APIs
+- create persistent pipeline/buffer/sampler/texture resources with renderer-owned lifetimes instead of recreating them every frame
+- submit at least one textured quad in windowed mode and update `drawCalls` / `submittedSprites` from actual submission
+- keep headless tests GPU-independent and add CPU/resource-lifetime tests where the GPU cannot be required in CI
+- establish correctness with one sprite before introducing batching caches, texture atlases, bindless abstractions, or custom allocators
 
 The following #10 outcomes remain after that slice:
 
-- textured sprites in windowed mode
 - measured batching baseline
-- visibility/culling baseline
+- visibility/culling integrated into actual submission
 - offscreen render target
 - deterministic frame-selected capture artifact
 
@@ -338,6 +357,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - `engine/platform` owns SDL initialization/window lifetime; renderer integration receives a Trace2D-owned numeric window ID rather than `SDL_Window*` in public APIs.
 - `engine/render` may depend on `engine/platform` and SDL3, but runtime/scene/input/agent/testing do not depend on render presentation state.
 - renderer-owned GPU device/swapchain/command-buffer state is presentation state and never authoritative simulation state.
+- CPU camera/sprite render data is Trace2D-owned, trivially copyable derived presentation input; it contains no SDL/GPU handles and is never authoritative gameplay state.
 - `engine/input` gameplay-facing state contains no SDL, CLI, JSON, or MCP types.
 - Physical platform input and virtual test/agent input converge on the same `trace2d::input::InputEvent` / `InputSystem` path.
 - Input hot-path state uses direct indexed storage; scheduled scenario authoring may allocate, frame consumption does not.
@@ -370,7 +390,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 Resolve these only when their implementation phase arrives:
 
-- exact minimal sprite resource/data model and shader packaging strategy for P5
+- exact minimal renderer-owned texture/resource handle and shader packaging strategy for the textured P5 sprite path
 - exact offscreen/readback image format and capture artifact contract for P5
 - exact protocol/transport used before MCP adapter
 - exact minimal sample game used for Public Alpha
