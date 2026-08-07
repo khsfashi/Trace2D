@@ -5,6 +5,7 @@
   "dependencies": [
     "gtest",
     "sdl3",
+    "sdl3-shadercross",
     "tomlplusplus"
   ]
 }
