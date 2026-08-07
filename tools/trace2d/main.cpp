@@ -1,10 +1,14 @@
 #include <trace2d/core/Version.hpp>
 #include <trace2d/platform/Platform.hpp>
+#include <trace2d/runtime/FixedStepRuntime.hpp>
 
+#include <charconv>
+#include <cstdint>
 #include <exception>
 #include <iostream>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 namespace
 {
@@ -14,7 +18,7 @@ void PrintHelp()
               << "Usage:\n"
               << "  trace2d version\n"
               << "  trace2d doctor [--json]\n"
-              << "  trace2d run (--headless|--windowed) [--json]\n";
+              << "  trace2d run (--headless|--windowed) [--frames N] [--seed N] [--json]\n";
 }
 
 int RunDoctor(const bool json)
@@ -66,10 +70,26 @@ std::string EscapeJson(const std::string_view value)
     return escaped;
 }
 
-int RunPlatformSmoke(const int argc, char* argv[])
+bool TryParseUnsigned64(const std::string_view text, std::uint64_t& value) noexcept
+{
+    if (text.empty())
+    {
+        return false;
+    }
+
+    value = 0;
+    const char* const begin = text.data();
+    const char* const end = begin + text.size();
+    const std::from_chars_result result = std::from_chars(begin, end, value);
+    return result.ec == std::errc{} && result.ptr == end;
+}
+
+int RunRuntime(const int argc, char* argv[])
 {
     bool json = false;
     bool modeSelected = false;
+    std::uint64_t frameCount = 0;
+    std::uint64_t seed = 0;
     trace2d::platform::StartupMode mode = trace2d::platform::StartupMode::Headless;
 
     for (int index = 2; index < argc; ++index)
@@ -99,6 +119,35 @@ int RunPlatformSmoke(const int argc, char* argv[])
             continue;
         }
 
+        if (argument == "--frames" || argument == "--seed")
+        {
+            if (index + 1 >= argc)
+            {
+                std::cerr << argument << " requires an unsigned integer value.\n";
+                return 2;
+            }
+
+            std::uint64_t parsedValue = 0;
+            const std::string_view valueText{argv[index + 1]};
+            if (!TryParseUnsigned64(valueText, parsedValue))
+            {
+                std::cerr << "Invalid value for " << argument << ": " << valueText << '\n';
+                return 2;
+            }
+
+            if (argument == "--frames")
+            {
+                frameCount = parsedValue;
+            }
+            else
+            {
+                seed = parsedValue;
+            }
+
+            ++index;
+            continue;
+        }
+
         std::cerr << "Unknown run option: " << argument << '\n';
         return 2;
     }
@@ -109,12 +158,17 @@ int RunPlatformSmoke(const int argc, char* argv[])
         return 2;
     }
 
-    trace2d::platform::PlatformConfig config{};
-    config.mode = mode;
+    trace2d::platform::PlatformConfig platformConfig{};
+    platformConfig.mode = mode;
+
+    trace2d::runtime::RuntimeConfig runtimeConfig{};
+    runtimeConfig.seed = seed;
 
     try
     {
-        trace2d::platform::Platform platform{config};
+        trace2d::platform::Platform platform{platformConfig};
+        trace2d::runtime::FixedStepRuntime runtime{runtimeConfig};
+
         trace2d::platform::PlatformEvent event{};
         while (platform.PollEvent(event))
         {
@@ -124,17 +178,27 @@ int RunPlatformSmoke(const int argc, char* argv[])
             }
         }
 
+        runtime.Step(frameCount);
+        const trace2d::runtime::RuntimeState state = runtime.State();
+
         if (json)
         {
             std::cout << "{\"command\":\"run\",\"mode\":\"" << trace2d::platform::ToString(platform.Mode())
                       << "\",\"window_created\":" << (platform.HasWindow() ? "true" : "false")
+                      << ",\"frame\":" << state.frame << ",\"seed\":" << state.seed
+                      << ",\"fixed_step_ns\":" << runtime.Config().fixedTimestep.count()
+                      << ",\"simulation_time_ns\":" << state.simulationTime.count()
                       << ",\"status\":\"ok\"}\n";
             return 0;
         }
 
-        std::cout << "Trace2D platform smoke\n"
+        std::cout << "Trace2D runtime\n"
                   << "  mode: " << trace2d::platform::ToString(platform.Mode()) << '\n'
                   << "  window created: " << (platform.HasWindow() ? "yes" : "no") << '\n'
+                  << "  frame: " << state.frame << '\n'
+                  << "  seed: " << state.seed << '\n'
+                  << "  fixed step: " << runtime.Config().fixedTimestep.count() << " ns\n"
+                  << "  simulation time: " << state.simulationTime.count() << " ns\n"
                   << "  status: ok\n";
         return 0;
     }
@@ -147,7 +211,7 @@ int RunPlatformSmoke(const int argc, char* argv[])
         }
         else
         {
-            std::cerr << "Trace2D platform startup failed: " << exception.what() << '\n';
+            std::cerr << "Trace2D runtime startup failed: " << exception.what() << '\n';
         }
         return 3;
     }
@@ -178,7 +242,7 @@ int main(const int argc, char* argv[])
 
     if (command == "run")
     {
-        return RunPlatformSmoke(argc, argv);
+        return RunRuntime(argc, argv);
     }
 
     std::cerr << "Unknown command: " << command << "\n\n";
