@@ -135,6 +135,30 @@ postion = [1, 2]
     EXPECT_GT(diagnostic->line, 0U);
 }
 
+TEST(SceneTextTests, RejectsBooleanValuesWhereNumbersAreRequired)
+{
+    static constexpr std::string_view SceneText = R"toml(format_version = 1
+
+[scene]
+id = "strict-number-test"
+
+[[entities]]
+id = "player"
+
+[entities.transform]
+position = [true, 0]
+)toml";
+
+    const SceneLoadResult result = LoadSceneToml(SceneText, "strict-number.trace2d.toml");
+
+    ASSERT_FALSE(result.Succeeded());
+    const SceneTextDiagnostic* diagnostic =
+        FindDiagnostic(result, "entities[0].transform.position[0]");
+    ASSERT_NE(diagnostic, nullptr);
+    EXPECT_EQ(diagnostic->message, "Expected a number.");
+    EXPECT_GT(diagnostic->line, 0U);
+}
+
 TEST(SceneTextTests, SaveLoadSaveProducesIdenticalCanonicalText)
 {
     static constexpr std::string_view SceneText = R"toml(format_version = 1
