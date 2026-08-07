@@ -37,8 +37,9 @@ Completed phase milestones:
 - P3 semantic selectors and runtime queries — Issue **#7**, PR **#21**
 - P4 deterministic virtual input / frame scheduling — Issue **#8**, PR **#22**
 - P4 deterministic gameplay test runner / assertions — Issue **#9**, PR **#23**
+- P5 renderer/GPU presentation foundation — Issue **#10**, PR **#24**
 
-P0-P4 are complete. **PR #24** is the first P5 vertical slice: renderer module ownership, SDL3 GPU device/swapchain integration, clear/present frame submission, baseline metrics, and explicit headless isolation. After #24 is validated/merged, continue Issue **#10** with the orthographic camera and minimal sprite render-data slice.
+P0-P4 are complete. PR **#24** is merged and establishes the first P5 vertical slice: renderer module ownership, SDL3 GPU device/swapchain integration, clear/present frame submission, baseline metrics, and explicit headless isolation. The next executable task remains inside Issue **#10**: implement the orthographic camera and minimum sprite render-data slice.
 
 ## Foundation currently established
 
@@ -182,10 +183,13 @@ Validated milestones:
 - PR **#21** final-head CI run **#44**: configure, Windows MSVC build, full CTest suite, semantic selector/query unit tests, and deterministic CLI query coverage successful before squash merge
 - PR **#22** final-head CI run **#47**: configure, Windows MSVC build, full CTest suite, deterministic virtual-input transition/scheduling tests, and runtime-lockstep input coverage successful before squash merge
 - PR **#23** final-head CI run **#54**: configure, Windows MSVC build, and **55/55 CTest tests** successful, including scheduled/immediate gameplay input, structured assertion failure snapshots, query ambiguity propagation, reset restoration, and repeated-failure report determinism before squash merge
+- PR **#24** final-head CI run **#64**: pinned SDL3 3.4.14 configure, Windows MSVC build, render/platform/runtime/CLI targets, render headless-isolation tests, and full CTest suite successful before squash merge
 
 PR **#23** was squash-merged to `main` as commit `423c74ce7c3cdaacfc3333dacdba826ee5730abb` and Issue **#9** closed as completed.
 
-PR **#24** is the active P5 renderer-foundation validation target. Its final CI result must be recorded here or in an immediate post-merge status update before moving to the next P5 slice.
+PR **#24** was squash-merged to `main` as commit `637d8c2ab7839720f7b43e11e554f078b6a5c548`. Issue **#10** remains open because orthographic camera, textured sprites, batching/culling, offscreen rendering, and deterministic capture are still P5 work.
+
+CI note for PR #24: run #63 initially failed while downloading `vcpkg.exe` with WinHTTP `0x00002F78`; rerunning the failed job passed bootstrap/configure. The subsequent build exposed only an `EXPECT_THROW` macro parsing issue in the new renderer test, which was fixed before final green run #64. Renderer and CLI targets had already compiled/linked successfully before that test-only fix.
 
 ## Phase exit criteria
 
@@ -266,20 +270,17 @@ PR **#24** is the active P5 renderer-foundation validation target. Its final CI 
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Finish validation/merge of **PR #24 — P5 renderer foundation** if it is still open.
-2. Continue **#10** with the orthographic camera + minimal sprite render-data vertical slice.
-3. Add textured sprite rendering, then measure the simple batching/culling baseline before introducing renderer complexity.
-4. Add offscreen rendering and deterministic frame-selected screenshot capture to complete **#10**.
-5. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
-6. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
-7. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
-8. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
+1. Continue **#10** with the orthographic camera + minimal sprite render-data vertical slice.
+2. Add textured sprite rendering, then measure the simple batching/culling baseline before introducing renderer complexity.
+3. Add offscreen rendering and deterministic frame-selected screenshot capture to complete **#10**.
+4. Complete the minimal Public Alpha vertical-slice tracker before expanding broader P6 systems.
+5. **#13 — P6: Add practical 2D engine slice for authored games** after the public-alpha minimum is stable.
+6. **#11 — P7: Add JSON-RPC transport and MCP adapter over agent facade** after the protocol-independent loop is already proven.
+7. **#12 — P8: Build end-to-end agent-authored sample game and portfolio demo** evolves into the polished public portfolio demonstration after the alpha loop works.
 
 ## Immediate next task
 
-If **PR #24** is open, finish its Windows/MSVC CI validation and merge it before adding more renderer scope.
-
-After #24 is merged, remain inside **Issue #10** and implement the next smallest vertical slice:
+Remain inside **Issue #10** and implement the next smallest vertical slice:
 
 - define a Trace2D-owned orthographic camera API with deterministic world-to-clip math
 - define the minimum sprite render-data contract needed for one sample without making renderer state authoritative
