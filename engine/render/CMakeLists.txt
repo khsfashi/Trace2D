@@ -1,4 +1,5 @@
 find_package(SDL3 CONFIG REQUIRED)
+find_package(SDL3_shadercross CONFIG REQUIRED)
 
 add_library(trace2d_render STATIC
     src/RenderData.cpp
@@ -17,6 +18,7 @@ target_link_libraries(trace2d_render
         Trace2D::Platform
     PRIVATE
         SDL3::SDL3
+        SDL3_shadercross::SDL3_shadercross
 )
 
 target_compile_features(trace2d_render PUBLIC cxx_std_20)

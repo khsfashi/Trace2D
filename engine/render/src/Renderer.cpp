@@ -2,9 +2,16 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
+#include <SDL3_shadercross/SDL_shadercross.h>
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace trace2d::render
 {
@@ -12,10 +19,169 @@ namespace
 {
 constexpr SDL_GPUShaderFormat SupportedShaderFormats = static_cast<SDL_GPUShaderFormat>(
     SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL);
+constexpr std::uint64_t Rgba8BytesPerPixel = 4;
+
+struct SpriteVertex final
+{
+    float localX;
+    float localY;
+    float u;
+    float v;
+};
+
+struct alignas(16) SpriteUniforms final
+{
+    float centerClipX;
+    float centerClipY;
+    float halfClipX;
+    float halfClipY;
+};
+
+static_assert(sizeof(SpriteUniforms) == 16);
+
+constexpr std::array<SpriteVertex, 6> SpriteVertices{
+    SpriteVertex{-1.0F, -1.0F, 0.0F, 1.0F},
+    SpriteVertex{1.0F, -1.0F, 1.0F, 1.0F},
+    SpriteVertex{1.0F, 1.0F, 1.0F, 0.0F},
+    SpriteVertex{-1.0F, -1.0F, 0.0F, 1.0F},
+    SpriteVertex{1.0F, 1.0F, 1.0F, 0.0F},
+    SpriteVertex{-1.0F, 1.0F, 0.0F, 0.0F},
+};
+
+constexpr char SpriteVertexShaderHlsl[] = R"(
+cbuffer SpriteUniforms : register(b0, space1)
+{
+    float4 spriteTransform;
+};
+
+struct VertexInput
+{
+    float2 localPosition : TEXCOORD0;
+    float2 uv : TEXCOORD1;
+};
+
+struct VertexOutput
+{
+    float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+VertexOutput main(VertexInput input)
+{
+    VertexOutput output;
+    output.position = float4(
+        spriteTransform.xy + input.localPosition * spriteTransform.zw,
+        0.0,
+        1.0);
+    output.uv = input.uv;
+    return output;
+}
+)";
+
+constexpr char SpriteFragmentShaderHlsl[] = R"(
+Texture2D SpriteTexture : register(t0, space2);
+SamplerState SpriteSampler : register(s0, space2);
+
+struct FragmentInput
+{
+    float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+float4 main(FragmentInput input) : SV_Target0
+{
+    return SpriteTexture.Sample(SpriteSampler, input.uv);
+}
+)";
 
 [[nodiscard]] std::runtime_error MakeSdlError(const char* context)
 {
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
+}
+
+class ShaderCrossScope final
+{
+public:
+    ShaderCrossScope()
+    {
+        if (!SDL_ShaderCross_Init())
+        {
+            throw MakeSdlError("SDL_shadercross initialization failed");
+        }
+    }
+
+    ~ShaderCrossScope()
+    {
+        SDL_ShaderCross_Quit();
+    }
+
+    ShaderCrossScope(const ShaderCrossScope&) = delete;
+    ShaderCrossScope& operator=(const ShaderCrossScope&) = delete;
+};
+
+[[nodiscard]] SDL_GPUShader* CompileHlslShader(
+    SDL_GPUDevice* const device,
+    const char* const source,
+    const SDL_ShaderCross_ShaderStage shaderCrossStage)
+{
+    SDL_ShaderCross_HLSL_Info hlslInfo{};
+    hlslInfo.source = source;
+    hlslInfo.entrypoint = "main";
+    hlslInfo.shader_stage = shaderCrossStage;
+
+    std::size_t spirvSize = 0;
+    void* const spirv = SDL_ShaderCross_CompileSPIRVFromHLSL(&hlslInfo, &spirvSize);
+    if (spirv == nullptr)
+    {
+        throw MakeSdlError("HLSL to SPIR-V compilation failed");
+    }
+
+    SDL_ShaderCross_GraphicsShaderMetadata* const metadata = SDL_ShaderCross_ReflectGraphicsSPIRV(
+        static_cast<const Uint8*>(spirv), spirvSize, 0);
+    if (metadata == nullptr)
+    {
+        SDL_free(spirv);
+        throw MakeSdlError("SPIR-V shader reflection failed");
+    }
+
+    SDL_ShaderCross_SPIRV_Info spirvInfo{};
+    spirvInfo.bytecode = static_cast<const Uint8*>(spirv);
+    spirvInfo.bytecode_size = spirvSize;
+    spirvInfo.entrypoint = "main";
+    spirvInfo.shader_stage = shaderCrossStage;
+
+    SDL_GPUShader* const shader = SDL_ShaderCross_CompileGraphicsShaderFromSPIRV(
+        device, &spirvInfo, &metadata->resource_info, 0);
+
+    SDL_free(metadata);
+    SDL_free(spirv);
+
+    if (shader == nullptr)
+    {
+        throw MakeSdlError("SDL GPU shader compilation failed");
+    }
+
+    return shader;
+}
+
+[[nodiscard]] std::size_t ExpectedRgba8ByteCount(const Rgba8TextureData& textureData)
+{
+    if (textureData.width == 0 || textureData.height == 0)
+    {
+        throw std::invalid_argument{"RGBA8 texture dimensions must be non-zero."};
+    }
+
+    const std::uint64_t pixelCount =
+        static_cast<std::uint64_t>(textureData.width) * static_cast<std::uint64_t>(textureData.height);
+    const std::uint64_t byteCount = pixelCount * Rgba8BytesPerPixel;
+
+    if (byteCount > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
+        byteCount > static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()))
+    {
+        throw std::length_error{"RGBA8 texture upload exceeds SDL GPU transfer-buffer size limits."};
+    }
+
+    return static_cast<std::size_t>(byteCount);
 }
 } // namespace
 
@@ -52,32 +218,368 @@ public:
 
         windowClaimed_ = true;
 
-        const char* const driverName = SDL_GetGPUDeviceDriver(device_);
-        if (driverName != nullptr)
+        try
         {
-            driverName_ = driverName;
+            CreatePersistentSpriteResources();
+
+            const char* const driverName = SDL_GetGPUDeviceDriver(device_);
+            if (driverName != nullptr)
+            {
+                driverName_ = driverName;
+            }
+        }
+        catch (...)
+        {
+            Cleanup();
+            throw;
         }
     }
 
     ~Impl()
     {
-        if (windowClaimed_ && device_ != nullptr && window_ != nullptr)
+        Cleanup();
+    }
+
+    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData)
+    {
+        const std::size_t byteCount = ExpectedRgba8ByteCount(textureData);
+        if (textureData.pixels.size() != byteCount)
         {
-            SDL_ReleaseWindowFromGPUDevice(device_, window_);
-            windowClaimed_ = false;
+            throw std::invalid_argument{"RGBA8 texture byte count must equal width * height * 4."};
         }
 
-        if (device_ != nullptr)
+        if (textures_.size() >= static_cast<std::size_t>(std::numeric_limits<TextureHandle>::max() - 1U))
         {
-            SDL_DestroyGPUDevice(device_);
-            device_ = nullptr;
+            throw std::length_error{"Trace2D texture handle space exhausted."};
         }
 
-        window_ = nullptr;
+        SDL_GPUTextureCreateInfo textureInfo{};
+        textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+        textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        textureInfo.width = textureData.width;
+        textureInfo.height = textureData.height;
+        textureInfo.layer_count_or_depth = 1;
+        textureInfo.num_levels = 1;
+        textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        SDL_GPUTexture* const texture = SDL_CreateGPUTexture(device_, &textureInfo);
+        if (texture == nullptr)
+        {
+            throw MakeSdlError("SDL GPU texture creation failed");
+        }
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = static_cast<Uint32>(byteCount);
+
+        SDL_GPUTransferBuffer* const transferBuffer = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        if (transferBuffer == nullptr)
+        {
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture transfer-buffer creation failed");
+        }
+
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, transferBuffer, false);
+        if (mapped == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture transfer-buffer mapping failed");
+        }
+
+        std::memcpy(mapped, textureData.pixels.data(), byteCount);
+        SDL_UnmapGPUTransferBuffer(device_, transferBuffer);
+
+        SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
+        if (commandBuffer == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture upload command-buffer acquisition failed");
+        }
+
+        SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            const std::string error{SDL_GetError()};
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw std::runtime_error{"SDL GPU texture copy-pass creation failed: " + error};
+        }
+
+        SDL_GPUTextureTransferInfo source{};
+        source.transfer_buffer = transferBuffer;
+
+        SDL_GPUTextureRegion destination{};
+        destination.texture = texture;
+        destination.w = textureData.width;
+        destination.h = textureData.height;
+        destination.d = 1;
+
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            const std::string error{SDL_GetError()};
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw std::runtime_error{"SDL GPU texture upload submission failed: " + error};
+        }
+
+        SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+        textures_.push_back(texture);
+        return static_cast<TextureHandle>(textures_.size());
+    }
+
+    void DestroyTexture(const TextureHandle texture) noexcept
+    {
+        SDL_GPUTexture*& resource = ResolveTextureSlot(texture);
+        if (resource != nullptr)
+        {
+            SDL_ReleaseGPUTexture(device_, resource);
+            resource = nullptr;
+        }
     }
 
     void RenderFrame()
     {
+        RenderFrameInternal(nullptr, nullptr);
+    }
+
+    void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
+    {
+        RenderFrameInternal(&camera, &sprite);
+    }
+
+    [[nodiscard]] const RendererConfig& Config() const noexcept
+    {
+        return config_;
+    }
+
+    [[nodiscard]] const RenderMetrics& Metrics() const noexcept
+    {
+        return metrics_;
+    }
+
+    [[nodiscard]] std::string_view DriverName() const noexcept
+    {
+        return driverName_;
+    }
+
+private:
+    void CreatePersistentSpriteResources()
+    {
+        CreateSpriteVertexBuffer();
+        CreateSpriteSampler();
+        CreateSpritePipeline();
+    }
+
+    void CreateSpriteVertexBuffer()
+    {
+        SDL_GPUBufferCreateInfo bufferInfo{};
+        bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        bufferInfo.size = static_cast<Uint32>(sizeof(SpriteVertices));
+
+        spriteVertexBuffer_ = SDL_CreateGPUBuffer(device_, &bufferInfo);
+        if (spriteVertexBuffer_ == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite vertex-buffer creation failed");
+        }
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = static_cast<Uint32>(sizeof(SpriteVertices));
+
+        SDL_GPUTransferBuffer* const transferBuffer = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        if (transferBuffer == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite vertex transfer-buffer creation failed");
+        }
+
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, transferBuffer, false);
+        if (mapped == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            throw MakeSdlError("SDL GPU sprite vertex transfer-buffer mapping failed");
+        }
+
+        std::memcpy(mapped, SpriteVertices.data(), sizeof(SpriteVertices));
+        SDL_UnmapGPUTransferBuffer(device_, transferBuffer);
+
+        SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
+        if (commandBuffer == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            throw MakeSdlError("SDL GPU sprite vertex upload command-buffer acquisition failed");
+        }
+
+        SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            const std::string error{SDL_GetError()};
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            throw std::runtime_error{"SDL GPU sprite vertex copy-pass creation failed: " + error};
+        }
+
+        SDL_GPUTransferBufferLocation source{};
+        source.transfer_buffer = transferBuffer;
+
+        SDL_GPUBufferRegion destination{};
+        destination.buffer = spriteVertexBuffer_;
+        destination.size = static_cast<Uint32>(sizeof(SpriteVertices));
+
+        SDL_UploadToGPUBuffer(copyPass, &source, &destination, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            const std::string error{SDL_GetError()};
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            throw std::runtime_error{"SDL GPU sprite vertex upload submission failed: " + error};
+        }
+
+        SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+    }
+
+    void CreateSpriteSampler()
+    {
+        SDL_GPUSamplerCreateInfo samplerInfo{};
+        samplerInfo.min_filter = SDL_GPU_FILTER_NEAREST;
+        samplerInfo.mag_filter = SDL_GPU_FILTER_NEAREST;
+        samplerInfo.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+        samplerInfo.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+
+        spriteSampler_ = SDL_CreateGPUSampler(device_, &samplerInfo);
+        if (spriteSampler_ == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite sampler creation failed");
+        }
+    }
+
+    void CreateSpritePipeline()
+    {
+        const ShaderCrossScope shaderCrossScope{};
+
+        SDL_GPUShader* vertexShader = nullptr;
+        SDL_GPUShader* fragmentShader = nullptr;
+
+        try
+        {
+            vertexShader = CompileHlslShader(
+                device_, SpriteVertexShaderHlsl, SDL_SHADERCROSS_SHADERSTAGE_VERTEX);
+            fragmentShader = CompileHlslShader(
+                device_, SpriteFragmentShaderHlsl, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT);
+
+            SDL_GPUColorTargetDescription colorTargetDescription{};
+            colorTargetDescription.format = SDL_GetGPUSwapchainTextureFormat(device_, window_);
+            colorTargetDescription.blend_state.enable_blend = true;
+            colorTargetDescription.blend_state.color_write_mask = 0xFU;
+            colorTargetDescription.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+            colorTargetDescription.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+            colorTargetDescription.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTargetDescription.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            colorTargetDescription.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTargetDescription.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+
+            SDL_GPUVertexBufferDescription vertexBufferDescription{};
+            vertexBufferDescription.slot = 0;
+            vertexBufferDescription.pitch = sizeof(SpriteVertex);
+            vertexBufferDescription.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+            vertexBufferDescription.instance_step_rate = 0;
+
+            std::array<SDL_GPUVertexAttribute, 2> vertexAttributes{};
+            vertexAttributes[0].location = 0;
+            vertexAttributes[0].buffer_slot = 0;
+            vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+            vertexAttributes[0].offset = static_cast<Uint32>(offsetof(SpriteVertex, localX));
+            vertexAttributes[1].location = 1;
+            vertexAttributes[1].buffer_slot = 0;
+            vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+            vertexAttributes[1].offset = static_cast<Uint32>(offsetof(SpriteVertex, u));
+
+            SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{};
+            pipelineInfo.vertex_shader = vertexShader;
+            pipelineInfo.fragment_shader = fragmentShader;
+            pipelineInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBufferDescription;
+            pipelineInfo.vertex_input_state.num_vertex_buffers = 1;
+            pipelineInfo.vertex_input_state.vertex_attributes = vertexAttributes.data();
+            pipelineInfo.vertex_input_state.num_vertex_attributes = static_cast<Uint32>(vertexAttributes.size());
+            pipelineInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+            pipelineInfo.rasterizer_state.enable_depth_clip = true;
+            pipelineInfo.target_info.color_target_descriptions = &colorTargetDescription;
+            pipelineInfo.target_info.num_color_targets = 1;
+
+            spritePipeline_ = SDL_CreateGPUGraphicsPipeline(device_, &pipelineInfo);
+            if (spritePipeline_ == nullptr)
+            {
+                throw MakeSdlError("SDL GPU sprite pipeline creation failed");
+            }
+        }
+        catch (...)
+        {
+            if (vertexShader != nullptr)
+            {
+                SDL_ReleaseGPUShader(device_, vertexShader);
+            }
+            if (fragmentShader != nullptr)
+            {
+                SDL_ReleaseGPUShader(device_, fragmentShader);
+            }
+            throw;
+        }
+
+        SDL_ReleaseGPUShader(device_, vertexShader);
+        SDL_ReleaseGPUShader(device_, fragmentShader);
+    }
+
+    [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
+    {
+        if (texture == InvalidTextureHandle)
+        {
+            throw std::invalid_argument{"Sprite texture handle is invalid."};
+        }
+
+        const std::size_t index = static_cast<std::size_t>(texture - 1U);
+        if (index >= textures_.size() || textures_[index] == nullptr)
+        {
+            throw std::invalid_argument{"Sprite texture handle does not reference a live renderer texture."};
+        }
+
+        return textures_[index];
+    }
+
+    [[nodiscard]] SDL_GPUTexture*& ResolveTextureSlot(const TextureHandle texture) noexcept
+    {
+        static SDL_GPUTexture* invalidSlot = nullptr;
+
+        if (texture == InvalidTextureHandle)
+        {
+            return invalidSlot;
+        }
+
+        const std::size_t index = static_cast<std::size_t>(texture - 1U);
+        if (index >= textures_.size())
+        {
+            return invalidSlot;
+        }
+
+        return textures_[index];
+    }
+
+    void RenderFrameInternal(const OrthographicCamera* const camera, const SpriteRenderData* const sprite)
+    {
+        SDL_GPUTexture* spriteTexture = nullptr;
+        if (sprite != nullptr)
+        {
+            spriteTexture = ResolveTexture(sprite->texture);
+        }
+
         SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
         if (commandBuffer == nullptr)
         {
@@ -97,9 +599,30 @@ public:
         }
 
         bool encodedRenderPass = false;
+        bool encodedSpriteDraw = false;
 
         if (swapchainTexture != nullptr)
         {
+            OrthographicView view{};
+            if (sprite != nullptr &&
+                (camera == nullptr || !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view)))
+            {
+                SDL_CancelGPUCommandBuffer(commandBuffer);
+                throw std::invalid_argument{"Sprite rendering requires a valid orthographic camera and render target."};
+            }
+
+            if (sprite != nullptr)
+            {
+                const Float2 centerClip = WorldToClip(view, sprite->center);
+                const SpriteUniforms uniforms{
+                    centerClip.x,
+                    centerClip.y,
+                    sprite->halfExtents.x * view.clipScale.x,
+                    sprite->halfExtents.y * view.clipScale.y,
+                };
+                SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
+            }
+
             SDL_GPUColorTargetInfo colorTarget{};
             colorTarget.texture = swapchainTexture;
             colorTarget.clear_color = SDL_FColor{
@@ -117,6 +640,22 @@ public:
                 const std::string error{SDL_GetError()};
                 SDL_SubmitGPUCommandBuffer(commandBuffer);
                 throw std::runtime_error{"SDL GPU render pass creation failed: " + error};
+            }
+
+            if (sprite != nullptr)
+            {
+                SDL_GPUBufferBinding vertexBinding{};
+                vertexBinding.buffer = spriteVertexBuffer_;
+
+                SDL_GPUTextureSamplerBinding textureBinding{};
+                textureBinding.texture = spriteTexture;
+                textureBinding.sampler = spriteSampler_;
+
+                SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
+                SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
+                SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+                SDL_DrawGPUPrimitives(renderPass, static_cast<Uint32>(SpriteVertices.size()), 1, 0, 0);
+                encodedSpriteDraw = true;
             }
 
             SDL_EndGPURenderPass(renderPass);
@@ -141,28 +680,69 @@ public:
         {
             ++metrics_.renderPasses;
         }
+
+        if (encodedSpriteDraw)
+        {
+            ++metrics_.drawCalls;
+            ++metrics_.submittedSprites;
+        }
     }
 
-    [[nodiscard]] const RendererConfig& Config() const noexcept
+    void Cleanup() noexcept
     {
-        return config_;
+        if (device_ != nullptr)
+        {
+            for (SDL_GPUTexture*& texture : textures_)
+            {
+                if (texture != nullptr)
+                {
+                    SDL_ReleaseGPUTexture(device_, texture);
+                    texture = nullptr;
+                }
+            }
+
+            if (spritePipeline_ != nullptr)
+            {
+                SDL_ReleaseGPUGraphicsPipeline(device_, spritePipeline_);
+                spritePipeline_ = nullptr;
+            }
+
+            if (spriteSampler_ != nullptr)
+            {
+                SDL_ReleaseGPUSampler(device_, spriteSampler_);
+                spriteSampler_ = nullptr;
+            }
+
+            if (spriteVertexBuffer_ != nullptr)
+            {
+                SDL_ReleaseGPUBuffer(device_, spriteVertexBuffer_);
+                spriteVertexBuffer_ = nullptr;
+            }
+        }
+
+        if (windowClaimed_ && device_ != nullptr && window_ != nullptr)
+        {
+            SDL_ReleaseWindowFromGPUDevice(device_, window_);
+            windowClaimed_ = false;
+        }
+
+        if (device_ != nullptr)
+        {
+            SDL_DestroyGPUDevice(device_);
+            device_ = nullptr;
+        }
+
+        window_ = nullptr;
     }
 
-    [[nodiscard]] const RenderMetrics& Metrics() const noexcept
-    {
-        return metrics_;
-    }
-
-    [[nodiscard]] std::string_view DriverName() const noexcept
-    {
-        return driverName_;
-    }
-
-private:
     RendererConfig config_{};
     RenderMetrics metrics_{};
     SDL_Window* window_{nullptr};
     SDL_GPUDevice* device_{nullptr};
+    SDL_GPUGraphicsPipeline* spritePipeline_{nullptr};
+    SDL_GPUSampler* spriteSampler_{nullptr};
+    SDL_GPUBuffer* spriteVertexBuffer_{nullptr};
+    std::vector<SDL_GPUTexture*> textures_{};
     bool windowClaimed_{false};
     std::string driverName_{};
 };
@@ -174,9 +754,24 @@ Renderer::Renderer(const RendererConfig& config, const platform::Platform& platf
 
 Renderer::~Renderer() = default;
 
+TextureHandle Renderer::CreateTextureRgba8(const Rgba8TextureData& textureData)
+{
+    return impl_->CreateTextureRgba8(textureData);
+}
+
+void Renderer::DestroyTexture(const TextureHandle texture) noexcept
+{
+    impl_->DestroyTexture(texture);
+}
+
 void Renderer::RenderFrame()
 {
     impl_->RenderFrame();
+}
+
+void Renderer::RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
+{
+    impl_->RenderFrame(camera, sprite);
 }
 
 const RendererConfig& Renderer::Config() const noexcept

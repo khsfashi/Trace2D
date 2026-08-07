@@ -65,6 +65,12 @@ TEST(RenderDataTests, RejectsInvalidCameraOrTargetAndClearsOutput)
     EXPECT_EQ(view, trace2d::render::OrthographicView{});
 }
 
+TEST(RenderDataTests, SpriteDefaultsToInvalidTextureHandle)
+{
+    const trace2d::render::SpriteRenderData sprite{};
+    EXPECT_EQ(sprite.texture, trace2d::render::InvalidTextureHandle);
+}
+
 TEST(RenderDataTests, SpriteVisibilityUsesInclusiveAxisAlignedBounds)
 {
     trace2d::render::OrthographicCamera camera{};
@@ -115,6 +121,21 @@ TEST(RenderDataTests, SpriteDrawOrderUsesLayerThenStableOrder)
     EXPECT_EQ(sprites[2].stableOrder, 9U);
     EXPECT_EQ(sprites[3].layer, 2);
     EXPECT_EQ(sprites[3].stableOrder, 5U);
+}
+
+TEST(RenderDataTests, TextureHandleDoesNotChangeDeterministicDrawOrder)
+{
+    trace2d::render::SpriteRenderData left{};
+    left.texture = 1;
+    left.layer = 3;
+    left.stableOrder = 77;
+
+    trace2d::render::SpriteRenderData right = left;
+    right.texture = 2;
+
+    const trace2d::render::SpriteDrawOrderLess less{};
+    EXPECT_FALSE(less(left, right));
+    EXPECT_FALSE(less(right, left));
 }
 
 TEST(RenderDataTests, EqualSpriteDrawKeysAreEquivalentForOrdering)

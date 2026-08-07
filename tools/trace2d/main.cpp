@@ -5,6 +5,7 @@
 #include <trace2d/render/Renderer.hpp>
 #include <trace2d/runtime/FixedStepRuntime.hpp>
 
+#include <array>
 #include <charconv>
 #include <cstdint>
 #include <exception>
@@ -19,6 +20,13 @@ namespace
 constexpr int ExitSuccess = 0;
 constexpr int ExitUsage = 2;
 constexpr int ExitRuntimeFailure = 3;
+
+constexpr std::array<std::uint8_t, 16> SampleSpritePixels{
+    255, 80, 80, 255,
+    80, 210, 255, 255,
+    255, 220, 80, 255,
+    140, 90, 255, 255,
+};
 
 void PrintHelp()
 {
@@ -196,10 +204,21 @@ int RunRuntime(const int argc, char* argv[])
         trace2d::platform::Platform platform{platformConfig};
         trace2d::runtime::FixedStepRuntime runtime{runtimeConfig};
         std::unique_ptr<trace2d::render::Renderer> renderer{};
+        trace2d::render::OrthographicCamera sampleCamera{};
+        trace2d::render::SpriteRenderData sampleSprite{};
 
         if (mode == trace2d::platform::StartupMode::Windowed)
         {
             renderer = std::make_unique<trace2d::render::Renderer>(trace2d::render::RendererConfig{}, platform);
+
+            trace2d::render::Rgba8TextureData sampleTextureData{};
+            sampleTextureData.width = 2;
+            sampleTextureData.height = 2;
+            sampleTextureData.pixels = SampleSpritePixels;
+
+            sampleSprite.texture = renderer->CreateTextureRgba8(sampleTextureData);
+            sampleSprite.halfExtents = trace2d::render::Float2{1.5F, 1.5F};
+            sampleCamera.verticalSize = 6.0F;
         }
 
         trace2d::platform::PlatformEvent event{};
@@ -215,7 +234,7 @@ int RunRuntime(const int argc, char* argv[])
 
         if (renderer != nullptr)
         {
-            renderer->RenderFrame();
+            renderer->RenderFrame(sampleCamera, sampleSprite);
         }
 
         const trace2d::runtime::RuntimeState state = runtime.State();
@@ -226,8 +245,16 @@ int RunRuntime(const int argc, char* argv[])
                       << "\",\"window_created\":" << (platform.HasWindow() ? "true" : "false")
                       << ",\"frame\":" << state.frame << ",\"seed\":" << state.seed
                       << ",\"fixed_step_ns\":" << runtime.Config().fixedTimestep.count()
-                      << ",\"simulation_time_ns\":" << state.simulationTime.count()
-                      << ",\"status\":\"ok\"}\n";
+                      << ",\"simulation_time_ns\":" << state.simulationTime.count();
+
+            if (renderer != nullptr)
+            {
+                std::cout << ",\"rendered_frames\":" << renderer->Metrics().presentedFrames
+                          << ",\"draw_calls\":" << renderer->Metrics().drawCalls
+                          << ",\"submitted_sprites\":" << renderer->Metrics().submittedSprites;
+            }
+
+            std::cout << ",\"status\":\"ok\"}\n";
             return ExitSuccess;
         }
 
@@ -238,7 +265,9 @@ int RunRuntime(const int argc, char* argv[])
         if (renderer != nullptr)
         {
             std::cout << "  gpu driver: " << renderer->DriverName() << '\n'
-                      << "  rendered frames: " << renderer->Metrics().presentedFrames << '\n';
+                      << "  rendered frames: " << renderer->Metrics().presentedFrames << '\n'
+                      << "  draw calls: " << renderer->Metrics().drawCalls << '\n'
+                      << "  submitted sprites: " << renderer->Metrics().submittedSprites << '\n';
         }
 
         std::cout << "  frame: " << state.frame << '\n'

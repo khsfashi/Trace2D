@@ -1,9 +1,11 @@
 #pragma once
 
 #include <trace2d/platform/Platform.hpp>
+#include <trace2d/render/RenderData.hpp>
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string_view>
 
 namespace trace2d::render
@@ -20,6 +22,13 @@ struct RendererConfig
 {
     ClearColor clearColor{};
     bool enableDebugValidation{false};
+};
+
+struct Rgba8TextureData final
+{
+    std::uint32_t width{0};
+    std::uint32_t height{0};
+    std::span<const std::uint8_t> pixels{};
 };
 
 struct RenderMetrics
@@ -44,7 +53,11 @@ public:
     Renderer(Renderer&&) = delete;
     Renderer& operator=(Renderer&&) = delete;
 
+    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData);
+    void DestroyTexture(TextureHandle texture) noexcept;
+
     void RenderFrame();
+    void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite);
 
     [[nodiscard]] const RendererConfig& Config() const noexcept;
     [[nodiscard]] const RenderMetrics& Metrics() const noexcept;
