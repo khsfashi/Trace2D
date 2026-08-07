@@ -28,6 +28,8 @@ The first public release proves this loop. It is not intended to be a complete g
 
 P0 project foundation is complete. PR **#1 — Bootstrap Trace2D project foundation** was squash-merged to `main` after green CI.
 
+Issue **#2 — Add SDL3 platform boundary and startup modes** is implemented on branch `agent/sdl3-platform-boundary` in draft PR **#16**. Finish its validation and merge before beginning Issue #3.
+
 P0 established:
 
 - C++20 root CMake project
@@ -44,7 +46,7 @@ P0 established:
 
 ## Current validation status
 
-The bootstrap is validated on a clean GitHub-hosted Windows runner.
+The P0 bootstrap is validated on a clean GitHub-hosted Windows runner.
 
 An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` uses a Visual Studio 2026 runner while the local developer preset intentionally targets Visual Studio 2022. The project now separates:
 
@@ -52,6 +54,8 @@ An initial CI failure exposed a toolchain assumption: GitHub `windows-latest` us
 - CI `ci-windows-msvc`: Visual Studio 2026 generator with `v143` toolset
 
 The final PR #1 CI run (**#12**) completed successfully through dependency install, configure, build, and test before merge.
+
+PR **#16** adds SDL3, the `engine/platform` boundary, explicit headless/windowed startup, a basic event pump, and CI-safe headless tests. Its latest GitHub Actions run must be green before the PR is considered complete.
 
 ## P0 exit criteria
 
@@ -68,11 +72,16 @@ The final PR #1 CI run (**#12**) completed successfully through dependency insta
 - [x] clean-checkout CI passes configure/build/test
 - [x] PR #1 squash-merged to `main`
 
+## P1 progress
+
+- [ ] **#2 — SDL3 platform boundary and startup modes** — implemented in draft PR #16; pending final green CI and merge
+- [ ] **#3 — deterministic fixed-step runtime control** — blocked until #2 is merged
+
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. **#2 — P1: Add SDL3 platform boundary and startup modes**
+1. Finish **PR #16 / #2 — P1: Add SDL3 platform boundary and startup modes**
 2. **#3 — P1: Implement deterministic fixed-step runtime control**
 3. **#4 — P2: Define stable entity identity and scene registry**
 4. **#5 — P2: Add text-first scene format and deterministic serialization**
@@ -88,11 +97,13 @@ A fresh agent should work in this order unless a blocking dependency requires a 
 
 ## Immediate next task
 
-**Issue #2 — Add SDL3 platform boundary and startup modes.**
+**Finish draft PR #16 for Issue #2.**
 
-The goal is to introduce SDL3 without leaking SDL types or lifetime rules into `engine/core`, while establishing both interactive/windowed and headless startup paths that share authoritative runtime logic.
+Validate that the pinned SDL3 dependency configures on the clean Windows runner, the platform library builds without exposing SDL through `engine/core`, the headless tests run without a visible window, and the CLI headless smoke exits successfully.
 
-Do not begin Issue #3 until #2 has a green merged PR unless the two tasks are deliberately combined and the reason is documented.
+Once PR #16 is green and merged, Issue **#3 — Implement deterministic fixed-step runtime control** becomes the next executable task.
+
+Do not begin Issue #3 while PR #16 has failing CI unless the failure is unrelated and explicitly documented.
 
 ## Public Alpha blockers
 
@@ -132,6 +143,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 ## Architecture invariants currently in force
 
 - `engine/core` has no SDL dependency.
+- SDL-specific ownership and types remain behind `engine/platform`.
 - MCP is never the source of truth for engine behavior.
 - Headless and windowed execution share runtime logic.
 - Automated tests own simulation time through fixed-step control.
