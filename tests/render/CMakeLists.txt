@@ -1,4 +1,5 @@
 add_executable(trace2d_render_tests
+    RenderDataTests.cpp
     RendererTests.cpp
 )
 
