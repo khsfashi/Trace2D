@@ -55,19 +55,28 @@ PR #28 integrated the CPU visibility decision into actual submission:
 
 PR #29 added allocation-free measurement for contiguous same-texture batching opportunities. The current executable sample demonstrates no draw-call saving, so actual instancing remains deferred until a representative workload justifies it.
 
-The current P5 capture-foundation slice adds a persistent offscreen color target:
+PR #30 added the persistent offscreen presentation target:
 
 - scene rendering no longer writes directly into the swapchain texture.
 - the renderer creates one offscreen color target lazily when a non-zero presentation target first becomes available.
-- the offscreen target uses the actual swapchain texture format and dimensions so the presentation path can use an exact texture-to-texture copy without format conversion.
+- the offscreen target uses the actual swapchain texture format and dimensions so presentation can use an exact texture-to-texture copy.
 - the target is reused while dimensions remain unchanged and replaced only when the presentation target size changes.
-- replacement is create-before-release, so a failed resize allocation does not destroy the existing target.
-- the render pass clears/stores into the offscreen target and sets SDL GPU target cycling for normal frame reuse.
-- after the render pass, one GPU copy pass copies the completed offscreen image into the acquired swapchain texture.
-- the swapchain remains presentation-only. It is not treated as a readback source.
-- no capture/download/fence work occurs yet; that remains explicit-request-only work for the next slice.
+- replacement is create-before-release.
+- the render pass clears/stores into the offscreen target and uses SDL GPU target cycling for normal frame reuse.
+- after the render pass, a GPU copy pass copies the completed offscreen image into the acquired swapchain texture.
+- the swapchain remains presentation-only and is never the capture source.
 
-This offscreen target is deliberately a capture foundation rather than the final artifact contract. The canonical capture pixel format, row-pitch normalization, image encoding, and explicit simulation-frame request are resolved by the readback/capture slice, not by ordinary presentation.
+The deterministic capture slice builds directly on that target:
+
+- `CaptureRequest` carries an explicit `simulationFrame`, artifact path, and format.
+- capture is opt-in work; ordinary `RenderFrame` calls do not download, wait on a fence, map pixels, encode an image, or perform file I/O.
+- the renderer owns one reusable download transfer buffer and grows it only when required capacity increases.
+- readback rows are padded to a 256-byte pitch so D3D12 backends do not need an avoidable temporary row-pitch repack.
+- requested frames download the completed offscreen target in the same GPU copy pass used for presentation.
+- capture submission acquires a fence; CPU mapping occurs only after that fence is signaled.
+- supported RGBA8/BGRA8 SDR target bytes are normalized into packed, top-down canonical RGBA8 CPU pixels.
+- the first artifact format is a dependency-free, lossless 32-bit top-down BMP.
+- `trace2d run --windowed --frames N --capture PATH` binds the artifact to the exact `RuntimeState.frame` produced by explicit stepping.
 
 ## Ownership
 
@@ -82,17 +91,19 @@ Renderer
   owns sprite pipeline / vertex buffer / sampler / textures
   owns stable Trace2D texture-handle table
   owns persistent size-matched offscreen color target
+  owns reusable capture download transfer buffer
   claims/releases window swapchain
   acquires/submits command buffers
   renders into offscreen presentation state
   copies completed offscreen output into the swapchain
+  optionally downloads explicitly requested frames
   consumes derived render data
   does not own simulation state
 ```
 
 Construction order should keep `Platform` alive for the complete `Renderer` lifetime. Normal stack ownership naturally destroys the renderer before the platform when the renderer is created after the platform.
 
-Simulation/scene systems remain responsible for gameplay truth. A later extraction step may copy authoritative state into `SpriteRenderData`, but render data and capture pixels are disposable presentation/QA output.
+Simulation/scene systems remain responsible for gameplay truth. Render data and capture pixels are disposable presentation/QA output.
 
 ## Headless invariant
 
@@ -100,7 +111,7 @@ The deterministic gameplay path must remain usable without GPU presentation.
 
 `Renderer` rejects a headless `Platform` before GPU initialization. Existing runtime, scene, input, agent, and gameplay-testing modules do not depend on `Trace2D::Render`.
 
-The camera math, draw-order comparison, visibility decision, batching measurement, and texture-handle fields remain CPU-owned data and can be tested without creating a window or GPU device.
+The camera math, draw-order comparison, visibility decision, batching measurement, capture readback-layout calculation, and artifact encoding tests remain usable without creating a window or GPU device.
 
 Do not move gameplay truth into renderer-owned resources just to make visual features easier to implement.
 
@@ -163,7 +174,7 @@ Before command-buffer acquisition, every supplied sprite texture handle is valid
 
 ## Offscreen target lifetime and presentation
 
-The offscreen color target is renderer-owned presentation state.
+The offscreen color target is renderer-owned presentation state and the sole capture source.
 
 Its format is queried once from the claimed window swapchain and used both by the sprite graphics pipeline and the size-dependent offscreen texture. Its dimensions are taken from the actual acquired swapchain texture rather than guessed from logical window size.
 
@@ -171,9 +182,56 @@ Normal frames do not create or release an offscreen texture. `EnsureOffscreenCol
 
 When a resize requires replacement, the new target is created before the old one is released. SDL releases GPU textures only when safe, so a prior submitted frame may continue using the old backing resource without an application-side stall.
 
-The render pass uses `SDL_GPU_LOADOP_CLEAR`, `SDL_GPU_STOREOP_STORE`, and target cycling. After the pass ends, a GPU copy pass copies the full target into the same-format, same-size swapchain texture. This preserves the current one-render-pass sprite contract while establishing a readable non-swapchain source for the later capture path.
+The render pass uses `SDL_GPU_LOADOP_CLEAR`, `SDL_GPU_STOREOP_STORE`, and target cycling. After the pass ends, a GPU copy pass copies the full target into the same-format, same-size swapchain texture. A requested capture additionally downloads that same completed offscreen image before submission.
 
 A successfully acquired swapchain texture is not cancelled on later command-encoding failure. SDL documents cancellation after swapchain acquisition as invalid, so those exceptional paths submit the already-acquired command buffer before propagating the error.
+
+## Deterministic capture contract
+
+`CaptureRequest` is deliberately small:
+
+- `simulationFrame` identifies the authoritative simulation state selected by the caller.
+- `artifactPath` identifies the requested output artifact.
+- `format` is currently `Bmp` only.
+
+The renderer does not infer frame identity from wall-clock time and does not advance simulation. The caller first selects/steps simulation state, then passes that state's frame number with the derived render data.
+
+`CaptureFrame` is intentionally synchronous for the first Public Alpha contract. It:
+
+1. renders the supplied presentation data into the normal offscreen color target,
+2. presents that target to the swapchain exactly as an ordinary frame does,
+3. downloads the completed offscreen target into a reusable `SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD` buffer,
+4. submits with `SDL_SubmitGPUCommandBufferAndAcquireFence`,
+5. waits for the capture fence,
+6. maps the download buffer only after completion,
+7. strips aligned row padding and normalizes RGBA/BGRA bytes into packed top-down RGBA8,
+8. writes the deterministic BMP artifact,
+9. returns the normalized `CapturedFrame` for tests/tools that need the bytes.
+
+The transfer layout uses a 256-byte aligned row pitch with offset zero. This satisfies the stricter D3D12 row-pitch requirement documented by SDL while remaining valid on other backends. The buffer is recreated only when the required capacity exceeds the retained capacity.
+
+Canonical CPU capture layout is:
+
+```text
+origin        = top-left
+row order     = top to bottom
+pixel order   = left to right
+channel order = R, G, B, A
+bytes/channel = 1
+row padding   = none
+```
+
+The BMP writer is an artifact adapter over those canonical bytes; it emits top-down 32-bit BGRA pixel rows without compression. No image codec library is added for P5.
+
+The explicit CLI smoke surface is:
+
+```text
+trace2d run --windowed --frames N --capture PATH
+```
+
+The artifact is identified as simulation frame `N` because `run` first performs `runtime.Step(N)`, reads the resulting `RuntimeState.frame`, and passes that exact value into `CaptureRequest`.
+
+Deterministic capture here means deterministic state selection, byte-layout normalization, and artifact encoding. It does not claim bit-identical floating-point rasterization across unrelated GPU vendors/backends.
 
 ## Shader packaging baseline
 
@@ -194,7 +252,7 @@ The HLSL bindings follow SDL GPU's documented resource-set convention: vertex un
 
 ## Frame path
 
-The current ordered multi-sprite windowed frame is:
+The normal ordered multi-sprite windowed frame is:
 
 ```text
 validate every supplied texture handle
@@ -220,7 +278,20 @@ validate every supplied texture handle
   -> commit frame/draw/submitted/cull metrics after successful submission
 ```
 
-A minimized/unavailable swapchain texture is treated as a valid no-presentation frame. It creates no offscreen target work, sprite draw, or culling decision because no target-dependent `OrthographicView` exists for that frame.
+A requested capture adds only this work to the same rendered frame:
+
+```text
+before copy pass: ensure reusable aligned download capacity
+inside copy pass: download offscreen target into transfer buffer
+submit: acquire fence
+wait fence
+map download buffer
+normalize packed RGBA8
+unmap + release fence
+write artifact
+```
+
+A minimized/unavailable swapchain texture is a valid no-presentation frame for ordinary rendering. Explicit capture instead fails clearly because there is no valid offscreen target size to capture.
 
 The original clear-only `RenderFrame()` remains available. The single-sprite overload delegates to the same span-based submission path as multi-sprite input.
 
@@ -244,17 +315,17 @@ culled sprites  = culledSprites delta
 supplied sprites = visible sprites + culled sprites
 ```
 
-The offscreen-to-swapchain texture copy is presentation transfer work, not a sprite draw call, and does not change `drawCalls` or `submittedSprites` semantics.
+Presentation copy and capture download are transfer work, not sprite draw calls, and do not change `drawCalls` or `submittedSprites` semantics.
 
 Once batching is introduced, `submittedSprites` should continue to describe encoded sprites while `drawCalls` may become smaller.
 
-`trace2d run --windowed --json` exposes `draw_calls`, `submitted_sprites`, and `culled_sprites` so the baseline remains script-readable.
+`trace2d run --windowed --json` exposes `draw_calls`, `submitted_sprites`, and `culled_sprites`. With `--capture`, JSON additionally exposes capture frame, dimensions, format, and artifact path.
 
 Metrics are renderer-owned observation state and are not authoritative gameplay state.
 
 ## Allocation / lifetime policy
 
-Persistent renderer resources have renderer lifetime or a size-dependent presentation lifetime:
+Persistent renderer resources have renderer lifetime or a size/capacity-dependent presentation lifetime:
 
 - GPU device
 - claimed swapchain relationship
@@ -263,10 +334,13 @@ Persistent renderer resources have renderer lifetime or a size-dependent present
 - sampler
 - created sprite textures
 - offscreen color target, reused until presentation size changes
+- capture download transfer buffer, allocated lazily and capacity-reused across requested captures
 
-Texture-table growth may allocate during explicit texture creation. The normal steady-size span-based frame path performs no sprite-list allocation/copy, container growth, shader compilation, texture upload, offscreen texture creation, renderer-side sorting, or batching-container construction.
+Texture-table growth may allocate during explicit texture creation. The normal steady-size non-capture frame path performs no sprite-list allocation/copy, container growth, shader compilation, texture upload, offscreen texture creation, download-buffer creation, fence wait, renderer-side sorting, image encoding, or file I/O.
 
-Camera/view/sprite data is trivially copyable. Camera-view construction performs no dynamic allocation, `WorldToClip` performs no allocation or division, and draw-order/visibility/batching-measurement helpers allocate no memory.
+Capture intentionally allocates the returned canonical RGBA8 byte vector and one row-sized BMP conversion buffer. Those allocations occur only on explicit capture and are outside the ordinary frame hot path.
+
+Camera/view/sprite data is trivially copyable. Camera-view construction performs no dynamic allocation, `WorldToClip` performs no allocation or division, and draw-order/visibility/batching-measurement/readback-layout helpers allocate no memory.
 
 Culling is an O(N) direct pass fused into submission. It does not build a visible-sprite list. Fully culled input skips all sprite draw work and also skips pipeline/vertex-buffer binding.
 
@@ -278,17 +352,9 @@ Before adding resource pools, bindless tables, custom allocators, atlases, persi
 
 Actual GPU sprite instancing remains deferred until a representative Public Alpha sample demonstrates a material saving with the existing contiguous-texture measurement.
 
-The next capture slices are:
+For Issue #10, the renderer/capture implementation is complete once Windows/MSVC CI validates this capture slice and the explicit CLI artifact path. After that, close #10 and move to the tiny Public Alpha vertical sample/release-quality repository checks tracked by #14.
 
-1. define an explicit capture request carrying the requested simulation frame and artifact destination/format contract,
-2. add a reusable SDL GPU download transfer buffer sized for the current capture target,
-3. on requested frames only, encode `SDL_DownloadFromGPUTexture` from the completed offscreen target,
-4. submit the capture command buffer with a fence and consume bytes only after the fence is signaled,
-5. normalize row pitch / pixel layout into the canonical artifact contract and write a deterministic image,
-6. add deterministic artifact validation without making pixels authoritative gameplay state,
-7. close Issue #10 when the explicit-frame capture acceptance criterion is met.
-
-Wall-clock timing must never decide which gameplay frame is captured. Normal non-capture frames must not pay download, fence-wait, mapping, encoding, or file-I/O costs.
+Do not grow the synchronous capture API into a generic async readback framework unless later measurements/use cases justify it.
 
 ## Non-goals for P5
 
