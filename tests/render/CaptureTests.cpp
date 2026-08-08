@@ -95,4 +95,18 @@ TEST(CaptureTests, ArtifactRejectsMismatchedSimulationFrame)
 
     EXPECT_THROW(trace2d::render::WriteCaptureArtifact(request, frame), std::invalid_argument);
 }
+
+TEST(CaptureTests, ArtifactRejectsCanonicalByteCountOverflowBeforeAccessingPixels)
+{
+    trace2d::render::CaptureRequest request{};
+    request.simulationFrame = 9;
+    request.artifactPath = "unused.bmp";
+
+    trace2d::render::CapturedFrame frame{};
+    frame.simulationFrame = 9;
+    frame.width = std::numeric_limits<std::uint32_t>::max();
+    frame.height = std::numeric_limits<std::uint32_t>::max();
+
+    EXPECT_THROW(trace2d::render::WriteCaptureArtifact(request, frame), std::length_error);
+}
 } // namespace
