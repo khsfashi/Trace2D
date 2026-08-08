@@ -7,6 +7,20 @@
 
 namespace
 {
+TEST(RendererTests, RenderMetricsDefaultToZero)
+{
+    const trace2d::render::RenderMetrics metrics{};
+
+    EXPECT_EQ(metrics.submittedFrames, 0U);
+    EXPECT_EQ(metrics.presentedFrames, 0U);
+    EXPECT_EQ(metrics.renderPasses, 0U);
+    EXPECT_EQ(metrics.drawCalls, 0U);
+    EXPECT_EQ(metrics.submittedSprites, 0U);
+    EXPECT_EQ(metrics.culledSprites, 0U);
+    EXPECT_EQ(metrics.lastTargetWidth, 0U);
+    EXPECT_EQ(metrics.lastTargetHeight, 0U);
+}
+
 TEST(RendererTests, HeadlessPlatformHasNoWindowIdentifier)
 {
     trace2d::platform::PlatformConfig platformConfig{};

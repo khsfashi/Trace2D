@@ -38,6 +38,7 @@ struct RenderMetrics
     std::uint64_t renderPasses{0};
     std::uint64_t drawCalls{0};
     std::uint64_t submittedSprites{0};
+    std::uint64_t culledSprites{0};
     std::uint32_t lastTargetWidth{0};
     std::uint32_t lastTargetHeight{0};
 };
