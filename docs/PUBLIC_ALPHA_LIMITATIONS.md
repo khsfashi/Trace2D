@@ -2,7 +2,7 @@
 
 `v0.1.0-alpha.1` is a proof that Trace2D's agent-first development loop works end to end. It is not a production-ready general-purpose game engine.
 
-The following limitations are intentional and must remain visible in the first public release.
+The following limitations are intentional and remain part of the first public release.
 
 ## Platform and toolchain
 
@@ -66,10 +66,10 @@ These are post-alpha breadth items and are not hidden release blockers.
 
 ## Distribution and licensing
 
-- `v0.1.0-alpha.1` is intended primarily as a source/repository release.
+- `v0.1.0-alpha.1` is primarily a source/repository release.
+- Trace2D project source is published under the MIT License.
 - Third-party source dependency licensing is reviewed in `THIRD_PARTY.md`.
 - Compiled binary distribution requires an additional resolved-dependency notice pass before binaries are attached to a release.
-- The Trace2D project license must be selected before repository visibility changes to Public.
 
 ## Security boundary
 
