@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — fixed post-alpha P6 execution is active.**
+**Public Alpha released — #40 deterministic texture assets complete; #42 text/basic UI is next.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08 and the repository is Public under the MIT License. The first release proves one complete minimal agent-first 2D development loop:
 
@@ -30,7 +30,7 @@ The repository owner fixed this implementation order on **2026-08-08**.
 
 **Future coding agents must follow this sequence unless the repository owner explicitly changes it. Do not reorder, skip, parallelize, or substitute later roadmap work because another task appears more attractive.**
 
-1. **#40 — deterministic texture asset cache/import slice**
+1. **#40 — deterministic texture asset cache/import slice** — complete in the PR that advances this handoff
 2. **#42 — text rendering and basic UI primitives**
 3. **#43 — semantic UI tree and agent interaction**
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade**
@@ -48,7 +48,25 @@ The repository owner fixed this implementation order on **2026-08-08**.
 - UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates may be observable bounds, but must not be the primary automation identity when semantic identity exists.
 - Structured state beats pixel inference for gameplay and UI assertions.
 
-**Active next implementation task: #40.**
+**Active next implementation task after this PR merges: #42.**
+
+## Completed #40 texture asset slice
+
+The first P6 asset slice establishes a narrow CPU-side texture import/cache boundary:
+
+- text-authored texture identity is the canonical project-relative path, never a machine-local absolute path,
+- `/` and `\` spellings normalize to one `/`-separated cache ID,
+- absolute paths and `..` traversal are rejected,
+- PNG/JPEG/BMP/TGA sources decode to immutable RGBA8 CPU data,
+- successful imports are cached and repeated references return the same decoded asset object,
+- invalidation is explicit through `Invalidate` / `Clear`; there is no frame-loop polling or watcher,
+- failures are not cached, so a corrected source can recover on the next explicit load,
+- structured diagnostic codes cover invalid reference, unsupported format, missing/read/decode failure, and size overflow,
+- cache metrics expose requests/hits/misses/imports/failures/current entry count,
+- a deterministic seven-sprite-style test proves one player plus six marker references resolve to two imports and five cache hits,
+- `engine/assets` is SDL-free and owns no renderer/GPU handles.
+
+See `docs/ASSETS.md` for the contract and scope boundaries.
 
 ## Why this order
 
@@ -120,12 +138,14 @@ Release-facing CI remains the baseline for changes that can affect the supported
 
 New machine-facing capabilities require deterministic automated tests when practical. A semantic UI or MCP feature without headless coverage is incomplete unless its PR documents a concrete reason.
 
-GPU presentation itself is not a hosted-runner requirement. Backend-independent state, layout, query, input, assertion, camera, visibility, batching measurement, capture-layout, and artifact contracts should remain CI-testable without an interactive GPU/window.
+GPU presentation itself is not a hosted-runner requirement. Backend-independent state, layout, query, input, assertion, camera, visibility, batching measurement, capture-layout, artifact contracts, and asset cache/import behavior should remain CI-testable without an interactive GPU/window.
 
 ## Architecture invariants
 
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership/types stay behind platform/render boundaries.
+- `engine/assets` is SDL-free; decoded CPU assets are independent of renderer-owned GPU resources.
+- asset references are deterministic project-relative text identities; no per-frame discovery/decoding is permitted.
 - renderer GPU state is presentation state and never authoritative simulation or UI state.
 - runtime/scene/input/agent/testing and future engine-owned UI state do not depend on MCP transport.
 - MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
