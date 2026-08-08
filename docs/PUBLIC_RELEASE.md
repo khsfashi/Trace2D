@@ -1,22 +1,10 @@
-# Public Release Plan
+# Public Release Record
 
-## Target
+## v0.1.0-alpha.1 — Public Alpha
 
-The first public milestone is:
+**Released 2026-08-08.**
 
-```text
-v0.1.0-alpha.1 — Public Alpha
-```
-
-The repository should remain private until every mandatory repository-quality gate is satisfied.
-
-Public Alpha is a **proof of architecture and workflow**, not a claim that Trace2D is a feature-complete engine.
-
-## Release state
-
-**Release-ready as of 2026-08-08.**
-
-The technical loop, repository-quality gates, MIT licensing, license-required audit, clean-checkout Quick Start, and final `main` CI validation are complete. Remaining work is publication: create the GitHub Release/tag, change visibility to Public, verify the unauthenticated view, and open only concrete post-alpha follow-up issues.
+Trace2D's first public milestone proves one complete agent-first 2D development loop. It is a proof of architecture and workflow, not a claim that Trace2D is a feature-complete general-purpose engine.
 
 ## What the release proves
 
@@ -36,91 +24,62 @@ A coding agent can use normal source-control and command-line tooling to perform
 11. receive actionable structured diagnostics when a step fails
 ```
 
-That loop is implemented and release-gated.
+## Completed release gates
 
-## Required release gates
+### Reproducible project foundation
 
-### Gate A — Reproducible project foundation
+- [x] clean Windows checkout Quick Start validated in hosted CI
+- [x] Debug build and automated tests pass in hosted CI
+- [x] README Quick Start and CI use the same CMake presets and pinned vcpkg baseline
+- [x] generated build artifacts excluded from repository policy
 
-- [x] clean Windows checkout Quick Start job passes — PR #35 / CI #100 and PR #36 / CI #103
-- [x] Debug build succeeds in hosted CI
-- [x] automated tests pass in hosted CI
-- [x] latest release-candidate `main` CI is green — owner-confirmed 2026-08-08 after PR #36 merge
-- [x] documented build and CI use the same root CMake project and presets
-- [x] vcpkg baseline/dependency resolution is pinned by repository state
-- [x] generated build artifacts are excluded from Git policy
+### Deterministic runtime
 
-The README Quick Start is executable CI policy: `clean-clone-quick-start` uses `windows-2022`, installs the exact repository-pinned vcpkg baseline, then runs `windows-msvc`, `windows-debug`, and `ctest --preset windows-debug` from a clean checkout.
+- [x] shared authoritative simulation between headless and windowed modes
+- [x] explicit fixed timestep and exact-N-frame advancement
+- [x] observable frame/seed/runtime state
+- [x] deterministic reset and repeated scenario behavior
 
-### Gate B — Deterministic runtime
+### Text-authored scene and stable identity
 
-- [x] headless runtime path exists
-- [x] windowed and headless modes share authoritative simulation code
-- [x] fixed simulation timestep is explicit
-- [x] tests/agents can advance exactly N frames without sleeping
-- [x] simulation frame number is observable
-- [x] deterministic seed/state reset is available
-- [x] repeated deterministic tests reproduce expected state
+- [x] readable TOML scene format
+- [x] stable semantic entity identity, names/tags, and `Transform2D`
+- [x] strict actionable schema errors
+- [x] deterministic serialization and observable ordering
+- [x] generation-safe runtime entity handles
 
-### Gate C — Text-authored scene and stable identity
+### Structured observability
 
-- [x] minimal scene is authored as readable text
-- [x] authored entities have stable semantic identity
-- [x] transform/name/tags are available
-- [x] invalid scene data reports actionable errors
-- [x] serialization/output order is deterministic for useful Git diffs
-- [x] stale runtime handles cannot silently access reused entities
+- [x] protocol-independent runtime inspection facade
+- [x] structured runtime/scene/entity/component snapshots
+- [x] semantic selectors by authored ID, name, tag, and component
+- [x] deterministic query ordering and explicit ambiguity/no-match failures
 
-### Gate D — Structured observability
+### Virtual input and gameplay QA
 
-- [x] active scene/runtime frame can be inspected
-- [x] entity state can be inspected without pixel parsing
-- [x] machine-facing output is structured
-- [x] semantic selectors support authored ID, names/tags, and component queries
-- [x] query result ordering is deterministic where order is observable
-- [x] ambiguous/invalid queries fail explicitly
+- [x] physical and virtual input converge on engine-owned input state
+- [x] frame-indexed virtual press/release scheduling
+- [x] deterministic gameplay scenarios and exact-frame assertions
+- [x] reproducible failure context with expected/observed values, frame, seed, input, runtime, and entity state
 
-Implemented CLI surfaces include:
+### Minimal 2D rendering and visual capture
+
+- [x] SDL3 GPU orthographic sprite renderer
+- [x] caller/painter-order-preserving multi-sprite submission
+- [x] inclusive AABB visibility rule
+- [x] measured contiguous same-texture GPU instancing
+- [x] renderer-owned offscreen target and explicit simulation-frame capture
+- [x] deterministic dependency-free 32-bit BMP artifact
+
+### End-to-end sample
+
+The committed Public Alpha sample is:
 
 ```text
-trace2d inspect ... --json
-trace2d query ... --selector "#player" --json
+samples/public_alpha/public_alpha.trace2d.toml
 ```
 
-### Gate E — Virtual input and gameplay QA
-
-- [x] physical and virtual input feed the same engine-level input state
-- [x] tests can schedule press/release against simulation frames
-- [x] gameplay scenario can load/reset deterministically
-- [x] assertion API can read semantic entity/component state
-- [x] failed assertion records expected/observed values
-- [x] failed assertion records frame, deterministic seed, input, runtime, and entity context
-- [x] gameplay QA runs in CI without human interaction
-
-### Gate F — Minimal 2D rendering and visual capture
-
-- [x] SDL3 GPU renderer can display a small sprite scene
-- [x] orthographic 2D camera exists
-- [x] measured contiguous same-texture batching baseline is implemented
-- [x] simulation remains authoritative without rendering
-- [x] an image can be captured at an explicitly requested simulation frame
-- [x] capture failure is machine-detectable
-
-No advanced lighting, PBR, scene editor, or renderer framework is required.
-
-### Gate G — End-to-end sample
-
-The committed Public Alpha sample contains:
-
-- [x] `#player` semantic controlled entity
-- [x] additional semantic/visible entities
-- [x] movement driven by engine input
-- [x] observable state changed by gameplay
-- [x] deterministic automated gameplay test
-- [x] rendered exact-frame capture workflow
-- [x] complete edit -> build -> inspect -> query -> input -> assert -> capture documentation
-
-Default sample contract:
+Default deterministic contract:
 
 ```text
 frames:                     8
@@ -134,100 +93,56 @@ unbatched baseline draws:    7
 ordered instanced draws:     2
 ```
 
-### Gate H — Public repository quality
+### Public repository quality
 
-Before changing visibility to Public:
+- [x] MIT project license selected and root `LICENSE` added
+- [x] third-party source dependency licenses reviewed in `THIRD_PARTY.md`
+- [x] repository/history audit checks tracked artifacts, relative links, and high-confidence secret/private-path patterns
+- [x] clean-clone README Quick Start passes
+- [x] implemented versus planned capabilities are explicit
+- [x] architecture and agent workflow are documented without requiring chat context
+- [x] Public Alpha limitations are explicit
+- [x] license-required release audit is enforced in CI
+- [x] repository visibility changed to Public
+- [x] tag `v0.1.0-alpha.1` exists
+- [x] release tag contains the MIT `LICENSE`
 
-- [x] choose and add a repository license — MIT selected 2026-08-08; root `LICENSE` added
-- [x] review and document third-party source dependency licenses (`THIRD_PARTY.md`)
-- [x] release audit passes over current tree and fetched Git history with no high-confidence secret/private-path findings — PR #35 / CI #100
-- [x] README clean-checkout Quick Start job passes — PR #35 / CI #100
-- [x] README clearly labels implemented versus planned capabilities
-- [x] architecture overview is understandable without chat context
-- [x] contributor/agent workflow is documented
-- [x] Public Alpha limitations are explicit (`PUBLIC_ALPHA_LIMITATIONS.md`)
-- [x] repository-relative Markdown link audit passes — PR #35 / CI #100
-- [x] license-required release-gate CI is green — PR #36 / CI #103
-- [x] release-gate changes are merged to `main` — `82fed78`
-- [x] final release-candidate `main` CI is green — owner-confirmed 2026-08-08
+## Validation evidence
 
-The repeatable release-candidate audit command is:
+Key release-facing checkpoints:
+
+- PR #34 implementation head — CI #97 green
+- PR #35 repository-quality candidate — CI #100 green
+- PR #36 MIT/license-required release gate — CI #103 green
+- PR #37 release-ready documentation — CI #105 green
+
+The strict repository audit remains:
 
 ```powershell
 ./scripts/release_audit.ps1 -RequireLicense
 ```
 
-CI uses the same strict form. The project license is **MIT**; `LICENSE_DECISION.md` records the decision and tradeoff.
-
 ## Third-party license policy
 
-Direct manifest dependencies are reviewed in `THIRD_PARTY.md`.
-
-Public Alpha is primarily a source/repository release. If compiled binaries are attached later, the binary release must separately review the exact resolved vcpkg runtime graph and carry the required notices from the installed ports. Source-release review is not treated as a blanket binary-distribution approval.
+Public Alpha is primarily a source/repository release. Compiled binary attachments require a separate review of the exact resolved runtime dependency graph and required notices. Project-level MIT licensing does not replace third-party license obligations.
 
 ## Public Alpha limitations
 
-`PUBLIC_ALPHA_LIMITATIONS.md` is part of the release surface. It explicitly records platform, API, scene, renderer, capture, subsystem, performance, agent-integration, distribution, and security-boundary limitations.
+See `PUBLIC_ALPHA_LIMITATIONS.md` for the platform, API, scene, renderer, capture, subsystem, performance, agent-integration, distribution, and security boundaries of this release.
 
 Do not remove limitations merely to make the alpha appear broader than it is.
 
-## What is intentionally not required
+## Post-alpha direction
 
-These are post-alpha features, not release blockers:
+The first release is complete. Post-alpha work should extend the proven automation contract rather than replace it.
 
-- MCP integration
-- JSON-RPC specifically
-- graphical scene editor
-- scripting language
-- full ECS
-- custom memory allocator framework
-- job/work-stealing system
-- advanced animation graph
-- advanced UI toolkit
-- networking
-- audio engine
-- PBR or dynamic lighting
-- navigation/pathfinding
-- broad asset import pipeline
-- Linux/macOS support
-- mobile support
+Priority areas include:
 
-The release must resist scope growth. A small, complete automation loop is more valuable than a large half-finished engine.
+- protocol transport / MCP adapter over the existing agent facade
+- practical deterministic asset caching/import workflow
+- broader reproducible performance workloads before additional renderer complexity
+- physics and semantic UI integration through structured deterministic contracts
+- additional platform support after the Windows path remains stable
+- portfolio/demo polish that makes the automation loop immediately visible to new visitors
 
-## Release-quality performance evidence
-
-Trace2D is performance-conscious, but Public Alpha does not publish arbitrary FPS or cross-engine marketing claims.
-
-- [x] representative renderer workload is committed and reproducible
-- [x] before/after structural draw counts are stored: 7 visible sprite draws -> 2 ordered instanced draws
-- [x] no synthetic percentage improvement is claimed
-- [x] hot-path design documents state allocation/resource-lifetime constraints
-- [x] known performance limitations are explicit
-
-Any future wall-clock/FPS benchmark must additionally record the exact machine, GPU, driver, build configuration, workload, and capture method.
-
-## Publication sequence
-
-The mandatory pre-publication gates are complete. Publish in this order:
-
-1. merge the release-ready status update,
-2. verify the resulting latest `main` CI is green,
-3. create GitHub Release/tag `v0.1.0-alpha.1` targeting `main`,
-4. change repository visibility to Public,
-5. verify README, release, links, and MIT license as an unauthenticated viewer,
-6. close Issue #14 after the public-view verification,
-7. create post-alpha issues from known limitations instead of hiding them.
-
-## After Public Alpha
-
-After the first public release, priorities shift toward proving that the architecture scales beyond the minimal demo:
-
-- richer practical 2D engine features
-- asset caching/import workflow
-- physics and semantic UI integration
-- broader performance benchmarks
-- protocol transport and MCP adapter
-- additional agent clients
-- polished portfolio demonstration
-
-Those features should extend the already-proven automation contract rather than replace it.
+Broad editor, render-graph, allocator, job-system, or engine-framework abstractions remain unjustified until a concrete measured need requires them.
