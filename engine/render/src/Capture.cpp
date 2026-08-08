@@ -46,15 +46,17 @@ void WriteLittleEndian32(
         throw std::invalid_argument{"Captured frame dimensions must be non-zero."};
     }
 
-    const std::uint64_t byteCount =
-        static_cast<std::uint64_t>(frame.width) * static_cast<std::uint64_t>(frame.height) * Rgba8BytesPerPixel;
+    const std::uint64_t pixelCount =
+        static_cast<std::uint64_t>(frame.width) * static_cast<std::uint64_t>(frame.height);
+    const std::uint64_t maxAddressableBytes =
+        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
 
-    if (byteCount > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+    if (pixelCount > maxAddressableBytes / Rgba8BytesPerPixel)
     {
         throw std::length_error{"Captured RGBA8 frame exceeds addressable memory."};
     }
 
-    return static_cast<std::size_t>(byteCount);
+    return static_cast<std::size_t>(pixelCount * Rgba8BytesPerPixel);
 }
 
 void WriteBmp(const std::filesystem::path& path, const CapturedFrame& frame)
@@ -76,16 +78,19 @@ void WriteBmp(const std::filesystem::path& path, const CapturedFrame& frame)
         throw std::length_error{"BMP capture dimensions exceed signed 32-bit header limits."};
     }
 
-    const std::uint64_t fileSize = static_cast<std::uint64_t>(BmpHeaderBytes) + canonicalByteCount;
-    if (fileSize > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
+    constexpr std::uint64_t MaxBmpFileBytes = std::numeric_limits<std::uint32_t>::max();
+    if (canonicalByteCount > MaxBmpFileBytes - BmpHeaderBytes)
     {
         throw std::length_error{"BMP capture artifact exceeds 32-bit file-size limits."};
     }
 
+    const std::uint32_t fileSize =
+        static_cast<std::uint32_t>(static_cast<std::uint64_t>(BmpHeaderBytes) + canonicalByteCount);
+
     std::array<std::uint8_t, BmpHeaderBytes> header{};
     header[0] = static_cast<std::uint8_t>('B');
     header[1] = static_cast<std::uint8_t>('M');
-    WriteLittleEndian32(header, 2, static_cast<std::uint32_t>(fileSize));
+    WriteLittleEndian32(header, 2, fileSize);
     WriteLittleEndian32(header, 10, static_cast<std::uint32_t>(BmpHeaderBytes));
 
     WriteLittleEndian32(header, 14, static_cast<std::uint32_t>(BmpInfoHeaderBytes));
@@ -151,10 +156,14 @@ bool TryBuildCaptureReadbackLayout(
     const std::uint64_t packedRowBytes = static_cast<std::uint64_t>(width) * Rgba8BytesPerPixel;
     const std::uint64_t alignedRowBytes =
         ((packedRowBytes + ReadbackRowAlignmentBytes - 1U) / ReadbackRowAlignmentBytes) * ReadbackRowAlignmentBytes;
-    const std::uint64_t transferBufferBytes = alignedRowBytes * static_cast<std::uint64_t>(height);
 
-    if (alignedRowBytes > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()) ||
-        transferBufferBytes > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
+    if (alignedRowBytes > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
+    {
+        return false;
+    }
+
+    const std::uint64_t transferBufferBytes = alignedRowBytes * static_cast<std::uint64_t>(height);
+    if (transferBufferBytes > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
     {
         return false;
     }
