@@ -2,6 +2,7 @@ find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_shadercross CONFIG REQUIRED)
 
 add_library(trace2d_render STATIC
+    src/Capture.cpp
     src/RenderData.cpp
     src/Renderer.cpp
 )
