@@ -44,6 +44,28 @@ TEST(RenderDataTests, WorldToClipUsesEngineYUpNdcConvention)
         (trace2d::render::Float2{-1.0F, -1.0F}));
 }
 
+TEST(RenderDataTests, BuildsPackedSpriteInstanceTransformFromView)
+{
+    trace2d::render::OrthographicCamera camera{};
+    camera.center = trace2d::render::Float2{2.0F, -3.0F};
+    camera.verticalSize = 8.0F;
+
+    trace2d::render::OrthographicView view{};
+    ASSERT_TRUE(trace2d::render::TryBuildOrthographicView(camera, 1600, 800, view));
+
+    trace2d::render::SpriteRenderData sprite{};
+    sprite.center = trace2d::render::Float2{6.0F, -1.0F};
+    sprite.halfExtents = trace2d::render::Float2{2.0F, 1.0F};
+
+    const trace2d::render::SpriteInstanceData instance =
+        trace2d::render::BuildSpriteInstanceData(view, sprite);
+
+    EXPECT_FLOAT_EQ(instance.centerClip.x, 0.5F);
+    EXPECT_FLOAT_EQ(instance.centerClip.y, 0.5F);
+    EXPECT_FLOAT_EQ(instance.halfClip.x, 0.25F);
+    EXPECT_FLOAT_EQ(instance.halfClip.y, 0.25F);
+}
+
 TEST(RenderDataTests, RejectsInvalidCameraOrTargetAndClearsOutput)
 {
     trace2d::render::OrthographicView view{};
