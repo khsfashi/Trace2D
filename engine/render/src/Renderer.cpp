@@ -220,6 +220,12 @@ public:
 
         try
         {
+            colorTargetFormat_ = SDL_GetGPUSwapchainTextureFormat(device_, window_);
+            if (colorTargetFormat_ == SDL_GPU_TEXTUREFORMAT_INVALID)
+            {
+                throw MakeSdlError("SDL GPU swapchain texture-format query failed");
+            }
+
             CreatePersistentSpriteResources();
 
             const char* const driverName = SDL_GetGPUDeviceDriver(device_);
@@ -482,7 +488,7 @@ private:
                 device_, SpriteFragmentShaderHlsl, SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT);
 
             SDL_GPUColorTargetDescription colorTargetDescription{};
-            colorTargetDescription.format = SDL_GetGPUSwapchainTextureFormat(device_, window_);
+            colorTargetDescription.format = colorTargetFormat_;
             colorTargetDescription.blend_state.enable_blend = true;
             colorTargetDescription.blend_state.color_write_mask = 0xFU;
             colorTargetDescription.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
@@ -541,6 +547,44 @@ private:
 
         SDL_ReleaseGPUShader(device_, vertexShader);
         SDL_ReleaseGPUShader(device_, fragmentShader);
+    }
+
+    void EnsureOffscreenColorTarget(const Uint32 width, const Uint32 height)
+    {
+        if (width == 0 || height == 0)
+        {
+            throw std::invalid_argument{"Offscreen color-target dimensions must be non-zero."};
+        }
+
+        if (offscreenColorTarget_ != nullptr && offscreenTargetWidth_ == width && offscreenTargetHeight_ == height)
+        {
+            return;
+        }
+
+        SDL_GPUTextureCreateInfo textureInfo{};
+        textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        textureInfo.format = colorTargetFormat_;
+        textureInfo.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        textureInfo.width = width;
+        textureInfo.height = height;
+        textureInfo.layer_count_or_depth = 1;
+        textureInfo.num_levels = 1;
+        textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        SDL_GPUTexture* const replacement = SDL_CreateGPUTexture(device_, &textureInfo);
+        if (replacement == nullptr)
+        {
+            throw MakeSdlError("SDL GPU offscreen color-target creation failed");
+        }
+
+        if (offscreenColorTarget_ != nullptr)
+        {
+            SDL_ReleaseGPUTexture(device_, offscreenColorTarget_);
+        }
+
+        offscreenColorTarget_ = replacement;
+        offscreenTargetWidth_ = width;
+        offscreenTargetHeight_ = height;
     }
 
     [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
@@ -626,12 +670,22 @@ private:
             OrthographicView view{};
             if (!sprites.empty() && !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view))
             {
-                SDL_CancelGPUCommandBuffer(commandBuffer);
+                static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
                 throw std::invalid_argument{"Sprite rendering requires a valid orthographic camera and render target."};
             }
 
+            try
+            {
+                EnsureOffscreenColorTarget(targetWidth, targetHeight);
+            }
+            catch (...)
+            {
+                static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
+                throw;
+            }
+
             SDL_GPUColorTargetInfo colorTarget{};
-            colorTarget.texture = swapchainTexture;
+            colorTarget.texture = offscreenColorTarget_;
             colorTarget.clear_color = SDL_FColor{
                 config_.clearColor.red,
                 config_.clearColor.green,
@@ -640,12 +694,13 @@ private:
             };
             colorTarget.load_op = SDL_GPU_LOADOP_CLEAR;
             colorTarget.store_op = SDL_GPU_STOREOP_STORE;
+            colorTarget.cycle = true;
 
             SDL_GPURenderPass* const renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1, nullptr);
             if (renderPass == nullptr)
             {
                 const std::string error{SDL_GetError()};
-                SDL_SubmitGPUCommandBuffer(commandBuffer);
+                static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
                 throw std::runtime_error{"SDL GPU render pass creation failed: " + error};
             }
 
@@ -691,6 +746,24 @@ private:
 
             SDL_EndGPURenderPass(renderPass);
             encodedRenderPass = true;
+
+            SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+            if (copyPass == nullptr)
+            {
+                const std::string error{SDL_GetError()};
+                static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
+                throw std::runtime_error{"SDL GPU presentation copy-pass creation failed: " + error};
+            }
+
+            SDL_GPUTextureLocation source{};
+            source.texture = offscreenColorTarget_;
+
+            SDL_GPUTextureLocation destination{};
+            destination.texture = swapchainTexture;
+
+            SDL_CopyGPUTextureToTexture(
+                copyPass, &source, &destination, targetWidth, targetHeight, 1, false);
+            SDL_EndGPUCopyPass(copyPass);
         }
 
         if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
@@ -728,6 +801,14 @@ private:
                     SDL_ReleaseGPUTexture(device_, texture);
                     texture = nullptr;
                 }
+            }
+
+            if (offscreenColorTarget_ != nullptr)
+            {
+                SDL_ReleaseGPUTexture(device_, offscreenColorTarget_);
+                offscreenColorTarget_ = nullptr;
+                offscreenTargetWidth_ = 0;
+                offscreenTargetHeight_ = 0;
             }
 
             if (spritePipeline_ != nullptr)
@@ -768,6 +849,10 @@ private:
     RenderMetrics metrics_{};
     SDL_Window* window_{nullptr};
     SDL_GPUDevice* device_{nullptr};
+    SDL_GPUTextureFormat colorTargetFormat_{SDL_GPU_TEXTUREFORMAT_INVALID};
+    SDL_GPUTexture* offscreenColorTarget_{nullptr};
+    Uint32 offscreenTargetWidth_{0};
+    Uint32 offscreenTargetHeight_{0};
     SDL_GPUGraphicsPipeline* spritePipeline_{nullptr};
     SDL_GPUSampler* spriteSampler_{nullptr};
     SDL_GPUBuffer* spriteVertexBuffer_{nullptr};
