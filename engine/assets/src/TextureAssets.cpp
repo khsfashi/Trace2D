@@ -291,6 +291,16 @@ TextureAssetLoadResult TextureAssetCache::Load(const std::string_view projectRel
             "Unable to determine texture source size: " + filesystemError.message()));
     }
 
+    if (fileSize == 0U)
+    {
+        ++failedImports_;
+        return Failure(MakeDiagnostic(
+            TextureAssetErrorCode::DecodeFailure,
+            projectRelativeReference,
+            normalized.resolvedPath,
+            "Texture source file is empty."));
+    }
+
     if (fileSize > static_cast<std::uintmax_t>(std::numeric_limits<int>::max()) ||
         fileSize > static_cast<std::uintmax_t>(std::numeric_limits<std::size_t>::max()))
     {
@@ -314,12 +324,9 @@ TextureAssetLoadResult TextureAssetCache::Load(const std::string_view projectRel
             "Unable to open texture source for reading."));
     }
 
-    if (!encoded.empty())
-    {
-        input.read(
-            reinterpret_cast<char*>(encoded.data()),
-            static_cast<std::streamsize>(encoded.size()));
-    }
+    input.read(
+        reinterpret_cast<char*>(encoded.data()),
+        static_cast<std::streamsize>(encoded.size()));
 
     if (!input || input.gcount() != static_cast<std::streamsize>(encoded.size()))
     {
