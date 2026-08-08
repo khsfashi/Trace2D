@@ -1,6 +1,7 @@
 #pragma once
 
 #include <trace2d/platform/Platform.hpp>
+#include <trace2d/render/Capture.hpp>
 #include <trace2d/render/RenderData.hpp>
 
 #include <cstdint>
@@ -60,6 +61,15 @@ public:
     void RenderFrame();
     void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite);
     void RenderFrame(const OrthographicCamera& camera, std::span<const SpriteRenderData> sprites);
+
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        const SpriteRenderData& sprite);
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        std::span<const SpriteRenderData> sprites);
 
     [[nodiscard]] const RendererConfig& Config() const noexcept;
     [[nodiscard]] const RenderMetrics& Metrics() const noexcept;
