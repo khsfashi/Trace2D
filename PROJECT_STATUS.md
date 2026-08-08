@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current mission
 
-Reach **v0.1.0-alpha.1 Public Alpha** with one complete minimal agent-first 2D development loop:
+Ship **v0.1.0-alpha.1 Public Alpha** with one complete minimal agent-first 2D development loop:
 
 ```text
 text-authored scene
@@ -20,15 +20,17 @@ text-authored scene
   -> frame-specific visual capture
 ```
 
-The technical loop, first evidence-driven renderer optimization, and repository-quality preparation are complete. Do **not** start P6 engine breadth before the Public Alpha release sequence finishes.
+The technical loop, first evidence-driven renderer optimization, repository-quality preparation, MIT licensing, and final release-candidate validation are complete. Do **not** start P6 engine breadth until the Public Alpha publication sequence finishes.
 
 ## Current phase
 
-**Public Alpha final release-candidate validation — Issue #14**
+**Public Alpha release-ready / publication — Issue #14**
 
-P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, PR #34 implements the measured contiguous same-texture instancing slice, and PR #35 added executable repository-quality gates.
+P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, PR #34 implements the measured contiguous same-texture instancing slice, PR #35 added executable repository-quality gates, and PR #36 finalized the MIT license-required release gate.
 
-The repository owner explicitly selected the **MIT License** on 2026-08-08. The canonical root `LICENSE` now exists. The active release-gate candidate switches CI to `./scripts/release_audit.ps1 -RequireLicense` and refreshes README/release/handoff documentation to reflect the completed license decision.
+The repository owner selected the **MIT License** on 2026-08-08. The canonical root `LICENSE` exists and CI requires it through `./scripts/release_audit.ps1 -RequireLicense`.
+
+PR #36 CI #103 passed all release-facing jobs, PR #36 was squash-merged to `main` as `82fed78`, and the repository owner confirmed the resulting `main` CI is green on 2026-08-08.
 
 ## Completed technical milestones
 
@@ -53,6 +55,7 @@ The repository owner explicitly selected the **MIT License** on 2026-08-08. The 
 - Public Alpha handoff / batching evidence — PR #33
 - contiguous same-texture GPU instancing — PR #34
 - Public Alpha repository quality gates — PR #35
+- MIT/license-required release gate — PR #36
 
 ## Public Alpha sample contract
 
@@ -104,18 +107,18 @@ Completed:
 - [x] project license explicitly selected: **MIT**
 - [x] canonical root `LICENSE` added
 - [x] license decision recorded in `docs/LICENSE_DECISION.md`
-- [x] release audit configured to require `LICENSE` in the active release-gate candidate
+- [x] release audit requires `LICENSE`
+- [x] PR #36 / CI #103 green across all release-facing jobs
+- [x] PR #36 merged to `main`
+- [x] final release-candidate `main` CI confirmed green
+- [x] release state marked ready in `PROJECT_STATUS.md` and Issue #14
 
-Still required before publication:
+Still required for publication:
 
-- [ ] active MIT/license-required release-gate PR CI green
-- [ ] release-gate changes merged to `main`
-- [ ] final release-candidate `main` CI green
-- [ ] `PROJECT_STATUS.md` and Issue #14 marked release-ready
-- [ ] `v0.1.0-alpha.1` created
-- [ ] repository visibility changed to Public
-- [ ] README/release/license verified from unauthenticated public view
-- [ ] only concrete post-alpha follow-up issues opened from known limitations
+- [ ] create `v0.1.0-alpha.1` GitHub Release/tag
+- [ ] change repository visibility to Public
+- [ ] verify README/release/license from an unauthenticated public view
+- [ ] open only concrete post-alpha follow-up issues from known limitations
 
 ## License decision
 
@@ -155,6 +158,8 @@ Recent validated milestones:
 - PR #32 — CI #93 green
 - PR #34 implementation head — CI #97 green
 - PR #35 repository-quality candidate — CI #100 green across all three release-facing jobs
+- PR #36 MIT/license-required release gate — CI #103 green across all three release-facing jobs
+- final `main` release candidate after PR #36 — green, owner-confirmed 2026-08-08
 
 GPU presentation itself remains outside hosted-runner requirements. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay tests remain CI-testable without an interactive GPU/window.
 
@@ -177,18 +182,24 @@ GPU presentation itself remains outside hosted-runner requirements. Backend-inde
 - [x] deterministic capture at a known simulation frame
 - [x] one tiny end-to-end sample proving the workflow
 
-### Repository/release quality — final validation
+### Repository/release quality — complete
 
 - [x] root MIT project license
 - [x] third-party source license review
-- [x] automated secret/private-path/history audit green on PR #35
-- [x] clean-checkout README Quick Start green on PR #35
+- [x] automated secret/private-path/history audit green
+- [x] clean-checkout README Quick Start green
 - [x] implemented/planned wording clear
 - [x] explicit Public Alpha limitations
-- [x] Markdown link audit green on PR #35
-- [ ] license-required release-gate CI green
-- [ ] green release-candidate `main` CI
-- [ ] tag/release/public visibility/public-view verification
+- [x] Markdown link audit green
+- [x] license-required release-gate CI green
+- [x] green release-candidate `main` CI
+
+### Publication — pending
+
+- [ ] `v0.1.0-alpha.1` GitHub Release/tag
+- [ ] Public repository visibility
+- [ ] unauthenticated public-view verification
+- [ ] concrete post-alpha follow-up issues
 
 See `docs/PUBLIC_RELEASE.md` for the canonical gate definitions.
 
@@ -237,14 +248,12 @@ Do not delay Public Alpha for:
 
 ## Immediate next task
 
-1. validate the MIT/license-required release-gate PR,
-2. merge it to `main`,
-3. verify final `main` CI green,
-4. mark Issue #14 release-ready,
-5. create `v0.1.0-alpha.1`,
-6. change repository visibility to Public,
-7. verify README/release/license from an unauthenticated public view,
-8. open only concrete post-alpha follow-up issues from known limitations.
+1. create GitHub Release/tag `v0.1.0-alpha.1` targeting the release-ready `main`,
+2. change repository visibility to Public,
+3. verify README, release, links, and MIT license from an unauthenticated public view,
+4. close Issue #14 after publication verification,
+5. open only concrete post-alpha issues from known limitations,
+6. then begin P6 / post-alpha work.
 
 ## Handoff rule
 
