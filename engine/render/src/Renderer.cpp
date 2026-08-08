@@ -21,6 +21,12 @@ constexpr SDL_GPUShaderFormat SupportedShaderFormats = static_cast<SDL_GPUShader
     SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL | SDL_GPU_SHADERFORMAT_MSL);
 constexpr std::uint64_t Rgba8BytesPerPixel = 4;
 
+enum class CaptureSourceChannelOrder : std::uint8_t
+{
+    Rgba,
+    Bgra,
+};
+
 struct SpriteVertex final
 {
     float localX;
@@ -182,6 +188,72 @@ public:
     }
 
     return static_cast<std::size_t>(byteCount);
+}
+
+[[nodiscard]] CaptureSourceChannelOrder ResolveCaptureSourceChannelOrder(const SDL_GPUTextureFormat format)
+{
+    switch (format)
+    {
+    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM:
+    case SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB:
+        return CaptureSourceChannelOrder::Rgba;
+    case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM:
+    case SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB:
+        return CaptureSourceChannelOrder::Bgra;
+    default:
+        throw std::runtime_error{"Capture requires an 8-bit RGBA/BGRA SDR render-target format."};
+    }
+}
+
+[[nodiscard]] CapturedFrame NormalizeCapturedFrame(
+    const void* const mappedReadback,
+    const CaptureReadbackLayout& layout,
+    const SDL_GPUTextureFormat sourceFormat,
+    const std::uint64_t simulationFrame,
+    const Uint32 width,
+    const Uint32 height)
+{
+    if (mappedReadback == nullptr)
+    {
+        throw std::invalid_argument{"Mapped capture readback pointer must not be null."};
+    }
+
+    const CaptureSourceChannelOrder channelOrder = ResolveCaptureSourceChannelOrder(sourceFormat);
+    const std::size_t packedRowBytes = static_cast<std::size_t>(width) * static_cast<std::size_t>(Rgba8BytesPerPixel);
+    const std::size_t canonicalByteCount = packedRowBytes * static_cast<std::size_t>(height);
+
+    CapturedFrame frame{};
+    frame.simulationFrame = simulationFrame;
+    frame.width = width;
+    frame.height = height;
+    frame.rgba8Pixels.resize(canonicalByteCount);
+
+    const auto* const sourceBytes = static_cast<const std::uint8_t*>(mappedReadback);
+
+    for (Uint32 y = 0; y < height; ++y)
+    {
+        const std::uint8_t* const sourceRow =
+            sourceBytes + static_cast<std::size_t>(y) * static_cast<std::size_t>(layout.rowPitchBytes);
+        std::uint8_t* const destinationRow =
+            frame.rgba8Pixels.data() + static_cast<std::size_t>(y) * packedRowBytes;
+
+        if (channelOrder == CaptureSourceChannelOrder::Rgba)
+        {
+            std::memcpy(destinationRow, sourceRow, packedRowBytes);
+            continue;
+        }
+
+        for (Uint32 x = 0; x < width; ++x)
+        {
+            const std::size_t offset = static_cast<std::size_t>(x) * static_cast<std::size_t>(Rgba8BytesPerPixel);
+            destinationRow[offset] = sourceRow[offset + 2];
+            destinationRow[offset + 1] = sourceRow[offset + 1];
+            destinationRow[offset + 2] = sourceRow[offset];
+            destinationRow[offset + 3] = sourceRow[offset + 3];
+        }
+    }
+
+    return frame;
 }
 } // namespace
 
@@ -352,7 +424,7 @@ public:
 
     void RenderFrame()
     {
-        RenderFrameInternal(nullptr, {});
+        RenderFrameInternal(nullptr, {}, nullptr, nullptr);
     }
 
     void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
@@ -362,7 +434,39 @@ public:
 
     void RenderFrame(const OrthographicCamera& camera, const std::span<const SpriteRenderData> sprites)
     {
-        RenderFrameInternal(&camera, sprites);
+        RenderFrameInternal(&camera, sprites, nullptr, nullptr);
+    }
+
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        const SpriteRenderData& sprite)
+    {
+        return CaptureFrame(request, camera, std::span<const SpriteRenderData>{&sprite, 1});
+    }
+
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        const std::span<const SpriteRenderData> sprites)
+    {
+        if (request.artifactPath.empty())
+        {
+            throw std::invalid_argument{"Capture artifact path must not be empty."};
+        }
+
+        switch (request.format)
+        {
+        case CaptureImageFormat::Bmp:
+            break;
+        default:
+            throw std::invalid_argument{"Unsupported capture image format."};
+        }
+
+        CapturedFrame frame{};
+        RenderFrameInternal(&camera, sprites, &request, &frame);
+        WriteCaptureArtifact(request, frame);
+        return frame;
     }
 
     [[nodiscard]] const RendererConfig& Config() const noexcept
@@ -587,6 +691,37 @@ private:
         offscreenTargetHeight_ = height;
     }
 
+    void EnsureCaptureTransferBuffer(const Uint32 requiredBytes)
+    {
+        if (requiredBytes == 0)
+        {
+            throw std::invalid_argument{"Capture transfer-buffer capacity must be non-zero."};
+        }
+
+        if (captureTransferBuffer_ != nullptr && captureTransferBufferCapacity_ >= requiredBytes)
+        {
+            return;
+        }
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+        transferInfo.size = requiredBytes;
+
+        SDL_GPUTransferBuffer* const replacement = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        if (replacement == nullptr)
+        {
+            throw MakeSdlError("SDL GPU capture download transfer-buffer creation failed");
+        }
+
+        if (captureTransferBuffer_ != nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, captureTransferBuffer_);
+        }
+
+        captureTransferBuffer_ = replacement;
+        captureTransferBufferCapacity_ = requiredBytes;
+    }
+
     [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
     {
         if (texture == InvalidTextureHandle)
@@ -629,10 +764,45 @@ private:
         }
     }
 
+    void CommitFrameMetrics(
+        const bool presented,
+        const bool encodedRenderPass,
+        const std::uint64_t encodedSpriteDraws,
+        const std::uint64_t culledSpriteCount,
+        const Uint32 targetWidth,
+        const Uint32 targetHeight) noexcept
+    {
+        ++metrics_.submittedFrames;
+        metrics_.lastTargetWidth = targetWidth;
+        metrics_.lastTargetHeight = targetHeight;
+
+        if (presented)
+        {
+            ++metrics_.presentedFrames;
+        }
+
+        if (encodedRenderPass)
+        {
+            ++metrics_.renderPasses;
+        }
+
+        metrics_.drawCalls += encodedSpriteDraws;
+        metrics_.submittedSprites += encodedSpriteDraws;
+        metrics_.culledSprites += culledSpriteCount;
+    }
+
     void RenderFrameInternal(
         const OrthographicCamera* const camera,
-        const std::span<const SpriteRenderData> sprites)
+        const std::span<const SpriteRenderData> sprites,
+        const CaptureRequest* const captureRequest,
+        CapturedFrame* const capturedFrame)
     {
+        const bool captureRequested = captureRequest != nullptr;
+        if (captureRequested != (capturedFrame != nullptr))
+        {
+            throw std::invalid_argument{"Capture request and capture output must be provided together."};
+        }
+
         if (!sprites.empty())
         {
             if (camera == nullptr)
@@ -662,8 +832,10 @@ private:
         }
 
         bool encodedRenderPass = false;
+        bool encodedCaptureDownload = false;
         std::uint64_t encodedSpriteDraws = 0;
         std::uint64_t culledSpriteCount = 0;
+        CaptureReadbackLayout captureLayout{};
 
         if (swapchainTexture != nullptr)
         {
@@ -677,6 +849,17 @@ private:
             try
             {
                 EnsureOffscreenColorTarget(targetWidth, targetHeight);
+
+                if (captureRequested)
+                {
+                    if (!TryBuildCaptureReadbackLayout(targetWidth, targetHeight, captureLayout))
+                    {
+                        throw std::length_error{"Capture target exceeds supported readback transfer-buffer limits."};
+                    }
+
+                    static_cast<void>(ResolveCaptureSourceChannelOrder(colorTargetFormat_));
+                    EnsureCaptureTransferBuffer(captureLayout.transferBufferBytes);
+                }
             }
             catch (...)
             {
@@ -752,42 +935,126 @@ private:
             {
                 const std::string error{SDL_GetError()};
                 static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
-                throw std::runtime_error{"SDL GPU presentation copy-pass creation failed: " + error};
+                throw std::runtime_error{"SDL GPU presentation/capture copy-pass creation failed: " + error};
             }
 
-            SDL_GPUTextureLocation source{};
-            source.texture = offscreenColorTarget_;
+            SDL_GPUTextureLocation presentationSource{};
+            presentationSource.texture = offscreenColorTarget_;
 
-            SDL_GPUTextureLocation destination{};
-            destination.texture = swapchainTexture;
+            SDL_GPUTextureLocation presentationDestination{};
+            presentationDestination.texture = swapchainTexture;
 
             SDL_CopyGPUTextureToTexture(
-                copyPass, &source, &destination, targetWidth, targetHeight, 1, false);
+                copyPass,
+                &presentationSource,
+                &presentationDestination,
+                targetWidth,
+                targetHeight,
+                1,
+                false);
+
+            if (captureRequested)
+            {
+                SDL_GPUTextureRegion captureSource{};
+                captureSource.texture = offscreenColorTarget_;
+                captureSource.w = targetWidth;
+                captureSource.h = targetHeight;
+                captureSource.d = 1;
+
+                SDL_GPUTextureTransferInfo captureDestination{};
+                captureDestination.transfer_buffer = captureTransferBuffer_;
+                captureDestination.pixels_per_row = captureLayout.pixelsPerRow;
+                captureDestination.rows_per_layer = targetHeight;
+
+                SDL_DownloadFromGPUTexture(copyPass, &captureSource, &captureDestination);
+                encodedCaptureDownload = true;
+            }
+
             SDL_EndGPUCopyPass(copyPass);
         }
 
-        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        if (captureRequested && !encodedCaptureDownload)
         {
-            throw MakeSdlError("SDL GPU command buffer submission failed");
+            if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+            {
+                throw MakeSdlError("SDL GPU command buffer submission failed while capture target was unavailable");
+            }
+
+            CommitFrameMetrics(
+                false,
+                encodedRenderPass,
+                encodedSpriteDraws,
+                culledSpriteCount,
+                targetWidth,
+                targetHeight);
+            throw std::runtime_error{"Capture requires an available non-zero presentation target."};
         }
 
-        ++metrics_.submittedFrames;
-        metrics_.lastTargetWidth = targetWidth;
-        metrics_.lastTargetHeight = targetHeight;
-
-        if (swapchainTexture != nullptr)
+        if (!captureRequested)
         {
-            ++metrics_.presentedFrames;
+            if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+            {
+                throw MakeSdlError("SDL GPU command buffer submission failed");
+            }
+
+            CommitFrameMetrics(
+                swapchainTexture != nullptr,
+                encodedRenderPass,
+                encodedSpriteDraws,
+                culledSpriteCount,
+                targetWidth,
+                targetHeight);
+            return;
         }
 
-        if (encodedRenderPass)
+        SDL_GPUFence* const fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+        if (fence == nullptr)
         {
-            ++metrics_.renderPasses;
+            throw MakeSdlError("SDL GPU capture command buffer submission/fence acquisition failed");
         }
 
-        metrics_.drawCalls += encodedSpriteDraws;
-        metrics_.submittedSprites += encodedSpriteDraws;
-        metrics_.culledSprites += culledSpriteCount;
+        CommitFrameMetrics(
+            true,
+            encodedRenderPass,
+            encodedSpriteDraws,
+            culledSpriteCount,
+            targetWidth,
+            targetHeight);
+
+        SDL_GPUFence* fences[]{fence};
+        if (!SDL_WaitForGPUFences(device_, true, fences, 1))
+        {
+            const std::string error{SDL_GetError()};
+            SDL_ReleaseGPUFence(device_, fence);
+            throw std::runtime_error{"SDL GPU capture fence wait failed: " + error};
+        }
+
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, captureTransferBuffer_, false);
+        if (mapped == nullptr)
+        {
+            SDL_ReleaseGPUFence(device_, fence);
+            throw MakeSdlError("SDL GPU capture transfer-buffer mapping failed");
+        }
+
+        try
+        {
+            *capturedFrame = NormalizeCapturedFrame(
+                mapped,
+                captureLayout,
+                colorTargetFormat_,
+                captureRequest->simulationFrame,
+                targetWidth,
+                targetHeight);
+        }
+        catch (...)
+        {
+            SDL_UnmapGPUTransferBuffer(device_, captureTransferBuffer_);
+            SDL_ReleaseGPUFence(device_, fence);
+            throw;
+        }
+
+        SDL_UnmapGPUTransferBuffer(device_, captureTransferBuffer_);
+        SDL_ReleaseGPUFence(device_, fence);
     }
 
     void Cleanup() noexcept
@@ -801,6 +1068,13 @@ private:
                     SDL_ReleaseGPUTexture(device_, texture);
                     texture = nullptr;
                 }
+            }
+
+            if (captureTransferBuffer_ != nullptr)
+            {
+                SDL_ReleaseGPUTransferBuffer(device_, captureTransferBuffer_);
+                captureTransferBuffer_ = nullptr;
+                captureTransferBufferCapacity_ = 0;
             }
 
             if (offscreenColorTarget_ != nullptr)
@@ -853,6 +1127,8 @@ private:
     SDL_GPUTexture* offscreenColorTarget_{nullptr};
     Uint32 offscreenTargetWidth_{0};
     Uint32 offscreenTargetHeight_{0};
+    SDL_GPUTransferBuffer* captureTransferBuffer_{nullptr};
+    Uint32 captureTransferBufferCapacity_{0};
     SDL_GPUGraphicsPipeline* spritePipeline_{nullptr};
     SDL_GPUSampler* spriteSampler_{nullptr};
     SDL_GPUBuffer* spriteVertexBuffer_{nullptr};
@@ -893,6 +1169,22 @@ void Renderer::RenderFrame(
     const std::span<const SpriteRenderData> sprites)
 {
     impl_->RenderFrame(camera, sprites);
+}
+
+CapturedFrame Renderer::CaptureFrame(
+    const CaptureRequest& request,
+    const OrthographicCamera& camera,
+    const SpriteRenderData& sprite)
+{
+    return impl_->CaptureFrame(request, camera, sprite);
+}
+
+CapturedFrame Renderer::CaptureFrame(
+    const CaptureRequest& request,
+    const OrthographicCamera& camera,
+    const std::span<const SpriteRenderData> sprites)
+{
+    return impl_->CaptureFrame(request, camera, sprites);
 }
 
 const RendererConfig& Renderer::Config() const noexcept
