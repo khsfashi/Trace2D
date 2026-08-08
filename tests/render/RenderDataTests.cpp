@@ -151,4 +151,64 @@ TEST(RenderDataTests, EqualSpriteDrawKeysAreEquivalentForOrdering)
     EXPECT_FALSE(less(left, right));
     EXPECT_FALSE(less(right, left));
 }
+
+TEST(RenderDataTests, MeasuresContiguousTextureRunsWithoutReordering)
+{
+    trace2d::render::OrthographicView view{};
+    view.halfExtents = trace2d::render::Float2{10.0F, 10.0F};
+
+    std::array<trace2d::render::SpriteRenderData, 5> sprites{};
+    sprites[0].texture = 1;
+    sprites[1].texture = 1;
+    sprites[2].texture = 2;
+    sprites[3].texture = 2;
+    sprites[4].texture = 1;
+
+    const trace2d::render::SpriteBatchMeasurement measurement =
+        trace2d::render::MeasureContiguousTextureBatching(view, sprites);
+
+    EXPECT_EQ(measurement.visibleSprites, 5U);
+    EXPECT_EQ(measurement.culledSprites, 0U);
+    EXPECT_EQ(measurement.contiguousTextureRuns, 3U);
+}
+
+TEST(RenderDataTests, CulledSpritesDoNotSplitVisibleTextureRuns)
+{
+    trace2d::render::OrthographicView view{};
+    view.halfExtents = trace2d::render::Float2{2.0F, 2.0F};
+
+    std::array<trace2d::render::SpriteRenderData, 3> sprites{};
+    sprites[0].texture = 7;
+    sprites[0].center = trace2d::render::Float2{-1.0F, 0.0F};
+    sprites[1].texture = 99;
+    sprites[1].center = trace2d::render::Float2{100.0F, 0.0F};
+    sprites[2].texture = 7;
+    sprites[2].center = trace2d::render::Float2{1.0F, 0.0F};
+
+    const trace2d::render::SpriteBatchMeasurement measurement =
+        trace2d::render::MeasureContiguousTextureBatching(view, sprites);
+
+    EXPECT_EQ(measurement.visibleSprites, 2U);
+    EXPECT_EQ(measurement.culledSprites, 1U);
+    EXPECT_EQ(measurement.contiguousTextureRuns, 1U);
+}
+
+TEST(RenderDataTests, AllCulledSpritesProduceNoTextureRuns)
+{
+    trace2d::render::OrthographicView view{};
+    view.halfExtents = trace2d::render::Float2{1.0F, 1.0F};
+
+    std::array<trace2d::render::SpriteRenderData, 2> sprites{};
+    sprites[0].texture = 1;
+    sprites[0].center = trace2d::render::Float2{10.0F, 0.0F};
+    sprites[1].texture = 2;
+    sprites[1].center = trace2d::render::Float2{-10.0F, 0.0F};
+
+    const trace2d::render::SpriteBatchMeasurement measurement =
+        trace2d::render::MeasureContiguousTextureBatching(view, sprites);
+
+    EXPECT_EQ(measurement.visibleSprites, 0U);
+    EXPECT_EQ(measurement.culledSprites, 2U);
+    EXPECT_EQ(measurement.contiguousTextureRuns, 0U);
+}
 } // namespace

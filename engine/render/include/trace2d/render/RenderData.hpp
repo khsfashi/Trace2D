@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <span>
 #include <type_traits>
 
 namespace trace2d::render
@@ -44,6 +45,15 @@ struct SpriteRenderData final
     [[nodiscard]] bool operator==(const SpriteRenderData&) const noexcept = default;
 };
 
+struct SpriteBatchMeasurement final
+{
+    std::uint64_t visibleSprites{0};
+    std::uint64_t culledSprites{0};
+    std::uint64_t contiguousTextureRuns{0};
+
+    [[nodiscard]] bool operator==(const SpriteBatchMeasurement&) const noexcept = default;
+};
+
 struct SpriteDrawOrderLess final
 {
     [[nodiscard]] bool operator()(const SpriteRenderData& left, const SpriteRenderData& right) const noexcept;
@@ -59,8 +69,13 @@ struct SpriteDrawOrderLess final
 
 [[nodiscard]] bool IsSpriteVisible(const OrthographicView& view, const SpriteRenderData& sprite) noexcept;
 
+[[nodiscard]] SpriteBatchMeasurement MeasureContiguousTextureBatching(
+    const OrthographicView& view,
+    std::span<const SpriteRenderData> sprites) noexcept;
+
 static_assert(std::is_trivially_copyable_v<Float2>);
 static_assert(std::is_trivially_copyable_v<OrthographicCamera>);
 static_assert(std::is_trivially_copyable_v<OrthographicView>);
 static_assert(std::is_trivially_copyable_v<SpriteRenderData>);
+static_assert(std::is_trivially_copyable_v<SpriteBatchMeasurement>);
 } // namespace trace2d::render
