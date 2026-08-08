@@ -66,6 +66,19 @@ Float2 WorldToClip(const OrthographicView& view, Float2 worldPosition) noexcept
     };
 }
 
+SpriteInstanceData BuildSpriteInstanceData(
+    const OrthographicView& view,
+    const SpriteRenderData& sprite) noexcept
+{
+    return SpriteInstanceData{
+        WorldToClip(view, sprite.center),
+        Float2{
+            sprite.halfExtents.x * view.clipScale.x,
+            sprite.halfExtents.y * view.clipScale.y,
+        },
+    };
+}
+
 bool IsSpriteVisible(const OrthographicView& view, const SpriteRenderData& sprite) noexcept
 {
     const float viewLeft = view.center.x - view.halfExtents.x;

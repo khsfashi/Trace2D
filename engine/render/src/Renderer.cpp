@@ -35,16 +35,6 @@ struct SpriteVertex final
     float v;
 };
 
-struct alignas(16) SpriteUniforms final
-{
-    float centerClipX;
-    float centerClipY;
-    float halfClipX;
-    float halfClipY;
-};
-
-static_assert(sizeof(SpriteUniforms) == 16);
-
 constexpr std::array<SpriteVertex, 6> SpriteVertices{
     SpriteVertex{-1.0F, -1.0F, 0.0F, 1.0F},
     SpriteVertex{1.0F, -1.0F, 1.0F, 1.0F},
@@ -55,15 +45,11 @@ constexpr std::array<SpriteVertex, 6> SpriteVertices{
 };
 
 constexpr char SpriteVertexShaderHlsl[] = R"(
-cbuffer SpriteUniforms : register(b0, space1)
-{
-    float4 spriteTransform;
-};
-
 struct VertexInput
 {
     float2 localPosition : TEXCOORD0;
     float2 uv : TEXCOORD1;
+    float4 spriteTransform : TEXCOORD2;
 };
 
 struct VertexOutput
@@ -76,7 +62,7 @@ VertexOutput main(VertexInput input)
 {
     VertexOutput output;
     output.position = float4(
-        spriteTransform.xy + input.localPosition * spriteTransform.zw,
+        input.spriteTransform.xy + input.localPosition * input.spriteTransform.zw,
         0.0,
         1.0);
     output.uv = input.uv;
@@ -602,13 +588,17 @@ private:
             colorTargetDescription.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
             colorTargetDescription.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
 
-            SDL_GPUVertexBufferDescription vertexBufferDescription{};
-            vertexBufferDescription.slot = 0;
-            vertexBufferDescription.pitch = sizeof(SpriteVertex);
-            vertexBufferDescription.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-            vertexBufferDescription.instance_step_rate = 0;
+            std::array<SDL_GPUVertexBufferDescription, 2> vertexBufferDescriptions{};
+            vertexBufferDescriptions[0].slot = 0;
+            vertexBufferDescriptions[0].pitch = sizeof(SpriteVertex);
+            vertexBufferDescriptions[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+            vertexBufferDescriptions[0].instance_step_rate = 0;
+            vertexBufferDescriptions[1].slot = 1;
+            vertexBufferDescriptions[1].pitch = sizeof(SpriteInstanceData);
+            vertexBufferDescriptions[1].input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE;
+            vertexBufferDescriptions[1].instance_step_rate = 0;
 
-            std::array<SDL_GPUVertexAttribute, 2> vertexAttributes{};
+            std::array<SDL_GPUVertexAttribute, 3> vertexAttributes{};
             vertexAttributes[0].location = 0;
             vertexAttributes[0].buffer_slot = 0;
             vertexAttributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
@@ -617,12 +607,16 @@ private:
             vertexAttributes[1].buffer_slot = 0;
             vertexAttributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
             vertexAttributes[1].offset = static_cast<Uint32>(offsetof(SpriteVertex, u));
+            vertexAttributes[2].location = 2;
+            vertexAttributes[2].buffer_slot = 1;
+            vertexAttributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
+            vertexAttributes[2].offset = static_cast<Uint32>(offsetof(SpriteInstanceData, centerClip));
 
             SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.vertex_shader = vertexShader;
             pipelineInfo.fragment_shader = fragmentShader;
-            pipelineInfo.vertex_input_state.vertex_buffer_descriptions = &vertexBufferDescription;
-            pipelineInfo.vertex_input_state.num_vertex_buffers = 1;
+            pipelineInfo.vertex_input_state.vertex_buffer_descriptions = vertexBufferDescriptions.data();
+            pipelineInfo.vertex_input_state.num_vertex_buffers = static_cast<Uint32>(vertexBufferDescriptions.size());
             pipelineInfo.vertex_input_state.vertex_attributes = vertexAttributes.data();
             pipelineInfo.vertex_input_state.num_vertex_attributes = static_cast<Uint32>(vertexAttributes.size());
             pipelineInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
@@ -651,6 +645,213 @@ private:
 
         SDL_ReleaseGPUShader(device_, vertexShader);
         SDL_ReleaseGPUShader(device_, fragmentShader);
+    }
+
+    void EnsureSpriteInstanceCapacity(const std::uint64_t requiredInstances)
+    {
+        if (requiredInstances == 0 || requiredInstances <= spriteInstanceCapacity_)
+        {
+            return;
+        }
+
+        constexpr std::uint64_t MaxInstances =
+            static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()) / sizeof(SpriteInstanceData);
+        if (requiredInstances > MaxInstances)
+        {
+            throw std::length_error{"Visible sprite instance data exceeds SDL GPU buffer size limits."};
+        }
+
+        std::uint64_t replacementCapacity = spriteInstanceCapacity_ == 0 ? 1U : spriteInstanceCapacity_;
+        while (replacementCapacity < requiredInstances)
+        {
+            if (replacementCapacity > MaxInstances / 2U)
+            {
+                replacementCapacity = MaxInstances;
+                break;
+            }
+            replacementCapacity *= 2U;
+        }
+
+        const Uint32 replacementBytes = static_cast<Uint32>(replacementCapacity * sizeof(SpriteInstanceData));
+
+        SDL_GPUBufferCreateInfo bufferInfo{};
+        bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+        bufferInfo.size = replacementBytes;
+
+        SDL_GPUBuffer* const replacementBuffer = SDL_CreateGPUBuffer(device_, &bufferInfo);
+        if (replacementBuffer == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite instance-buffer creation failed");
+        }
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = replacementBytes;
+
+        SDL_GPUTransferBuffer* const replacementTransferBuffer = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        if (replacementTransferBuffer == nullptr)
+        {
+            SDL_ReleaseGPUBuffer(device_, replacementBuffer);
+            throw MakeSdlError("SDL GPU sprite instance transfer-buffer creation failed");
+        }
+
+        if (spriteInstanceTransferBuffer_ != nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, spriteInstanceTransferBuffer_);
+        }
+        if (spriteInstanceBuffer_ != nullptr)
+        {
+            SDL_ReleaseGPUBuffer(device_, spriteInstanceBuffer_);
+        }
+
+        spriteInstanceBuffer_ = replacementBuffer;
+        spriteInstanceTransferBuffer_ = replacementTransferBuffer;
+        spriteInstanceCapacity_ = replacementCapacity;
+    }
+
+    void UploadVisibleSpriteInstances(
+        SDL_GPUCommandBuffer* const commandBuffer,
+        const OrthographicView& view,
+        const std::span<const SpriteRenderData> sprites,
+        const std::uint64_t visibleSpriteCount)
+    {
+        if (visibleSpriteCount == 0)
+        {
+            return;
+        }
+
+        EnsureSpriteInstanceCapacity(visibleSpriteCount);
+
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, spriteInstanceTransferBuffer_, true);
+        if (mapped == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite instance transfer-buffer mapping failed");
+        }
+
+        auto* const instances = static_cast<SpriteInstanceData*>(mapped);
+        std::uint64_t visibleIndex = 0;
+        for (const SpriteRenderData& sprite : sprites)
+        {
+            if (!IsSpriteVisible(view, sprite))
+            {
+                continue;
+            }
+
+            instances[visibleIndex] = BuildSpriteInstanceData(view, sprite);
+            ++visibleIndex;
+        }
+
+        SDL_UnmapGPUTransferBuffer(device_, spriteInstanceTransferBuffer_);
+
+        if (visibleIndex != visibleSpriteCount)
+        {
+            throw std::logic_error{"Sprite visibility changed while building instance data."};
+        }
+
+        SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            throw MakeSdlError("SDL GPU sprite instance upload copy-pass creation failed");
+        }
+
+        SDL_GPUTransferBufferLocation source{};
+        source.transfer_buffer = spriteInstanceTransferBuffer_;
+
+        SDL_GPUBufferRegion destination{};
+        destination.buffer = spriteInstanceBuffer_;
+        destination.size = static_cast<Uint32>(visibleSpriteCount * sizeof(SpriteInstanceData));
+
+        SDL_UploadToGPUBuffer(copyPass, &source, &destination, true);
+        SDL_EndGPUCopyPass(copyPass);
+    }
+
+    void DrawSpriteInstanceRun(
+        SDL_GPURenderPass* const renderPass,
+        const TextureHandle texture,
+        const Uint32 firstInstance,
+        const Uint32 instanceCount)
+    {
+        SDL_GPUTextureSamplerBinding textureBinding{};
+        textureBinding.texture = ResolveTexture(texture);
+        textureBinding.sampler = spriteSampler_;
+
+        SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
+        SDL_DrawGPUPrimitives(
+            renderPass,
+            static_cast<Uint32>(SpriteVertices.size()),
+            instanceCount,
+            0,
+            firstInstance);
+    }
+
+    void EncodeVisibleSpriteRuns(
+        SDL_GPURenderPass* const renderPass,
+        const OrthographicView& view,
+        const std::span<const SpriteRenderData> sprites,
+        const std::uint64_t expectedVisibleSprites,
+        std::uint64_t& encodedSpriteDraws,
+        std::uint64_t& encodedSpriteCount)
+    {
+        if (expectedVisibleSprites == 0)
+        {
+            return;
+        }
+
+        SDL_GPUBufferBinding vertexBindings[2]{};
+        vertexBindings[0].buffer = spriteVertexBuffer_;
+        vertexBindings[1].buffer = spriteInstanceBuffer_;
+
+        SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
+        SDL_BindGPUVertexBuffers(renderPass, 0, vertexBindings, 2);
+
+        TextureHandle runTexture = InvalidTextureHandle;
+        Uint32 runFirstInstance = 0;
+        Uint32 runInstanceCount = 0;
+        Uint32 visibleIndex = 0;
+
+        for (const SpriteRenderData& sprite : sprites)
+        {
+            if (!IsSpriteVisible(view, sprite))
+            {
+                continue;
+            }
+
+            if (runInstanceCount == 0)
+            {
+                runTexture = sprite.texture;
+                runFirstInstance = visibleIndex;
+                runInstanceCount = 1;
+            }
+            else if (sprite.texture == runTexture)
+            {
+                ++runInstanceCount;
+            }
+            else
+            {
+                DrawSpriteInstanceRun(renderPass, runTexture, runFirstInstance, runInstanceCount);
+                ++encodedSpriteDraws;
+                encodedSpriteCount += runInstanceCount;
+
+                runTexture = sprite.texture;
+                runFirstInstance = visibleIndex;
+                runInstanceCount = 1;
+            }
+
+            ++visibleIndex;
+        }
+
+        if (runInstanceCount != 0)
+        {
+            DrawSpriteInstanceRun(renderPass, runTexture, runFirstInstance, runInstanceCount);
+            ++encodedSpriteDraws;
+            encodedSpriteCount += runInstanceCount;
+        }
+
+        if (static_cast<std::uint64_t>(visibleIndex) != expectedVisibleSprites ||
+            encodedSpriteCount != expectedVisibleSprites)
+        {
+            throw std::logic_error{"Sprite visibility changed while encoding instance runs."};
+        }
     }
 
     void EnsureOffscreenColorTarget(const Uint32 width, const Uint32 height)
@@ -768,6 +969,7 @@ private:
         const bool presented,
         const bool encodedRenderPass,
         const std::uint64_t encodedSpriteDraws,
+        const std::uint64_t encodedSpriteCount,
         const std::uint64_t culledSpriteCount,
         const Uint32 targetWidth,
         const Uint32 targetHeight) noexcept
@@ -787,7 +989,7 @@ private:
         }
 
         metrics_.drawCalls += encodedSpriteDraws;
-        metrics_.submittedSprites += encodedSpriteDraws;
+        metrics_.submittedSprites += encodedSpriteCount;
         metrics_.culledSprites += culledSpriteCount;
     }
 
@@ -834,6 +1036,7 @@ private:
         bool encodedRenderPass = false;
         bool encodedCaptureDownload = false;
         std::uint64_t encodedSpriteDraws = 0;
+        std::uint64_t encodedSpriteCount = 0;
         std::uint64_t culledSpriteCount = 0;
         CaptureReadbackLayout captureLayout{};
 
@@ -846,9 +1049,21 @@ private:
                 throw std::invalid_argument{"Sprite rendering requires a valid orthographic camera and render target."};
             }
 
+            SpriteBatchMeasurement batchMeasurement{};
+            if (!sprites.empty())
+            {
+                batchMeasurement = MeasureContiguousTextureBatching(view, sprites);
+                culledSpriteCount = batchMeasurement.culledSprites;
+            }
+
             try
             {
                 EnsureOffscreenColorTarget(targetWidth, targetHeight);
+
+                if (batchMeasurement.visibleSprites != 0)
+                {
+                    UploadVisibleSpriteInstances(commandBuffer, view, sprites, batchMeasurement.visibleSprites);
+                }
 
                 if (captureRequested)
                 {
@@ -887,44 +1102,15 @@ private:
                 throw std::runtime_error{"SDL GPU render pass creation failed: " + error};
             }
 
-            if (!sprites.empty())
+            if (batchMeasurement.visibleSprites != 0)
             {
-                SDL_GPUBufferBinding vertexBinding{};
-                vertexBinding.buffer = spriteVertexBuffer_;
-                bool spriteStateBound = false;
-
-                for (const SpriteRenderData& sprite : sprites)
-                {
-                    if (!IsSpriteVisible(view, sprite))
-                    {
-                        ++culledSpriteCount;
-                        continue;
-                    }
-
-                    if (!spriteStateBound)
-                    {
-                        SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
-                        SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
-                        spriteStateBound = true;
-                    }
-
-                    const Float2 centerClip = WorldToClip(view, sprite.center);
-                    const SpriteUniforms uniforms{
-                        centerClip.x,
-                        centerClip.y,
-                        sprite.halfExtents.x * view.clipScale.x,
-                        sprite.halfExtents.y * view.clipScale.y,
-                    };
-                    SDL_PushGPUVertexUniformData(commandBuffer, 0, &uniforms, sizeof(uniforms));
-
-                    SDL_GPUTextureSamplerBinding textureBinding{};
-                    textureBinding.texture = ResolveTexture(sprite.texture);
-                    textureBinding.sampler = spriteSampler_;
-
-                    SDL_BindGPUFragmentSamplers(renderPass, 0, &textureBinding, 1);
-                    SDL_DrawGPUPrimitives(renderPass, static_cast<Uint32>(SpriteVertices.size()), 1, 0, 0);
-                    ++encodedSpriteDraws;
-                }
+                EncodeVisibleSpriteRuns(
+                    renderPass,
+                    view,
+                    sprites,
+                    batchMeasurement.visibleSprites,
+                    encodedSpriteDraws,
+                    encodedSpriteCount);
             }
 
             SDL_EndGPURenderPass(renderPass);
@@ -984,6 +1170,7 @@ private:
                 false,
                 encodedRenderPass,
                 encodedSpriteDraws,
+                encodedSpriteCount,
                 culledSpriteCount,
                 targetWidth,
                 targetHeight);
@@ -1001,6 +1188,7 @@ private:
                 swapchainTexture != nullptr,
                 encodedRenderPass,
                 encodedSpriteDraws,
+                encodedSpriteCount,
                 culledSpriteCount,
                 targetWidth,
                 targetHeight);
@@ -1017,6 +1205,7 @@ private:
             true,
             encodedRenderPass,
             encodedSpriteDraws,
+            encodedSpriteCount,
             culledSpriteCount,
             targetWidth,
             targetHeight);
@@ -1085,6 +1274,19 @@ private:
                 offscreenTargetHeight_ = 0;
             }
 
+            if (spriteInstanceTransferBuffer_ != nullptr)
+            {
+                SDL_ReleaseGPUTransferBuffer(device_, spriteInstanceTransferBuffer_);
+                spriteInstanceTransferBuffer_ = nullptr;
+            }
+
+            if (spriteInstanceBuffer_ != nullptr)
+            {
+                SDL_ReleaseGPUBuffer(device_, spriteInstanceBuffer_);
+                spriteInstanceBuffer_ = nullptr;
+                spriteInstanceCapacity_ = 0;
+            }
+
             if (spritePipeline_ != nullptr)
             {
                 SDL_ReleaseGPUGraphicsPipeline(device_, spritePipeline_);
@@ -1132,6 +1334,9 @@ private:
     SDL_GPUGraphicsPipeline* spritePipeline_{nullptr};
     SDL_GPUSampler* spriteSampler_{nullptr};
     SDL_GPUBuffer* spriteVertexBuffer_{nullptr};
+    SDL_GPUBuffer* spriteInstanceBuffer_{nullptr};
+    SDL_GPUTransferBuffer* spriteInstanceTransferBuffer_{nullptr};
+    std::uint64_t spriteInstanceCapacity_{0};
     std::vector<SDL_GPUTexture*> textures_{};
     bool windowClaimed_{false};
     std::string driverName_{};
