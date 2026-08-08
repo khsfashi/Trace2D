@@ -12,6 +12,12 @@ The repository should remain private until every mandatory repository-quality ga
 
 Public Alpha is a **proof of architecture and workflow**, not a claim that Trace2D is a feature-complete engine.
 
+## Release state
+
+**Release-ready as of 2026-08-08.**
+
+The technical loop, repository-quality gates, MIT licensing, license-required audit, clean-checkout Quick Start, and final `main` CI validation are complete. Remaining work is publication: create the GitHub Release/tag, change visibility to Public, verify the unauthenticated view, and open only concrete post-alpha follow-up issues.
+
 ## What the release proves
 
 A coding agent can use normal source-control and command-line tooling to perform this loop without relying on a graphical editor:
@@ -30,16 +36,16 @@ A coding agent can use normal source-control and command-line tooling to perform
 11. receive actionable structured diagnostics when a step fails
 ```
 
-That technical loop is implemented. The remaining Public Alpha work is final release-candidate validation and publication.
+That loop is implemented and release-gated.
 
 ## Required release gates
 
 ### Gate A — Reproducible project foundation
 
-- [x] clean Windows checkout Quick Start job passes on the release-quality candidate — PR #35 / CI #100
+- [x] clean Windows checkout Quick Start job passes — PR #35 / CI #100 and PR #36 / CI #103
 - [x] Debug build succeeds in hosted CI
 - [x] automated tests pass in hosted CI
-- [ ] latest release-candidate `main` CI is green
+- [x] latest release-candidate `main` CI is green — owner-confirmed 2026-08-08 after PR #36 merge
 - [x] documented build and CI use the same root CMake project and presets
 - [x] vcpkg baseline/dependency resolution is pinned by repository state
 - [x] generated build artifacts are excluded from Git policy
@@ -141,7 +147,9 @@ Before changing visibility to Public:
 - [x] contributor/agent workflow is documented
 - [x] Public Alpha limitations are explicit (`PUBLIC_ALPHA_LIMITATIONS.md`)
 - [x] repository-relative Markdown link audit passes — PR #35 / CI #100
-- [ ] latest release-candidate `main` CI is green with license-required auditing
+- [x] license-required release-gate CI is green — PR #36 / CI #103
+- [x] release-gate changes are merged to `main` — `82fed78`
+- [x] final release-candidate `main` CI is green — owner-confirmed 2026-08-08
 
 The repeatable release-candidate audit command is:
 
@@ -198,16 +206,16 @@ Trace2D is performance-conscious, but Public Alpha does not publish arbitrary FP
 
 Any future wall-clock/FPS benchmark must additionally record the exact machine, GPU, driver, build configuration, workload, and capture method.
 
-## Release sequence
+## Publication sequence
 
-When the license-gate PR and final `main` CI are green:
+The mandatory pre-publication gates are complete. Publish in this order:
 
-1. merge the MIT/license-required release-gate changes to `main`,
-2. run clean release-candidate CI on `main`,
-3. mark `PROJECT_STATUS.md` and Issue #14 release-ready,
-4. create `v0.1.0-alpha.1`,
-5. change repository visibility to Public,
-6. verify README, release, links, and license as an unauthenticated viewer,
+1. merge the release-ready status update,
+2. verify the resulting latest `main` CI is green,
+3. create GitHub Release/tag `v0.1.0-alpha.1` targeting `main`,
+4. change repository visibility to Public,
+5. verify README, release, links, and MIT license as an unauthenticated viewer,
+6. close Issue #14 after the public-view verification,
 7. create post-alpha issues from known limitations instead of hiding them.
 
 ## After Public Alpha
