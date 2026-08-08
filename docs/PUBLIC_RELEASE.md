@@ -30,13 +30,13 @@ A coding agent can use normal source-control and command-line tooling to perform
 11. receive actionable structured diagnostics when a step fails
 ```
 
-That technical loop is implemented. The remaining Public Alpha work is repository/release quality.
+That technical loop is implemented. The remaining Public Alpha work is final release-candidate validation and publication.
 
 ## Required release gates
 
 ### Gate A — Reproducible project foundation
 
-- [ ] clean Windows checkout Quick Start job passes on the release-quality candidate
+- [x] clean Windows checkout Quick Start job passes on the release-quality candidate — PR #35 / CI #100
 - [x] Debug build succeeds in hosted CI
 - [x] automated tests pass in hosted CI
 - [ ] latest release-candidate `main` CI is green
@@ -44,7 +44,7 @@ That technical loop is implemented. The remaining Public Alpha work is repositor
 - [x] vcpkg baseline/dependency resolution is pinned by repository state
 - [x] generated build artifacts are excluded from Git policy
 
-The README Quick Start is now executable CI policy: `clean-clone-quick-start` uses `windows-2022`, installs the exact repository-pinned vcpkg baseline, then runs `windows-msvc`, `windows-debug`, and `ctest --preset windows-debug` from a clean checkout.
+The README Quick Start is executable CI policy: `clean-clone-quick-start` uses `windows-2022`, installs the exact repository-pinned vcpkg baseline, then runs `windows-msvc`, `windows-debug`, and `ctest --preset windows-debug` from a clean checkout.
 
 ### Gate B — Deterministic runtime
 
@@ -132,30 +132,24 @@ ordered instanced draws:     2
 
 Before changing visibility to Public:
 
-- [ ] choose and add a repository license
+- [x] choose and add a repository license — MIT selected 2026-08-08; root `LICENSE` added
 - [x] review and document third-party source dependency licenses (`THIRD_PARTY.md`)
-- [ ] release audit passes over current tree and fetched Git history with no high-confidence secret/private-path findings
-- [ ] README clean-checkout Quick Start job passes
+- [x] release audit passes over current tree and fetched Git history with no high-confidence secret/private-path findings — PR #35 / CI #100
+- [x] README clean-checkout Quick Start job passes — PR #35 / CI #100
 - [x] README clearly labels implemented versus planned capabilities
 - [x] architecture overview is understandable without chat context
 - [x] contributor/agent workflow is documented
 - [x] Public Alpha limitations are explicit (`PUBLIC_ALPHA_LIMITATIONS.md`)
-- [ ] repository-relative Markdown link audit passes
-- [ ] latest release-candidate `main` CI is green
+- [x] repository-relative Markdown link audit passes — PR #35 / CI #100
+- [ ] latest release-candidate `main` CI is green with license-required auditing
 
-The repeatable audit command is:
-
-```powershell
-./scripts/release_audit.ps1
-```
-
-After the project license is selected, the release-candidate form is:
+The repeatable release-candidate audit command is:
 
 ```powershell
 ./scripts/release_audit.ps1 -RequireLicense
 ```
 
-The project-license decision is intentionally owner-controlled. `LICENSE_DECISION.md` documents the MIT vs Apache-2.0 tradeoff without silently selecting one.
+CI uses the same strict form. The project license is **MIT**; `LICENSE_DECISION.md` records the decision and tradeoff.
 
 ## Third-party license policy
 
@@ -206,16 +200,15 @@ Any future wall-clock/FPS benchmark must additionally record the exact machine, 
 
 ## Release sequence
 
-When all mandatory gates are satisfied:
+When the license-gate PR and final `main` CI are green:
 
-1. merge repository-quality changes to `main`,
-2. choose/add the project license and enable `-RequireLicense` in the release audit,
-3. run clean release-candidate CI on `main`,
-4. mark `PROJECT_STATUS.md` and Issue #14 release-ready,
-5. create `v0.1.0-alpha.1`,
-6. change repository visibility to Public,
-7. verify README, release, links, and license as an unauthenticated viewer,
-8. create post-alpha issues from known limitations instead of hiding them.
+1. merge the MIT/license-required release-gate changes to `main`,
+2. run clean release-candidate CI on `main`,
+3. mark `PROJECT_STATUS.md` and Issue #14 release-ready,
+4. create `v0.1.0-alpha.1`,
+5. change repository visibility to Public,
+6. verify README, release, links, and license as an unauthenticated viewer,
+7. create post-alpha issues from known limitations instead of hiding them.
 
 ## After Public Alpha
 

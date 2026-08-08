@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, and the measured contiguous same-texture instancing slice are complete. Repository-quality automation, dependency review, and explicit limitations are now documented; the project license decision and final green release-candidate `main` CI remain before the private repository becomes Public.
+> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, the measured contiguous same-texture instancing slice, repository-quality automation, dependency review, limitations, and the MIT project-license decision are complete. The remaining mandatory gate is a green license-required release-candidate `main` CI before publication.
 
 ## Why Trace2D
 
@@ -54,7 +54,7 @@ For coding agents or contributors continuing development, start here:
 - [Public Alpha sample](docs/PUBLIC_ALPHA_SAMPLE.md) — end-to-end executable workflow
 - [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) — explicit first-release boundaries and non-claims
 - [Third-party review](docs/THIRD_PARTY.md) — dependency/license review and binary-distribution policy
-- [License decision](docs/LICENSE_DECISION.md) — MIT vs Apache-2.0 decision criteria
+- [License decision](docs/LICENSE_DECISION.md) — MIT decision and rationale
 - [Runtime inspection contract](docs/INSPECTION.md) — structured snapshots and CLI output
 - [Semantic query contract](docs/QUERY.md) — selectors and deterministic query semantics
 - [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence and frame scheduling
@@ -181,6 +181,7 @@ Dependencies and abstractions are added only when a measured or phase-specific r
 ```text
 Trace2D/
 ├─ AGENTS.md
+├─ LICENSE                  MIT project license
 ├─ PROJECT_STATUS.md
 ├─ samples/
 │  └─ public_alpha/        end-to-end Public Alpha sample
@@ -244,17 +245,13 @@ cmake --build --preset windows-release --parallel
 
 ## Repository release audit
 
-The Public Alpha audit is executable rather than checklist-only:
-
-```powershell
-./scripts/release_audit.ps1
-```
-
-It checks tracked generated/build artifacts, repository-relative Markdown links, and high-confidence secret/private-path patterns in both the current tree and fetched Git patch history. After the project license is selected, the release-candidate invocation is:
+The Public Alpha audit is executable rather than checklist-only. Release-candidate validation requires the root MIT license:
 
 ```powershell
 ./scripts/release_audit.ps1 -RequireLicense
 ```
+
+It checks the required root license, tracked generated/build artifacts, repository-relative Markdown links, and high-confidence secret/private-path patterns in both the current tree and fetched Git patch history. CI executes this strict form for release candidates.
 
 ## CLI
 
@@ -322,12 +319,16 @@ See [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) for the complet
 
 The first public milestone is **`v0.1.0-alpha.1`**.
 
-The technical agent loop is complete. Repository-quality work now has executable audit coverage, a clean-checkout Quick Start job, a documented third-party source-license review, and explicit alpha limitations. Remaining mandatory gates are the explicit project-license choice, a green release-candidate `main` CI with the license required by the audit, the tag/release, and the visibility/public-view verification.
+The technical agent loop and repository-quality preparation are complete, including the **MIT project license**. The remaining mandatory gate before publication is a green release-candidate `main` CI with license-required auditing, followed by the tag/release, visibility change, and public-view verification.
 
 See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) and GitHub Issue **#14** for the release gates.
+
+## License
+
+Trace2D is licensed under the **MIT License**. See [LICENSE](LICENSE).
+
+Third-party components retain their own licenses and notices; see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md). The rationale for the project-level license choice is recorded in [docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md).
 
 ## Project policy
 
 Trace2D prefers simple, searchable C++ APIs, explicit ownership, stable deterministic contracts, and predictable lifetimes. Hot-path complexity follows measurement: no global texture sorting, no speculative renderer framework, and no per-frame allocation added without evidence.
-
-The repository is currently private and intentionally has no selected project license yet. See [docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md) for the prepared MIT vs Apache-2.0 decision; a root `LICENSE` must be added before visibility changes to Public. Third-party dependencies are reviewed separately in [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).

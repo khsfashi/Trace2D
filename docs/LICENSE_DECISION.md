@@ -1,50 +1,41 @@
 # Project License Decision
 
-Trace2D must have an explicit repository license before changing visibility to Public. The project was intentionally created without a license so this decision would be made deliberately at the release gate.
+Trace2D uses the **MIT License** for the project source beginning with the `v0.1.0-alpha.1` Public Alpha release.
 
-The two current candidates are MIT and Apache License 2.0.
+The repository owner explicitly selected MIT on 2026-08-08 after reviewing MIT and Apache License 2.0 as the two prepared permissive-license candidates.
 
-## MIT
+## Decision
 
-Advantages:
+Selected license: **MIT**
 
-- very short and familiar,
-- permissive commercial/private/modified use,
-- minimal contributor and consumer friction,
-- common for small libraries, tools, samples, and portfolio projects.
+Why MIT fits the current project:
 
-Tradeoff:
+- short, familiar, and easy for contributors and portfolio reviewers to understand,
+- permissive commercial, private, and modified use,
+- minimal administrative overhead for a small source-first engine project,
+- compatible with the direct Public Alpha dependency set reviewed in `THIRD_PARTY.md`.
 
-- does not contain Apache-2.0's explicit patent-license language.
-
-## Apache License 2.0
-
-Advantages:
-
-- permissive commercial/private/modified use,
-- explicit patent grant and patent-termination terms,
-- explicit rules around notices and modified files,
-- often attractive when a project may later receive broader corporate contributions.
-
-Tradeoff:
-
-- longer and somewhat more administratively explicit than MIT.
+The main tradeoff versus Apache-2.0 is that MIT does not contain Apache-2.0's explicit patent-license and patent-termination language. That tradeoff was accepted for the current project and release scope.
 
 ## Dependency compatibility
 
-The direct Public Alpha dependency set reviewed in `THIRD_PARTY.md` is permissively licensed (zlib, MIT, BSD-3-Clause). Either candidate is suitable for Trace2D's intended source release.
+The direct Public Alpha dependency set reviewed in `THIRD_PARTY.md` is permissively licensed:
 
-## Recommendation criteria
+- SDL3 — zlib
+- SDL3_shadercross — zlib
+- toml++ — MIT
+- GoogleTest — BSD-3-Clause, tests/development
 
-Choose **MIT** when the main priority is the simplest possible permissive license and lowest reading/administrative overhead.
+The project-level MIT license does not replace or relicense third-party components. Their original license obligations remain separate.
 
-Choose **Apache-2.0** when the main priority is retaining permissive adoption while making the patent grant explicit for future external/corporate use and contributions.
+## Release gate
 
-No license is selected by this document. Adding the root `LICENSE` file is intentionally blocked on the repository owner's explicit choice.
+The canonical MIT text is stored in the repository root as `LICENSE`.
 
-After the choice is made:
+Release-candidate validation must require that file:
 
-1. add the canonical root `LICENSE` text,
-2. update README licensing text,
-3. run `scripts/release_audit.ps1 -RequireLicense`,
-4. mark the license gate complete in `PROJECT_STATUS.md`, `docs/PUBLIC_RELEASE.md`, and Issue #14.
+```powershell
+./scripts/release_audit.ps1 -RequireLicense
+```
+
+CI runs that strict form for the Public Alpha release gate. Future changes to the project license must be explicit repository-owner decisions and must update the root license, README, release documentation, and third-party review as applicable.
