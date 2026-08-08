@@ -20,24 +20,15 @@ text-authored scene
   -> frame-specific visual capture
 ```
 
-The technical loop and the first evidence-driven renderer optimization are complete. Do **not** start P6 engine breadth before the Public Alpha repository/release gates are complete.
+The technical loop, first evidence-driven renderer optimization, and repository-quality preparation are complete. Do **not** start P6 engine breadth before the Public Alpha release sequence finishes.
 
 ## Current phase
 
-**Public Alpha repository-quality / release preparation — Issue #14**
+**Public Alpha final release-candidate validation — Issue #14**
 
-P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, and PR #34 implements the measured contiguous same-texture instancing slice.
+P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, PR #34 implements the measured contiguous same-texture instancing slice, and PR #35 added executable repository-quality gates.
 
-The active repository-quality candidate adds:
-
-- repeatable current-tree and Git-history release auditing,
-- tracked generated/build artifact checks,
-- repository-relative Markdown link checks,
-- a dedicated Windows Server 2022 clean-checkout README Quick Start CI job,
-- third-party source dependency/license review,
-- explicit Public Alpha limitations,
-- an owner-controlled MIT vs Apache-2.0 license decision document,
-- refreshed README and canonical release gates.
+The repository owner explicitly selected the **MIT License** on 2026-08-08. The canonical root `LICENSE` now exists. The active release-gate candidate switches CI to `./scripts/release_audit.ps1 -RequireLicense` and refreshes README/release/handoff documentation to reflect the completed license decision.
 
 ## Completed technical milestones
 
@@ -61,6 +52,7 @@ The active repository-quality candidate adds:
 - Public Alpha end-to-end vertical sample — PR #32
 - Public Alpha handoff / batching evidence — PR #33
 - contiguous same-texture GPU instancing — PR #34
+- Public Alpha repository quality gates — PR #35
 
 ## Public Alpha sample contract
 
@@ -94,71 +86,63 @@ measured draw-call saving:   5
 
 The renderer keeps `submittedSprites == 7` while `drawCalls == 2` after successful windowed submission because only adjacent visible same-texture sprites share a draw.
 
-## Repository-quality work
+## Repository / release quality
 
-### Implemented in the active candidate
+Completed:
 
 - [x] third-party source dependency/license review documented in `docs/THIRD_PARTY.md`
-- [x] implemented-vs-planned README wording refreshed
+- [x] implemented-vs-planned README wording clear
 - [x] explicit Public Alpha limitations documented in `docs/PUBLIC_ALPHA_LIMITATIONS.md`
-- [x] MIT vs Apache-2.0 project-license decision prepared in `docs/LICENSE_DECISION.md`
-- [x] repeatable release audit added at `scripts/release_audit.ps1`
+- [x] repeatable release audit at `scripts/release_audit.ps1`
 - [x] audit checks tracked generated/build artifacts
 - [x] audit checks high-confidence secret/private-path patterns in current tree
 - [x] audit checks fetched Git patch history
 - [x] audit checks repository-relative Markdown links
 - [x] README Quick Start pins the same vcpkg baseline as CI
-- [x] CI candidate includes a `windows-2022` clean-checkout Quick Start job
+- [x] `windows-2022` clean-checkout Quick Start CI job
+- [x] PR #35 / CI #100: `release-audit`, `windows-msvc`, and `clean-clone-quick-start` all green
+- [x] project license explicitly selected: **MIT**
+- [x] canonical root `LICENSE` added
+- [x] license decision recorded in `docs/LICENSE_DECISION.md`
+- [x] release audit configured to require `LICENSE` in the active release-gate candidate
 
-### Still requires validation or owner action
+Still required before publication:
 
-- [ ] project license explicitly selected and root `LICENSE` added
-- [ ] release audit passes on the repository-quality PR
-- [ ] clean-checkout Quick Start job passes on the repository-quality PR
-- [ ] ordinary Windows/MSVC configure/build/full CTest passes on the repository-quality PR
-- [ ] repository-quality changes merged to `main`
-- [ ] release audit switched to require `LICENSE`
+- [ ] active MIT/license-required release-gate PR CI green
+- [ ] release-gate changes merged to `main`
 - [ ] final release-candidate `main` CI green
 - [ ] `PROJECT_STATUS.md` and Issue #14 marked release-ready
 - [ ] `v0.1.0-alpha.1` created
 - [ ] repository visibility changed to Public
 - [ ] README/release/license verified from unauthenticated public view
+- [ ] only concrete post-alpha follow-up issues opened from known limitations
 
 ## License decision
 
-Do not guess the project license.
+Trace2D uses the **MIT License**.
 
-The repository was intentionally created with no license. The two prepared candidates are:
+The repository owner explicitly chose MIT for the initial Public Alpha because it provides a familiar permissive license with minimal administrative overhead for a small source-first engine/portfolio project.
 
-- **MIT** — simplest/familiar permissive license with minimal administrative text,
-- **Apache-2.0** — permissive license with an explicit patent grant/termination framework.
-
-The direct Public Alpha dependency set reviewed in `docs/THIRD_PARTY.md` is permissive and does not force one candidate over the other.
-
-After owner selection, add the canonical root `LICENSE`, update README licensing text, and run:
-
-```powershell
-./scripts/release_audit.ps1 -RequireLicense
-```
-
-## Third-party distribution decision
-
-The first Public Alpha is primarily a source/repository release.
-
-Direct manifest dependencies:
+The direct Public Alpha dependency set remains independently licensed:
 
 - SDL3 — zlib
 - SDL3_shadercross — zlib
 - toml++ — MIT
 - GoogleTest — BSD-3-Clause, tests/development
 
-Compiled binary release artifacts are **not** automatically cleared by this source review. Any future binary attachment must review the exact resolved vcpkg runtime graph and bundle required port notices.
+The project-level MIT license does not replace third-party license obligations. Future compiled binary attachments must still review the exact resolved vcpkg runtime graph and bundle required notices.
+
+Strict release audit:
+
+```powershell
+./scripts/release_audit.ps1 -RequireLicense
+```
 
 ## Validation status
 
 Validation uses clean GitHub-hosted Windows runners with the repository-pinned vcpkg baseline and MSVC warnings-as-errors configuration.
 
-Recent validated technical milestones:
+Recent validated milestones:
 
 - PR #24 — CI #64 green
 - PR #25 — CI #68 green
@@ -169,9 +153,8 @@ Recent validated technical milestones:
 - PR #30 — CI #84 green
 - PR #31 — CI #90 green
 - PR #32 — CI #93 green
-- PR #34 implementation head — CI #97 green: Configure, Build, and full CTest passed
-
-The repository-quality candidate intentionally adds two release-facing validations beyond the prior CI surface: the repository/history audit and a Windows Server 2022 clean-checkout job that executes the README developer presets.
+- PR #34 implementation head — CI #97 green
+- PR #35 repository-quality candidate — CI #100 green across all three release-facing jobs
 
 GPU presentation itself remains outside hosted-runner requirements. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay tests remain CI-testable without an interactive GPU/window.
 
@@ -194,15 +177,16 @@ GPU presentation itself remains outside hosted-runner requirements. Backend-inde
 - [x] deterministic capture at a known simulation frame
 - [x] one tiny end-to-end sample proving the workflow
 
-### Repository/release quality — in progress
+### Repository/release quality — final validation
 
-- [ ] root project license
-- [x] third-party source license review prepared
-- [ ] automated secret/private-path/history audit green
-- [ ] clean-checkout README Quick Start green
+- [x] root MIT project license
+- [x] third-party source license review
+- [x] automated secret/private-path/history audit green on PR #35
+- [x] clean-checkout README Quick Start green on PR #35
 - [x] implemented/planned wording clear
 - [x] explicit Public Alpha limitations
-- [ ] Markdown link audit green
+- [x] Markdown link audit green on PR #35
+- [ ] license-required release-gate CI green
 - [ ] green release-candidate `main` CI
 - [ ] tag/release/public visibility/public-view verification
 
@@ -253,12 +237,14 @@ Do not delay Public Alpha for:
 
 ## Immediate next task
 
-1. validate and merge the repository-quality candidate,
-2. obtain the owner's explicit **MIT** or **Apache-2.0** selection,
-3. add the root license and enable license-required release auditing,
-4. run final `main` CI,
-5. mark Issue #14 release-ready,
-6. create `v0.1.0-alpha.1`, make the repository Public, verify the unauthenticated view, and open only concrete post-alpha follow-up issues.
+1. validate the MIT/license-required release-gate PR,
+2. merge it to `main`,
+3. verify final `main` CI green,
+4. mark Issue #14 release-ready,
+5. create `v0.1.0-alpha.1`,
+6. change repository visibility to Public,
+7. verify README/release/license from an unauthenticated public view,
+8. open only concrete post-alpha follow-up issues from known limitations.
 
 ## Handoff rule
 
