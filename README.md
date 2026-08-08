@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5 and the first end-to-end Public Alpha sample are complete. The measured contiguous same-texture instancing slice is implemented in PR #34; repository/license/release-quality gates remain before the private repository becomes Public.
+> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, and the measured contiguous same-texture instancing slice are complete. Repository-quality automation, dependency review, and explicit limitations are now documented; the project license decision and final green release-candidate `main` CI remain before the private repository becomes Public.
 
 ## Why Trace2D
 
@@ -52,6 +52,9 @@ For coding agents or contributors continuing development, start here:
 - [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — live phase, validation state, next task, and execution order
 - [Public Alpha sample](docs/PUBLIC_ALPHA_SAMPLE.md) — end-to-end executable workflow
+- [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) — explicit first-release boundaries and non-claims
+- [Third-party review](docs/THIRD_PARTY.md) — dependency/license review and binary-distribution policy
+- [License decision](docs/LICENSE_DECISION.md) — MIT vs Apache-2.0 decision criteria
 - [Runtime inspection contract](docs/INSPECTION.md) — structured snapshots and CLI output
 - [Semantic query contract](docs/QUERY.md) — selectors and deterministic query semantics
 - [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence and frame scheduling
@@ -74,6 +77,8 @@ A future coding-agent session should be able to continue from these repository f
 - pinned vcpkg baseline
 - Windows MSVC GitHub Actions CI
 - warnings-as-errors CI policy
+- repeatable Public Alpha repository/history audit
+- clean-checkout README Quick Start verification on Windows Server 2022
 - SDL3 hidden behind Trace2D-owned platform/render boundaries
 - explicit headless and windowed startup modes
 
@@ -179,6 +184,7 @@ Trace2D/
 ├─ PROJECT_STATUS.md
 ├─ samples/
 │  └─ public_alpha/        end-to-end Public Alpha sample
+├─ scripts/                release/repository validation helpers
 ├─ cmake/                  CMake policy/helpers
 ├─ engine/
 │  ├─ core/                platform-independent core
@@ -192,7 +198,7 @@ Trace2D/
 ├─ tools/
 │  └─ trace2d/             CLI for humans, scripts, CI, and agents
 ├─ tests/                  automated tests and deterministic fixtures
-├─ docs/                   architecture and behavioral contracts
+├─ docs/                   architecture, release, and behavioral contracts
 └─ .github/workflows/      CI
 ```
 
@@ -200,25 +206,35 @@ Trace2D/
 
 Initial supported toolchain:
 
-- Windows
+- Windows x64
 - Visual Studio 2022 with **Desktop development with C++**
 - CMake 3.28 or newer
 - Git
-- vcpkg
 
-Set `VCPKG_ROOT` to your vcpkg checkout, for example:
+The vcpkg revision is part of the repository contract; do not rely on an arbitrary current vcpkg checkout for release verification.
 
-```powershell
-$env:VCPKG_ROOT = "C:\Dev\vcpkg"
-```
+## Quick Start from a clean clone
 
-## Build and test
+The commands below intentionally install the same pinned vcpkg baseline used by CI.
 
 ```powershell
+git clone https://github.com/khsfashi/Trace2D.git
+Set-Location Trace2D
+
+$vcpkgRoot = Join-Path $env:TEMP "trace2d-vcpkg"
+git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+git -C $vcpkgRoot checkout d92484ed3c5020c6679d095ad3e5add907887b62
+& "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+$env:VCPKG_ROOT = $vcpkgRoot
+
 cmake --preset windows-msvc
 cmake --build --preset windows-debug --parallel
 ctest --preset windows-debug
 ```
+
+While the repository remains private, the first clone requires normal authenticated GitHub access. After Public Alpha visibility changes to Public, the same command is unauthenticated.
+
+CI includes a dedicated `clean-clone-quick-start` job on `windows-2022` that starts from a clean checkout, installs this exact vcpkg baseline, and executes the same configure/build/test presets. The normal `windows-msvc` CI job separately validates the repository's current hosted MSVC configuration.
 
 Release build:
 
@@ -226,7 +242,19 @@ Release build:
 cmake --build --preset windows-release --parallel
 ```
 
-The release candidate still requires a documented clean-clone verification before repository visibility changes to Public.
+## Repository release audit
+
+The Public Alpha audit is executable rather than checklist-only:
+
+```powershell
+./scripts/release_audit.ps1
+```
+
+It checks tracked generated/build artifacts, repository-relative Markdown links, and high-confidence secret/private-path patterns in both the current tree and fetched Git patch history. After the project license is selected, the release-candidate invocation is:
+
+```powershell
+./scripts/release_audit.ps1 -RequireLicense
+```
 
 ## CLI
 
@@ -288,11 +316,13 @@ The following are **planned/later** and are not claims of the current engine:
 
 The first contiguous same-texture instancing mechanism is implemented narrowly; it is not a claim of a generic material batching system, bindless renderer, texture atlas pipeline, or order-independent transparency solution. Texture sorting remains intentionally disallowed because caller-provided visible painter order is authoritative.
 
+See [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) for the complete non-claims and release boundaries.
+
 ## Public Alpha target
 
 The first public milestone is **`v0.1.0-alpha.1`**.
 
-It proves one complete agent-first automation loop rather than feature breadth. Before the repository becomes Public, Trace2D still requires repository/license review, third-party license review, secret/private-path review, clean-clone quick-start verification, explicit limitations, and a green release-candidate `main` CI.
+The technical agent loop is complete. Repository-quality work now has executable audit coverage, a clean-checkout Quick Start job, a documented third-party source-license review, and explicit alpha limitations. Remaining mandatory gates are the explicit project-license choice, a green release-candidate `main` CI with the license required by the audit, the tag/release, and the visibility/public-view verification.
 
 See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) and GitHub Issue **#14** for the release gates.
 
@@ -300,4 +330,4 @@ See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) and GitHub Issue **#14** fo
 
 Trace2D prefers simple, searchable C++ APIs, explicit ownership, stable deterministic contracts, and predictable lifetimes. Hot-path complexity follows measurement: no global texture sorting, no speculative renderer framework, and no per-frame allocation added without evidence.
 
-The repository is currently private and intentionally has no selected license yet. A repository license and third-party license review are mandatory before changing visibility to Public.
+The repository is currently private and intentionally has no selected project license yet. See [docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md) for the prepared MIT vs Apache-2.0 decision; a root `LICENSE` must be added before visibility changes to Public. Third-party dependencies are reviewed separately in [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
