@@ -24,9 +24,11 @@ The first public release proves this loop. It is not intended to be a complete G
 
 ## Current phase
 
-**P5 — Minimal SDL3 GPU 2D renderer and deterministic capture path**
+**Public Alpha vertical slice and release-quality repository work — Issue #14**
 
-P0-P4 are complete. P5 has these merged slices:
+P0-P5 are complete. Issue **#10** is closed after PR **#31** completed the explicit simulation-frame GPU capture path.
+
+P5 merged slices:
 
 - renderer / GPU presentation foundation — PR **#24**
 - orthographic camera / CPU sprite render-data contract — PR **#25**
@@ -35,12 +37,36 @@ P0-P4 are complete. P5 has these merged slices:
 - actual submission culling + submitted/culled metrics — PR **#28**
 - allocation-free contiguous-texture batching opportunity measurement — PR **#29**
 - persistent offscreen color target + swapchain presentation copy — PR **#30**
+- explicit-frame GPU readback + deterministic BMP artifact — PR **#31**
 
-### Batching decision after PR #29
+## Immediate next task — tiny Public Alpha vertical sample
 
-Issue **#10** required batching complexity to follow measurement. PR #29 added `MeasureContiguousTextureBatching`, which counts visible sprites, culled sprites, and contiguous visible texture runs without allocation, sorting, or painter-order changes.
+Work inside **Issue #14**.
 
-The current executable windowed sample has one visible sprite:
+Build the smallest sample that proves the already-implemented loop end to end. Do not start broad P6 engine work yet.
+
+Required sample properties:
+
+- text-authored sample scene committed to the repository
+- one semantic controlled entity such as `#player`
+- deterministic movement or similarly obvious gameplay state change
+- headless automated gameplay test using the existing virtual-input and assertion path
+- windowed rendering of the same sample state
+- explicit frame-specific capture using the P5 capture API/CLI
+- one documented agent workflow covering edit -> build -> run -> inspect -> input -> assert -> capture
+- enough visible sprites to make the renderer sample representative enough to re-run the existing batching measurement
+
+Keep the sample intentionally tiny. Prefer proving composition of existing systems over introducing new engine abstractions.
+
+After the sample exists, run `MeasureContiguousTextureBatching` on that representative workload. Add contiguous same-texture instancing only if the measurement demonstrates a material draw-call saving. Actual instancing remains a non-blocker for Public Alpha.
+
+## P5 decisions now closed
+
+### Batching decision
+
+PR #29 added `MeasureContiguousTextureBatching`, which counts visible sprites, culled sprites, and contiguous visible texture runs without allocation, sorting, or painter-order changes.
+
+The previous executable sample had one visible sprite:
 
 ```text
 unbatched draw calls:       1
@@ -48,57 +74,39 @@ contiguous texture runs:    1
 measured draw-call saving:  0
 ```
 
-Therefore actual GPU instancing is **intentionally deferred** until the Public Alpha vertical sample contains a representative multi-sprite workload that demonstrates a real reduction. Do not add an instance-buffer/upload path merely to satisfy a checklist when the repository sample cannot measure a benefit.
+Therefore actual GPU instancing remains **intentionally deferred** until the Public Alpha sample provides representative evidence. If later justified, the preferred first mechanism is contiguous same-texture instancing that preserves painter order and uses persistent/reused GPU and transfer resources. See `docs/BATCHING.md`.
 
-The documented future batching candidate is contiguous same-texture instancing only, preserving caller order and using persistent/reused GPU + transfer buffers. See `docs/BATCHING.md`.
+### Offscreen presentation/capture source
 
-### Offscreen decision after PR #30
+PR #30 moved rendering off the swapchain and onto a renderer-owned color target:
 
-PR #30 moved the real sprite render pass off the swapchain and onto a renderer-owned color target.
+- target format matches the claimed swapchain format
+- dimensions use the actual acquired presentation target
+- target is lazily created and reused at steady size
+- resize replacement is create-before-release
+- render pass uses SDL GPU color-target cycling
+- completed output is copied to the same-format swapchain texture
+- swapchain remains presentation-only and is never the readback source
 
-Current contract:
+### Deterministic capture contract
 
-- the offscreen target uses the claimed swapchain texture format and actual acquired presentation dimensions
-- it is created lazily on the first usable presentation target
-- it is reused at steady size and replaced only on a real target-size change
-- replacement is create-before-release
-- the render pass uses SDL GPU color-target cycling to avoid cross-frame write dependencies
-- the completed offscreen image is copied to the same-format, same-size swapchain texture in one GPU copy pass
-- the swapchain remains presentation-only and is not a readback source
-- successful swapchain acquisition is never followed by `SDL_CancelGPUCommandBuffer`; exceptional post-acquire paths submit before propagating the error
+PR #31 completed the narrow Public Alpha capture path:
 
-This resolves the earlier open question about whether capture should have a readable target shared with presentation: the current implementation renders into the shared offscreen presentation target. The final canonical artifact pixel/row layout remains a separate capture contract.
+- `CaptureRequest` carries explicit `simulationFrame`, artifact path, and image format
+- `trace2d run --windowed --frames N --capture PATH` steps simulation explicitly and captures the resulting `RuntimeState.frame`
+- wall-clock timing never selects the captured gameplay frame
+- the renderer reuses one download transfer buffer and grows it only when required
+- readback rows use a 256-byte aligned pitch
+- requested capture work is encoded from the completed offscreen target
+- capture submission acquires a GPU fence; CPU mapping happens only after fence completion
+- RGBA/BGRA SDR target bytes normalize into packed top-down canonical RGBA8
+- the first artifact format is a deterministic dependency-free 32-bit top-down BMP
+- capture bytes remain presentation/QA output, never authoritative gameplay state
+- ordinary non-capture frames perform no download, capture fence wait, transfer-buffer mapping, image normalization, or capture file I/O
 
-## Immediate next task — explicit-frame GPU readback and deterministic artifact
+Deterministic capture means deterministic simulation-frame selection, canonical byte layout, and deterministic artifact encoding. It does not claim bit-identical floating-point rasterization across unrelated GPU vendors/backends.
 
-Remain inside **Issue #10**.
-
-Build the smallest capture request/readback slice on top of PR #30.
-
-Required constraints:
-
-- simulation frame number, never wall-clock timing, selects the captured state
-- capture request data must make the target frame and artifact destination/format explicit
-- rendering remains presentation/QA state and never becomes authoritative gameplay state
-- preserve the current headless runtime/testing path without GPU initialization
-- reuse persistent download/readback resources where practical; do not create expensive transfer resources every frame
-- capture work occurs only when explicitly requested, not on every frame
-- preserve existing sprite ordering, texture validation, culling, and render metrics semantics
-- no hidden renderer-side frame-list copy or per-frame container growth
-- use a deterministic image format/encoding contract suitable for CI and agent inspection
-- keep byte layout and row-pitch normalization explicit
-- keep the first implementation deliberately narrow; no render graph, async capture framework, video recording, or broad asset pipeline
-
-Current SDL3 GPU direction verified against the official API:
-
-- source pixels come from the completed renderer-owned offscreen color target, not the write-only swapchain
-- use `SDL_DownloadFromGPUTexture` into a download `SDL_GPUTransferBuffer`
-- submit capture work with a fence when CPU readback bytes must be consumed
-- wait/query the fence before mapping/reading downloaded bytes
-- reuse download buffers because SDL documents them as expensive to create repeatedly
-- account for row-pitch alignment explicitly rather than relying on backend-specific temporary copies where practical
-
-The exact deterministic image artifact contract is still open. Prefer the least complex lossless format that is stable in CI, easy for agents/tools to inspect, and does not introduce an unnecessary runtime dependency.
+See `docs/RENDERING.md` for the full contract.
 
 ## Completed phase milestones
 
@@ -118,6 +126,7 @@ The exact deterministic image artifact contract is still open. Prefer the least 
 - P5 submission culling / culling metrics — Issue **#10**, PR **#28**
 - P5 batching opportunity measurement / decision — Issue **#10**, PR **#29**
 - P5 persistent offscreen color target / presentation copy — Issue **#10**, PR **#30**
+- P5 explicit-frame GPU readback / deterministic artifact — Issue **#10**, PR **#31**
 
 ## Foundation currently established
 
@@ -129,7 +138,7 @@ The exact deterministic image artifact contract is still open. Prefer the least 
 - strict warning policy
 - GoogleTest / CTest
 - Windows GitHub Actions CI
-- architecture, roadmap, public-release, and agent handoff documentation
+- architecture, roadmap, public-release, rendering, and agent handoff documentation
 
 ### Platform / deterministic runtime
 
@@ -162,7 +171,7 @@ The exact deterministic image artifact contract is still open. Prefer the least 
 - physical and virtual input converge on the same engine-owned input path
 - deterministic held / pressed / released transitions
 - frame-indexed virtual input scheduling
-- deterministic gameplay scenario runner and exact frame assertions
+- deterministic gameplay scenario runner and exact-frame assertions
 - structured reproducible failure reports
 
 See `docs/INSPECTION.md`, `docs/QUERY.md`, `docs/INPUT.md`, and `docs/GAMEPLAY_TESTING.md`.
@@ -199,14 +208,14 @@ See `docs/INSPECTION.md`, `docs/QUERY.md`, `docs/INPUT.md`, and `docs/GAMEPLAY_T
 - non-owning input; no renderer-side frame-list copy
 - one `OrthographicView` per non-empty presented frame
 - caller-supplied order preserved; renderer does not sort
-- explicit unbatched relationship: one visible sprite = one draw
+- one visible sprite = one draw in the current unbatched path
 
 ### PR #28 — actual culling integration
 
 - `IsSpriteVisible` fused into real submission
 - culled sprites skip uniforms, texture/sampler bind, and draw
 - relative visible order preserved
-- pipeline/unit-quad binding skipped for fully culled frames
+- persistent pipeline/unit-quad binding skipped for fully culled frames
 - cumulative `culledSprites` metric
 - all supplied texture handles validated before command-buffer encoding
 - no transient visible list
@@ -214,26 +223,30 @@ See `docs/INSPECTION.md`, `docs/QUERY.md`, `docs/INPUT.md`, and `docs/GAMEPLAY_T
 ### PR #29 — batching measurement
 
 - CPU-only `SpriteBatchMeasurement`
-- `MeasureContiguousTextureBatching(view, sprites)` performs one O(N) allocation-free scan
-- culling uses the same inclusive AABB helper as renderer submission
+- one O(N), allocation-free scan
+- culling uses the same visibility helper as renderer submission
 - candidate batches are contiguous texture runs in the post-culling visible sequence
-- culled sprites do not split a visible run because they emit no presentation output
 - no texture sorting, copying, GPU dependency, or container growth
-- deterministic tests cover repeated textures, texture changes, culled gaps, and all-culled input
-- current one-sprite executable sample measures no draw-call benefit, so actual instancing is deferred
 
-### PR #30 — offscreen render / presentation-copy foundation
+### PR #30 — offscreen render / presentation copy
 
-- sprite rendering targets a renderer-owned offscreen `SDL_GPUTexture`
-- the graphics pipeline target format is cached from the claimed SDR swapchain contract
-- offscreen target dimensions come from the actual acquired swapchain texture
-- target creation occurs only on first usable presentation or size change; steady-size frames reuse it
-- replacement target is created before the previous target is released
-- `SDL_GPUColorTargetInfo::cycle` is enabled for normal repeated writes
-- after rendering, one `SDL_CopyGPUTextureToTexture` operation transfers the completed image into the swapchain
-- render metrics continue to describe sprite/render-pass work; the presentation copy is not counted as a sprite draw
-- post-acquire failure handling no longer attempts the SDL-invalid command-buffer cancel path
-- no readback transfer buffer, fence, CPU mapping, image encoding, or file I/O exists on normal frames yet
+- persistent renderer-owned offscreen `SDL_GPUTexture`
+- size-aware lazy creation/replacement
+- completed offscreen image copied to the swapchain
+- swapchain remains presentation-only
+- presentation transfer does not alter sprite draw metrics
+
+### PR #31 — explicit deterministic capture
+
+- public capture request/frame result contract
+- persistent capacity-reused download transfer buffer
+- aligned row-pitch calculation with overflow guards
+- SDL GPU texture download + fence synchronization
+- canonical packed RGBA8 CPU result
+- deterministic 32-bit BMP writer
+- exact simulation-frame CLI capture
+- CPU tests for layout, artifact bytes, frame identity, and overflow rejection
+- normal render path remains free of capture-only synchronization and I/O
 
 ## Current validation status
 
@@ -247,7 +260,8 @@ Validated P5 milestones:
 - PR **#27** — CI **#74** green
 - PR **#28** — CI **#78** green
 - PR **#29** — CI **#81** green
-- PR **#30** — CI **#84** green; Configure, Build, and full CTest all successful
+- PR **#30** — CI **#84** green
+- PR **#31** — final CI **#90** green; Configure, Build, and full CTest all successful
 
 Recent P5 squash merges:
 
@@ -258,14 +272,15 @@ Recent P5 squash merges:
 - PR **#28** -> `9094d790ae99d6de3936ce044f9d930d8f614693`
 - PR **#29** -> `3ff5a1164ff2e1b770552c2b4ab08d85cbef66ef`
 - PR **#30** -> `0bc95bb907e79e6fc9af81c23856b854fc99ec76`
+- PR **#31** -> `a8b674894d418bd6fa478a2d30bfa362076c8a4a`
 
-Issue **#10** remains open because explicit-frame GPU readback and deterministic capture artifact generation are still required. Actual GPU batching remains measured/deferred rather than silently over-engineered.
+Issue **#10** is closed as completed. Actual GPU batching remains measured/deferred rather than silently over-engineered.
 
 Dependency note: `sdl3-shadercross` expands configure-time dependencies through DXC/spirv-cross. No shader compilation occurs in `RenderFrame`; change packaging only if measured startup, distribution, or CI cost justifies it.
 
 ## Phase exit criteria
 
-### P0-P4 — complete
+### P0-P5 — complete
 
 - [x] project/build foundation
 - [x] SDL3 platform boundary
@@ -275,38 +290,47 @@ Dependency note: `sdl3-shadercross` expands configure-time dependencies through 
 - [x] structured inspection / semantic queries
 - [x] deterministic virtual input
 - [x] deterministic gameplay scenario runner / assertions
-
-### P5 — in progress
-
-- [ ] **#10 — minimal SDL3 GPU 2D renderer and capture path**
-- [x] SDL3 GPU device / swapchain integration — PR **#24**
-- [x] orthographic camera / CPU sprite render data — PR **#25**
-- [x] textured sprite GPU submission — PR **#26**
-- [x] ordered multi-sprite submission — PR **#27**
-- [x] visibility/culling integrated into actual submission — PR **#28**
-- [x] draw/submitted/culled metrics suitable for measurement
-- [x] contiguous same-texture batching opportunity measured — PR **#29**
-- [x] actual batching explicitly deferred until a representative workload shows savings
+- [x] **#10 — minimal SDL3 GPU 2D renderer and capture path**
+- [x] SDL3 GPU device / swapchain integration
+- [x] orthographic camera / CPU sprite render data
+- [x] textured ordered multi-sprite submission
+- [x] visibility/culling + renderer metrics
+- [x] batching opportunity measured and actual instancing explicitly deferred pending evidence
+- [x] offscreen color target suitable for presentation/capture
+- [x] explicit capture request bound to a simulation frame
+- [x] GPU download/readback with reusable transfer resource + fence synchronization
+- [x] deterministic screenshot artifact generation/validation
 - [x] headless gameplay tests remain independent of GPU presentation
-- [x] offscreen color target suitable as the capture/readback source — PR **#30**
-- [ ] explicit capture request bound to a simulation frame
-- [ ] GPU download/readback with reusable transfer resource + fence synchronization
-- [ ] deterministic screenshot artifact generation/validation
+
+### Public Alpha — in progress
+
+- [ ] tiny end-to-end sample proving the full automation loop
+- [ ] documented edit -> build -> run -> inspect -> input -> assert -> capture workflow
+- [ ] repository license selected and added
+- [ ] third-party license review completed
+- [ ] repository/history secret and private-path review completed
+- [ ] README quick start verified from a clean clone
+- [ ] implemented/planned features clearly distinguished
+- [ ] Public Alpha limitations documented
+- [ ] release-candidate main CI green
+- [ ] create `v0.1.0-alpha.1`
+- [ ] change repository visibility to Public
+- [ ] verify README/release from public view
 
 ## Next execution order
 
 A fresh agent should work in this order unless a blocking dependency requires a documented change:
 
-1. Continue **#10** by defining the explicit capture request contract: target simulation frame plus deterministic artifact destination/format.
-2. Add a reusable SDL3 GPU download transfer buffer sized/aligned for the current offscreen target; recreate only when required capacity changes.
-3. On the requested simulation frame only, encode `SDL_DownloadFromGPUTexture` after offscreen rendering and before command-buffer submission.
-4. Submit capture work with a fence; consume mapped bytes only after the fence is signaled.
-5. Normalize row pitch / channel layout into the canonical artifact representation and write the deterministic lossless image.
-6. Add artifact-level deterministic validation without inferring authoritative gameplay state from pixels.
-7. Close **#10** once the explicit-frame capture acceptance criterion is met.
-8. Complete the tiny Public Alpha vertical sample and release-quality repository checks tracked by **#14**.
-9. Re-run `MeasureContiguousTextureBatching` on that sample; add contiguous same-texture instancing only if it demonstrates material savings.
-10. Move into broader P6 systems only after the Public Alpha loop is stable.
+1. Continue **#14** by choosing and committing the tiny Public Alpha sample scene.
+2. Give the controlled entity a stable semantic selector such as `#player`.
+3. Add the smallest deterministic gameplay behavior needed to make a visible state change; reuse existing runtime/input/scene/testing surfaces rather than introducing a broad gameplay framework.
+4. Add a headless automated scenario proving exact-frame input and state assertion for the sample.
+5. Render the same sample state in windowed mode and capture an explicitly selected simulation frame.
+6. Document the complete agent workflow: edit -> build -> run -> inspect -> input -> assert -> capture.
+7. Re-run `MeasureContiguousTextureBatching` against the representative sample. Implement contiguous same-texture instancing only if measured savings are material.
+8. Perform repository-quality gates: license, third-party licenses, secrets/private paths, clean-clone quick start, implemented-vs-planned wording, limitations.
+9. Run release-candidate CI and mark `PROJECT_STATUS.md` release-ready.
+10. Create `v0.1.0-alpha.1`, change visibility to Public, verify public view, then open follow-up issues for known limitations.
 
 ## Public Alpha blockers
 
@@ -322,7 +346,7 @@ A fresh agent should work in this order unless a blocking dependency requires a 
 - [x] actual renderer culling baseline
 - [x] batching opportunity is measurable without changing painter order
 - [x] offscreen render target suitable for visual readback
-- [ ] deterministic capture at a known simulation frame
+- [x] deterministic capture at a known simulation frame
 - [ ] one tiny end-to-end sample proving the workflow
 - [ ] clean Windows build/test documentation for the release candidate
 - [ ] green release-candidate CI
@@ -344,7 +368,7 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - job system
 - custom allocator framework
 - advanced renderer/lighting
-- Linux/macOS support
+- Linux/macOS/mobile support
 
 ## Architecture invariants currently in force
 
@@ -353,19 +377,20 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 - `engine/platform` owns SDL initialization/window lifetime; renderer receives a Trace2D-owned numeric window ID.
 - `engine/render` may depend on platform/SDL3, but runtime/scene/input/agent/testing do not depend on render presentation state.
 - renderer GPU state is presentation state and never authoritative simulation state.
-- CPU camera/sprite render data is Trace2D-owned, trivially copyable presentation input.
-- size-independent persistent renderer resources are created as setup work; the size-dependent offscreen target may be created on first usable presentation and replaced only when presentation size changes.
+- CPU camera/sprite render data is Trace2D-owned presentation input.
+- size-independent persistent renderer resources are setup work; size/capacity-dependent offscreen/readback resources are reused and replaced only when required.
 - steady-size normal frame submission does not recreate persistent GPU resources.
+- normal non-capture frames perform no capture download, fence wait, mapping, normalization, or file I/O.
 - multi-sprite submission consumes non-owning caller storage and does not copy/grow a renderer frame list.
 - renderer submission preserves caller-provided painter order.
 - texture identity never participates in global draw-order sorting.
 - visibility/culling is a fused allocation-free O(N) submission filter.
-- batching, when added, may only combine sprites already contiguous in the visible painter sequence unless equivalence is proven.
+- batching may only combine sprites already contiguous in the visible painter sequence unless equivalence is proven.
 - renderer metrics are committed from actual successful GPU submission, not speculative work before a failed submit.
 - texture validation semantics do not depend on camera visibility.
-- the swapchain is presentation-only; capture/readback must source a non-swapchain texture.
-- capture must be explicit/requested work, not a per-frame tax.
-- capture frame selection must use simulation frame identity, never wall-clock timing.
+- swapchain is presentation-only; capture/readback sources the renderer-owned offscreen target.
+- capture frame selection uses simulation frame identity, never wall-clock timing.
+- canonical captured CPU pixels are packed top-down RGBA8; BMP is an artifact adapter rather than engine truth.
 - runtime has no SDL, renderer, CLI, JSON, or MCP dependency.
 - agent/testing layers compose lower-level systems without reversing dependency direction.
 - JSON/MCP remain adapter concerns, never engine truth.
@@ -377,18 +402,15 @@ Do **not** delay Public Alpha for these unless release scope is intentionally ch
 
 ## Known decisions still open
 
-Resolve these only when their implementation phase arrives:
+Resolve these only when their implementation/release phase arrives:
 
-- exact deterministic capture image format, canonical channel order, row orientation, and row-pitch normalization contract
-- whether capture fence consumption is synchronously completed in the first narrow Public Alpha API or exposed as a small poll/consume step; do not build a general async capture framework
-- whether construction-time shadercross should be replaced by offline precompiled shader artifacts before Public Alpha; change only if measured cost justifies it
-- exact minimal sample game used for Public Alpha
+- exact tiny sample game/content used for Public Alpha
+- whether representative sample measurements justify contiguous same-texture instancing before or after Public Alpha
+- whether construction-time shadercross should later be replaced by offline precompiled shader artifacts; change only if measured startup/distribution/CI cost justifies it
 - project license before repository visibility changes to Public
 - exact protocol/transport used before the later MCP adapter
 
-The offscreen-source decision is no longer open: PR #30 renders into a renderer-owned target shared with presentation and copies that completed image to the swapchain.
-
-The future batching mechanism is no longer an immediate open decision: if later measurement justifies it, use contiguous same-texture instancing with explicit persistent capacity/reuse rules unless new evidence supports a simpler equivalent.
+The capture source, canonical pixel layout, first artifact format, and synchronous first capture API are no longer open decisions; PR #31 records those contracts in `docs/RENDERING.md`.
 
 ## Handoff rule
 
@@ -396,7 +418,6 @@ Every PR that materially advances a phase must keep this file aligned with live 
 
 - Current phase
 - Immediate next task
-- P5 renderer state
 - Current validation status
 - Phase exit criteria
 - Next execution order
