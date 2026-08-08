@@ -20,29 +20,49 @@ text-authored scene
   -> frame-specific visual capture
 ```
 
-The complete loop and the first evidence-driven renderer optimization are implemented. Remaining work is repository/release quality, not broader engine feature development.
+The technical loop and the first evidence-driven renderer optimization are complete. Do **not** start P6 engine breadth before the Public Alpha repository/release gates are complete.
 
 ## Current phase
 
 **Public Alpha repository-quality / release preparation — Issue #14**
 
-P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32. PR #34 implements the measured contiguous same-texture instancing candidate identified by that sample.
+P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, and PR #34 implements the measured contiguous same-texture instancing slice.
 
-Recent milestones:
+The active repository-quality candidate adds:
 
+- repeatable current-tree and Git-history release auditing,
+- tracked generated/build artifact checks,
+- repository-relative Markdown link checks,
+- a dedicated Windows Server 2022 clean-checkout README Quick Start CI job,
+- third-party source dependency/license review,
+- explicit Public Alpha limitations,
+- an owner-controlled MIT vs Apache-2.0 license decision document,
+- refreshed README and canonical release gates.
+
+## Completed technical milestones
+
+- P0 project/build foundation — PR #1
+- P1 SDL3 platform boundary — Issue #2 / PR #16
+- P1 deterministic fixed-step runtime — Issue #3 / PR #17
+- P2 stable entity identity / scene registry — Issue #4 / PR #18
+- P2 text-first deterministic scene format — Issue #5 / PR #19
+- P3 protocol-independent runtime inspection — Issue #6 / PR #20
+- P3 semantic selectors / runtime queries — Issue #7 / PR #21
+- P4 deterministic virtual input — Issue #8 / PR #22
+- P4 gameplay scenario runner / assertions — Issue #9 / PR #23
 - P5 SDL3 GPU renderer foundation — PR #24
 - orthographic camera / sprite render-data contract — PR #25
 - textured sprite submission — PR #26
 - ordered multi-sprite baseline — PR #27
-- actual submission culling + metrics — PR #28
+- submission culling + metrics — PR #28
 - contiguous-texture batching measurement — PR #29
 - persistent offscreen presentation target — PR #30
 - explicit-frame GPU readback + deterministic BMP — PR #31
 - Public Alpha end-to-end vertical sample — PR #32
-- Public Alpha handoff refresh / batching evidence — PR #33
+- Public Alpha handoff / batching evidence — PR #33
 - contiguous same-texture GPU instancing — PR #34
 
-## Public Alpha vertical sample
+## Public Alpha sample contract
 
 Committed sample:
 
@@ -74,57 +94,71 @@ measured draw-call saving:   5
 
 The renderer keeps `submittedSprites == 7` while `drawCalls == 2` after successful windowed submission because only adjacent visible same-texture sprites share a draw.
 
-## Completed measured batching decision
+## Repository-quality work
 
-PR #32 changed the representative workload from one visible sprite to seven visible sprites in two contiguous texture runs. The five-draw candidate reduction justified the narrow mechanism already documented in `docs/BATCHING.md`.
+### Implemented in the active candidate
 
-PR #34 implements it with these invariants:
+- [x] third-party source dependency/license review documented in `docs/THIRD_PARTY.md`
+- [x] implemented-vs-planned README wording refreshed
+- [x] explicit Public Alpha limitations documented in `docs/PUBLIC_ALPHA_LIMITATIONS.md`
+- [x] MIT vs Apache-2.0 project-license decision prepared in `docs/LICENSE_DECISION.md`
+- [x] repeatable release audit added at `scripts/release_audit.ps1`
+- [x] audit checks tracked generated/build artifacts
+- [x] audit checks high-confidence secret/private-path patterns in current tree
+- [x] audit checks fetched Git patch history
+- [x] audit checks repository-relative Markdown links
+- [x] README Quick Start pins the same vcpkg baseline as CI
+- [x] CI candidate includes a `windows-2022` clean-checkout Quick Start job
 
-- caller-provided visible painter sequence is preserved,
-- no texture sorting,
-- culled sprites emit no instance/draw and do not split a visible same-texture run,
-- full supplied-span texture validation semantics remain visibility-independent,
-- no renderer-owned per-frame visible-sprite list,
-- persistent GPU instance and upload transfer buffers,
-- geometric capacity growth only when retained visible capacity is insufficient,
-- steady-capacity frames do not recreate application-level instance buffers,
-- SDL GPU cycling is used for transfer/destination reuse across in-flight work,
-- `submittedSprites` counts encoded visible instances independently from `drawCalls`,
-- headless/runtime/scene/input/agent/testing layers remain renderer-independent.
+### Still requires validation or owner action
 
-The Public Alpha sample's before/after draw contract is therefore:
+- [ ] project license explicitly selected and root `LICENSE` added
+- [ ] release audit passes on the repository-quality PR
+- [ ] clean-checkout Quick Start job passes on the repository-quality PR
+- [ ] ordinary Windows/MSVC configure/build/full CTest passes on the repository-quality PR
+- [ ] repository-quality changes merged to `main`
+- [ ] release audit switched to require `LICENSE`
+- [ ] final release-candidate `main` CI green
+- [ ] `PROJECT_STATUS.md` and Issue #14 marked release-ready
+- [ ] `v0.1.0-alpha.1` created
+- [ ] repository visibility changed to Public
+- [ ] README/release/license verified from unauthenticated public view
 
-```text
-before: 7 visible sprites -> 7 sprite draws
-PR #34: 7 visible sprites -> 2 contiguous instanced draws
+## License decision
+
+Do not guess the project license.
+
+The repository was intentionally created with no license. The two prepared candidates are:
+
+- **MIT** — simplest/familiar permissive license with minimal administrative text,
+- **Apache-2.0** — permissive license with an explicit patent grant/termination framework.
+
+The direct Public Alpha dependency set reviewed in `docs/THIRD_PARTY.md` is permissive and does not force one candidate over the other.
+
+After owner selection, add the canonical root `LICENSE`, update README licensing text, and run:
+
+```powershell
+./scripts/release_audit.ps1 -RequireLicense
 ```
 
-Hosted CI validates Windows/MSVC compilation and backend-independent tests; the documented windowed Public Alpha command is the explicit real-GPU presentation/metrics smoke surface.
+## Third-party distribution decision
 
-## Immediate next task — repository-quality gates
+The first Public Alpha is primarily a source/repository release.
 
-Do **not** start P6 engine breadth yet.
+Direct manifest dependencies:
 
-Continue Issue #14 in this order:
+- SDL3 — zlib
+- SDL3_shadercross — zlib
+- toml++ — MIT
+- GoogleTest — BSD-3-Clause, tests/development
 
-1. choose/add the project license,
-2. review and document third-party license obligations,
-3. inspect repository content/history for secrets and private machine paths,
-4. verify README quick start from a clean clone,
-5. verify implemented-vs-planned wording is accurate,
-6. document explicit Public Alpha limitations,
-7. run release-candidate `main` CI and mark this file release-ready,
-8. create `v0.1.0-alpha.1`,
-9. change repository visibility to Public,
-10. verify README/release from the public view and open follow-up issues for known limitations.
+Compiled binary release artifacts are **not** automatically cleared by this source review. Any future binary attachment must review the exact resolved vcpkg runtime graph and bundle required port notices.
 
-If license choice requires owner preference, do not guess; prepare the comparison/impact and resolve it before visibility changes.
-
-## Current validation status
+## Validation status
 
 Validation uses clean GitHub-hosted Windows runners with the repository-pinned vcpkg baseline and MSVC warnings-as-errors configuration.
 
-Recent validated milestones include:
+Recent validated technical milestones:
 
 - PR #24 — CI #64 green
 - PR #25 — CI #68 green
@@ -137,46 +171,13 @@ Recent validated milestones include:
 - PR #32 — CI #93 green
 - PR #34 implementation head — CI #97 green: Configure, Build, and full CTest passed
 
-GPU presentation itself is intentionally not a hosted-runner requirement. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay tests remain CI-testable without an interactive GPU/window.
+The repository-quality candidate intentionally adds two release-facing validations beyond the prior CI surface: the repository/history audit and a Windows Server 2022 clean-checkout job that executes the README developer presets.
 
-## Phase exit criteria
+GPU presentation itself remains outside hosted-runner requirements. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay tests remain CI-testable without an interactive GPU/window.
 
-### P0-P5 — complete
+## Public Alpha exit criteria
 
-- [x] project/build foundation
-- [x] SDL3 platform boundary
-- [x] deterministic fixed-step runtime
-- [x] stable entity identity / deterministic scene registry
-- [x] text-first deterministic scene format
-- [x] structured inspection / semantic queries
-- [x] deterministic virtual input
-- [x] deterministic gameplay scenario runner / assertions
-- [x] minimal SDL3 GPU 2D renderer
-- [x] ordered multi-sprite submission
-- [x] culling integration + metrics
-- [x] batching opportunity measurement
-- [x] persistent offscreen presentation/capture source
-- [x] explicit simulation-frame capture artifact
-
-### Public Alpha — in progress
-
-- [x] tiny end-to-end sample proving the full automation loop
-- [x] documented edit -> build -> run -> inspect -> input -> assert -> capture workflow
-- [x] measured contiguous same-texture instancing implementation
-- [ ] repository license selected and added
-- [ ] third-party license review completed
-- [ ] repository/history secret and private-path review completed
-- [ ] README quick start verified from a clean clone
-- [ ] implemented/planned features clearly distinguished
-- [ ] Public Alpha limitations documented
-- [ ] release-candidate `main` CI green
-- [ ] create `v0.1.0-alpha.1`
-- [ ] change repository visibility to Public
-- [ ] verify README/release from public view
-
-## Public Alpha blockers
-
-Completed technical blockers:
+### Technical loop — complete
 
 - [x] deterministic headless execution
 - [x] explicit frame stepping
@@ -193,18 +194,21 @@ Completed technical blockers:
 - [x] deterministic capture at a known simulation frame
 - [x] one tiny end-to-end sample proving the workflow
 
-Remaining release blockers:
+### Repository/release quality — in progress
 
-- [ ] clean Windows build/test documentation verified from a clean clone
+- [ ] root project license
+- [x] third-party source license review prepared
+- [ ] automated secret/private-path/history audit green
+- [ ] clean-checkout README Quick Start green
+- [x] implemented/planned wording clear
+- [x] explicit Public Alpha limitations
+- [ ] Markdown link audit green
 - [ ] green release-candidate `main` CI
-- [ ] repository license and third-party license review
-- [ ] secret/private-path/history review
-- [ ] explicit Public Alpha limitations
-- [ ] documentation remains accurate from public view
+- [ ] tag/release/public visibility/public-view verification
 
-See `docs/PUBLIC_RELEASE.md` for exact release gates.
+See `docs/PUBLIC_RELEASE.md` for the canonical gate definitions.
 
-## Explicit non-blockers for first public release
+## Explicit non-blockers
 
 Do not delay Public Alpha for:
 
@@ -247,27 +251,15 @@ Do not delay Public Alpha for:
 - semantic selectors beat coordinate targeting where identity exists.
 - optimization complexity follows measurement.
 
-## Known decisions still open
+## Immediate next task
 
-Resolve only when their release/implementation phase arrives:
-
-- project license before repository visibility changes to Public,
-- exact third-party notice/documentation shape required by the selected project license and dependencies,
-- whether construction-time shadercross should later be replaced by offline precompiled shader artifacts, only if measured startup/distribution/CI cost justifies it,
-- exact protocol/transport before a future MCP adapter.
-
-The first batching mechanism is no longer an open decision: contiguous same-texture instancing is implemented and global texture sorting remains disallowed.
+1. validate and merge the repository-quality candidate,
+2. obtain the owner's explicit **MIT** or **Apache-2.0** selection,
+3. add the root license and enable license-required release auditing,
+4. run final `main` CI,
+5. mark Issue #14 release-ready,
+6. create `v0.1.0-alpha.1`, make the repository Public, verify the unauthenticated view, and open only concrete post-alpha follow-up issues.
 
 ## Handoff rule
 
-Every PR that materially advances the Public Alpha release must keep this file aligned with live repository state. At minimum keep these sections true:
-
-- Current phase
-- Immediate next task
-- Current validation status
-- Phase exit criteria
-- Public Alpha blockers
-- Architecture invariants
-- Known decisions still open
-
-A future conversation should be able to continue from this repository without relying on previous chat context.
+Every PR that materially advances Public Alpha must keep this file aligned with live repository state. A future conversation should be able to continue from the repository without relying on previous chat context.
