@@ -4,72 +4,128 @@
 
 Trace2D explores a simple question: why can coding agents build and test web applications end-to-end, while game development still depends heavily on visual guessing and manual editor interaction?
 
-The project is designed so an agent can eventually edit a game, build it, run it headlessly, advance simulation time explicitly, inspect structured runtime state, inject input, assert behavior, and capture visuals when pixels actually matter.
+The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **P5 — minimal SDL3 GPU 2D renderer and capture path**. P0 project setup, P1 deterministic runtime control, P2 stable scene identity/text serialization, P3 structured inspection/semantic queries, and P4 deterministic input/gameplay testing are implemented. Minimal rendering and deterministic frame capture are the next executable milestone.
+> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5 are complete, including deterministic runtime, text-authored scenes, structured inspection/query, virtual input/gameplay assertions, SDL3 GPU rendering, culling, and explicit simulation-frame capture. PR #32 adds the first complete end-to-end Public Alpha sample. The repository is still private while release-quality gates are completed.
+
+## Why Trace2D
+
+Agent-friendly game tooling needs stronger contracts than “launch the editor and look at the screen.” Trace2D treats the following as first-class engine behavior:
+
+- deterministic fixed-step execution
+- text-first authored scene state
+- stable semantic entity identity
+- structured runtime inspection
+- semantic queries such as `#player`
+- frame-indexed virtual input
+- exact-frame gameplay assertions
+- headless execution without renderer initialization
+- renderer output and screenshots as QA artifacts, not gameplay truth
+- measured optimization rather than speculative complexity
+
+## Public Alpha vertical sample
+
+The committed sample proves the complete loop:
+
+```text
+samples/public_alpha/public_alpha.trace2d.toml
+```
+
+Default behavior:
+
+```text
+frame 2:  press KeyD
+frames 2-5: move #player +1 world unit on X per frame
+frame 6:  release KeyD
+frame 8:  assert #player Transform2D.position.x == 4.0
+frame 8:  render/capture the same authoritative final scene state
+```
+
+The sample contains seven visible sprites. The existing allocation-free batching measurement reports two contiguous texture runs, exposing a five-draw candidate saving for the next measured renderer optimization.
+
+See [docs/PUBLIC_ALPHA_SAMPLE.md](docs/PUBLIC_ALPHA_SAMPLE.md) for the complete edit -> build -> inspect -> query -> input -> assert -> capture workflow.
 
 ## Project navigation
 
 For coding agents or contributors continuing development, start here:
 
 - [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
-- [PROJECT_STATUS.md](PROJECT_STATUS.md) — current phase, active work, validation state, and next execution order
-- [Runtime inspection contract](docs/INSPECTION.md) — protocol-independent snapshot schema, deterministic CLI JSON, and exit codes
-- [Semantic query contract](docs/QUERY.md) — selectors, deterministic result ordering, and query errors
-- [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence, frame scheduling, and reset semantics
-- [Deterministic gameplay testing](docs/GAMEPLAY_TESTING.md) — scenario lifecycle, semantic assertions, failure reports, and determinism rules
-- [Scene text format](docs/SCENE_FORMAT.md) — version-1 authored TOML schema and canonical serialization rules
-- [Public Release Plan](docs/PUBLIC_RELEASE.md) — exact gates for `v0.1.0-alpha.1`
-- [Roadmap](docs/ROADMAP.md) — long-term P0-P8 development phases
-- [Architecture](docs/ARCHITECTURE.md) — module/dependency direction
-- [Agent-first design principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) — live phase, validation state, next task, and execution order
+- [Public Alpha sample](docs/PUBLIC_ALPHA_SAMPLE.md) — end-to-end executable workflow
+- [Runtime inspection contract](docs/INSPECTION.md) — structured snapshots and CLI output
+- [Semantic query contract](docs/QUERY.md) — selectors and deterministic query semantics
+- [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence and frame scheduling
+- [Gameplay testing](docs/GAMEPLAY_TESTING.md) — deterministic scenarios, assertions, and failure reports
+- [Scene text format](docs/SCENE_FORMAT.md) — version-1 TOML schema and deterministic serialization
+- [Rendering](docs/RENDERING.md) — renderer, presentation, capture, and readback contracts
+- [Batching](docs/BATCHING.md) — measurement-first batching policy
+- [Public Release Plan](docs/PUBLIC_RELEASE.md) — gates for `v0.1.0-alpha.1`
+- [Roadmap](docs/ROADMAP.md) — long-term phased development
+- [Architecture](docs/ARCHITECTURE.md) — module and dependency direction
+- [Agent-first principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
 
-A future coding-agent session should be able to continue the project from these repository files without requiring previous chat history.
+A future coding-agent session should be able to continue from these repository files without previous chat history.
 
-## Implemented foundation
+## Implemented today
 
-The current repository already includes:
+### Build and platform
 
-- reproducible C++20 / CMake / pinned-vcpkg project setup
-- Windows MSVC CI with warnings treated as errors
-- SDL3 hidden behind a Trace2D-owned platform boundary
+- C++20 / CMake / CMake Presets
+- pinned vcpkg baseline
+- Windows MSVC GitHub Actions CI
+- warnings-as-errors CI policy
+- SDL3 hidden behind Trace2D-owned platform/render boundaries
 - explicit headless and windowed startup modes
-- deterministic fixed-step runtime control with explicit `Step(count)` advancement
-- observable simulation frame, fixed timestep, simulation time, deterministic seed, and reset state
-- generation-safe runtime `EntityId` handles with stale-handle invalidation
-- stable authored semantic IDs, names, sorted unique tags, and `Transform2D`
-- deterministic allocation-free runtime entity iteration
-- TOML `*.trace2d.toml` authored scenes with strict validation and source diagnostics
-- deterministic canonical scene serialization sorted by semantic entity ID
-- round-trip tests proving stable semantic scene state
-- protocol-independent `Trace2D::Agent` inspection facade over runtime and scene state
-- stable runtime/scene/entity/component snapshot types with structured errors
-- deterministic CLI `inspect` JSON output with stable non-zero error categories
-- exact semantic selectors for authored ID, name, tag, and component type
-- deterministic single-result and multi-result runtime queries with ambiguity/no-match handling
-- deterministic CLI `query` JSON output
-- engine-level `Trace2D::Input` state independent of SDL event objects
-- deterministic press/release/held transitions and frame-indexed virtual input scheduling
-- SDL3 keyboard/mouse translation into the same engine-owned input event path
-- resettable virtual input source and exact runtime-lockstep input tests
-- protocol-independent `Trace2D::Testing` gameplay scenario runner over the existing scene/runtime/input/query systems
-- deterministic scene load/reset/input/run/assert/report workflow
-- semantic component-field assertions with explicit no-match and ambiguity failures
-- structured failure reports containing expected/observed state, frame, seed, selector, relevant input, runtime, and entity snapshots
-- CTest-visible gameplay scenarios including repeat-failure determinism coverage
 
-## Design goals
+### Deterministic runtime
 
-- deterministic, fixed-step gameplay testing
-- headless execution with runtime parity
-- structured entity/component inspection
-- stable semantic selectors instead of fragile screen coordinates
-- text-first authored project and scene data
-- virtual input and explicit frame stepping
-- machine-readable diagnostics and failure reports
-- a small protocol-independent automation API
-- MCP as an adapter, not as the engine architecture
-- measured C++ performance with explicit ownership and predictable lifetimes
+- fixed simulation timestep
+- explicit `Step(count)` advancement without sleeping
+- observable frame, simulation time, and deterministic seed
+- deterministic reset behavior
+- wall-clock accumulation separated from explicit test/agent stepping
+
+### Text-authored scene state
+
+- TOML `*.trace2d.toml` scenes
+- generation-safe runtime entity handles
+- stable authored semantic IDs, names, tags, and `Transform2D`
+- strict schema validation with actionable diagnostics
+- deterministic canonical serialization for stable Git diffs
+- deterministic observable entity iteration
+
+### Structured observability
+
+- protocol-independent `Trace2D::Agent` facade
+- structured runtime/scene/entity/component snapshots
+- selectors by semantic ID, name, tag, and authoritative component type
+- deterministic query ordering
+- explicit no-match / ambiguity / invalid-selector failures
+- automation-friendly `inspect` and `query` CLI JSON
+
+### Input and gameplay QA
+
+- engine-owned input state independent of SDL event objects
+- physical and virtual input converge on the same gameplay-facing path
+- frame-indexed scheduled press/release events
+- deterministic held/pressed/released transitions
+- `Trace2D::Testing::GameplayScenario`
+- exact-frame semantic component-field assertions
+- reproducible failure reports with expected/observed values, frame, seed, input, runtime, and entity context
+
+### Rendering and visual QA
+
+- SDL3 GPU renderer isolated from authoritative simulation
+- orthographic 2D camera
+- ordered textured multi-sprite submission
+- fused allocation-free AABB culling
+- draw/submitted/culled metrics
+- allocation-free contiguous-texture batching measurement
+- persistent offscreen color target copied to the swapchain for presentation
+- explicit simulation-frame capture request
+- reusable GPU download transfer buffer and fence synchronization
+- canonical packed top-down RGBA8 CPU pixels
+- deterministic dependency-free 32-bit BMP artifact
 
 ## Intended agent workflow
 
@@ -80,67 +136,68 @@ Agent edits source / scene
       Build
         |
         v
-   Headless run
+  Headless run
         |
         v
-Structured inspect
+Structured inspect/query
         |
         v
-Virtual input + step
+Virtual input + explicit step
         |
         v
-Gameplay assertions
+Gameplay assertion
         |
         v
-Visual capture
+Windowed render / frame capture
         |
-        +---- failure context ----> Agent
+        +---- structured failure context ----> Agent
 ```
 
-The full workflow above is the Public Alpha target. The README status and `PROJECT_STATUS.md` distinguish implemented stages from planned ones.
+The Public Alpha sample now executes this workflow end to end. Later phases extend engine breadth without replacing this contract.
 
-## Technology direction
+## Technology
 
 - **Language:** C++20
 - **Build:** CMake + CMake Presets
 - **Dependencies:** vcpkg manifest mode with a pinned baseline
-- **Platform layer:** SDL3
-- **Scene text:** TOML via toml++ behind the scene implementation boundary
-- **2D rendering:** SDL3 GPU (P5 in progress)
-- **Physics:** Box2D or a smaller measured collision slice (decision deferred to P6)
+- **Platform:** SDL3
+- **Scene text:** TOML via toml++ behind the scene boundary
+- **2D rendering:** SDL3 GPU
 - **Tests:** GoogleTest / CTest
 - **CI:** GitHub Actions / MSVC
 
-Dependencies are added only when the phase that needs them begins.
+Dependencies and abstractions are added only when a measured or phase-specific requirement justifies them.
 
 ## Repository layout
 
 ```text
 Trace2D/
-├─ AGENTS.md              coding-agent operating guide
-├─ PROJECT_STATUS.md      live project/handoff state
-├─ cmake/                 CMake policy/helpers
+├─ AGENTS.md
+├─ PROJECT_STATUS.md
+├─ samples/
+│  └─ public_alpha/        end-to-end Public Alpha sample
+├─ cmake/                  CMake policy/helpers
 ├─ engine/
-│  ├─ core/               platform-independent engine core
-│  ├─ input/              deterministic gameplay-facing input state
-│  ├─ platform/           SDL3 boundary and physical input translation
-│  ├─ runtime/            deterministic simulation-time control
-│  ├─ scene/              entity identity and text-authored scene state
-│  ├─ agent/              protocol-independent inspection/automation facade
-│  └─ testing/            deterministic gameplay scenario/assertion facade
+│  ├─ core/                platform-independent core
+│  ├─ input/               deterministic gameplay-facing input
+│  ├─ platform/            SDL3 platform boundary
+│  ├─ render/              SDL3 GPU rendering and capture
+│  ├─ runtime/             deterministic simulation control
+│  ├─ scene/               entity identity and authored scene state
+│  ├─ agent/               protocol-independent observation/query facade
+│  └─ testing/             deterministic gameplay scenario/assertion facade
 ├─ tools/
-│  └─ trace2d/            CLI for humans, scripts, CI, and agents
-├─ tests/                 automated tests and deterministic fixtures
-├─ docs/                  architecture, inspection, query, input, gameplay-testing, scene, and release documents
-└─ .github/workflows/     CI
+│  └─ trace2d/             CLI for humans, scripts, CI, and agents
+├─ tests/                  automated tests and deterministic fixtures
+├─ docs/                   architecture and behavioral contracts
+└─ .github/workflows/      CI
 ```
-
-Additional engine modules are introduced phase-by-phase rather than scaffolded as empty directories.
 
 ## Requirements
 
-For the initial Windows toolchain:
+Initial supported toolchain:
 
+- Windows
 - Visual Studio 2022 with **Desktop development with C++**
 - CMake 3.28 or newer
 - Git
@@ -152,13 +209,7 @@ Set `VCPKG_ROOT` to your vcpkg checkout, for example:
 $env:VCPKG_ROOT = "C:\Dev\vcpkg"
 ```
 
-For a persistent Windows user environment variable:
-
-```powershell
-[Environment]::SetEnvironmentVariable("VCPKG_ROOT", "C:\Dev\vcpkg", "User")
-```
-
-## Build
+## Build and test
 
 ```powershell
 cmake --preset windows-msvc
@@ -172,79 +223,76 @@ Release build:
 cmake --build --preset windows-release --parallel
 ```
 
+The release candidate still requires a documented clean-clone verification before repository visibility changes to Public.
+
 ## CLI
 
-The implemented CLI surface is deliberately small and automation-friendly.
+The CLI surface is deliberately small and automation-friendly.
 
 ```powershell
 trace2d version
-trace2d doctor
 trace2d doctor --json
-trace2d run --headless --frames 120 --seed 1
 trace2d run --headless --frames 120 --seed 1 --json
-trace2d run --windowed
-trace2d inspect --scene tests/data/inspection.trace2d.toml --frames 12 --seed 42
-trace2d inspect --scene tests/data/inspection.trace2d.toml --frames 12 --seed 42 --json
-trace2d query --scene tests/data/inspection.trace2d.toml --selector '#player' --one --json
-trace2d query --scene tests/data/inspection.trace2d.toml --selector 'tag:enemy' --json
+trace2d run --windowed --frames 120 --capture artifacts/frame-120.bmp --json
+
+trace2d inspect `
+  --scene samples/public_alpha/public_alpha.trace2d.toml `
+  --frames 0 `
+  --seed 42 `
+  --json
+
+trace2d query `
+  --scene samples/public_alpha/public_alpha.trace2d.toml `
+  --selector "#player" `
+  --one `
+  --json
+
+trace2d public-alpha `
+  --headless `
+  --scene samples/public_alpha/public_alpha.trace2d.toml `
+  --frames 8 `
+  --seed 42 `
+  --json
+
+trace2d public-alpha `
+  --windowed `
+  --scene samples/public_alpha/public_alpha.trace2d.toml `
+  --frames 8 `
+  --seed 42 `
+  --capture artifacts/public-alpha-frame-8.bmp `
+  --json
 ```
 
-Example machine-readable doctor output:
+`public-alpha` composes the existing scene/runtime/input/testing/rendering surfaces rather than defining a second gameplay architecture. Headless mode initializes no renderer; windowed capture uses the same final authoritative scenario state.
 
-```json
-{"engine":"Trace2D","version":"0.1.0","cpp_standard":20,"status":"ok"}
-```
+## Implemented vs planned
 
-`inspect` loads a text-authored scene, advances the deterministic runtime by the requested frame count, and emits a snapshot containing runtime state, scene identity, entity handles/semantic IDs, tags, transforms, nullable bounds, and generic component fields. JSON serialization stays in the CLI rather than the engine facade.
+Implemented capabilities are listed above and reflected by executable tests and repository contracts.
 
-`query` uses the same protocol-independent agent boundary to select entities by semantic ID, name, tag, or currently authoritative component type. Single-result queries fail explicitly on ambiguity rather than choosing an arbitrary entity.
+The following are **planned/later** and are not claims of the current engine:
 
-See [docs/INSPECTION.md](docs/INSPECTION.md) and [docs/QUERY.md](docs/QUERY.md) for the current structured contracts.
+- MCP adapter / protocol transport
+- graphical editor
+- broad physics integration
+- semantic UI tree
+- audio/networking
+- advanced animation and asset pipelines
+- job system or custom allocator framework
+- advanced lighting/PBR renderer
+- Linux/macOS/mobile support
 
-Virtual input and deterministic gameplay scenarios currently expose engine/test APIs rather than CLI commands. This keeps SDL, CLI, JSON, and future MCP types out of the gameplay-facing input and assertion contracts. See [docs/INPUT.md](docs/INPUT.md) and [docs/GAMEPLAY_TESTING.md](docs/GAMEPLAY_TESTING.md).
-
-## Text-authored scenes
-
-Trace2D version-1 authored scenes use TOML and are designed to be directly editable by humans and coding agents.
-
-```toml
-format_version = 1
-
-[scene]
-id = "arena"
-name = "Arena"
-
-[[entities]]
-id = "player"
-name = "Player"
-tags = ["controllable", "hero"]
-
-[entities.transform]
-position = [0.0, 0.0]
-rotation_radians = 0.0
-scale = [1.0, 1.0]
-```
-
-The loader rejects unknown fields, duplicate semantic IDs, invalid types, and malformed transforms with actionable diagnostics. Saving produces a canonical representation with deterministic entity ordering for useful Git diffs.
-
-See [docs/SCENE_FORMAT.md](docs/SCENE_FORMAT.md) for the complete schema and serialization contract.
+Contiguous same-texture GPU instancing is currently a measured candidate, not yet an implemented capability. The Public Alpha sample demonstrates a seven-visible-draw workload reducible to two contiguous texture runs without global texture sorting; see `PROJECT_STATUS.md` for the active decision.
 
 ## Public Alpha target
 
 The first public milestone is **`v0.1.0-alpha.1`**.
 
-It is intentionally scoped to prove one complete agent-first vertical loop rather than to imitate the feature breadth of Godot. MCP, a graphical editor, advanced rendering, networking, audio, and broad platform support are explicitly not required for the first public release.
+It proves one complete agent-first automation loop rather than feature breadth. Before the repository becomes Public, Trace2D still requires repository/license review, third-party license review, secret/private-path review, clean-clone quick-start verification, explicit limitations, and a green release-candidate `main` CI.
 
-See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) for the release gates and GitHub issue **#14** for the live release checklist.
-
-## Roadmap
-
-The complete phased plan is maintained in [docs/ROADMAP.md](docs/ROADMAP.md).
-
-P4 — Virtual input and gameplay tests — is complete through Issues **#8** and **#9**. The current implementation milestone is **P5 — minimal SDL3 GPU 2D renderer and capture path**, tracked by Issue **#10**.
+See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) and GitHub Issue **#14** for the release gates.
 
 ## Project policy
 
-Trace2D prefers simple, searchable C++ APIs and explicit ownership over unnecessary abstraction. Performance-sensitive designs are profiled and benchmarked before specialized allocators, lock-free structures, or other complexity are introduced.
+Trace2D prefers simple, searchable C++ APIs, explicit ownership, stable deterministic contracts, and predictable lifetimes. Hot-path complexity follows measurement: no global texture sorting, no speculative renderer framework, and no per-frame allocation added without evidence.
 
-The project is currently private and has no license while its architecture is still being established. A license and third-party license review are required before the repository becomes Public.
+The repository is currently private and intentionally has no selected license yet. A repository license and third-party license review are mandatory before changing visibility to Public.
