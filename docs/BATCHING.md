@@ -2,82 +2,112 @@
 
 Trace2D keeps sprite batching subordinate to deterministic painter order and measured workload evidence.
 
-## Current baseline
+## Baseline and evidence
 
-PR #27 established ordered multi-sprite submission with one draw per supplied sprite. PR #28 then fused inclusive CPU AABB culling into the real GPU submission loop.
+PR #27 established ordered multi-sprite submission with one draw per visible sprite. PR #28 fused inclusive CPU AABB culling into real GPU submission. PR #29 added the allocation-free `MeasureContiguousTextureBatching` helper so batching complexity would be justified by an executable workload rather than added speculatively.
 
-For a successfully presented frame before batching:
+The committed Public Alpha sample in PR #32 changed the evidence:
 
 ```text
-visible sprites = submittedSprites delta = drawCalls delta
-culled sprites  = culledSprites delta
+visible sprites:             7
+unbatched draw calls:        7
+contiguous texture runs:     2
+candidate draw-call saving:  5
 ```
 
-The renderer does not sort, copy, or materialize a visible-sprite list. Caller-provided order remains authoritative for presentation.
+That five-draw reduction is material enough for the first narrow batching implementation.
 
-## Measurement contract
+## Implemented batching contract
 
-`MeasureContiguousTextureBatching` is an allocation-free CPU helper that measures the narrowest batching model currently considered safe:
+PR #34 implements contiguous same-texture GPU instancing without changing caller-provided painter order.
 
-- walk sprites in caller order
-- apply the same `IsSpriteVisible` rule used by renderer submission
-- ignore culled sprites because they emit no GPU work
-- count visible sprites
-- count culled sprites
-- count contiguous visible texture runs
-- never sort by texture
+For each presented non-empty sprite frame, the renderer:
 
-For a future contiguous same-texture instancing path, `contiguousTextureRuns` is the candidate draw-call count while `visibleSprites` remains the candidate submitted-sprite count.
+1. validates every supplied texture handle before visibility filtering,
+2. builds the orthographic view from the acquired target size,
+3. measures visible sprites / culled sprites / contiguous visible texture runs with the existing inclusive AABB rule,
+4. ensures a persistent instance GPU buffer and persistent upload transfer buffer have enough capacity,
+5. maps the upload buffer with SDL cycling and compacts only visible `SpriteInstanceData` transforms into it in caller order,
+6. uploads the packed visible instance range once,
+7. binds the persistent unit-quad and instance buffers,
+8. walks the original caller span again and emits one instanced draw for each contiguous visible texture run,
+9. commits draw/sprite/cull metrics only after successful command-buffer submission.
+
+`SpriteInstanceData` is a backend-independent 16-byte structure:
+
+```text
+float2 centerClip
+float2 halfClip
+```
+
+The vertex shader consumes that data from an instance-rate vertex stream. The six-vertex unit quad remains persistent.
+
+## Painter-order invariant
+
+The renderer never sorts by texture.
+
+Only sprites that are already adjacent in the **visible** painter sequence and use the same texture may share one draw. A culled sprite does not split a run because it emits no presentation output.
 
 Example:
 
 ```text
-visible texture sequence: 1, 1, 2, 2, 1
-unbatched draw calls:      5
-candidate batch runs:      3
+caller sequence:  tex1, tex1, [culled tex9], tex1, tex2, tex2, tex1
+visible sequence: tex1, tex1,                tex1, tex2, tex2, tex1
+instanced runs:   [tex1 x3]                       [tex2 x2] [tex1 x1]
 ```
 
-A culled sprite does not split a run because it produces no presentation output.
+No texture identity participates in draw-order sorting. This keeps batching an implementation detail under the existing authored/caller painter sequence.
 
-## Why not texture-sort
+## Allocation and resource policy
 
-Trace2D uses alpha blending and preserves caller-provided painter order. Sorting by texture could change visible results when sprites overlap, so texture identity is not allowed to participate in draw ordering.
+The frame path does not create a renderer-owned visible-sprite vector or run vector.
 
-The first batching implementation, when justified, should therefore batch only adjacent visible sprites that already share a texture.
+The renderer owns:
 
-## SDL3 GPU implementation candidate
+- one persistent unit-quad vertex buffer,
+- one persistent instance GPU buffer,
+- one persistent instance upload transfer buffer,
+- the existing persistent pipeline/sampler/texture resources.
 
-The least-complex GPU candidate is instanced drawing over contiguous same-texture runs:
+Instance capacity grows geometrically only when the measured visible count exceeds retained capacity. Replacement resources are created before old resources are released. Steady-capacity frames reuse the retained buffers and use SDL GPU cycling for in-flight safety; they do not recreate buffers.
 
-1. keep the persistent six-vertex unit quad
-2. add a persistent vertex/instance buffer sized from an explicit renderer capacity
-3. reuse a persistent upload transfer buffer rather than creating one per frame
-4. compact visible clip-space transforms into instance storage in caller order
-5. bind texture/sampler once per contiguous run
-6. issue one instanced draw per run using the corresponding first-instance/count range
-7. keep `submittedSprites` equal to visible instance count and `drawCalls` equal to actual encoded run draws
+The CPU work remains direct O(N) scans with no sorting. The explicit full-span texture validation pass is retained because invalid texture semantics must not depend on camera visibility.
 
-SDL3 documents transfer-buffer reuse as preferable for repeated downloads/uploads, and its GPU buffer upload path supports cycling resources instead of recreating them every frame. The implementation must use those reuse/cycling semantics rather than adding frame-time resource creation.
+## Metrics
 
-Official SDL3 references:
-
-- https://wiki.libsdl.org/SDL3/CategoryGPU
-- https://wiki.libsdl.org/SDL3/SDL_CreateGPUTransferBuffer
-- https://wiki.libsdl.org/SDL3/SDL_UploadToGPUBuffer
-- https://wiki.libsdl.org/SDL3/SDL_CreateGPUBuffer
-
-## Public Alpha decision
-
-The current windowed Trace2D sample submits one visible sprite. For that workload:
+After instancing, `RenderMetrics` intentionally separates draw count from submitted sprite count:
 
 ```text
-unbatched draw calls: 1
-contiguous texture runs: 1
-measured reduction: 0
+submittedSprites delta = visible sprite instances encoded
+culledSprites delta    = supplied sprites rejected by visibility
+DrawCalls delta        = contiguous visible texture runs actually drawn
 ```
 
-Adding persistent instance-buffer capacity, upload synchronization, and a second vertex stream cannot currently demonstrate a draw-call reduction in the repository's executable sample.
+For the committed Public Alpha workload, the algorithmic contract is therefore:
 
-Therefore the actual instancing change is intentionally deferred until the Public Alpha vertical sample contains a representative multi-sprite workload that measures a reduction. This follows the project invariant that optimization complexity must follow measurement.
+```text
+submittedSprites: 7
+culledSprites:    0
+drawCalls:        2
+```
 
-The next P5 release-blocking work is the offscreen/readback path and deterministic capture at an explicitly requested simulation frame. Once the vertical sample exists, rerun this measurement and add contiguous same-texture instancing if it produces a material draw-call reduction.
+The windowed `trace2d public-alpha --json` command reports the renderer's actual successful submission metrics when a GPU presentation target is available. Hosted CI continues to validate renderer compilation and CPU contracts without requiring an interactive GPU/window.
+
+## Why not broader batching
+
+The measured five-draw saving does not justify a render graph, bindless architecture, global material sort, frame allocator, texture atlas system, or renderer-owned frame scene.
+
+Future batching changes must still start from measured representative workloads and preserve visible equivalence. If a future optimization requires reordering alpha-blended sprites, it needs an explicit correctness proof rather than silently weakening painter order.
+
+## Official SDL3 basis
+
+This implementation uses SDL GPU's documented instance-rate vertex input, `SDL_DrawGPUPrimitives` instance ranges, reusable transfer buffers, and cycled uploads. `instance_step_rate` remains `0` as required by SDL3.
+
+References:
+
+- https://wiki.libsdl.org/SDL3/SDL_GPUVertexBufferDescription
+- https://wiki.libsdl.org/SDL3/SDL_DrawGPUPrimitives
+- https://wiki.libsdl.org/SDL3/SDL_CreateGPUTransferBuffer
+- https://wiki.libsdl.org/SDL3/SDL_MapGPUTransferBuffer
+- https://wiki.libsdl.org/SDL3/SDL_UploadToGPUBuffer
+- https://wiki.libsdl.org/SDL3/CategoryGPU

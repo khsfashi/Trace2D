@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5 are complete, including deterministic runtime, text-authored scenes, structured inspection/query, virtual input/gameplay assertions, SDL3 GPU rendering, culling, and explicit simulation-frame capture. PR #32 adds the first complete end-to-end Public Alpha sample. The repository is still private while release-quality gates are completed.
+> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5 and the first end-to-end Public Alpha sample are complete. The measured contiguous same-texture instancing slice is implemented in PR #34; repository/license/release-quality gates remain before the private repository becomes Public.
 
 ## Why Trace2D
 
@@ -41,7 +41,7 @@ frame 8:  assert #player Transform2D.position.x == 4.0
 frame 8:  render/capture the same authoritative final scene state
 ```
 
-The sample contains seven visible sprites. The existing allocation-free batching measurement reports two contiguous texture runs, exposing a five-draw candidate saving for the next measured renderer optimization.
+The sample contains seven visible sprites in two contiguous visible texture runs. That measured workload justified PR #34's first batching path: seven submitted sprite instances remain seven sprites, while the ordered draw count falls from the unbatched baseline of seven to two contiguous same-texture instanced draws.
 
 See [docs/PUBLIC_ALPHA_SAMPLE.md](docs/PUBLIC_ALPHA_SAMPLE.md) for the complete edit -> build -> inspect -> query -> input -> assert -> capture workflow.
 
@@ -57,8 +57,8 @@ For coding agents or contributors continuing development, start here:
 - [Deterministic input contract](docs/INPUT.md) — physical/virtual input convergence and frame scheduling
 - [Gameplay testing](docs/GAMEPLAY_TESTING.md) — deterministic scenarios, assertions, and failure reports
 - [Scene text format](docs/SCENE_FORMAT.md) — version-1 TOML schema and deterministic serialization
-- [Rendering](docs/RENDERING.md) — renderer, presentation, capture, and readback contracts
-- [Batching](docs/BATCHING.md) — measurement-first batching policy
+- [Rendering](docs/RENDERING.md) — renderer, batching, presentation, capture, and readback contracts
+- [Batching](docs/BATCHING.md) — measurement-first contiguous batching policy and implementation
 - [Public Release Plan](docs/PUBLIC_RELEASE.md) — gates for `v0.1.0-alpha.1`
 - [Roadmap](docs/ROADMAP.md) — long-term phased development
 - [Architecture](docs/ARCHITECTURE.md) — module and dependency direction
@@ -117,9 +117,12 @@ A future coding-agent session should be able to continue from these repository f
 
 - SDL3 GPU renderer isolated from authoritative simulation
 - orthographic 2D camera
-- ordered textured multi-sprite submission
-- fused allocation-free AABB culling
-- draw/submitted/culled metrics
+- caller-ordered textured multi-sprite submission
+- fused allocation-free AABB visibility rule
+- full-span texture validation independent of camera visibility
+- contiguous same-texture GPU instancing without global texture sorting
+- persistent/capacity-reused instance GPU and upload transfer buffers
+- independent draw/submitted/culled metrics
 - allocation-free contiguous-texture batching measurement
 - persistent offscreen color target copied to the swapchain for presentation
 - explicit simulation-frame capture request
@@ -153,7 +156,7 @@ Windowed render / frame capture
         +---- structured failure context ----> Agent
 ```
 
-The Public Alpha sample now executes this workflow end to end. Later phases extend engine breadth without replacing this contract.
+The Public Alpha sample executes this workflow end to end. Later phases extend engine breadth without replacing this contract.
 
 ## Technology
 
@@ -265,6 +268,8 @@ trace2d public-alpha `
 
 `public-alpha` composes the existing scene/runtime/input/testing/rendering surfaces rather than defining a second gameplay architecture. Headless mode initializes no renderer; windowed capture uses the same final authoritative scenario state.
 
+For the committed seven-sprite sample, successful windowed submission reports seven submitted sprites and two draw calls because batching is restricted to the two contiguous visible texture runs.
+
 ## Implemented vs planned
 
 Implemented capabilities are listed above and reflected by executable tests and repository contracts.
@@ -281,7 +286,7 @@ The following are **planned/later** and are not claims of the current engine:
 - advanced lighting/PBR renderer
 - Linux/macOS/mobile support
 
-Contiguous same-texture GPU instancing is currently a measured candidate, not yet an implemented capability. The Public Alpha sample demonstrates a seven-visible-draw workload reducible to two contiguous texture runs without global texture sorting; see `PROJECT_STATUS.md` for the active decision.
+The first contiguous same-texture instancing mechanism is implemented narrowly; it is not a claim of a generic material batching system, bindless renderer, texture atlas pipeline, or order-independent transparency solution. Texture sorting remains intentionally disallowed because caller-provided visible painter order is authoritative.
 
 ## Public Alpha target
 
