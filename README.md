@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **Public Alpha release preparation (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, the measured contiguous same-texture instancing slice, repository-quality automation, dependency review, limitations, and the MIT project-license decision are complete. The remaining mandatory gate is a green license-required release-candidate `main` CI before publication.
+> Current status: **Public Alpha released (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, measured contiguous same-texture instancing, repository-quality automation, dependency review, explicit limitations, and MIT licensing are complete. The repository is public; post-alpha work now extends the proven agent-first automation contract.
 
 ## Why Trace2D
 
@@ -53,6 +53,7 @@ For coding agents or contributors continuing development, start here:
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — live phase, validation state, next task, and execution order
 - [Public Alpha sample](docs/PUBLIC_ALPHA_SAMPLE.md) — end-to-end executable workflow
 - [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) — explicit first-release boundaries and non-claims
+- [Public Alpha release notes](docs/RELEASE_NOTES_v0.1.0-alpha.1.md) — first public release summary
 - [Third-party review](docs/THIRD_PARTY.md) — dependency/license review and binary-distribution policy
 - [License decision](docs/LICENSE_DECISION.md) — MIT decision and rationale
 - [Runtime inspection contract](docs/INSPECTION.md) — structured snapshots and CLI output
@@ -62,7 +63,7 @@ For coding agents or contributors continuing development, start here:
 - [Scene text format](docs/SCENE_FORMAT.md) — version-1 TOML schema and deterministic serialization
 - [Rendering](docs/RENDERING.md) — renderer, batching, presentation, capture, and readback contracts
 - [Batching](docs/BATCHING.md) — measurement-first contiguous batching policy and implementation
-- [Public Release Plan](docs/PUBLIC_RELEASE.md) — gates for `v0.1.0-alpha.1`
+- [Public Release Plan](docs/PUBLIC_RELEASE.md) — completed gates for `v0.1.0-alpha.1`
 - [Roadmap](docs/ROADMAP.md) — long-term phased development
 - [Architecture](docs/ARCHITECTURE.md) — module and dependency direction
 - [Agent-first principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
@@ -233,7 +234,7 @@ cmake --build --preset windows-debug --parallel
 ctest --preset windows-debug
 ```
 
-While the repository remains private, the first clone requires normal authenticated GitHub access. After Public Alpha visibility changes to Public, the same command is unauthenticated.
+The repository is public, so this clone path requires no repository authentication.
 
 CI includes a dedicated `clean-clone-quick-start` job on `windows-2022` that starts from a clean checkout, installs this exact vcpkg baseline, and executes the same configure/build/test presets. The normal `windows-msvc` CI job separately validates the repository's current hosted MSVC configuration.
 
@@ -315,13 +316,13 @@ The first contiguous same-texture instancing mechanism is implemented narrowly; 
 
 See [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) for the complete non-claims and release boundaries.
 
-## Public Alpha target
+## Public Alpha
 
-The first public milestone is **`v0.1.0-alpha.1`**.
+The first public milestone, **`v0.1.0-alpha.1`**, was released on 2026-08-08 as a source-first pre-release under the MIT License.
 
-The technical agent loop and repository-quality preparation are complete, including the **MIT project license**. The remaining mandatory gate before publication is a green release-candidate `main` CI with license-required auditing, followed by the tag/release, visibility change, and public-view verification.
+The release proves the deterministic agent-first loop and its repository-quality gates. Post-alpha development should add engine breadth only when it preserves the same text-first, structured, deterministic, measurement-driven contracts.
 
-See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md) and GitHub Issue **#14** for the release gates.
+See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md), [release notes](docs/RELEASE_NOTES_v0.1.0-alpha.1.md), and [GitHub Issue #14](https://github.com/khsfashi/Trace2D/issues/14) for the completed release record.
 
 ## License
 
