@@ -45,6 +45,14 @@ struct SpriteRenderData final
     [[nodiscard]] bool operator==(const SpriteRenderData&) const noexcept = default;
 };
 
+struct SpriteInstanceData final
+{
+    Float2 centerClip{};
+    Float2 halfClip{};
+
+    [[nodiscard]] bool operator==(const SpriteInstanceData&) const noexcept = default;
+};
+
 struct SpriteBatchMeasurement final
 {
     std::uint64_t visibleSprites{0};
@@ -67,6 +75,10 @@ struct SpriteDrawOrderLess final
 
 [[nodiscard]] Float2 WorldToClip(const OrthographicView& view, Float2 worldPosition) noexcept;
 
+[[nodiscard]] SpriteInstanceData BuildSpriteInstanceData(
+    const OrthographicView& view,
+    const SpriteRenderData& sprite) noexcept;
+
 [[nodiscard]] bool IsSpriteVisible(const OrthographicView& view, const SpriteRenderData& sprite) noexcept;
 
 [[nodiscard]] SpriteBatchMeasurement MeasureContiguousTextureBatching(
@@ -77,5 +89,7 @@ static_assert(std::is_trivially_copyable_v<Float2>);
 static_assert(std::is_trivially_copyable_v<OrthographicCamera>);
 static_assert(std::is_trivially_copyable_v<OrthographicView>);
 static_assert(std::is_trivially_copyable_v<SpriteRenderData>);
+static_assert(std::is_trivially_copyable_v<SpriteInstanceData>);
 static_assert(std::is_trivially_copyable_v<SpriteBatchMeasurement>);
+static_assert(sizeof(SpriteInstanceData) == 16);
 } // namespace trace2d::render
