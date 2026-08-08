@@ -4,9 +4,11 @@ Last repository-state update: **2026-08-08**
 
 This document is the operational handoff for the next contributor or coding agent. Live repository state wins over stale prose.
 
-## Current mission
+## Current phase
 
-Ship **v0.1.0-alpha.1 Public Alpha** with one complete minimal agent-first 2D development loop:
+**Public Alpha released — post-alpha development may begin.**
+
+`v0.1.0-alpha.1` was published on 2026-08-08 and the repository is Public under the MIT License. The first release proves one complete minimal agent-first 2D development loop:
 
 ```text
 text-authored scene
@@ -20,17 +22,48 @@ text-authored scene
   -> frame-specific visual capture
 ```
 
-The technical loop, first evidence-driven renderer optimization, repository-quality preparation, MIT licensing, and final release-candidate validation are complete. Do **not** start P6 engine breadth until the Public Alpha publication sequence finishes.
+The technical loop, first evidence-driven renderer optimization, repository-quality preparation, license-required release audit, clean-clone Quick Start, and Public Alpha publication are complete.
 
-## Current phase
+## Public Alpha release record
 
-**Public Alpha release-ready / publication — Issue #14**
+- [x] P0-P5 technical milestones complete
+- [x] Public Alpha vertical sample — PR #32
+- [x] measured contiguous same-texture GPU instancing — PR #34
+- [x] repository quality gates — PR #35 / CI #100
+- [x] MIT license-required release gate — PR #36 / CI #103
+- [x] release-ready documentation — PR #37 / CI #105
+- [x] repository visibility changed to Public
+- [x] tag `v0.1.0-alpha.1` exists and exposes the release source tree
+- [x] root MIT `LICENSE` exists on the release tag
+- [x] Public Alpha release notes and limitations are committed
 
-P0-P5 are complete. The Public Alpha vertical sample is complete through PR #32, PR #34 implements the measured contiguous same-texture instancing slice, PR #35 added executable repository-quality gates, and PR #36 finalized the MIT license-required release gate.
+GitHub Issue #14 is the canonical completion record for the first Public Alpha.
 
-The repository owner selected the **MIT License** on 2026-08-08. The canonical root `LICENSE` exists and CI requires it through `./scripts/release_audit.ps1 -RequireLicense`.
+## Public Alpha sample contract
 
-PR #36 CI #103 passed all release-facing jobs, PR #36 was squash-merged to `main` as `82fed78`, and the repository owner confirmed the resulting `main` CI is green on 2026-08-08.
+Committed sample:
+
+```text
+samples/public_alpha/public_alpha.trace2d.toml
+```
+
+Default deterministic contract:
+
+```text
+frames:                     8
+seed:                       42
+KeyD press frame:           2
+KeyD release frame:         6
+#player.position.x:          4.0
+visible sprites:             7
+culled sprites:              0
+contiguous texture runs:     2
+unbatched baseline draws:    7
+ordered instanced draws:     2
+measured draw-call saving:   5
+```
+
+The renderer keeps `submittedSprites == 7` while `drawCalls == 2` after successful windowed submission because only adjacent visible same-texture sprites share a draw.
 
 ## Completed technical milestones
 
@@ -56,168 +89,17 @@ PR #36 CI #103 passed all release-facing jobs, PR #36 was squash-merged to `main
 - contiguous same-texture GPU instancing — PR #34
 - Public Alpha repository quality gates — PR #35
 - MIT/license-required release gate — PR #36
+- release-ready publication handoff — PR #37
 
-## Public Alpha sample contract
+## Validation policy
 
-Committed sample:
+Release-facing CI remains the baseline for changes that can affect the supported developer path:
 
-```text
-samples/public_alpha/public_alpha.trace2d.toml
-```
+- `release-audit` using `./scripts/release_audit.ps1 -RequireLicense`
+- `windows-msvc` configure/build/full CTest
+- `clean-clone-quick-start` using the README-pinned vcpkg baseline
 
-Documented workflow:
-
-```text
-docs/PUBLIC_ALPHA_SAMPLE.md
-```
-
-Default deterministic contract:
-
-```text
-frames:                     8
-seed:                       42
-KeyD press frame:           2
-KeyD release frame:         6
-#player.position.x:          4.0
-visible sprites:             7
-culled sprites:              0
-contiguous texture runs:     2
-unbatched baseline draws:    7
-ordered instanced draws:     2
-measured draw-call saving:   5
-```
-
-The renderer keeps `submittedSprites == 7` while `drawCalls == 2` after successful windowed submission because only adjacent visible same-texture sprites share a draw.
-
-## Repository / release quality
-
-Completed:
-
-- [x] third-party source dependency/license review documented in `docs/THIRD_PARTY.md`
-- [x] implemented-vs-planned README wording clear
-- [x] explicit Public Alpha limitations documented in `docs/PUBLIC_ALPHA_LIMITATIONS.md`
-- [x] repeatable release audit at `scripts/release_audit.ps1`
-- [x] audit checks tracked generated/build artifacts
-- [x] audit checks high-confidence secret/private-path patterns in current tree
-- [x] audit checks fetched Git patch history
-- [x] audit checks repository-relative Markdown links
-- [x] README Quick Start pins the same vcpkg baseline as CI
-- [x] `windows-2022` clean-checkout Quick Start CI job
-- [x] PR #35 / CI #100: `release-audit`, `windows-msvc`, and `clean-clone-quick-start` all green
-- [x] project license explicitly selected: **MIT**
-- [x] canonical root `LICENSE` added
-- [x] license decision recorded in `docs/LICENSE_DECISION.md`
-- [x] release audit requires `LICENSE`
-- [x] PR #36 / CI #103 green across all release-facing jobs
-- [x] PR #36 merged to `main`
-- [x] final release-candidate `main` CI confirmed green
-- [x] release state marked ready in `PROJECT_STATUS.md` and Issue #14
-
-Still required for publication:
-
-- [ ] create `v0.1.0-alpha.1` GitHub Release/tag
-- [ ] change repository visibility to Public
-- [ ] verify README/release/license from an unauthenticated public view
-- [ ] open only concrete post-alpha follow-up issues from known limitations
-
-## License decision
-
-Trace2D uses the **MIT License**.
-
-The repository owner explicitly chose MIT for the initial Public Alpha because it provides a familiar permissive license with minimal administrative overhead for a small source-first engine/portfolio project.
-
-The direct Public Alpha dependency set remains independently licensed:
-
-- SDL3 — zlib
-- SDL3_shadercross — zlib
-- toml++ — MIT
-- GoogleTest — BSD-3-Clause, tests/development
-
-The project-level MIT license does not replace third-party license obligations. Future compiled binary attachments must still review the exact resolved vcpkg runtime graph and bundle required notices.
-
-Strict release audit:
-
-```powershell
-./scripts/release_audit.ps1 -RequireLicense
-```
-
-## Validation status
-
-Validation uses clean GitHub-hosted Windows runners with the repository-pinned vcpkg baseline and MSVC warnings-as-errors configuration.
-
-Recent validated milestones:
-
-- PR #24 — CI #64 green
-- PR #25 — CI #68 green
-- PR #26 — CI #71 green
-- PR #27 — CI #74 green
-- PR #28 — CI #78 green
-- PR #29 — CI #81 green
-- PR #30 — CI #84 green
-- PR #31 — CI #90 green
-- PR #32 — CI #93 green
-- PR #34 implementation head — CI #97 green
-- PR #35 repository-quality candidate — CI #100 green across all three release-facing jobs
-- PR #36 MIT/license-required release gate — CI #103 green across all three release-facing jobs
-- final `main` release candidate after PR #36 — green, owner-confirmed 2026-08-08
-
-GPU presentation itself remains outside hosted-runner requirements. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay tests remain CI-testable without an interactive GPU/window.
-
-## Public Alpha exit criteria
-
-### Technical loop — complete
-
-- [x] deterministic headless execution
-- [x] explicit frame stepping
-- [x] stable text-authored scene/entity identity
-- [x] structured runtime inspection
-- [x] semantic selectors
-- [x] virtual input
-- [x] gameplay assertions
-- [x] minimal textured sprite renderer
-- [x] ordered multi-sprite submission
-- [x] culling baseline
-- [x] measured contiguous same-texture instancing
-- [x] offscreen render target suitable for visual readback
-- [x] deterministic capture at a known simulation frame
-- [x] one tiny end-to-end sample proving the workflow
-
-### Repository/release quality — complete
-
-- [x] root MIT project license
-- [x] third-party source license review
-- [x] automated secret/private-path/history audit green
-- [x] clean-checkout README Quick Start green
-- [x] implemented/planned wording clear
-- [x] explicit Public Alpha limitations
-- [x] Markdown link audit green
-- [x] license-required release-gate CI green
-- [x] green release-candidate `main` CI
-
-### Publication — pending
-
-- [ ] `v0.1.0-alpha.1` GitHub Release/tag
-- [ ] Public repository visibility
-- [ ] unauthenticated public-view verification
-- [ ] concrete post-alpha follow-up issues
-
-See `docs/PUBLIC_RELEASE.md` for the canonical gate definitions.
-
-## Explicit non-blockers
-
-Do not delay Public Alpha for:
-
-- MCP adapter
-- full editor
-- Box2D feature completeness
-- semantic UI tree completeness
-- networking/audio
-- job system
-- custom allocator framework
-- advanced renderer/lighting
-- render graph
-- bindless/GPU-driven rendering
-- Linux/macOS/mobile support
+GPU presentation itself is not a hosted-runner requirement. Backend-independent camera, instance-transform, visibility, batching measurement, capture-layout, artifact, headless runtime, and gameplay contracts remain CI-testable without an interactive GPU/window.
 
 ## Architecture invariants
 
@@ -246,15 +128,20 @@ Do not delay Public Alpha for:
 - semantic selectors beat coordinate targeting where identity exists.
 - optimization complexity follows measurement.
 
-## Immediate next task
+## Post-alpha priorities
 
-1. create GitHub Release/tag `v0.1.0-alpha.1` targeting the release-ready `main`,
-2. change repository visibility to Public,
-3. verify README, release, links, and MIT license from an unauthenticated public view,
-4. close Issue #14 after publication verification,
-5. open only concrete post-alpha issues from known limitations,
-6. then begin P6 / post-alpha work.
+Post-alpha work should extend the proven automation contract rather than replace it. Concrete follow-up issues should be narrow and justified by either a known Public Alpha limitation or measured need.
+
+Recommended order:
+
+1. add a protocol transport/MCP adapter over the existing protocol-independent agent facade without introducing runtime dependency inversion,
+2. add a practical asset caching/import slice that remains text-first and deterministic,
+3. establish broader reproducible performance workloads before adding more renderer complexity,
+4. add physics and semantic UI only through deterministic/queryable contracts,
+5. broaden platform support after the Windows developer path remains stable.
+
+Do not add broad editor, render-graph, allocator, job-system, or engine-framework abstractions merely because Public Alpha is complete.
 
 ## Handoff rule
 
-Every PR that materially advances Public Alpha must keep this file aligned with live repository state. A future conversation should be able to continue from the repository without relying on previous chat context.
+Every PR that materially changes project phase, release state, architecture invariants, or the active post-alpha priority must keep this file aligned with live repository state. A future conversation should be able to continue from the repository without relying on previous chat context.
