@@ -21,12 +21,12 @@ The second P5 slice established CPU-only render data:
 - `OrthographicCamera` stores only camera center and full visible vertical world size.
 - `TryBuildOrthographicView` derives target aspect ratio, world-space half extents, and cached world-to-clip scale.
 - `WorldToClip` maps world positions into SDL GPU normalized device coordinates with +Y remaining up.
-- `SpriteRenderData` carries axis-aligned center/half-extents plus deterministic draw-order keys.
+- `SpriteRenderData` carries axis-aligned center/half-extents, renderer texture identity, and deterministic draw-order keys.
 - `SpriteDrawOrderLess` orders lower layers first, then `stableOrder`.
-- `IsSpriteVisible` provides an inclusive axis-aligned camera-overlap baseline.
+- `IsSpriteVisible` provides an inclusive axis-aligned camera-overlap decision.
 - the camera/view/sprite structs are trivially copyable and the helper functions allocate no memory.
 
-The current textured-sprite slice adds the first real GPU draw path:
+The textured-sprite slice added the first real GPU draw path:
 
 - `SpriteRenderData::texture` is a Trace2D-owned 32-bit handle; `0` is invalid and no SDL pointer enters render data.
 - `Renderer::CreateTextureRgba8` uploads immutable RGBA8 source bytes once and returns a stable handle.
@@ -34,9 +34,27 @@ The current textured-sprite slice adds the first real GPU draw path:
 - the renderer owns a persistent six-vertex unit-quad buffer, nearest/clamp sampler, graphics pipeline, and created textures.
 - the vertex shader receives a 16-byte clip-space center/half-extent uniform per submitted sprite.
 - the fragment shader samples the bound RGBA8 texture with normal alpha blending.
-- windowed `trace2d run` creates a 2x2 sample texture and submits one textured quad, giving the renderer metrics a concrete one-sprite baseline.
+- windowed `trace2d run` creates a 2x2 sample texture and submits one textured quad.
 
-The current public draw overload intentionally accepts one sprite. Multi-sprite sorting, culling integration, and batching are the next measured slice rather than hidden complexity in the first draw path.
+PR #27 then established the explicit ordered multi-sprite unbatched baseline:
+
+- `Renderer::RenderFrame(camera, std::span<const SpriteRenderData>)` consumes a non-owning contiguous view rather than copying a frame list.
+- the single-sprite overload delegates to the span path.
+- one `OrthographicView` is built per non-empty presented frame.
+- the persistent graphics pipeline and unit-quad vertex buffer are bound once before sprite draws.
+- caller-supplied sprite order is preserved; the renderer does not sort or materialize a second list.
+- every supplied sprite produces exactly one draw in the unculled baseline, so `drawCalls == submittedSprites == N`.
+
+PR #28 integrates the existing CPU visibility decision into actual submission:
+
+- each sprite receives one inclusive AABB camera-overlap test before any per-sprite GPU work.
+- culled sprites skip uniform upload, texture/sampler bind, and draw encoding.
+- the relative order of visible sprites is unchanged.
+- the persistent pipeline and vertex buffer are bound lazily on the first visible sprite, so a fully culled frame performs no sprite pipeline/buffer bind.
+- `RenderMetrics::culledSprites` records successful-frame culling decisions separately from actual submitted sprites.
+- texture handles are still validated for the complete supplied span before GPU command encoding so invalid-input behavior does not depend on camera position.
+
+The current renderer is intentionally still unbatched. The measured pre-batching contract is now explicit enough to decide whether the next batching implementation is justified by real sample workloads.
 
 ## Ownership
 
@@ -103,7 +121,9 @@ It deliberately does **not** include UV rectangles, tint, material state, or rot
 
 Callers that require a total deterministic draw order must provide unique `stableOrder` values for sprites that share a layer. Equal `(layer, stableOrder)` pairs are intentionally equivalent to the comparator; texture identity does not alter painter order.
 
-`IsSpriteVisible` currently performs inclusive axis-aligned overlap against the camera view. A sprite touching the view edge is visible. The current one-sprite GPU path intentionally does not invoke this helper yet so the next slice can measure the effect of real culling against the uncullled baseline.
+The renderer also does not sort the submitted span. Ordering is a caller/extraction responsibility so the frame hot path does not allocate or reorder presentation data implicitly.
+
+`IsSpriteVisible` performs inclusive axis-aligned overlap against the camera view. A sprite touching the view edge is visible. PR #28 applies this exact helper in the real submission loop; no separate GPU-only visibility rule exists.
 
 ## Texture lifetime and upload
 
@@ -121,7 +141,9 @@ For each created texture:
 
 `DestroyTexture` releases the GPU texture and leaves a tombstone in the handle table. Handles are intentionally not recycled in the P5 baseline. Renderer destruction releases every remaining live texture.
 
-The handle lookup is direct indexed access. No string lookup, hash lookup, per-frame allocation, or resource creation occurs for the one-sprite render path.
+The handle lookup is direct indexed access. No string lookup or hash lookup is needed in the frame path.
+
+Before command-buffer acquisition, every supplied sprite texture handle is validated against the live texture table. This preserves deterministic input validation even when a sprite would later be culled. Visible sprites then perform the direct lookup again when their actual texture binding is encoded. This duplicate O(1) lookup is intentionally preferred over building a transient resolved-resource array; remove it only if profiling shows it matters.
 
 ## Shader packaging baseline
 
@@ -142,40 +164,54 @@ The HLSL bindings follow SDL GPU's documented resource-set convention: vertex un
 
 ## Frame path
 
-The textured one-sprite windowed frame is:
+The current ordered multi-sprite windowed frame is:
 
 ```text
-acquire GPU command buffer
+validate every supplied texture handle
+  -> acquire GPU command buffer
   -> wait/acquire swapchain texture
-  -> build OrthographicView from the actual target size
-  -> compute clip-space center / half extents
-  -> push one 16-byte vertex uniform
+  -> build one OrthographicView from the actual target size
   -> begin render pass with clear load op
-  -> bind persistent graphics pipeline
-  -> bind persistent unit-quad vertex buffer
-  -> bind sprite texture + persistent sampler
-  -> draw six vertices / one instance
+  -> for each caller-ordered sprite
+       -> inclusive AABB visibility test
+       -> if culled: increment local cull count and continue
+       -> on first visible sprite only: bind persistent pipeline + unit-quad vertex buffer
+       -> compute clip-space center / half extents
+       -> push one 16-byte vertex uniform
+       -> bind sprite texture + persistent sampler
+       -> draw six vertices / one instance
   -> end render pass
   -> submit command buffer
-  -> presentation occurs through the acquired swapchain texture
+  -> commit frame/draw/submitted/cull metrics after successful submission
 ```
 
-A minimized/unavailable swapchain texture is treated as a valid no-presentation frame. It produces no sprite draw and does not increment draw/sprite metrics.
+A minimized/unavailable swapchain texture is treated as a valid no-presentation frame. It produces no sprite draw and no culling decision because no target-dependent `OrthographicView` exists for that frame.
 
-The original clear-only `RenderFrame()` remains available as the presentation-foundation path. `RenderFrame(camera, sprite)` is the explicit textured baseline.
+The original clear-only `RenderFrame()` remains available. The single-sprite overload delegates to the same span-based submission path as multi-sprite input.
 
 ## Metrics
 
-`RenderMetrics` records:
+`RenderMetrics` records cumulative:
 
 - submitted frame count
 - presented frame count
 - encoded render-pass count
 - draw-call count
 - submitted-sprite count
+- culled-sprite count
 - last render-target width/height
 
-For a successful one-sprite textured frame, `drawCalls` and `submittedSprites` each increment by one from actual encoded GPU submission. They are no longer placeholder zero-only fields.
+For the current unbatched path on a successfully presented frame:
+
+```text
+visible sprites = submittedSprites delta = drawCalls delta
+culled sprites  = culledSprites delta
+supplied sprites = visible sprites + culled sprites
+```
+
+The equality between visible-sprite and draw-call counts is the explicit pre-batching baseline. Once batching is introduced, `submittedSprites` should continue to describe encoded sprites while `drawCalls` may become smaller.
+
+`trace2d run --windowed --json` exposes `draw_calls`, `submitted_sprites`, and `culled_sprites` so the baseline remains script-readable.
 
 Metrics are renderer-owned observation state and are not authoritative gameplay state.
 
@@ -190,23 +226,23 @@ Persistent renderer resources have renderer lifetime:
 - sampler
 - created textures
 
-Texture-table growth may allocate during explicit texture creation. The current textured frame itself performs no container growth, persistent-resource creation, shader compilation, sorting, or texture upload.
+Texture-table growth may allocate during explicit texture creation. The current span-based frame path performs no sprite-list allocation/copy, container growth, persistent-resource creation, shader compilation, renderer-side sorting, or texture upload.
 
 Camera/view/sprite data is trivially copyable. Camera-view construction performs no dynamic allocation, `WorldToClip` performs no allocation or division, and draw-order/visibility helpers allocate no memory.
 
+Culling is an O(N) direct pass fused into submission. It does not build a visible-sprite list. Fully culled input skips all sprite draw work and also skips pipeline/vertex-buffer binding.
+
 Failure diagnostics may allocate strings. Driver-name storage is initialized once during renderer construction.
 
-Before adding resource pools, bindless tables, custom allocators, atlases, or persistent staging systems, establish the sprite workload and record measurements that justify the complexity.
+Before adding resource pools, bindless tables, custom allocators, atlases, persistent staging systems, or a spatial index, establish the sprite workload and record measurements that justify the complexity.
 
 ## Remaining P5 work
 
 The next vertical slices are:
 
-1. expand submission to ordered multi-sprite input and record the unbatched draw-call baseline
-2. integrate the existing CPU visibility decision into actual submission and measure culled/submitted behavior
-3. introduce only the batching change justified by those measurements
-4. add an offscreen color target
-5. add deterministic frame-selected readback/capture artifact generation
+1. introduce only the batching implementation justified by the measured unbatched/culling baseline
+2. add an offscreen color target suitable for visual QA
+3. add deterministic frame-selected readback/capture artifact generation
 
 The capture path must select simulation state by explicit frame number. Wall-clock timing must never decide which gameplay frame is captured.
 
