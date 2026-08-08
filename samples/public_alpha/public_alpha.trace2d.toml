@@ -1,0 +1,75 @@
+format_version = 1
+
+[scene]
+id = "public_alpha"
+name = "Public Alpha Vertical Slice"
+
+[[entities]]
+id = "player"
+name = "Player"
+tags = ["controllable", "hero"]
+
+[entities.transform]
+position = [0.0, 0.0]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_01"
+name = "Marker 01"
+tags = ["marker"]
+
+[entities.transform]
+position = [-3.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_02"
+name = "Marker 02"
+tags = ["marker"]
+
+[entities.transform]
+position = [-2.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_03"
+name = "Marker 03"
+tags = ["marker"]
+
+[entities.transform]
+position = [-1.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_04"
+name = "Marker 04"
+tags = ["marker"]
+
+[entities.transform]
+position = [1.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_05"
+name = "Marker 05"
+tags = ["marker"]
+
+[entities.transform]
+position = [2.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities]]
+id = "marker_06"
+name = "Marker 06"
+tags = ["marker"]
+
+[entities.transform]
+position = [3.0, -1.5]
+rotation_radians = 0.0
+scale = [1.0, 1.0]

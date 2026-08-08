@@ -1,16 +1,19 @@
 add_executable(trace2d
     main.cpp
     AgentCommands.cpp
+    PublicAlphaCommand.cpp
 )
 
 target_link_libraries(trace2d
     PRIVATE
         Trace2D::Core
+        Trace2D::Input
         Trace2D::Platform
         Trace2D::Render
         Trace2D::Runtime
         Trace2D::Scene
         Trace2D::Agent
+        Trace2D::Testing
 )
 target_compile_features(trace2d PRIVATE cxx_std_20)
 
@@ -48,5 +51,20 @@ if(BUILD_TESTING)
         trace2d_cli_query
         PROPERTIES
             PASS_REGULAR_EXPRESSION "\\\"command\\\":\\\"query\\\".*\\\"kind\\\":\\\"tag\\\".*\\\"match_count\\\":1.*\\\"id\\\":\\\"enemy\\\""
+    )
+
+    add_test(
+        NAME trace2d_cli_public_alpha_headless
+        COMMAND trace2d public-alpha
+            --headless
+            --scene "${CMAKE_SOURCE_DIR}/samples/public_alpha/public_alpha.trace2d.toml"
+            --frames 8
+            --seed 42
+            --json
+    )
+    set_tests_properties(
+        trace2d_cli_public_alpha_headless
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "\\\"command\\\":\\\"public-alpha\\\".*\\\"frame\\\":8.*\\\"assertion_passed\\\":true.*\\\"player_x\\\":4.*\\\"visible_sprites\\\":7.*\\\"contiguous_texture_runs\\\":2.*\\\"estimated_draw_call_saving\\\":5"
     )
 endif()

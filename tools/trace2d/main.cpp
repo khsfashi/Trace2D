@@ -1,4 +1,5 @@
 #include "AgentCommands.hpp"
+#include "PublicAlphaCommand.hpp"
 
 #include <trace2d/core/Version.hpp>
 #include <trace2d/platform/Platform.hpp>
@@ -36,7 +37,8 @@ void PrintHelp()
               << "  trace2d doctor [--json]\n"
               << "  trace2d run (--headless|--windowed) [--frames N] [--seed N] [--capture PATH] [--json]\n"
               << "  trace2d inspect --scene PATH [--frames N] [--seed N] [--json]\n"
-              << "  trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]\n";
+              << "  trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]\n"
+              << "  trace2d public-alpha (--headless|--windowed) --scene PATH [--frames N] [--seed N] [--capture PATH] [--json]\n";
 }
 
 int RunDoctor(const bool json)
@@ -385,6 +387,11 @@ int main(const int argc, char* argv[])
     if (command == "query")
     {
         return trace2d::tools::RunQueryCommand(argc, argv);
+    }
+
+    if (command == "public-alpha")
+    {
+        return trace2d::tools::RunPublicAlphaCommand(argc, argv);
     }
 
     std::cerr << "Unknown command: " << command << "\n\n";
