@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — #40 deterministic texture assets complete; #42 text/basic UI is next.**
+**Public Alpha released — #40 deterministic texture assets complete; #42 text/basic UI is next. The owner-fixed post-#41 particle pipeline is planned in #46 / #47-#53.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08 and the repository is Public under the MIT License. The first release proves one complete minimal agent-first 2D development loop:
 
@@ -30,12 +30,21 @@ The repository owner fixed this implementation order on **2026-08-08**.
 
 **Future coding agents must follow this sequence unless the repository owner explicitly changes it. Do not reorder, skip, parallelize, or substitute later roadmap work because another task appears more attractive.**
 
-1. **#40 — deterministic texture asset cache/import slice** — complete in the PR that advances this handoff
+1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
 2. **#42 — text rendering and basic UI primitives**
 3. **#43 — semantic UI tree and agent interaction**
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade**
 5. **#41 — reproducible renderer performance workloads**
-6. return to umbrella **#13** and split the next practical breadth item into a narrow issue before implementation: physics/Box2D, sprite animation, or safe hot reload
+6. **#47 — particle deterministic frame/keyed-random contracts**
+7. **#48 — rich deterministic CPU particle reference simulation**
+8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
+9. **#50 — complete Agent verification over CPU particle reference state**
+10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
+11. **#52 — GPU runtime backend for explicitly GPU-selected effects**
+12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow, and human/LLM guidance**
+13. after #53, return to umbrella **#13** and split exactly one next breadth item: physics/Box2D, sprite animation, or safe hot reload
+
+Particle umbrella: **#46**. Detailed design contract: [`docs/PARTICLES.md`](docs/PARTICLES.md).
 
 ### Execution rule
 
@@ -44,11 +53,13 @@ The repository owner fixed this implementation order on **2026-08-08**.
 - Merge with green CI, update this file, then advance exactly one step.
 - If an earlier task reveals a genuine prerequisite, implement only the smallest prerequisite necessary and keep the owner-fixed sequence intact.
 - Do **not** start #39 MCP before #43 semantic UI is complete.
-- MCP is transport, not the engine API. It must expose an already-complete protocol-independent agent/UI vocabulary rather than drive engine architecture.
+- Do **not** start #47 particles before #41 renderer workloads are complete.
+- Within particles, do not start the next numbered child until the previous child is merged with green CI and this handoff advances.
+- MCP is transport, not the engine API. It exposes an already-complete protocol-independent agent/UI vocabulary rather than driving engine architecture.
 - UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates may be observable bounds, but must not be the primary automation identity when semantic identity exists.
-- Structured state beats pixel inference for gameplay and UI assertions.
+- Structured state beats pixel inference for gameplay, UI, and CPU-reference particle assertions.
 
-**Active next implementation task after this PR merges: #42.**
+**Active next implementation task: #42.**
 
 ## Completed #40 texture asset slice
 
@@ -70,7 +81,9 @@ See `docs/ASSETS.md` for the contract and scope boundaries.
 
 ## Why this order
 
-The asset slice comes first because practical authored UI/text needs deterministic project-relative resource identity and reuse. Text rendering/basic UI then establishes the smallest engine-owned UI state and layout foundation. Semantic UI automation builds on that foundation before MCP so the transport layer exposes a stable final vocabulary instead of forcing a second redesign. Renderer benchmarking follows after the agent-facing breadth is in place so later optimization remains measurement-driven.
+The asset slice comes first because practical authored UI/text needs deterministic project-relative resource identity and reuse. Text rendering/basic UI then establishes the smallest engine-owned UI state and layout foundation. Semantic UI automation builds on that foundation before MCP so the transport layer exposes a stable final vocabulary instead of forcing a second redesign. Renderer workloads then establish reproducible measurement rules before another render-heavy feature arrives.
+
+Particles follow #41 because their design intentionally makes performance decisions from evidence. Trace2D first builds a rich, deterministic, fully observable CPU reference effect, measures its structural and local CPU cost, and only then allows a human to choose whether the effect remains CPU or is explicitly compiled to a minimized GPU backend.
 
 ## P6 umbrella
 
@@ -82,10 +95,17 @@ Issue #13 is the parent roadmap for the practical authored-game slice. The fixed
   -> #43 semantic UI automation
   -> #39 MCP transport
   -> #41 renderer workloads
-  -> split next #13 breadth item
+  -> #47 particle semantics/random
+  -> #48 rich CPU reference
+  -> #49 authored effects/emitter
+  -> #50 Agent particle verification
+  -> #51 CPU cost + human backend decision + compiler
+  -> #52 explicit GPU backend
+  -> #53 conformance/workloads/guidance
+  -> split one next breadth item
 ```
 
-Do not treat #13 as permission to start Box2D, animation, hot reload, editor work, or other breadth before the fixed child sequence completes.
+Do not treat #13 as permission to start Box2D, animation, hot reload, editor work, or other breadth before the fixed sequence completes.
 
 ## Semantic UI target
 
@@ -114,6 +134,37 @@ assert resulting UI/game state
 
 Headless semantic UI tests must not require renderer initialization. MCP support comes only afterward in #39.
 
+## Particle target after #41
+
+Particle implementation is governed by #46 and `docs/PARTICLES.md`.
+
+The defining workflow is:
+
+```text
+rich text effect
+  -> deterministic CPU reference simulation
+  -> full structured Agent verification
+  -> deterministic structural CPU cost report
+  -> optional machine-specific Release timing
+  -> human chooses backend=cpu or backend=gpu
+  -> GPU-selected effects compile to minimized GPU state
+  -> CPU/GPU conformance + visual QA
+```
+
+Hard rules:
+
+- the CPU backend is the exact semantic reference and may keep rich supported particle state,
+- CPU capacity remains bounded and per-particle object/allocation/string/map/callback state is not allowed in the steady update path,
+- ordinary CPU stepping performs no JSON/snapshot/fingerprint work unless explicitly requested,
+- cost reports expose raw memory/operation/particle metrics; machine-dependent timing is labeled separately,
+- an LLM may recommend `keep_cpu` or `consider_gpu` only from documented evidence,
+- backend selection is explicit reviewable text controlled by a human,
+- no tool silently converts CPU -> GPU and no unsupported GPU effect silently falls back to CPU,
+- GPU-selected effects do not also pay full CPU reference simulation in normal runtime mode,
+- GPU runtime layout is minimized from compiler/static analysis instead of copying the complete CPU reference state,
+- CPU remains the exact deterministic oracle; V1 does not claim universal cross-vendor bit-identical GPU floating point,
+- gameplay authority never depends on visual particle state.
+
 ## Public Alpha release record
 
 - [x] P0-P5 technical milestones complete
@@ -136,9 +187,11 @@ Release-facing CI remains the baseline for changes that can affect the supported
 - `windows-msvc` configure/build/full CTest
 - `clean-clone-quick-start` using the README-pinned vcpkg baseline
 
-New machine-facing capabilities require deterministic automated tests when practical. A semantic UI or MCP feature without headless coverage is incomplete unless its PR documents a concrete reason.
+New machine-facing capabilities require deterministic automated tests when practical. A semantic UI, MCP, or CPU-reference particle feature without headless coverage is incomplete unless its PR documents a concrete reason.
 
-GPU presentation itself is not a hosted-runner requirement. Backend-independent state, layout, query, input, assertion, camera, visibility, batching measurement, capture-layout, artifact contracts, and asset cache/import behavior should remain CI-testable without an interactive GPU/window.
+GPU presentation itself is not a hosted-runner requirement. Backend-independent state, layout, query, input, assertion, camera, visibility, batching measurement, capture-layout, artifact contracts, asset behavior, particle CPU reference semantics, particle compiler/static analysis, and structural cost reports should remain CI-testable without an interactive GPU/window.
+
+Wall-clock CPU/GPU timing is environment-dependent evidence. Hosted CI must not use unstable microsecond thresholds as deterministic correctness gates.
 
 ## Architecture invariants
 
@@ -146,25 +199,25 @@ GPU presentation itself is not a hosted-runner requirement. Backend-independent 
 - SDL-specific ownership/types stay behind platform/render boundaries.
 - `engine/assets` is SDL-free; decoded CPU assets are independent of renderer-owned GPU resources.
 - asset references are deterministic project-relative text identities; no per-frame discovery/decoding is permitted.
-- renderer GPU state is presentation state and never authoritative simulation or UI state.
-- runtime/scene/input/agent/testing and future engine-owned UI state do not depend on MCP transport.
+- renderer GPU state is presentation state and never authoritative gameplay/UI state.
+- runtime/scene/input/agent/testing and future engine-owned UI/particle semantic state do not depend on MCP transport.
 - MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
 - persistent renderer resources are setup or capacity/size-dependent state; steady-state frames do not recreate them.
 - normal non-capture frames perform no capture download, fence wait, mapping, normalization, or file I/O.
 - renderer submission preserves caller-provided painter order.
 - texture identity never participates in global draw-order sorting.
-- culling uses the shared inclusive AABB rule.
-- batching may only combine sprites already contiguous in the visible painter sequence unless equivalence is proven.
-- `submittedSprites` and `drawCalls` remain independent metrics.
-- texture validation semantics do not depend on camera visibility.
+- culling uses shared documented visibility semantics and never changes authoritative simulation state.
+- batching may only combine sprites/particles already compatible and contiguous in the visible painter sequence unless equivalence is proven.
 - capture frame selection uses simulation frame identity, never wall-clock timing.
-- authored project/scene/UI state is text-first and deterministic.
+- authored project/scene/UI/particle state is text-first and deterministic.
 - structured state beats pixel inference.
 - semantic selectors beat coordinate targeting where identity exists.
+- particle CPU reference state is the semantic oracle; GPU is an explicitly selected compiled runtime backend.
+- particle backend selection is never changed silently by analysis or runtime fallback.
 - optimization complexity follows measurement.
 
 ## Handoff rule
 
 Every PR that completes or materially changes an item in the owner-fixed execution order must update this file in the same PR.
 
-A fresh coding agent following `AGENTS.md` should be able to read this file, select the first incomplete/unblocked item, and continue without previous chat history.
+A fresh coding agent following `AGENTS.md` should be able to read this file, select the first incomplete/unblocked item, open the relevant issue/design document, and continue without previous chat history.
