@@ -6,6 +6,7 @@
     "gtest",
     "sdl3",
     "sdl3-shadercross",
+    "stb",
     "tomlplusplus"
   ]
 }
