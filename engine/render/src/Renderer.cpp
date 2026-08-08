@@ -619,6 +619,7 @@ private:
 
         bool encodedRenderPass = false;
         std::uint64_t encodedSpriteDraws = 0;
+        std::uint64_t culledSpriteCount = 0;
 
         if (swapchainTexture != nullptr)
         {
@@ -652,12 +653,23 @@ private:
             {
                 SDL_GPUBufferBinding vertexBinding{};
                 vertexBinding.buffer = spriteVertexBuffer_;
-
-                SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
-                SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
+                bool spriteStateBound = false;
 
                 for (const SpriteRenderData& sprite : sprites)
                 {
+                    if (!IsSpriteVisible(view, sprite))
+                    {
+                        ++culledSpriteCount;
+                        continue;
+                    }
+
+                    if (!spriteStateBound)
+                    {
+                        SDL_BindGPUGraphicsPipeline(renderPass, spritePipeline_);
+                        SDL_BindGPUVertexBuffers(renderPass, 0, &vertexBinding, 1);
+                        spriteStateBound = true;
+                    }
+
                     const Float2 centerClip = WorldToClip(view, sprite.center);
                     const SpriteUniforms uniforms{
                         centerClip.x,
@@ -702,6 +714,7 @@ private:
 
         metrics_.drawCalls += encodedSpriteDraws;
         metrics_.submittedSprites += encodedSpriteDraws;
+        metrics_.culledSprites += culledSpriteCount;
     }
 
     void Cleanup() noexcept
