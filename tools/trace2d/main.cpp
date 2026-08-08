@@ -34,7 +34,7 @@ void PrintHelp()
               << "Usage:\n"
               << "  trace2d version\n"
               << "  trace2d doctor [--json]\n"
-              << "  trace2d run (--headless|--windowed) [--frames N] [--seed N] [--json]\n"
+              << "  trace2d run (--headless|--windowed) [--frames N] [--seed N] [--capture PATH] [--json]\n"
               << "  trace2d inspect --scene PATH [--frames N] [--seed N] [--json]\n"
               << "  trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]\n";
 }
@@ -123,8 +123,10 @@ int RunRuntime(const int argc, char* argv[])
 {
     bool json = false;
     bool modeSelected = false;
+    bool captureRequested = false;
     std::uint64_t frameCount = 0;
     std::uint64_t seed = 0;
+    std::string capturePath{};
     trace2d::platform::StartupMode mode = trace2d::platform::StartupMode::Headless;
 
     for (int index = 2; index < argc; ++index)
@@ -183,6 +185,26 @@ int RunRuntime(const int argc, char* argv[])
             continue;
         }
 
+        if (argument == "--capture")
+        {
+            if (captureRequested)
+            {
+                std::cerr << "--capture may be specified only once.\n";
+                return ExitUsage;
+            }
+
+            if (index + 1 >= argc || std::string_view{argv[index + 1]}.empty())
+            {
+                std::cerr << "--capture requires an artifact path.\n";
+                return ExitUsage;
+            }
+
+            capturePath = argv[index + 1];
+            captureRequested = true;
+            ++index;
+            continue;
+        }
+
         std::cerr << "Unknown run option: " << argument << '\n';
         return ExitUsage;
     }
@@ -190,6 +212,12 @@ int RunRuntime(const int argc, char* argv[])
     if (!modeSelected)
     {
         std::cerr << "run requires an explicit startup mode: --headless or --windowed.\n";
+        return ExitUsage;
+    }
+
+    if (captureRequested && mode != trace2d::platform::StartupMode::Windowed)
+    {
+        std::cerr << "--capture requires --windowed because visual capture uses the GPU renderer.\n";
         return ExitUsage;
     }
 
@@ -231,13 +259,23 @@ int RunRuntime(const int argc, char* argv[])
         }
 
         runtime.Step(frameCount);
+        const trace2d::runtime::RuntimeState state = runtime.State();
 
+        trace2d::render::CapturedFrame capturedFrame{};
         if (renderer != nullptr)
         {
-            renderer->RenderFrame(sampleCamera, sampleSprite);
+            if (captureRequested)
+            {
+                trace2d::render::CaptureRequest request{};
+                request.simulationFrame = state.frame;
+                request.artifactPath = capturePath;
+                capturedFrame = renderer->CaptureFrame(request, sampleCamera, sampleSprite);
+            }
+            else
+            {
+                renderer->RenderFrame(sampleCamera, sampleSprite);
+            }
         }
-
-        const trace2d::runtime::RuntimeState state = runtime.State();
 
         if (json)
         {
@@ -255,6 +293,15 @@ int RunRuntime(const int argc, char* argv[])
                           << ",\"culled_sprites\":" << renderer->Metrics().culledSprites;
             }
 
+            if (captureRequested)
+            {
+                std::cout << ",\"capture_frame\":" << capturedFrame.simulationFrame
+                          << ",\"capture_width\":" << capturedFrame.width
+                          << ",\"capture_height\":" << capturedFrame.height
+                          << ",\"capture_format\":\"bmp\""
+                          << ",\"capture_path\":\"" << EscapeJson(capturePath) << "\"";
+            }
+
             std::cout << ",\"status\":\"ok\"}\n";
             return ExitSuccess;
         }
@@ -270,6 +317,14 @@ int RunRuntime(const int argc, char* argv[])
                       << "  draw calls: " << renderer->Metrics().drawCalls << '\n'
                       << "  submitted sprites: " << renderer->Metrics().submittedSprites << '\n'
                       << "  culled sprites: " << renderer->Metrics().culledSprites << '\n';
+        }
+
+        if (captureRequested)
+        {
+            std::cout << "  capture frame: " << capturedFrame.simulationFrame << '\n'
+                      << "  capture size: " << capturedFrame.width << 'x' << capturedFrame.height << '\n'
+                      << "  capture format: bmp\n"
+                      << "  capture path: " << capturePath << '\n';
         }
 
         std::cout << "  frame: " << state.frame << '\n'
