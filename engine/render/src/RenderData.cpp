@@ -81,4 +81,33 @@ bool IsSpriteVisible(const OrthographicView& view, const SpriteRenderData& sprit
     return spriteRight >= viewLeft && spriteLeft <= viewRight && spriteTop >= viewBottom &&
            spriteBottom <= viewTop;
 }
+
+SpriteBatchMeasurement MeasureContiguousTextureBatching(
+    const OrthographicView& view,
+    const std::span<const SpriteRenderData> sprites) noexcept
+{
+    SpriteBatchMeasurement measurement{};
+    TextureHandle previousVisibleTexture = InvalidTextureHandle;
+    bool hasVisibleRun = false;
+
+    for (const SpriteRenderData& sprite : sprites)
+    {
+        if (!IsSpriteVisible(view, sprite))
+        {
+            ++measurement.culledSprites;
+            continue;
+        }
+
+        ++measurement.visibleSprites;
+
+        if (!hasVisibleRun || sprite.texture != previousVisibleTexture)
+        {
+            ++measurement.contiguousTextureRuns;
+            previousVisibleTexture = sprite.texture;
+            hasVisibleRun = true;
+        }
+    }
+
+    return measurement;
+}
 } // namespace trace2d::render
