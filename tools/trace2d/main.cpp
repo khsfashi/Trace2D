@@ -251,7 +251,8 @@ int RunRuntime(const int argc, char* argv[])
             {
                 std::cout << ",\"rendered_frames\":" << renderer->Metrics().presentedFrames
                           << ",\"draw_calls\":" << renderer->Metrics().drawCalls
-                          << ",\"submitted_sprites\":" << renderer->Metrics().submittedSprites;
+                          << ",\"submitted_sprites\":" << renderer->Metrics().submittedSprites
+                          << ",\"culled_sprites\":" << renderer->Metrics().culledSprites;
             }
 
             std::cout << ",\"status\":\"ok\"}\n";
@@ -267,7 +268,8 @@ int RunRuntime(const int argc, char* argv[])
             std::cout << "  gpu driver: " << renderer->DriverName() << '\n'
                       << "  rendered frames: " << renderer->Metrics().presentedFrames << '\n'
                       << "  draw calls: " << renderer->Metrics().drawCalls << '\n'
-                      << "  submitted sprites: " << renderer->Metrics().submittedSprites << '\n';
+                      << "  submitted sprites: " << renderer->Metrics().submittedSprites << '\n'
+                      << "  culled sprites: " << renderer->Metrics().culledSprites << '\n';
         }
 
         std::cout << "  frame: " << state.frame << '\n'
