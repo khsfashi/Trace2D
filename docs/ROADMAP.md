@@ -98,8 +98,8 @@ Current sequence:
 ```text
 #40 deterministic texture asset cache — complete
   -> #42 text/basic UI — complete
-  -> #43 semantic UI automation — implemented in PR #56
-  -> #39 MCP transport over the completed facade — next after #56 merges
+  -> #43 semantic UI automation — complete via PR #56
+  -> #39 MCP transport over the completed facade — active next
   -> #41 reproducible renderer workloads
   -> particle pipeline #46 / #47-#53
   -> one next explicit breadth item
@@ -111,9 +111,10 @@ Delivered or active:
 
 - deterministic project-relative asset identity/cache — complete
 - text rendering and practical basic UI — complete
-- engine-owned semantic UI tree — implemented in PR #56
-- headless semantic UI inspection/query/focus/activation/text/assertion — implemented in PR #56
-- MCP as a transport over the already-complete protocol-independent facade — #39 next
+- engine-owned semantic UI tree — complete via PR #56
+- headless semantic UI inspection/query/focus/activation/text/assertion — complete via PR #56
+- semantic UI -> game/scene state -> structured Agent verification without coordinate targeting — complete via PR #56
+- MCP as a transport over the already-complete protocol-independent facade — **#39 active next**
 - reproducible renderer workload/measurement foundation — #41 after MCP
 
 Semantic UI deliberately keeps the engine contract protocol-independent. `UiDocument` remains authoritative, Agent selectors use stable ID/role/name instead of coordinates, and MCP is added only after this vocabulary is stable.
