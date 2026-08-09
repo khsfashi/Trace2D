@@ -6,19 +6,19 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — #40 deterministic texture assets, #42 text/basic UI, and #43 semantic UI automation are complete. #39 MCP transport is implemented by PR #58; after that PR merges green, #41 reproducible renderer workloads is the active next implementation task.**
+**Public Alpha released. #39 MCP transport is complete via merged PR #58. The owner-fixed roadmap/Agent continuation contract is introduced by PR #62. If #62 is still open, finish/merge it before implementation work. Once this document is present on `main`, #41 reproducible renderer performance workloads is the active next implementation task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
 ## Next execution order — owner-fixed
 
-The repository owner fixed this sequence on **2026-08-08**. Future coding agents must follow it unless the owner explicitly changes it.
+The repository owner originally fixed the P6 sequence on **2026-08-08** and explicitly extended the post-particle direction on **2026-08-09**. Future coding agents must follow this order unless the repository owner explicitly changes it.
 
 1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
 2. **#42 — text rendering and basic UI primitives** — complete via PR #55
 3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
-4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — implemented by PR #58; merge only after green CI
-5. **#41 — reproducible renderer performance workloads** — **active next task after PR #58 merges**
+4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
+5. **#41 — reproducible renderer performance workloads** — **active next implementation once PR #62's roadmap contract is on `main`**
 6. **#47 — particle deterministic frame/keyed-random contracts**
 7. **#48 — rich deterministic CPU particle reference simulation**
 8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
@@ -26,24 +26,87 @@ The repository owner fixed this sequence on **2026-08-08**. Future coding agents
 10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
 11. **#52 — GPU runtime backend for explicitly GPU-selected effects**
 12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow, and human/LLM guidance**
-13. after #53, return to umbrella **#13** and split exactly one next breadth item: physics/Box2D, sprite animation, or safe hot reload
+13. **#59 — Sprite pipeline: production rendering, deterministic animation, generation/import, processing QA, end-to-end motion QA and performance**
+14. **#60 — Mesh2D foundation: reusable textured indexed geometry and measured dynamic submission path**
+15. **#61 — Spine compatibility: SP0 explicit human license gate, then optional integration only if approved**
 
 Particle umbrella: **#46**. Detailed particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md).
 
-### Execution rule
+Sprite umbrella: **#59**. Detailed owner-approved contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 
-- Work only on the first incomplete and unblocked item above.
-- If that item has an active PR, finish/repair that PR before starting anything else.
-- Merge only with green CI, then advance exactly one step.
-- While PR #58 is open, finish/repair #58 and do not start #41.
-- After PR #58 merges, #41 becomes the first incomplete task.
+Mesh2D umbrella: **#60**. Its fixed M0/M1 boundary is recorded in #60 and the Sprite handoff contract.
+
+Spine compatibility: **#61**. License/integration gate: [`docs/SPINE.md`](docs/SPINE.md).
+
+### Owner decision replacing the old post-#53 choice
+
+Older Issue #13 / roadmap prose said that after #53 the owner would choose one of physics/Box2D, sprite animation, or safe hot reload. That choice has now been made and must not be re-opened by a future coding agent:
+
+```text
+#53
+ -> #59 complete end-to-end Sprite program
+ -> #60 generic Mesh2D foundation
+ -> #61 Spine SP0 human license gate
+```
+
+Physics/Box2D and safe hot reload remain valid future breadth candidates, but they are **not** the owner-fixed next task after #53 and must not displace #59/#60/#61 without a later explicit owner change.
+
+## Continuation execution rule
+
+The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
+
+- Work only on the first incomplete and unblocked item in the owner-fixed order.
+- If that work has an active PR, finish/repair/validate that PR before starting anything later.
+- If PR #62 is still open, it is the active owner-directed roadmap/governance work and takes precedence over #41.
+- If this document is being read from `main` after #62 merged, **#41 is the first incomplete implementation task** unless live GitHub state shows that #41 has already advanced.
+- Merge only with green CI/repository gates; if merge is an owner action, report that single action instead of jumping ahead.
 - Do **not** start #47 particles before #41 renderer workloads are complete.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
+- Within #59, follow the exact fixed stage order in `docs/SPRITES.md`, creating/implementing one child issue/PR at a time.
+- After #59, complete #60 M0 then M1 one child/PR at a time.
+- When #61 is reached, **stop at SP0 if no explicit owner license approval is recorded**. Do not vendor/add/fetch/distribute Spine Runtime code while the gate is blocked.
 - MCP is transport, not the engine API.
-- UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates are observable bounds, not the primary automation identity when semantic identity exists.
-- Structured state beats pixel inference for gameplay, UI, and CPU-reference particle assertions.
+- Structured semantic state beats pixel inference for gameplay/UI/particle/sprite animation assertions.
+- Visual capture remains first-class QA evidence when pixels genuinely matter.
 
-**Active next implementation task after PR #58 merges: #41.**
+## Fixed internal order for #59 Sprite
+
+When #59 becomes active, the order is:
+
+```text
+S0 -> S1
+ -> SR0 -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
+ -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SE2E -> SPERF
+```
+
+Meaning:
+
+- **S0-S1:** architecture + canonical SpriteAsset model,
+- **SR0-SR8:** production-complete traditional Sprite Renderer, not a minimal quad renderer,
+- **SA0-SA4:** deterministic `SpriteAnimator2D`, events, Agent/MCP exact-frame QA and workloads,
+- **SPP0-SPP5:** deterministic processing/QA, repair, Aseprite/generic and sprite-gen/PerfectPixel-style interoperability, provider-neutral generation orchestration,
+- **SE2E:** generation/import -> deterministic cleanup/QA -> canonical asset -> animation -> headless assertions -> render/capture -> motion/visual QA proof,
+- **SPERF:** final reproducible CPU/upload/draw/memory/atlas/animation workload guidance.
+
+The complete criteria are in `docs/SPRITES.md`; future agents must not reduce SR0-SR8 to a minimal implementation merely to complete the umbrella quickly.
+
+## Spine boundary
+
+Spine is a planned compatibility backend/integration, not Trace2D's native animation architecture.
+
+Before #61 SP0 owner approval:
+
+- no `spine-cpp` vendoring/copy,
+- no package/submodule/download dependency,
+- no prebuilt Spine-containing binary,
+- no Spine-derived implementation code,
+- no claim that Trace2D ships Spine support.
+
+`docs/SPINE.md` records the official licensing snapshot reviewed on 2026-08-09 and requires the then-current official terms to be re-checked at SP0.
+
+If SP0 is approved after license confirmation, the fixed conceptual order becomes SP1 optional official runtime adapter -> SP2 Mesh2D render integration -> SP3 semantic animation state -> SP4 Agent/MCP QA/conformance/workloads. See `docs/SPINE.md`.
 
 ## Completed #40 texture asset slice
 
@@ -76,56 +139,17 @@ The first UI slice established:
 
 ## Completed #43 semantic UI automation — PR #56
 
-PR #56 extends the existing UI state rather than replacing it.
+PR #56 established semantic ID/role/name state, deterministic UI ordering, protocol-independent Agent inspection/query/focus/activation/text/assertion, and a headless semantic UI -> authoritative scene-state verification path.
 
-### Authored/state additions
-
-- optional stable semantic `name`; if omitted it is resolved from the initial authored text at load time,
-- `visible` state, default `true`,
-- focused text-input replacement through engine-owned `UiDocument`,
-- text mutation changes `text` but does not silently change semantic `name`,
-- invisible elements reject focus/activation/text input and are skipped by CPU rasterization.
-
-### Protocol-independent Agent surface
-
-`AgentFacade` can bind a non-owning `UiDocument` and exposes:
-
-```text
-InspectUi
-QueryUi
-QueryOneUi
-FocusUi
-ActivateUi
-InputUiText
-AssertUi
-```
-
-UI snapshots expose stable ID, role, name, bounds, visible, enabled, focused, text, and activation count. `UiSelector` supports exact ID, role, and name criteria; multiple criteria are ANDed. `QueryUi` preserves authored order, and `QueryOneUi` reports stable no-match/ambiguity diagnostics.
-
-Semantic actions resolve exactly one target before mutating the authoritative `UiDocument`. Text input requires prior focus. `AssertUi` checks visible/enabled/focused/text/activation-count state and returns structured mismatch context.
-
-### Gameplay handoff
-
-Button `activationCount` is the minimal deterministic edge signal. Gameplay can consume the count delta exactly once during deterministic update logic without a callback graph or heap event-object framework.
-
-The committed headless game-interaction test proves semantic activation -> authoritative scene state change -> existing Agent scene verification with no screen-coordinate targeting or renderer initialization.
-
-### Performance/scope contract
-
-- element lookup and semantic queries remain deterministic O(N) authored-order scans,
-- no speculative hash/index structure is added before measured need,
-- `UiDocument` focus and activation state mutation add no heap allocation,
-- explicit text replacement may resize its existing string and is not a per-frame hot path,
-- Agent snapshots/results allocate only on explicit inspection/query/action requests,
-- ordinary UI raster/simulation does not build JSON, MCP payloads, snapshots, or fingerprints.
+Performance rules remain: ordinary UI raster/simulation does not build JSON/MCP snapshots, query/action results allocate only on explicit requests, and no speculative browser/DOM/coordinate-primary framework was introduced.
 
 See [`docs/UI.md`](docs/UI.md).
 
-## Implemented #39 MCP transport — PR #58
+## Completed #39 MCP transport — PR #58
 
-PR #58 adds a deliberately thin adapter over the existing Agent/Testing vocabulary.
+PR #58 added a deliberately thin modern MCP `2026-07-28` stdio adapter over existing Agent/Testing semantics.
 
-### Boundary
+Boundary:
 
 ```text
 Runtime / Scene / Input / UI
@@ -143,63 +167,17 @@ Runtime / Scene / Input / UI
    trace2d_mcp stdio host
 ```
 
-`engine/mcp` owns protocol parsing/serialization only. JSON/MCP types do not enter core/runtime/scene/input/UI/agent/testing public contracts.
-
-### Protocol surface
-
-Trace2D is a modern-only MCP `2026-07-28` server:
-
-- `server/discover`,
-- required modern per-request `_meta` version/capability fields,
-- server identity in response `_meta`,
-- deterministic cacheable `tools/list`,
-- `tools/call`,
-- newline-delimited UTF-8 stdio.
-
-The adapter exposes fixed semantic tools for runtime/scene inspect/query, semantic UI inspect/query/focus/activate/text/assert, frame-indexed virtual input scheduling/inspection, explicit stepping, and existing gameplay float assertions.
-
-Legacy session semantics are not advertised or implemented. A legacy `initialize` request is rejected with `UnsupportedProtocolVersionError` listing `2026-07-28`, avoiding a partially compatible session.
-
-### Determinism and failure behavior
-
-- input continues to be scheduled by explicit simulation frame,
-- stepping continues through `GameplayScenario::RunFrames`,
-- runtime frame and seed remain engine-owned,
-- scene/UI selectors continue to use existing semantic identity,
-- gameplay and UI failures preserve existing structured diagnostics,
-- unknown tools/malformed protocol requests remain JSON-RPC errors,
-- one MCP step call is bounded to 100,000 frames without changing fixed-step semantics.
-
-### Performance/scope contract
-
-- MCP performs no JSON work unless a protocol message arrives,
-- no MCP snapshot is retained between requests,
-- tool-list order is stable and cacheable,
-- nlohmann/json is private to the MCP adapter/tests,
-- ordinary gameplay/UI/render paths acquire no MCP dependency or per-frame allocation,
-- the stdio host initializes no renderer/GPU/window,
-- HTTP/session/auth/editor frameworks remain out of scope.
-
-### Headless verification
-
-PR #58 protocol tests cover:
-
-- modern discovery metadata and server identity,
-- deterministic/cacheable tool listing,
-- explicit rejection of legacy initialize with the supported modern version,
-- MCP virtual input scheduling -> explicit stepping -> `#player` state change through an existing frame callback,
-- semantic query and existing gameplay assertion after that state change,
-- structured gameplay failure frame/seed/snapshot context,
-- semantic UI focus/text/activation/assertion without renderer or coordinate targeting,
-- structured UI mismatch context.
+MCP owns protocol parsing/serialization only. JSON/MCP types do not enter core/runtime/scene/input/UI/agent/testing public contracts. Protocol tests cover semantic scene/UI/input/step/assert flows headlessly.
 
 See [`docs/MCP.md`](docs/MCP.md).
 
-## Why this order
+## Why the current order
 
-Assets provide deterministic resource identity. Basic UI provides the smallest engine-owned UI state/rendering input. Semantic UI makes that same state directly inspectable and controllable. #39 then exposes that stable vocabulary through MCP as a transport adapter instead of forcing transport concerns into engine architecture.
+#41 follows MCP to establish reproducible renderer workloads before another render-heavy subsystem. Particles then prove the CPU-reference -> structured QA -> measured cost -> explicit human backend choice -> GPU compiler/runtime/conformance workflow.
 
-#41 follows MCP to establish reproducible renderer workloads before the particle pipeline. Particles then use deterministic CPU reference behavior plus measured cost evidence before any explicit human-selected GPU backend.
+The owner then deliberately prioritizes Sprite because Trace2D's portfolio/product goal is stronger than ordinary animation playback: an agent should eventually be able to take source/generated pixels through deterministic import/repair/QA, run deterministic animation, inspect/assert it headlessly, render it with production sprite semantics, and complete motion/visual/performance QA.
+
+Mesh2D follows Sprite so arbitrary textured indexed geometry does not bloat the traditional SpriteRenderer. Spine follows Mesh2D only as a separately licensed optional compatibility integration and stops first at SP0.
 
 ## Particle target after #41
 
@@ -218,7 +196,7 @@ rich text effect
   -> CPU/GPU conformance + visual QA
 ```
 
-Hard rules:
+Hard rules remain:
 
 - CPU is the exact semantic reference,
 - capacity is explicit and bounded,
@@ -250,11 +228,11 @@ Hard rules:
 
 Release-facing CI remains the baseline:
 
-- `release-audit` using `./scripts/release_audit.ps1 -RequireLicense`
-- `windows-msvc` configure/build/full CTest
-- `clean-clone-quick-start` using the README-pinned vcpkg baseline
+- `release-audit` using `./scripts/release_audit.ps1 -RequireLicense`,
+- `windows-msvc` configure/build/full CTest,
+- `clean-clone-quick-start` using the README-pinned vcpkg baseline.
 
-New machine-facing capabilities require deterministic automated tests when practical. GPU presentation itself is not a hosted-runner requirement; backend-independent UI/MCP state/query/actions/assertions/rasterization must remain headless-CI testable.
+New machine-facing capabilities require deterministic automated tests when practical. GPU presentation itself is not a hosted-runner requirement; backend-independent semantic/math/import/ordering/QA logic must remain headless-CI testable where practical.
 
 Wall-clock timing is environment-dependent evidence and must not become a deterministic correctness threshold.
 
@@ -263,20 +241,23 @@ Wall-clock timing is environment-dependent evidence and must not become a determ
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership/types stay behind platform/render boundaries.
 - `engine/assets` and `engine/ui` are SDL-free.
-- renderer GPU state is presentation state, never authoritative gameplay/UI state.
+- renderer GPU state is presentation state, never authoritative gameplay/UI/animation state.
 - runtime/scene/input/UI/agent/testing semantic state does not depend on MCP transport.
 - MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
-- authored project/scene/UI/particle state is text-first and deterministic.
+- authored project/scene/UI/particle/sprite metadata is text-first and deterministic where practical.
 - semantic selectors beat coordinate targeting where identity exists.
 - structured state beats pixel inference.
 - persistent renderer resources are reused rather than recreated in steady state.
 - capture frame selection uses simulation-frame identity, not wall-clock timing.
-- texture identity never participates in global painter-order sorting.
+- texture/material identity never participates in a global reorder that violates painter order.
 - particle CPU state is the semantic oracle; GPU is an explicitly selected compiled backend.
+- generated Sprite pixels are not canonical until explicit import/validation.
+- arbitrary textured geometry belongs to Mesh2D rather than forcing SpriteRenderer into a generic renderer.
+- Spine remains outside the MIT-native core unless/until #61 SP0 explicitly approves the integration model.
 - optimization complexity follows measurement.
 
 ## Handoff rule
 
 Every PR that completes or materially changes an item in the owner-fixed execution order must update this file in the same PR.
 
-A fresh coding agent following `AGENTS.md` should be able to read this file, inspect the active PR/CI, and continue without previous chat history.
+A fresh coding agent following `AGENTS.md` should be able to read this file, inspect live PR/CI state, identify the exact first incomplete task or human gate, and continue without previous chat history.
