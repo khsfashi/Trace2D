@@ -1,24 +1,25 @@
 # Trace2D Project Status
 
-Last repository-state update: **2026-08-09**
+Last repository-state update: **2026-08-10**
 
 This document is the operational handoff for the next contributor or coding agent. Live repository code, active PR state, and CI results win over stale prose.
 
 ## Current phase
 
-**Public Alpha is released. Issue #41 reproducible renderer performance workloads is complete via merged PR #63. Issue #47 particle deterministic frame/keyed-random contracts is now the active implementation through draft PR #64. Finish/repair/validate #64 before starting #48. After #64 merges green, #48 rich deterministic CPU particle reference simulation is the exact next task.**
+**Public Alpha is released. Issue #47 particle deterministic frame/keyed-random contracts is complete via merged PR #64. Issue #48 rich deterministic CPU particle reference simulation is now the active implementation through draft PR #65. Finish/repair/validate #65 before starting #49. After #65 merges green, #49 text-authored particle effect assets + `ParticleEmitter2D` is the exact next task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
 ## Active PR
 
-- **PR #64 — Lock particle frame and keyed-random semantics**
-- branch: `agent/particle-determinism`
-- issue: **#47 / particle child 1 of 7**
-- scope: SDL-free frame ordering/lifetime primitives, stable emitter/random-key inputs, explicit random-channel IDs, exact keyed integer mixing, exact CPU unit/range mapping, and pure regression tests
-- no particle storage, authored effect format, emitter component, renderer, compiler, or GPU backend is introduced in this slice
-- do not begin #48 while #64 remains open
-- if CI/review finds a problem, repair #64 in scope and rerun the repository gates
+- **PR #65 — Add rich deterministic CPU particle reference simulation**
+- branch: `agent/particle-reference`
+- issue: **#48 / particle child 2 of 7**
+- scope: fixed-capacity SDL-free SoA CPU reference state, deterministic burst/periodic emission, stable compaction, rich V1 particle fields, reset/replay, overflow semantics, memory accounting, and headless tests
+- semantic particle payload: **92 bytes per admitted particle** across 13 prepared SoA blocks; no storage growth path exists in ordinary `Step()`
+- no authored TOML, `ParticleEmitter2D`, Agent/MCP integration, backend analyzer/compiler, renderer, or GPU backend is introduced in this slice
+- do not begin #49 while #65 remains open
+- if CI/review finds a problem, repair #65 in scope and rerun the repository gates
 
 ## Next execution order — owner-fixed
 
@@ -29,9 +30,9 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
 5. **#41 — reproducible renderer performance workloads** — complete via PR #63
-6. **#47 — particle deterministic frame/keyed-random contracts** — **active via PR #64**
-7. **#48 — rich deterministic CPU particle reference simulation** — exact next after #47 merges green
-8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
+6. **#47 — particle deterministic frame/keyed-random contracts** — complete via PR #64
+7. **#48 — rich deterministic CPU particle reference simulation** — **active via PR #65**
+8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`** — exact next after #48 merges green
 9. **#50 — complete Agent verification over CPU particle reference state**
 10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
 11. **#52 — GPU runtime backend for explicitly GPU-selected effects**
@@ -40,7 +41,7 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 14. **#60 — Mesh2D foundation: reusable textured indexed geometry and measured dynamic submission path**
 15. **#61 — Spine compatibility: SP0 explicit human license gate, then optional integration only if approved**
 
-Particle umbrella: **#46**. Broad particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Exact #47 semantic contract: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md).
+Particle umbrella: **#46**. Broad particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Exact #47 semantic contract: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md). Active #48 CPU reference contract: [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md).
 
 Sprite umbrella: **#59**. Detailed owner-approved contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 
@@ -54,9 +55,9 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 
 - Work only on the first incomplete and unblocked item in the owner-fixed order.
 - If that work has an active PR, finish/repair/validate that PR before starting anything later.
-- While PR #64 is open, it is the active work item.
+- While PR #65 is open, it is the active work item.
 - Merge only with green CI/repository gates; if merge becomes a genuine human-only action, report that one action instead of jumping ahead.
-- After #64 merges, start #48 directly. Do **not** skip ahead to authored effects, Agent integration, GPU work, Sprite, Mesh2D, or Spine.
+- After #65 merges, start #49 directly. Do **not** skip ahead to Agent integration, backend analysis/compiler, GPU work, Sprite, Mesh2D, or Spine.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 - Within #59, follow the exact fixed stage order in `docs/SPRITES.md`, creating/implementing one child issue/PR at a time.
 - After #59, complete #60 M0 then M1 one child/PR at a time.
@@ -65,9 +66,68 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 - Structured semantic state beats pixel inference for gameplay/UI/particle/sprite animation assertions.
 - Visual capture remains first-class QA evidence when pixels genuinely matter.
 
-## Active #47 particle determinism contract
+## Active #48 particle CPU reference contract
 
-PR #64 establishes the semantic source that #48-#53 must preserve.
+PR #65 implements the canonical CPU semantic/reference backend that #49-#53 must preserve rather than reinterpret.
+
+### Prepared storage and steady-state rules
+
+- 13 fixed-capacity SoA blocks are prepared once for spawn ordinal, position, velocity, acceleration, age, lifetime, sampled/current size, rotation/angular velocity, sampled/current color, and sprite index.
+- simulation space is immutable emitter definition state and is exposed in particle reads without duplicating it into each slot.
+- semantic per-particle payload is **92 bytes**.
+- a 4096-capacity representative workload prepares **376,832 bytes** of particle payload before allocator bookkeeping.
+- `Step()` has no storage growth, filesystem, parsing, string/map, JSON, snapshot, renderer, or GPU path.
+- default hard guards (`65,536` particles, `4,096` bursts, `65,536` spawn attempts/frame) are safety ceilings only; #53 must derive practical performance guidance from measurements.
+
+### Emission and identity
+
+For a frame that contains both emission types:
+
+```text
+ordered frame bursts
+  -> periodic emission
+```
+
+Every attempt consumes one `ParticleSpawnOrdinal`, including capacity-dropped attempts. Accepted particles store their ordinal. Expiration uses stable in-place compaction, preserving survivor order; new particles append to the free dense tail and never reuse old ordinals.
+
+### Rich V1 CPU state
+
+#48 supports deterministic CPU-reference semantics for:
+
+- point / axis-aligned box / uniform-area circle spawn shapes,
+- inclusive integer lifetime range,
+- speed + angle initialization,
+- fixed acceleration,
+- initial size range + size-over-life multiplier,
+- initial rotation + angular velocity,
+- per-channel RGBA initialization + color-over-life target,
+- bounded sprite choice,
+- local/world simulation-space identity.
+
+All random initialization continues to use the #47 key `(globalSeed, emitterStableId, spawnOrdinal, randomChannel)`.
+
+### Existing-particle update order
+
+```text
+velocity += acceleration
+position += velocity
+rotation += angularVelocity
+age += 1
+expire if age >= lifetime
+if surviving: evaluate size/color over life
+```
+
+New particles are observable at age 0 and do not update on their spawn frame. `Reset()` resets frame, ordinal, burst cursor, alive count, and counters without reallocating prepared storage, so replay with the same inputs reproduces complete rich state on the supported CPU toolchain.
+
+### Read and measurement surface
+
+The CPU reference exposes allocation-free reads by dense alive index and stable spawn ordinal, plus cheap counters for attempts/spawned/updated/expired/dropped/peak-alive and exact prepared payload accounting. #50 will wrap this surface with bounded Agent inspection/assertions/fingerprints; #51 will turn structural data into explicit cost reports without inventing fake portable CPU percentages.
+
+See [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md).
+
+## Completed #47 particle determinism contract — PR #64
+
+#47 established the semantic source that #48-#53 must preserve.
 
 ### Exact frame order
 
@@ -90,7 +150,7 @@ Consequences:
 
 ### Stable spawn ordinal
 
-`ParticleSpawnOrdinal` is a per-emitter 64-bit **spawn-attempt ordinal**. Later emitters must consume an ordinal for every deterministic spawn attempt, including attempts dropped because capacity is full. This prevents capacity pressure from shifting the keyed random values of later scheduled attempts.
+`ParticleSpawnOrdinal` is a per-emitter 64-bit **spawn-attempt ordinal**. Emitters consume an ordinal for every deterministic spawn attempt, including attempts dropped because capacity is full. This prevents capacity pressure from shifting the keyed random values of later scheduled attempts.
 
 ### Keyed randomness
 
@@ -125,7 +185,7 @@ u32             = 0xE2B5E492
 unit-float bits = 0x3F62B5E4
 ```
 
-See [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md) for the exact integer algorithm, channel table, lifetime examples, and #48 handoff constraints.
+See [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md).
 
 ## Completed #41 renderer workload foundation — PR #63
 

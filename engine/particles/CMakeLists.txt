@@ -1,5 +1,6 @@
 add_library(trace2d_particles STATIC
     src/ParticleDeterminism.cpp
+    src/ParticleReference.cpp
 )
 
 add_library(Trace2D::Particles ALIAS trace2d_particles)
