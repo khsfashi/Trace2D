@@ -34,7 +34,9 @@ struct UiElement final
     std::string id{};
     UiElementKind kind{UiElementKind::Panel};
     UiRect bounds{};
+    std::string name{};
     std::string text{};
+    bool visible{true};
     bool enabled{true};
     std::uint64_t activationCount{0};
 };
@@ -47,9 +49,12 @@ enum class UiActionResult : std::uint8_t
     DuplicateId,
     InvalidBounds,
     NotFound,
+    NotVisible,
     Disabled,
     NotFocusable,
     NotActivatable,
+    NotTextInput,
+    NotFocused,
 };
 
 [[nodiscard]] std::string_view ToString(UiElementKind kind) noexcept;
@@ -75,6 +80,7 @@ public:
     [[nodiscard]] UiActionResult AddElement(UiElement element);
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
+    [[nodiscard]] UiActionResult InputText(std::string_view id, std::string_view text);
     void ClearFocus() noexcept;
 
 private:
