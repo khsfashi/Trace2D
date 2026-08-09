@@ -5,6 +5,7 @@ add_library(trace2d_render STATIC
     src/Capture.cpp
     src/RenderData.cpp
     src/Renderer.cpp
+    src/RendererWorkload.cpp
 )
 
 add_library(Trace2D::Render ALIAS trace2d_render)
