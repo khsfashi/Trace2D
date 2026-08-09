@@ -1,3 +1,5 @@
+find_package(nlohmann_json CONFIG REQUIRED)
+
 add_executable(trace2d_mcp_tests
     McpServerTests.cpp
 )
