@@ -381,7 +381,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 ValidateKnownKeys(
                     *elementTable,
                     elementPath,
-                    {"id", "kind", "bounds", "text", "enabled"},
+                    {"id", "kind", "bounds", "name", "text", "visible", "enabled"},
                     result.diagnostics);
 
                 const std::optional<std::string> id = ReadRequiredString(
@@ -397,10 +397,20 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     *elementTable,
                     elementPath + ".bounds",
                     result.diagnostics);
+                const std::optional<std::string> elementName = ReadOptionalString(
+                    *elementTable,
+                    "name",
+                    elementPath + ".name",
+                    result.diagnostics);
                 const std::optional<std::string> elementText = ReadOptionalString(
                     *elementTable,
                     "text",
                     elementPath + ".text",
+                    result.diagnostics);
+                const std::optional<bool> visible = ReadOptionalBool(
+                    *elementTable,
+                    "visible",
+                    elementPath + ".visible",
                     result.diagnostics);
                 const std::optional<bool> enabled = ReadOptionalBool(
                     *elementTable,
@@ -409,7 +419,8 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     result.diagnostics);
 
                 if (!id.has_value() || !kind.has_value() || !bounds.has_value() ||
-                    !elementText.has_value() || !enabled.has_value() ||
+                    !elementName.has_value() || !elementText.has_value() ||
+                    !visible.has_value() || !enabled.has_value() ||
                     !canvasWidth.has_value() || !canvasHeight.has_value())
                 {
                     continue;
@@ -419,7 +430,9 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 element.id = *id;
                 element.kind = *kind;
                 element.bounds = *bounds;
+                element.name = elementName->empty() ? *elementText : *elementName;
                 element.text = *elementText;
+                element.visible = *visible;
                 element.enabled = *enabled;
 
                 const UiActionResult addResult = document.AddElement(std::move(element));
