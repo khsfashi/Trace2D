@@ -3,6 +3,7 @@ add_executable(trace2d_agent_tests
     QueryTests.cpp
     UiAutomationTests.cpp
     UiAuthoredAutomationTests.cpp
+    UiGameInteractionTests.cpp
 )
 
 target_link_libraries(trace2d_agent_tests
