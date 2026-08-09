@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — #40 deterministic texture assets, #42 text/basic UI, and #43 semantic UI automation are implemented. PR #56 is the active semantic-UI merge candidate; after it merges with green CI, #39 MCP transport is next.**
+**Public Alpha released — #40 deterministic texture assets, #42 text/basic UI, and #43 semantic UI automation are complete. #39 MCP transport is now the active next implementation task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
@@ -16,8 +16,8 @@ The repository owner fixed this sequence on **2026-08-08**. Future coding agents
 
 1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
 2. **#42 — text rendering and basic UI primitives** — complete via PR #55
-3. **#43 — semantic UI tree and agent interaction** — implemented in PR #56; finish/merge this PR first
-4. **#39 — MCP transport over the completed protocol-independent agent/UI facade**
+3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
+4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — **active next task**
 5. **#41 — reproducible renderer performance workloads**
 6. **#47 — particle deterministic frame/keyed-random contracts**
 7. **#48 — rich deterministic CPU particle reference simulation**
@@ -35,14 +35,14 @@ Particle umbrella: **#46**. Detailed particle contract: [`docs/PARTICLES.md`](do
 - Work only on the first incomplete and unblocked item above.
 - If that item has an active PR, finish/repair that PR before starting anything else.
 - Merge only with green CI, then advance exactly one step.
-- Do **not** start #39 MCP before PR #56 / #43 is merged.
+- #43 is merged, so #39 MCP may now begin.
 - Do **not** start #47 particles before #41 renderer workloads are complete.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 - MCP is transport, not the engine API.
 - UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates are observable bounds, not the primary automation identity when semantic identity exists.
 - Structured state beats pixel inference for gameplay, UI, and CPU-reference particle assertions.
 
-**Active work: finish PR #56. Next implementation task after PR #56 merges: #39.**
+**Active next implementation task: #39.**
 
 ## Completed #40 texture asset slice
 
@@ -73,7 +73,7 @@ The first UI slice established:
 - headless and windowed preview paths over the same `UiDocument`,
 - no renderer-owned authoritative UI state.
 
-## #43 semantic UI implementation — PR #56
+## Completed #43 semantic UI automation — PR #56
 
 PR #56 extends the existing UI state rather than replacing it.
 
@@ -124,37 +124,52 @@ text_input -> textbox
 
 Semantic actions resolve exactly one target before mutating the authoritative `UiDocument`. Text input requires prior focus. `AssertUi` checks visible/enabled/focused/text/activation-count state and returns structured mismatch context.
 
+### Gameplay handoff
+
+Button `activationCount` is the minimal deterministic edge signal. Gameplay can consume the count delta exactly once during deterministic update logic without a callback graph or heap event-object framework.
+
+The committed headless game-interaction test proves:
+
+```text
+query role=button name="Start Game"
+  -> semantic activation
+  -> activation-count edge consumed by game logic
+  -> authoritative scene entity changes
+  -> existing Agent scene query verifies the result
+```
+
+No screen-coordinate targeting or renderer initialization participates in this flow.
+
 ### Performance/scope contract
 
 - element lookup and semantic queries remain deterministic O(N) authored-order scans,
 - no speculative hash/index structure is added before measured need,
-- focus and activation do not add heap allocation,
+- `UiDocument` focus and activation state mutation add no heap allocation,
 - explicit text replacement may resize its existing string and is not a per-frame hot path,
-- Agent snapshots/results allocate only on explicit inspection/query requests,
+- Agent snapshots/results allocate only on explicit inspection/query/action requests,
 - ordinary UI raster/simulation does not build JSON, MCP payloads, snapshots, or fingerprints,
 - no DOM clone, browser abstraction, hierarchy/layout framework, coordinate-primary automation, or MCP implementation is introduced by #43.
 
 ### Headless verification
 
-PR #56 adds tests that prove, without renderer initialization or coordinate targeting:
+PR #56 tests cover:
 
-```text
-query role=button name="Start Game"
-  -> inspect semantic state
-  -> activate twice
-query role=textbox name="Player Name"
-  -> focus
-  -> input "Ada"
-  -> assert focused/text state
-```
+- authored TOML -> `UiDocument` -> semantic Agent interaction,
+- role/name query without coordinates,
+- focus, activation, text input, and assertions,
+- authored-order multi-query determinism,
+- invalid selectors and ambiguity,
+- unbound UI, hidden, disabled, wrong-type, and focus-required failures,
+- semantic TOML fields and hidden-element raster behavior,
+- semantic UI activation -> game/scene state change -> structured Agent scene verification.
 
-Tests also cover authored-order multi-query determinism, invalid selectors, ambiguity, unbound UI, hidden/disabled controls, wrong control types, focus requirements, state-mismatch diagnostics, semantic TOML fields, and hidden-element raster behavior.
+PR #56 merged only after `windows-msvc`, full CTest, `clean-clone-quick-start`, and `release-audit` were green.
 
 See [`docs/UI.md`](docs/UI.md).
 
 ## Why this order
 
-Assets provide deterministic resource identity. Basic UI provides the smallest engine-owned UI state/rendering input. Semantic UI then makes that same state directly inspectable and controllable before MCP. #39 can therefore be a thin adapter over an already-complete protocol-independent vocabulary instead of forcing transport concerns into engine architecture.
+Assets provide deterministic resource identity. Basic UI provides the smallest engine-owned UI state/rendering input. Semantic UI makes that same state directly inspectable and controllable before MCP. #39 can therefore be a thin adapter over an already-complete protocol-independent vocabulary instead of forcing transport concerns into engine architecture.
 
 #41 follows MCP to establish reproducible renderer workloads before the particle pipeline. Particles then use deterministic CPU reference behavior plus measured cost evidence before any explicit human-selected GPU backend.
 
