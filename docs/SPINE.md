@@ -41,7 +41,37 @@ Trace2D native core / Sprite / Animation / Mesh2D
 
 The optional boundary must not make users believe the MIT license grants rights to Spine Runtime code.
 
-## 3. SP0 — mandatory HUMAN license gate
+## 3. Official licensing snapshot reviewed 2026-08-09
+
+This snapshot exists so a future agent does not reinterpret public source availability as an open-source/MIT-style permission. **Re-check the official terms at SP0 because licenses can change.**
+
+Official sources reviewed:
+
+- Spine Runtimes License Agreement: https://en.esotericsoftware.com/spine-runtimes-license
+- Spine Editor License Agreement, especially Section 2: https://us.esotericsoftware.com/spine-editor-license
+- Official Spine Runtimes repository licensing guidance: https://github.com/EsotericSoftware/spine-runtimes
+
+The currently published Spine Runtimes License Agreement and Spine Editor License Agreement state that they were last updated **April 5, 2025** and replace prior versions.
+
+The current official terms/guidance establish at least these facts relevant to Trace2D:
+
+1. Integrating the Spine Runtimes into software, or creating derivative works containing them, is governed by the Spine licensing terms rather than Trace2D's MIT license.
+2. The Spine Editor License Agreement Section 2.4 states that a valid Spine Editor license is required to integrate the Spine Runtimes into software or create/modify derivative works containing them.
+3. The official agreement explicitly gives an **SDK, game toolkit, or software library used to create new applications containing the Spine Runtimes** as an example: each user of that SDK/toolkit/library must obtain a Spine Editor license because the resulting applications are Products containing the runtimes.
+4. The Spine Runtimes License Agreement's alternate integration permission likewise requires each user of the Products to obtain their own Spine Editor license and requires redistribution to include the Spine Runtimes license and copyright notice.
+5. The official `spine-runtimes` README summarizes the development-tool case similarly: runtimes may be integrated into software, but users of an SDK/game toolkit/software library must have their own Spine license and must be made aware of the requirement.
+6. For a product containing Spine Runtimes distributed to users who do not have Spine licenses, the official repository guidance says the integrator needs a valid Spine license at the time of integration and downstream parties may not modify/use that product to create new software without obtaining their own Spine license.
+7. The official runtime repository strongly recommends freezing the Spine Editor version to the matching Spine Runtimes source and updating them in lockstep.
+
+### Trace2D interpretation of this snapshot
+
+For a public MIT game engine, this makes "just vendor `spine-cpp` because the source is public" an unacceptable assumption.
+
+It does **not** mean Spine compatibility is impossible. It means the exact open-source-engine distribution model—adapter source, runtime acquisition, source builds, binary builds, CI, notices, downstream developer disclosure, and version pinning—must be explicitly confirmed and recorded before Trace2D ships the integration.
+
+This snapshot is informational and deliberately conservative. If official written clarification for the exact Trace2D model differs from this interpretation, record that clarification at SP0 and update this document before implementation.
+
+## 4. SP0 — mandatory HUMAN license gate
 
 Issue #61 is blocked at SP0 until the repository owner records an explicit decision after obtaining sufficient confirmation for the intended model.
 
@@ -62,7 +92,7 @@ The confirmation should address at least:
 
 Prefer a concrete written answer from official Esoteric Software sources/support for the exact open-source-engine scenario before approval.
 
-## 4. Agent behavior at SP0
+## 5. Agent behavior at SP0
 
 When the owner-fixed sequence reaches #61 and SP0 is not approved, a coding agent must stop implementation and report one clear user action instead of guessing:
 
@@ -74,7 +104,7 @@ Record the approved integration/distribution model before SP1 can begin.
 
 The agent must not skip ahead to SP1-SP4 and must not silently move to an unrelated large feature unless the owner explicitly changes the execution order.
 
-## 5. Planned architecture after approval
+## 6. Planned architecture after approval
 
 Only if SP0 is approved, proceed in this fixed order.
 
@@ -140,7 +170,7 @@ Provide reproducible workloads separating:
 - retained dynamic buffer capacities,
 - GPU timing where measured.
 
-## 6. Determinism and gameplay authority
+## 7. Determinism and gameplay authority
 
 Sprite-frame animation can target very strict deterministic timing/state contracts. Spine deformation involves floating-point interpolation and mesh output from a third-party runtime, so Trace2D must not make an unsupported promise of universal bit-identical deformed vertices across every platform/compiler/driver.
 
@@ -159,7 +189,7 @@ rendered GPU pixels
 
 If gameplay uses bones/sockets/bounding attachments, those engine-facing semantics must be exposed explicitly. Gameplay should not infer authority from rendered mesh pixels.
 
-## 7. Native Trace2D animation remains independent
+## 8. Native Trace2D animation remains independent
 
 Spine support must never become a prerequisite for ordinary Trace2D sprite animation.
 
@@ -181,7 +211,7 @@ Trace2D TexturedMesh2D
 
 Spine, if approved, becomes one external producer/consumer of those generic presentation/observation capabilities rather than the architecture around which they are designed.
 
-## 8. User-facing documentation requirement after approval
+## 9. User-facing documentation requirement after approval
 
 If Trace2D later ships Spine compatibility, documentation must clearly distinguish:
 
@@ -194,7 +224,7 @@ If Trace2D later ships Spine compatibility, documentation must clearly distingui
 
 No Quick Start should accidentally install or enable a separately licensed runtime without making those conditions visible.
 
-## 9. Completion rule
+## 10. Completion rule
 
 Trace2D may claim **shipped Spine compatibility** only when:
 
