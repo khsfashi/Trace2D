@@ -1,5 +1,6 @@
 add_executable(trace2d_particles_tests
     ParticleDeterminismTests.cpp
+    ParticleReferenceTests.cpp
 )
 
 target_link_libraries(trace2d_particles_tests
