@@ -6,20 +6,25 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha is released. Issue #47 particle deterministic frame/keyed-random contracts is complete via merged PR #64. Issue #48 rich deterministic CPU particle reference simulation is now the active implementation through draft PR #65. Finish/repair/validate #65 before starting #49. After #65 merges green, #49 text-authored particle effect assets + `ParticleEmitter2D` is the exact next task.**
+**Public Alpha is released. Particle deterministic contracts (#47) and the rich deterministic CPU reference backend (#48) are complete. Issue #49 text-authored particle effect assets + `ParticleEmitter2D` is now the active implementation through draft PR #66. Finish/repair/validate #66 before starting #50. After #66 merges green, #50 complete Agent verification over CPU particle reference state is the exact next task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
 ## Active PR
 
-- **PR #65 — Add rich deterministic CPU particle reference simulation**
-- branch: `agent/particle-reference`
-- issue: **#48 / particle child 2 of 7**
-- scope: fixed-capacity SDL-free SoA CPU reference state, deterministic burst/periodic emission, stable compaction, rich V1 particle fields, reset/replay, overflow semantics, memory accounting, and headless tests
-- semantic particle payload: **92 bytes per admitted particle** across 13 prepared SoA blocks; no storage growth path exists in ordinary `Step()`
-- no authored TOML, `ParticleEmitter2D`, Agent/MCP integration, backend analyzer/compiler, renderer, or GPU backend is introduced in this slice
-- do not begin #49 while #65 remains open
-- if CI/review finds a problem, repair #65 in scope and rerun the repository gates
+- **PR #66 — Add text-authored particle effects and `ParticleEmitter2D`**
+- branch: `agent/particle-effect-assets`
+- issue: **#49 / particle child 3 of 7**
+- scope: strict versioned `.trace2d.particle.toml`, deterministic project-relative identity, immutable shared effect cache, explicit CPU/reserved-GPU backend field, lifecycle semantics, small authored particle-scene references, resolved `ParticleEmitter2D`, and headless tests
+- effect definitions are shared as immutable cached state; each live emitter owns independent mutable `ParticleReferenceEmitter` state
+- `ParticleEmitter2D::Step()` contains no filesystem, TOML, path/string/map/cache discovery, hot reload, renderer, or GPU path
+- authored capacity and spawn-attempt limits are rejected before simulation allocation
+- `backend = "gpu"` is preserved but returns an explicit unavailable-backend error until #52; it never falls back to CPU
+- no Agent/MCP particle verification, backend analyzer/compiler, GPU runtime, CPU/GPU conformance, generic reflection/ECS module graph, or particle editor/importer architecture is introduced in this slice
+- if CI/review finds a problem, repair #66 in scope and rerun the repository gates
+- do not begin #50 while #66 remains open
+
+See [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md).
 
 ## Next execution order — owner-fixed
 
@@ -31,9 +36,9 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
 5. **#41 — reproducible renderer performance workloads** — complete via PR #63
 6. **#47 — particle deterministic frame/keyed-random contracts** — complete via PR #64
-7. **#48 — rich deterministic CPU particle reference simulation** — **active via PR #65**
-8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`** — exact next after #48 merges green
-9. **#50 — complete Agent verification over CPU particle reference state**
+7. **#48 — rich deterministic CPU particle reference simulation** — complete via PR #65
+8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`** — **active via draft PR #66**
+9. **#50 — complete Agent verification over CPU particle reference state** — exact next after #49 merges green
 10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
 11. **#52 — GPU runtime backend for explicitly GPU-selected effects**
 12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow, and human/LLM guidance**
@@ -41,7 +46,7 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 14. **#60 — Mesh2D foundation: reusable textured indexed geometry and measured dynamic submission path**
 15. **#61 — Spine compatibility: SP0 explicit human license gate, then optional integration only if approved**
 
-Particle umbrella: **#46**. Broad particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Exact #47 semantic contract: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md). Active #48 CPU reference contract: [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md).
+Particle umbrella: **#46**. Broad contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Determinism: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md). CPU reference: [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md). Authored effects/runtime component: [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md).
 
 Sprite umbrella: **#59**. Detailed owner-approved contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 
@@ -55,9 +60,9 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 
 - Work only on the first incomplete and unblocked item in the owner-fixed order.
 - If that work has an active PR, finish/repair/validate that PR before starting anything later.
-- While PR #65 is open, it is the active work item.
+- While PR #66 is open, it is the active work item.
 - Merge only with green CI/repository gates; if merge becomes a genuine human-only action, report that one action instead of jumping ahead.
-- After #65 merges, start #49 directly. Do **not** skip ahead to Agent integration, backend analysis/compiler, GPU work, Sprite, Mesh2D, or Spine.
+- After #66 merges, start #50 directly. Do **not** skip ahead to backend analysis/compiler, GPU work, Sprite, Mesh2D, or Spine.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 - Within #59, follow the exact fixed stage order in `docs/SPRITES.md`, creating/implementing one child issue/PR at a time.
 - After #59, complete #60 M0 then M1 one child/PR at a time.
@@ -66,7 +71,116 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 - Structured semantic state beats pixel inference for gameplay/UI/particle/sprite animation assertions.
 - Visual capture remains first-class QA evidence when pixels genuinely matter.
 
-## Active #48 particle CPU reference contract
+## Active #49 authored particle effect contract
+
+PR #66 makes the #48 reference semantics text-authored and scene-resolved without inventing a second particle model.
+
+### Authored identity and cache
+
+- dedicated V1 source suffix: `.trace2d.particle.toml`
+- project-relative path normalization matches the existing asset rules: slash normalization, `.` removal, absolute/drive-path rejection, `..` rejection, embedded-null rejection
+- canonical-equivalent references reuse one `shared_ptr<const ParticleEffectAsset>` cache entry
+- successful parsed definitions are immutable shared state
+- cache invalidation/clear is explicit setup work; there is no polling or per-frame stat/scan
+- source files are bounded to 1 MiB as an authoring safety limit
+
+### Rich V1 semantic surface
+
+The authored format maps directly to #48 fields:
+
+- semantic effect ID,
+- explicit bounded `max_particles`,
+- `duration_frames`, `loop`, and `play_on_load`,
+- deterministic ordered bursts,
+- integer-frame periodic emission,
+- point / box / circle spawn,
+- lifetime frame range,
+- speed / angle / acceleration,
+- initial size + end multiplier,
+- initial rotation + angular velocity,
+- initial RGBA range + end RGBA,
+- project-relative sprite reference list used as bounded sprite-choice identity,
+- local/world simulation space,
+- small V1 blend mode (`alpha` / `additive`).
+
+The parser rejects unknown fields, unsupported enum values, non-finite numbers, unordered/invalid ranges, contradictory spawn parameters, unsafe capacities, excessive burst tables, and frame-local spawn-attempt budget violations with semantic field paths and source positions when available.
+
+`SaveParticleEffectToml()` writes canonical field order and locale-independent float text. Parse -> save -> parse is tested across the complete supported semantic surface.
+
+### Backend field
+
+```toml
+[effect]
+backend = "cpu"
+```
+
+- `cpu` is executable in #49.
+- reserved `gpu` is a valid authored value and is preserved by canonical serialization.
+- `ParticleEmitter2D::Prepare()` rejects `gpu` with `BackendUnavailable` until #52.
+- no automatic or heuristic backend rewriting exists.
+- #51 must consume this exact field for analysis/compiler work.
+
+### Lifecycle semantics
+
+`duration_frames` is the exact number of CPU-reference steps in one effect cycle.
+
+- non-looping: execute exactly that many steps, stop, keep the final state observable;
+- looping: keep the final state observable, reset immediately before the next requested step, then restart reference frame 0;
+- `play_on_load` only sets the initial prepared runtime playing state;
+- restart/reset reuse already prepared reference storage rather than reallocating it.
+
+### Scene reference and runtime ownership
+
+Particle-enabled scene loading accepts explicit small references:
+
+```toml
+[[particle_emitters]]
+entity = "fx_anchor"
+effect = "effects/hit_spark.trace2d.particle.toml"
+stable_id = 77
+```
+
+V1 stores only entity semantic ID, canonical effect reference, and explicit numeric stable emitter ID in the authored scene extension. It does not duplicate the effect definition into each entity.
+
+- one particle reference per entity in V1,
+- stable IDs must be unique within the scene,
+- referenced entity IDs must exist,
+- stable numeric identity never derives from pointer/allocation/container order,
+- `ParticleEmitter2D` holds the shared immutable effect but owns its own mutable `ParticleReferenceEmitter`.
+
+The particle-aware loader delegates ordinary scene semantics to the existing strict scene loader after removing the explicit particle extension. This keeps #49 narrow and avoids adding reflection, a generic component property bag, or a generic particle module stack.
+
+### Hot-path boundary
+
+Everything needed by simulation is resolved during cache load and emitter preparation. Ordinary `ParticleEmitter2D::Step()` performs no:
+
+- filesystem access,
+- TOML parse/format,
+- path normalization,
+- string lookup,
+- map/cache lookup,
+- asset discovery,
+- invalidation polling/hot reload,
+- renderer/GPU work,
+- JSON/snapshot/fingerprint work.
+
+The underlying reference emitter retains the #48 fixed-capacity, steady-state-allocation-free stepping contract.
+
+### Required #49 test coverage in PR #66
+
+- canonical-equivalent references -> one cached immutable definition,
+- malformed/unknown fields -> structured diagnostics,
+- invalid range/capacity -> deterministic failure before simulation,
+- complete rich V1 parse/canonical-save/parse normalization,
+- `gpu` backend preservation + explicit runtime unavailability,
+- repeated emitters share immutable effect pointers but not mutable simulation state,
+- deterministic lifecycle loop boundary,
+- particle scene reference load + canonical effect identity,
+- headless scene -> effect cache -> emitter prepare -> CPU simulation with no renderer initialization.
+
+After #66 merges green, #50 wraps this resolved CPU semantic state with bounded Agent inspection/assertions/fingerprints. It must not change particle semantics.
+
+## Completed #48 particle CPU reference contract — PR #65
 
 PR #65 implements the canonical CPU semantic/reference backend that #49-#53 must preserve rather than reinterpret.
 
@@ -309,7 +423,7 @@ See [`docs/MCP.md`](docs/MCP.md).
 
 ## Particle target
 
-Particle implementation is governed by #46, `docs/PARTICLES.md`, and the active child contract.
+Particle implementation is governed by #46 and the four particle contract documents linked above.
 
 The defining workflow remains:
 
