@@ -34,6 +34,8 @@ Then inspect the live GitHub state:
 3. open issues relevant to the current phase
 4. recent commits if repository state differs from `PROJECT_STATUS.md`
 
+If the active task is particle umbrella/children **#46-#53**, also read `docs/PARTICLES.md` and the exact active child issue before editing code.
+
 Live repository state wins over stale prose. If `PROJECT_STATUS.md` is stale, update it as part of the work.
 
 ## Source-of-truth hierarchy
@@ -48,6 +50,8 @@ When documents disagree, use this order:
 6. `docs/ROADMAP.md`
 7. older issue descriptions and discussion
 
+For particle work, `docs/PARTICLES.md` plus the active #47-#53 issue records the owner-approved particle architecture. If those disagree with live compiling code/tests because implementation has advanced, reconcile the documentation in the same PR rather than silently choosing one interpretation.
+
 Do not silently reinterpret a deliberate architecture constraint. If a constraint must change, document why in the same PR.
 
 ## How to choose the next task
@@ -58,7 +62,9 @@ Do not silently reinterpret a deliberate architecture constraint. If a constrain
 4. Work on one coherent issue/PR at a time unless two issues are inseparable.
 5. Prefer the smallest vertical slice that leaves the repository runnable and testable.
 
-Do not jump ahead to attractive later features such as MCP, an editor, advanced rendering, custom allocators, or lock-free infrastructure while earlier release gates are incomplete.
+Do not jump ahead to attractive later features such as an editor, advanced rendering, custom allocators, lock-free infrastructure, GPU particles, physics, or animation while earlier owner-fixed gates are incomplete.
+
+Within the particle sequence, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 
 ## Development workflow
 
@@ -154,11 +160,31 @@ capture
 test
 ```
 
-## Scope control before first public release
+## Particle-specific hard rules
 
-The first public release is a proof of the agent-first loop, not a Godot replacement.
+When working on #46-#53:
 
-Do not make these release blockers unless `docs/PUBLIC_RELEASE.md` is intentionally revised:
+- CPU particle execution is the deterministic semantic reference and must be fully inspectable headlessly.
+- Rich supported CPU particle properties are allowed; per-particle heap objects, strings, maps, callbacks, renderer handles, and arbitrary script/module state are not.
+- Particle capacity is explicit and validated before simulation.
+- Ordinary stepping must not build JSON, detailed snapshots, screenshots, or fingerprints unless explicitly requested.
+- Keyed randomness must keep unrelated emitters and random channels isolated.
+- The CPU cost report separates deterministic structural metrics from machine-dependent timing evidence.
+- Never invent a portable "CPU percentage" from semantic operation counts.
+- A coding agent may recommend CPU or GPU using documented measurements, but **must never change the backend automatically**.
+- CPU -> GPU is a human decision represented by explicit reviewable authored/build configuration.
+- `backend=cpu` remains CPU even if analysis recommends considering GPU.
+- `backend=gpu` must fail clearly when unsupported; never silently fall back to CPU.
+- GPU compilation minimizes runtime attributes from the verified ParticleProgram rather than copying the complete rich CPU reference layout.
+- Normal GPU mode must not also run the full CPU reference simulation unless explicit conformance/debug mode requests dual execution.
+- CPU is the exact semantic oracle; do not claim universal bit-identical floating-point GPU behavior across vendors/drivers without a separately proven numeric contract.
+- Particle pixels are visual QA evidence, not the only correctness oracle.
+
+## Scope control
+
+Trace2D grows through narrow measured vertical slices, not by attempting to become a full general-purpose engine at once.
+
+Do not make these implicit requirements unless `PROJECT_STATUS.md` and the active issue intentionally introduce them:
 
 - full editor
 - scripting language
@@ -168,8 +194,10 @@ Do not make these release blockers unless `docs/PUBLIC_RELEASE.md` is intentiona
 - full-featured ECS
 - custom allocator framework
 - work-stealing job system
-- MCP integration
-- broad platform support beyond the tested Windows baseline
+- broad platform support beyond tested baselines
+- generic particle graph/editor
+- gameplay-authoritative particle collision
+- particle trails/sub-emitter recursion
 
 ## Documentation responsibilities
 
@@ -183,9 +211,11 @@ Update `PROJECT_STATUS.md` in the same PR whenever work changes any of these:
 - CI/build assumptions
 - major architecture decision
 
-Update `docs/PUBLIC_RELEASE.md` only when the public release scope/gates change, not after every normal task.
+Update `docs/PUBLIC_RELEASE.md` only when public release scope/gates change, not after every normal task.
 
 Update architecture/design documents when a change affects module boundaries, determinism guarantees, authored formats, or the agent contract.
+
+Particle child PRs must update `docs/PARTICLES.md` whenever they finalize or change particle semantic, cost-analysis, compiler, backend, or conformance contracts.
 
 ## Finishing a task
 
