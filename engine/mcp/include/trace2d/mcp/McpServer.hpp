@@ -13,7 +13,6 @@ class AgentFacade;
 namespace trace2d::mcp
 {
 inline constexpr std::string_view ProtocolVersion = "2026-07-28";
-inline constexpr std::string_view LegacyProtocolVersion = "2025-11-25";
 
 class McpServer final
 {
