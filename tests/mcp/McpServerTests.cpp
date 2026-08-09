@@ -43,7 +43,7 @@ trace2d::scene::Scene MakeScene()
     trace2d::scene::EntityDescriptor player{};
     player.semanticId = "player";
     player.name = "Player";
-    scene.CreateEntity(std::move(player));
+    [[maybe_unused]] const trace2d::scene::EntityId playerId = scene.CreateEntity(std::move(player));
     return scene;
 }
 
@@ -129,7 +129,7 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     ASSERT_TRUE(discovery.contains("result"));
     EXPECT_EQ(discovery["result"]["resultType"], "complete");
     ASSERT_EQ(discovery["result"]["supportedVersions"].size(), 1U);
-    EXPECT_EQ(discovery["result"]["supportedVersions"][0], trace2d::mcp::ProtocolVersion);
+    EXPECT_EQ(discovery["result"]["supportedVersions"][0], std::string{trace2d::mcp::ProtocolVersion});
     EXPECT_EQ(discovery["result"]["ttlMs"], 60'000U);
     EXPECT_EQ(discovery["result"]["cacheScope"], "public");
     EXPECT_EQ(discovery["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "trace2d-mcp");
@@ -169,7 +169,7 @@ TEST(McpServerTests, LegacyInitializeIsRejectedByModernOnlyServer)
     ASSERT_TRUE(response.contains("error"));
     EXPECT_EQ(response["error"]["code"], -32022);
     ASSERT_EQ(response["error"]["data"]["supported"].size(), 1U);
-    EXPECT_EQ(response["error"]["data"]["supported"][0], trace2d::mcp::ProtocolVersion);
+    EXPECT_EQ(response["error"]["data"]["supported"][0], std::string{trace2d::mcp::ProtocolVersion});
     EXPECT_EQ(response["error"]["data"]["requested"], "2025-11-25");
 }
 
