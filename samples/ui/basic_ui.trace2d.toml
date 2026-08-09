@@ -1,0 +1,28 @@
+format_version = 1
+
+[canvas]
+width = 160
+height = 96
+
+[[elements]]
+id = "root"
+kind = "panel"
+bounds = [0, 0, 160, 96]
+
+[[elements]]
+id = "title"
+kind = "label"
+bounds = [8, 8, 100, 16]
+text = "Trace2D UI"
+
+[[elements]]
+id = "start"
+kind = "button"
+bounds = [8, 32, 96, 24]
+text = "Start Game"
+
+[[elements]]
+id = "player_name"
+kind = "text_input"
+bounds = [8, 64, 120, 24]
+text = "Player"

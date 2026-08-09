@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — #40 deterministic texture assets complete; #42 text/basic UI is next. The owner-fixed post-#41 particle pipeline is planned in #46 / #47-#53.**
+**Public Alpha released — #40 deterministic texture assets and #42 text/basic UI are complete; #43 semantic UI is next. The owner-fixed post-#41 particle pipeline is planned in #46 / #47-#53.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08 and the repository is Public under the MIT License. The first release proves one complete minimal agent-first 2D development loop:
 
@@ -31,7 +31,7 @@ The repository owner fixed this implementation order on **2026-08-08**.
 **Future coding agents must follow this sequence unless the repository owner explicitly changes it. Do not reorder, skip, parallelize, or substitute later roadmap work because another task appears more attractive.**
 
 1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
-2. **#42 — text rendering and basic UI primitives**
+2. **#42 — text rendering and basic UI primitives** — complete via PR #55
 3. **#43 — semantic UI tree and agent interaction**
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade**
 5. **#41 — reproducible renderer performance workloads**
@@ -59,7 +59,7 @@ Particle umbrella: **#46**. Detailed design contract: [`docs/PARTICLES.md`](docs
 - UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates may be observable bounds, but must not be the primary automation identity when semantic identity exists.
 - Structured state beats pixel inference for gameplay, UI, and CPU-reference particle assertions.
 
-**Active next implementation task: #42.**
+**Active next implementation task after PR #55 merges: #43.**
 
 ## Completed #40 texture asset slice
 
@@ -79,9 +79,32 @@ The first P6 asset slice establishes a narrow CPU-side texture import/cache boun
 
 See `docs/ASSETS.md` for the contract and scope boundaries.
 
+## Completed #42 text/basic UI slice
+
+The first UI slice establishes the engine-owned state and rendering input that #43 semantic automation will extend:
+
+- `engine/ui` is SDL-free and does not depend on the renderer,
+- authored `*.trace2d.toml` UI uses a strict versioned schema with stable non-empty element IDs,
+- V1 supports exactly `panel`, `label`, `button`, and `text_input`,
+- bounds are deterministic unsigned integer canvas pixels and observable order is authored order,
+- focus is supported for buttons/text inputs and button activation counts are inspectable headlessly,
+- focus/activation perform no heap allocation and element lookup remains a simple deterministic O(N) scan until workloads justify indexing,
+- a fixed dependency-free 5x7 ASCII-oriented font provides deterministic label rendering without machine font discovery,
+- `RasterizeUi` produces deterministic RGBA8 pixels from the same `UiDocument` used by headless state tests,
+- caller-owned raster storage is reused when dimensions do not change and the rasterizer creates no temporary element/glyph collections,
+- `trace2d_ui_preview --headless` validates authored UI without a renderer,
+- `trace2d_ui_preview --windowed` uploads that same CPU raster through `Renderer::CreateTextureRgba8` and presents it as one sprite,
+- the renderer owns only presentation resources; UI identity/state/bounds/text never become GPU-authoritative,
+- committed tests cover authored-order/bounds determinism, structured invalid-field/duplicate/out-of-bounds diagnostics, focus/activation behavior, deterministic repeated raster bytes, and steady-size output-buffer reuse,
+- `samples/ui/basic_ui.trace2d.toml` is the first diffable authored UI sample.
+
+The built-in font is deliberately not a complete typography system: Unicode shaping, CJK, font fallback, kerning, authored fonts, rich text, and localization layout remain out of scope until real content requires them.
+
+See `docs/UI.md` for the format, performance contract, preview commands, and deliberate non-goals.
+
 ## Why this order
 
-The asset slice comes first because practical authored UI/text needs deterministic project-relative resource identity and reuse. Text rendering/basic UI then establishes the smallest engine-owned UI state and layout foundation. Semantic UI automation builds on that foundation before MCP so the transport layer exposes a stable final vocabulary instead of forcing a second redesign. Renderer workloads then establish reproducible measurement rules before another render-heavy feature arrives.
+The asset slice comes first because practical authored UI/text needs deterministic project-relative resource identity and reuse. Text rendering/basic UI then establishes the smallest engine-owned UI state and layout foundation. Semantic UI automation now builds directly on that completed foundation before MCP so the transport layer exposes a stable final vocabulary instead of forcing a second redesign. Renderer workloads then establish reproducible measurement rules before another render-heavy feature arrives.
 
 Particles follow #41 because their design intentionally makes performance decisions from evidence. Trace2D first builds a rich, deterministic, fully observable CPU reference effect, measures its structural and local CPU cost, and only then allows a human to choose whether the effect remains CPU or is explicitly compiled to a minimized GPU backend.
 
@@ -109,7 +132,7 @@ Do not treat #13 as permission to start Box2D, animation, hot reload, editor wor
 
 ## Semantic UI target
 
-The semantic UI milestone (#43) is not complete until supported controls expose structured state such as:
+Issue #43 must extend `engine/ui` rather than replace it. The semantic UI milestone is not complete until supported controls expose structured state such as:
 
 - stable semantic identity
 - role
@@ -132,7 +155,7 @@ input text
 assert resulting UI/game state
 ```
 
-Headless semantic UI tests must not require renderer initialization. MCP support comes only afterward in #39.
+Headless semantic UI tests must operate on the same `UiDocument` state used for presentation and must not require renderer initialization. MCP support comes only afterward in #39.
 
 ## Particle target after #41
 
@@ -189,7 +212,7 @@ Release-facing CI remains the baseline for changes that can affect the supported
 
 New machine-facing capabilities require deterministic automated tests when practical. A semantic UI, MCP, or CPU-reference particle feature without headless coverage is incomplete unless its PR documents a concrete reason.
 
-GPU presentation itself is not a hosted-runner requirement. Backend-independent state, layout, query, input, assertion, camera, visibility, batching measurement, capture-layout, artifact contracts, asset behavior, particle CPU reference semantics, particle compiler/static analysis, and structural cost reports should remain CI-testable without an interactive GPU/window.
+GPU presentation itself is not a hosted-runner requirement. Backend-independent UI state/layout/rasterization, query, input, assertion, camera, visibility, batching measurement, capture-layout, artifact contracts, asset behavior, particle CPU reference semantics, particle compiler/static analysis, and structural cost reports should remain CI-testable without an interactive GPU/window.
 
 Wall-clock CPU/GPU timing is environment-dependent evidence. Hosted CI must not use unstable microsecond thresholds as deterministic correctness gates.
 
@@ -199,8 +222,9 @@ Wall-clock CPU/GPU timing is environment-dependent evidence. Hosted CI must not 
 - SDL-specific ownership/types stay behind platform/render boundaries.
 - `engine/assets` is SDL-free; decoded CPU assets are independent of renderer-owned GPU resources.
 - asset references are deterministic project-relative text identities; no per-frame discovery/decoding is permitted.
+- `engine/ui` is SDL-free; UI identity/state/bounds/text and CPU raster output are independent of renderer-owned GPU resources.
 - renderer GPU state is presentation state and never authoritative gameplay/UI state.
-- runtime/scene/input/agent/testing and future engine-owned UI/particle semantic state do not depend on MCP transport.
+- runtime/scene/input/agent/testing and engine-owned UI/particle semantic state do not depend on MCP transport.
 - MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
 - persistent renderer resources are setup or capacity/size-dependent state; steady-state frames do not recreate them.
 - normal non-capture frames perform no capture download, fence wait, mapping, normalization, or file I/O.
