@@ -143,8 +143,8 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     const Json discovery = RpcRequest(server, 1U, "server/discover");
     ASSERT_TRUE(discovery.contains("result"));
     EXPECT_EQ(discovery["result"]["resultType"], "complete");
+    ASSERT_EQ(discovery["result"]["supportedVersions"].size(), 1U);
     EXPECT_EQ(discovery["result"]["supportedVersions"][0], trace2d::mcp::ProtocolVersion);
-    EXPECT_EQ(discovery["result"]["supportedVersions"][1], trace2d::mcp::LegacyProtocolVersion);
     EXPECT_EQ(discovery["result"]["ttlMs"], 60'000U);
     EXPECT_EQ(discovery["result"]["cacheScope"], "public");
     EXPECT_EQ(discovery["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "trace2d-mcp");
@@ -162,7 +162,7 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     EXPECT_EQ(toolList.back()["name"], "trace2d.assert_float");
 }
 
-TEST(McpServerTests, LegacyInitializeRemainsAvailableForStdioFallback)
+TEST(McpServerTests, LegacyInitializeRemainsAvailableAsUnadvertisedStdioProbe)
 {
     trace2d::testing::GameplayScenario scenario{};
     scenario.LoadScene(MakeScene());
