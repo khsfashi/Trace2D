@@ -13,20 +13,20 @@ tools / adapters
       |
       v
  agent facade
-      |
-      v
-   runtime
-   /  |   \
-scene input render
-   \   |   /
-      core
+   /   |   \
+  v    v    v
+runtime scene ui
+  |      |   |
+ input   |   |
+   \     |  /
+        core
 
 render -> platform -> input
 ```
 
-Dependencies point inward. Core must not depend on SDL, rendering, MCP, or an editor.
+Dependencies point inward. `engine/agent` may observe authoritative runtime/scene/UI state, but those modules never depend back on the agent facade. Core must not depend on SDL, rendering, MCP, or an editor.
 
-Platform-specific SDL3 ownership lives behind `engine/platform` and `engine/render`; SDL types must not leak into `engine/core`, simulation modules, or gameplay-facing APIs. `engine/render` may depend on the platform boundary to identify the window, but simulation/runtime modules do not depend on rendering.
+Platform-specific SDL3 ownership lives behind `engine/platform` and `engine/render`; SDL types must not leak into `engine/core`, simulation modules, UI state, or gameplay-facing APIs. `engine/render` may depend on the platform boundary to identify the window, but simulation/runtime/UI modules do not depend on rendering.
 
 ## Modules
 
@@ -171,87 +171,115 @@ Current API rules:
 
 The detailed contract is documented in [INPUT.md](INPUT.md).
 
-### `engine/render` — P5 in progress
+### `engine/ui`
+
+Owns deterministic authored UI state independently of SDL, rendering, and protocol adapters.
+
+Current responsibilities:
+
+- strict versioned TOML UI loading
+- stable non-empty element IDs and stable semantic names
+- deterministic authored-order element storage/iteration
+- integer pixel bounds
+- panel, label, button, and text-input primitives
+- visible/enabled/focused state
+- button activation count
+- focused text-input mutation
+- deterministic dependency-free CPU text/raster output
+
+Current API rules:
+
+- `UiDocument` is authoritative for UI identity/state; renderer resources never become UI truth
+- semantic `name` is distinct from mutable text/value state
+- invisible controls reject interaction and are skipped by CPU rasterization
+- focus and activation use deterministic O(N) authored-order lookup and add no heap allocation
+- explicit text replacement may resize the existing string and is not a per-frame hot path
+- `engine/ui` contains no Agent, JSON, MCP, SDL, or renderer types
+- headless tests operate on the same `UiDocument` used for presentation
+
+The detailed contract is documented in [UI.md](UI.md).
+
+### `engine/render` — Public Alpha baseline complete
 
 Owns presentation and visual-QA state through SDL3 GPU without becoming authoritative gameplay state.
 
-Current P5 foundation responsibilities:
+Current responsibilities:
 
 - renderer-owned SDL3 GPU device lifetime
 - claim/release of the platform-owned window for GPU presentation
 - command-buffer acquisition and submission
-- swapchain texture acquisition
-- minimal clear/store render pass and presentation
-- basic renderer metrics and backend-name observation
+- swapchain and renderer-owned offscreen targets
+- orthographic camera and textured sprite rendering
+- inclusive visibility/culling baseline
+- caller/painter-order-preserving submission
+- measured contiguous same-texture instancing
+- persistent/capacity-reused renderer resources
+- exact-simulation-frame capture to deterministic CPU-normalized BMP
+- renderer metrics and backend-name observation
 - explicit rejection of headless platforms before GPU initialization
 
 Current API rules:
 
 - public renderer headers expose Trace2D-owned types, not SDL GPU handles
 - the renderer receives a `Platform` and resolves its numeric `WindowId` internally
-- SDL3 GPU device, swapchain, command-buffer, render-pass, and texture handles remain private to the renderer implementation
-- the renderer owns presentation resources; it does not own runtime, scene, input, or gameplay truth
-- headless gameplay execution does not construct a renderer or require a GPU device
-- persistent GPU resources should have renderer-owned lifetimes rather than being recreated every frame
+- SDL3 GPU device, command-buffer, render-pass, texture, and swapchain handles remain private
+- renderer state is presentation/visual-QA state, not runtime/scene/input/UI authority
+- headless gameplay/UI automation does not construct a renderer or require a GPU device
+- persistent GPU resources have renderer-owned lifetimes and are not recreated every steady frame
+- normal non-capture frames perform no capture download/map/file-I/O work
 - renderer metrics are observational profiling state, not simulation state
 
-Remaining P5 responsibilities:
-
-- orthographic camera
-- minimal sprite render-data contract
-- textured sprite rendering
-- measured batching baseline
-- visibility/culling baseline
-- offscreen render target
-- deterministic frame-selected visual capture
-
-Renderer performance will be measured before more advanced systems are added. The detailed P5 contract is documented in [RENDERING.md](RENDERING.md).
+Renderer performance expansion is intentionally gated on reproducible workloads in Issue #41. The rendering contract is documented in [RENDERING.md](RENDERING.md).
 
 ### `engine/agent`
 
-Protocol-independent automation facade over authoritative runtime and scene state.
+Protocol-independent automation facade over authoritative runtime, scene, and UI state.
 
-Current P3 responsibilities:
+Current responsibilities:
 
-- non-owning binding to the active deterministic runtime and scene
+- non-owning binding to deterministic runtime, scene, and optional active `UiDocument`
 - stable Trace2D-owned inspection snapshot and error types
 - runtime frame, seed, fixed-step, and simulation-time inspection
 - scene semantic identity and deterministic entity inspection
-- generation-safe runtime handle, semantic ID, name, tags, and transform inspection
-- explicit nullable bounds in the inspection schema
-- generic typed component-field snapshots, initially exposing `Transform2D`
-- deterministic snapshot ordering suitable for adapters
-- exact semantic selectors and deterministic single/multi-result queries
+- generation-safe runtime handle, semantic ID, name, tags, transform, and typed component inspection
+- exact entity semantic selectors and deterministic single/multi-result queries
+- structured semantic UI tree snapshots
+- exact UI selectors by stable ID, role, and name
+- semantic UI focus, button activation, and focused text input
+- structured UI state assertions
+- deterministic authored-order UI query output
 
 Current API rules:
 
-- `engine/agent` may depend on runtime and scene; runtime and scene never depend on the agent facade
-- public inspection/query types contain no JSON, MCP, SDL, or LLM-specific protocol objects
-- JSON serialization belongs to the CLI/tool boundary, not this module
+- `engine/agent` may depend on runtime, scene, and UI; those modules never depend on the agent facade
+- public inspection/query/action/assertion types contain no JSON, MCP, SDL, or LLM-specific protocol objects
+- JSON serialization belongs to CLI/tool adapters, not this module
 - inspection/query snapshots own copied observation data and allocate only when explicitly requested
-- no inspection copying or JSON generation occurs in the per-frame simulation path
-- bounds stay `null` until renderer/physics state can provide authoritative values; the facade does not guess bounds from coordinates or transform scale
+- no inspection copying, UI semantic snapshotting, or JSON generation occurs in the per-frame simulation/raster path
+- entity bounds stay nullable until renderer/physics state can provide authoritative values; the facade does not guess them
+- UI bounds come directly from authoritative `UiDocument` integer bounds
+- semantic identity/selectors are preferred over screen-coordinate targeting
 
-The detailed contracts are documented in [INSPECTION.md](INSPECTION.md) and [QUERY.md](QUERY.md).
+The entity contracts are documented in [INSPECTION.md](INSPECTION.md) and [QUERY.md](QUERY.md). Semantic UI is documented in [UI.md](UI.md).
 
-Target operations as later phases arrive:
+Current machine-facing vocabulary includes structured forms of:
 
 ```text
-inspect   (implemented)
-query     (implemented)
-input     (P4 engine primitive implemented; facade operation later)
-step      (runtime primitive exists; facade operation later)
-assert    (P4 engine primitive implemented)
-capture   (P5)
+inspect
+query
+input
+step
+assert
+capture
 ```
 
-This layer is the source of truth for CLI, JSON-RPC, and eventual MCP integration.
+Issue #39 will add MCP only as a transport adapter over this already-existing vocabulary.
 
 ### `tools/trace2d`
 
 The command-line entry point for humans, scripts, CI, and coding agents.
 
-Current commands:
+Current commands include:
 
 ```text
 trace2d version
@@ -261,33 +289,33 @@ trace2d inspect --scene PATH [--frames N] [--seed N] [--json]
 trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]
 ```
 
-`run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping. During P5, windowed `run` additionally creates the renderer and submits the current minimal clear frame; headless `run` does not initialize the GPU renderer.
+`run` remains a small startup/runtime smoke surface. `--frames` advances the same runtime API used by tests, so headless automation can prove exact frame control without sleeping. Windowed run may create the renderer; headless run does not initialize GPU rendering.
 
-`inspect` and `query` keep serialization at the tool boundary. The engine inspection/query APIs themselves are not JSON-aware.
+`inspect` and `query` keep serialization at the tool boundary. Engine inspection/query APIs themselves are not JSON-aware. UI preview remains a separate adapter over the same engine-owned UI/raster state.
 
 ## Runtime execution model
 
 The deterministic test execution model is:
 
 ```text
-Load project
+Load authored project/scene/UI
     |
 Reset seed, simulation, and input state
     |
-Schedule virtual input
+Schedule/inject virtual input
     |
-Advance input to frame N
+Advance explicit simulation frame(s)
     |
-Advance one fixed simulation frame
+Inspect/query authoritative scene/UI state
     |
-Inspect/query structured state
+Perform semantic input/UI actions
     |
-Assert behavior
+Assert behavior/state
     |
-Optionally render/capture that explicitly selected state
+Optionally render/capture explicitly selected state
 ```
 
-Wall-clock-driven rendering may interpolate between simulation states, but automated gameplay tests must be able to control simulation advancement explicitly. Visual capture must identify its simulation frame explicitly rather than infer it from presentation timing.
+Wall-clock-driven rendering may interpolate between simulation states, but automated tests own simulation advancement explicitly. Visual capture identifies its simulation frame explicitly rather than inferring it from presentation timing.
 
 ## Authored versus generated data
 
@@ -314,5 +342,7 @@ Priorities:
 3. cache-friendly data layouts where profiling demonstrates value
 4. batched rendering and bounded submission overhead
 5. explicit worker/threading architecture only when workloads justify it
+
+Explicit tooling operations may allocate structured snapshots/results when requested; ordinary simulation/raster paths must not pay that observability cost automatically.
 
 Every significant optimization should keep a reproducible benchmark or profiler record where practical.
