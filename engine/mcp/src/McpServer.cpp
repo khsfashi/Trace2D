@@ -863,22 +863,6 @@ Json BuildDiscoveryResult()
         {"cacheScope", "public"},
     };
 }
-
-Json BuildLegacyInitializeResult(const Json& params)
-{
-    std::string negotiatedVersion{LegacyProtocolVersion};
-    const Json::const_iterator requested = params.find("protocolVersion");
-    if (requested != params.end() && requested->is_string() && requested->get_ref<const std::string&>() == LegacyProtocolVersion)
-    {
-        negotiatedVersion = std::string{LegacyProtocolVersion};
-    }
-    return Json{
-        {"protocolVersion", negotiatedVersion},
-        {"capabilities", Json{{"tools", Json{{"listChanged", false}}}}},
-        {"serverInfo", ServerInfo()},
-        {"instructions", "Trace2D protocol adapter over the existing Agent and GameplayScenario contracts."},
-    };
-}
 } // namespace
 
 McpServer::McpServer(
@@ -937,7 +921,13 @@ std::string McpServer::HandleMessage(const std::string_view message)
 
         if (method == "initialize")
         {
-            return MakeJsonRpcResult(id, BuildLegacyInitializeResult(params)).dump();
+            std::string requestedVersion{"legacy-initialize"};
+            const Json::const_iterator versionValue = params.find("protocolVersion");
+            if (versionValue != params.end() && versionValue->is_string())
+            {
+                requestedVersion = versionValue->get<std::string>();
+            }
+            return MakeUnsupportedVersionError(id, requestedVersion).dump();
         }
 
         Json metaError{};
