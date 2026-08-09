@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released. #39 MCP transport is complete via merged PR #58. Owner-directed roadmap/agent-protocol PR #62 is currently open and must be finished/merged before starting #41. After PR #62 merges, #41 reproducible renderer performance workloads is the active next implementation task.**
+**Public Alpha released. #39 MCP transport is complete via merged PR #58. The owner-fixed roadmap/Agent continuation contract is introduced by PR #62. If #62 is still open, finish/merge it before implementation work. Once this document is present on `main`, #41 reproducible renderer performance workloads is the active next implementation task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
@@ -18,7 +18,7 @@ The repository owner originally fixed the P6 sequence on **2026-08-08** and expl
 2. **#42 — text rendering and basic UI primitives** — complete via PR #55
 3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
-5. **#41 — reproducible renderer performance workloads** — **active next implementation after PR #62 merges**
+5. **#41 — reproducible renderer performance workloads** — **active next implementation once PR #62's roadmap contract is on `main`**
 6. **#47 — particle deterministic frame/keyed-random contracts**
 7. **#48 — rich deterministic CPU particle reference simulation**
 8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
@@ -57,8 +57,8 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 
 - Work only on the first incomplete and unblocked item in the owner-fixed order.
 - If that work has an active PR, finish/repair/validate that PR before starting anything later.
-- **PR #62 is the active owner-directed roadmap/governance PR now. Do not start #41 until #62 is merged.**
-- After #62 merges, #41 is the first incomplete implementation task.
+- If PR #62 is still open, it is the active owner-directed roadmap/governance work and takes precedence over #41.
+- If this document is being read from `main` after #62 merged, **#41 is the first incomplete implementation task** unless live GitHub state shows that #41 has already advanced.
 - Merge only with green CI/repository gates; if merge is an owner action, report that single action instead of jumping ahead.
 - Do **not** start #47 particles before #41 renderer workloads are complete.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
@@ -103,6 +103,8 @@ Before #61 SP0 owner approval:
 - no prebuilt Spine-containing binary,
 - no Spine-derived implementation code,
 - no claim that Trace2D ships Spine support.
+
+`docs/SPINE.md` records the official licensing snapshot reviewed on 2026-08-09 and requires the then-current official terms to be re-checked at SP0.
 
 If SP0 is approved after license confirmation, the fixed conceptual order becomes SP1 optional official runtime adapter -> SP2 Mesh2D render integration -> SP3 semantic animation state -> SP4 Agent/MCP QA/conformance/workloads. See `docs/SPINE.md`.
 
