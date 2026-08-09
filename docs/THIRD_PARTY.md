@@ -12,6 +12,7 @@ This document records the current source dependency review. It is not a substitu
 | SDL3_shadercross | Runtime shader translation used by the renderer | zlib | Permissive; shader translation can involve additional upstream components depending on the selected backend/path. |
 | stb | CPU-side texture image decoding in `engine/assets` | MIT or public-domain dedication at user option | Header-only decode dependency; Trace2D uses the MIT-compatible upstream terms and does not vendor the header. |
 | toml++ | TOML parsing/serialization behind the scene-text boundary | MIT | Header/library dependency; retain the MIT copyright/license notice when required by redistribution form. |
+| nlohmann/json | JSON-RPC/MCP parsing and serialization in `engine/mcp` only | MIT | Header-only transport dependency; it does not enter core/runtime/scene/input/UI/agent/testing public contracts or steady-frame simulation paths. |
 | GoogleTest | Automated tests only | BSD-3-Clause | Test/development dependency; not part of Trace2D's intended runtime API surface. |
 
 The vcpkg repository/tooling used to resolve these ports is MIT-licensed. The libraries supplied by vcpkg ports remain under their respective upstream licenses.
@@ -47,7 +48,7 @@ Trace2D is licensed under the MIT License. The direct dependency set reviewed ab
 Dependency review updated against:
 
 - `vcpkg.json` baseline `d92484ed3c5020c6679d095ad3e5add907887b62`
-- direct ports: `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `gtest`
-- current Trace2D build linkage in the platform/render/assets/scene/test targets
+- direct ports: `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
+- current Trace2D build linkage in the platform/render/assets/scene/MCP/test targets
 
 Re-run this review whenever the vcpkg baseline, dependency list, features, triplet, or binary distribution contents change.
