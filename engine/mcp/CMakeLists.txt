@@ -1,7 +1,7 @@
 find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(trace2d_mcp STATIC
-    src/McpServer.cpp
+    src/McpServerV2.cpp
 )
 
 add_library(Trace2D::Mcp ALIAS trace2d_mcp)
