@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <utility>
 
 namespace
 {
@@ -74,6 +75,7 @@ TEST(AgentUiGameInteractionTests, SemanticActivationDrivesGameStateWithoutCoordi
     ConsumeStartActivations(document, scene, playerId, consumedActivationCount);
     const trace2d::agent::QueryOneResult unchangedState = facade.QueryOne("#player");
     ASSERT_TRUE(unchangedState.Succeeded());
+    ASSERT_TRUE(unchangedState.match.has_value());
     EXPECT_FLOAT_EQ(unchangedState.match->transform.position.x, 10.0F);
 
     ASSERT_TRUE(facade.ActivateUi(startSelector).Succeeded());
@@ -81,6 +83,7 @@ TEST(AgentUiGameInteractionTests, SemanticActivationDrivesGameStateWithoutCoordi
 
     const trace2d::agent::QueryOneResult secondState = facade.QueryOne("#player");
     ASSERT_TRUE(secondState.Succeeded());
+    ASSERT_TRUE(secondState.match.has_value());
     EXPECT_FLOAT_EQ(secondState.match->transform.position.x, 20.0F);
     EXPECT_EQ(consumedActivationCount, 2U);
 }
