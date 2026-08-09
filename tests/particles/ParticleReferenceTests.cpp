@@ -294,7 +294,6 @@ TEST(ParticleReferenceTests, RichStateIsAvailableByStableSpawnOrdinalWithoutRend
     EXPECT_GE(byIndex.initialSize, definition.initialSize.minValue);
     EXPECT_LE(byIndex.initialSize, definition.initialSize.maxValue);
     EXPECT_EQ(byIndex.size, byIndex.initialSize);
-    EXPECT_GE(byIndex.spriteIndex, 0U);
     EXPECT_LT(byIndex.spriteIndex, definition.spriteChoiceCount);
     EXPECT_EQ(byIndex.simulationSpace, ParticleSimulationSpace::World);
     EXPECT_FALSE(emitter.TryGetParticleBySpawnOrdinal(9999U, byOrdinal));
@@ -326,18 +325,23 @@ TEST(ParticleReferenceTests, ExistingParticleUpdateOrderIsAccelerationVelocityPo
 
     ParticleReferenceParticle particle{};
     ASSERT_TRUE(emitter.TryGetParticle(0, particle));
-    EXPECT_TRUE(particle.position == ParticleVec2{0.0F, 0.0F});
-    EXPECT_TRUE(particle.velocity == ParticleVec2{2.0F, 0.0F});
+    const ParticleVec2 initialPosition{0.0F, 0.0F};
+    const ParticleVec2 initialVelocity{2.0F, 0.0F};
+    EXPECT_TRUE(particle.position == initialPosition);
+    EXPECT_TRUE(particle.velocity == initialVelocity);
     EXPECT_EQ(particle.ageFrames, 0U);
     EXPECT_EQ(particle.size, 2.0F);
 
     ASSERT_TRUE(emitter.Step());
     ASSERT_TRUE(emitter.TryGetParticle(0, particle));
-    EXPECT_TRUE(particle.velocity == ParticleVec2{3.0F, -1.0F});
-    EXPECT_TRUE(particle.position == ParticleVec2{3.0F, -1.0F});
+    const ParticleVec2 updatedVelocity{3.0F, -1.0F};
+    const ParticleVec2 updatedPosition{3.0F, -1.0F};
+    const ParticleColor updatedColor{0.5F, 0.5F, 0.5F, 0.5F};
+    EXPECT_TRUE(particle.velocity == updatedVelocity);
+    EXPECT_TRUE(particle.position == updatedPosition);
     EXPECT_EQ(particle.ageFrames, 1U);
     EXPECT_EQ(particle.size, 1.5F);
-    EXPECT_TRUE(particle.color == ParticleColor{0.5F, 0.5F, 0.5F, 0.5F});
+    EXPECT_TRUE(particle.color == updatedColor);
 }
 
 TEST(ParticleReferenceTests, UnrelatedEmitterSteppingDoesNotPerturbReferenceReplay)
