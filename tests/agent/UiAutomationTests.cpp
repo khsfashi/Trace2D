@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -81,9 +82,11 @@ TEST(AgentUiAutomationTests, HeadlessSemanticFlowUsesRoleAndNameWithoutCoordinat
 
     const trace2d::agent::UiActionResponse firstActivation = facade.ActivateUi(startSelector);
     ASSERT_TRUE(firstActivation.Succeeded());
+    ASSERT_TRUE(firstActivation.element.has_value());
     EXPECT_EQ(firstActivation.element->activationCount, 1U);
     const trace2d::agent::UiActionResponse secondActivation = facade.ActivateUi(startSelector);
     ASSERT_TRUE(secondActivation.Succeeded());
+    ASSERT_TRUE(secondActivation.element.has_value());
     EXPECT_EQ(secondActivation.element->activationCount, 2U);
 
     trace2d::agent::UiSelector textSelector{};
@@ -92,10 +95,12 @@ TEST(AgentUiAutomationTests, HeadlessSemanticFlowUsesRoleAndNameWithoutCoordinat
 
     const trace2d::agent::UiActionResponse focus = facade.FocusUi(textSelector);
     ASSERT_TRUE(focus.Succeeded());
+    ASSERT_TRUE(focus.element.has_value());
     EXPECT_TRUE(focus.element->focused);
 
     const trace2d::agent::UiActionResponse input = facade.InputUiText(textSelector, "Ada");
     ASSERT_TRUE(input.Succeeded());
+    ASSERT_TRUE(input.element.has_value());
     EXPECT_EQ(input.element->name, "Player Name");
     EXPECT_EQ(input.element->text, "Ada");
     EXPECT_TRUE(input.element->focused);
@@ -106,7 +111,7 @@ TEST(AgentUiAutomationTests, HeadlessSemanticFlowUsesRoleAndNameWithoutCoordinat
     textExpected.focused = true;
     textExpected.text = "Ada";
     const trace2d::agent::UiAssertionResult textAssertion = facade.AssertUi(textSelector, textExpected);
-    ASSERT_TRUE(textAssertion.Succeeded());
+    EXPECT_TRUE(textAssertion.Succeeded());
 
     trace2d::agent::UiExpectedState buttonExpected{};
     buttonExpected.activationCount = 2U;
