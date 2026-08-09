@@ -147,18 +147,18 @@ Runtime / Scene / Input / UI
 
 ### Protocol surface
 
-The primary protocol is MCP `2026-07-28`:
+Trace2D is a modern-only MCP `2026-07-28` server:
 
 - `server/discover`,
 - required modern per-request `_meta` version/capability fields,
 - server identity in response `_meta`,
 - deterministic cacheable `tools/list`,
 - `tools/call`,
-- newline-delimited stdio.
+- newline-delimited UTF-8 stdio.
 
 The adapter exposes fixed semantic tools for runtime/scene inspect/query, semantic UI inspect/query/focus/activate/text/assert, frame-indexed virtual input scheduling/inspection, explicit stepping, and existing gameplay float assertions.
 
-The host also accepts the immediately preceding `initialize` request shape as a narrow stdio fallback probe. The modern contract remains `2026-07-28`.
+Legacy session semantics are not advertised or implemented. A legacy `initialize` request is rejected with `UnsupportedProtocolVersionError` listing `2026-07-28`, avoiding a partially compatible session.
 
 ### Determinism and failure behavior
 
@@ -186,7 +186,7 @@ PR #58 protocol tests cover:
 
 - modern discovery metadata and server identity,
 - deterministic/cacheable tool listing,
-- legacy initialize fallback response,
+- explicit rejection of legacy initialize with the supported modern version,
 - MCP virtual input scheduling -> explicit stepping -> `#player` state change through an existing frame callback,
 - semantic query and existing gameplay assertion after that state change,
 - structured gameplay failure frame/seed/snapshot context,
