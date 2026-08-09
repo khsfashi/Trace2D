@@ -94,9 +94,11 @@ std::string_view ToString(const FieldValueKind kind) noexcept
 
 AgentFacade::AgentFacade(
     const runtime::FixedStepRuntime* runtime,
-    const scene::Scene* scene) noexcept
+    const scene::Scene* scene,
+    ui::UiDocument* uiDocument) noexcept
     : runtime_{runtime}
     , scene_{scene}
+    , ui_{uiDocument}
 {
 }
 
@@ -108,6 +110,11 @@ void AgentFacade::BindRuntime(const runtime::FixedStepRuntime* runtime) noexcept
 void AgentFacade::BindScene(const scene::Scene* scene) noexcept
 {
     scene_ = scene;
+}
+
+void AgentFacade::BindUi(ui::UiDocument* uiDocument) noexcept
+{
+    ui_ = uiDocument;
 }
 
 InspectionResult AgentFacade::Inspect() const
