@@ -6,18 +6,19 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha is released. #39 MCP transport and the post-particle Sprite/Mesh2D/Spine roadmap contract are complete on `main`. Issue #41 reproducible renderer performance workloads is the active implementation through draft PR #63. Finish/repair/validate #63 before starting #47. After #63 merges green, #47 particle deterministic frame/keyed-random contracts is the exact next task.**
+**Public Alpha is released. Issue #41 reproducible renderer performance workloads is complete via merged PR #63. Issue #47 particle deterministic frame/keyed-random contracts is now the active implementation through draft PR #64. Finish/repair/validate #64 before starting #48. After #64 merges green, #48 rich deterministic CPU particle reference simulation is the exact next task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
 ## Active PR
 
-- **PR #63 — Add reproducible renderer performance workloads**
-- branch: `agent/renderer-workloads`
-- issue: **#41**
-- scope: committed deterministic Sprite workloads, structural regression metrics, actual post-submit renderer metric deltas, optional local CPU wall-clock submission timing, and reproducibility metadata
-- do not begin #47 while #63 remains open
-- if CI/review finds a problem, repair #63 in scope and rerun the repository gates
+- **PR #64 — Lock particle frame and keyed-random semantics**
+- branch: `agent/particle-determinism`
+- issue: **#47 / particle child 1 of 7**
+- scope: SDL-free frame ordering/lifetime primitives, stable emitter/random-key inputs, explicit random-channel IDs, exact keyed integer mixing, exact CPU unit/range mapping, and pure regression tests
+- no particle storage, authored effect format, emitter component, renderer, compiler, or GPU backend is introduced in this slice
+- do not begin #48 while #64 remains open
+- if CI/review finds a problem, repair #64 in scope and rerun the repository gates
 
 ## Next execution order — owner-fixed
 
@@ -27,9 +28,9 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 2. **#42 — text rendering and basic UI primitives** — complete via PR #55
 3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
 4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
-5. **#41 — reproducible renderer performance workloads** — **active via PR #63**
-6. **#47 — particle deterministic frame/keyed-random contracts** — exact next after #41 merges green
-7. **#48 — rich deterministic CPU particle reference simulation**
+5. **#41 — reproducible renderer performance workloads** — complete via PR #63
+6. **#47 — particle deterministic frame/keyed-random contracts** — **active via PR #64**
+7. **#48 — rich deterministic CPU particle reference simulation** — exact next after #47 merges green
 8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
 9. **#50 — complete Agent verification over CPU particle reference state**
 10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
@@ -39,7 +40,7 @@ The repository owner fixed the P6 sequence on **2026-08-08** and explicitly exte
 14. **#60 — Mesh2D foundation: reusable textured indexed geometry and measured dynamic submission path**
 15. **#61 — Spine compatibility: SP0 explicit human license gate, then optional integration only if approved**
 
-Particle umbrella: **#46**. Detailed particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md).
+Particle umbrella: **#46**. Broad particle contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Exact #47 semantic contract: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md).
 
 Sprite umbrella: **#59**. Detailed owner-approved contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 
@@ -53,9 +54,9 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 
 - Work only on the first incomplete and unblocked item in the owner-fixed order.
 - If that work has an active PR, finish/repair/validate that PR before starting anything later.
-- While PR #63 is open, it is the active work item.
+- While PR #64 is open, it is the active work item.
 - Merge only with green CI/repository gates; if merge becomes a genuine human-only action, report that one action instead of jumping ahead.
-- After #63 merges, start #47 directly. Do **not** insert another renderer optimization or a later subsystem ahead of #47.
+- After #64 merges, start #48 directly. Do **not** skip ahead to authored effects, Agent integration, GPU work, Sprite, Mesh2D, or Spine.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 - Within #59, follow the exact fixed stage order in `docs/SPRITES.md`, creating/implementing one child issue/PR at a time.
 - After #59, complete #60 M0 then M1 one child/PR at a time.
@@ -64,9 +65,69 @@ The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
 - Structured semantic state beats pixel inference for gameplay/UI/particle/sprite animation assertions.
 - Visual capture remains first-class QA evidence when pixels genuinely matter.
 
-## Active #41 renderer workload contract
+## Active #47 particle determinism contract
 
-PR #63 implements Issue #41 without adding benchmark-only work to the ordinary renderer hot path.
+PR #64 establishes the semantic source that #48-#53 must preserve.
+
+### Exact frame order
+
+```text
+frame N
+  -> ApplyCommands
+  -> UpdateExisting
+  -> ExpireExisting
+  -> Emit
+  -> Observe
+  -> ExtractBackend
+```
+
+Consequences:
+
+- only particles existing before frame N update during N,
+- particles emitted in frame N are observable at `ageFrames = 0` and do not update immediately,
+- after an existing particle updates, reaching `ageFrames == lifetimeFrames` expires it before observation,
+- backend extraction happens after authoritative CPU observation state is established.
+
+### Stable spawn ordinal
+
+`ParticleSpawnOrdinal` is a per-emitter 64-bit **spawn-attempt ordinal**. Later emitters must consume an ordinal for every deterministic spawn attempt, including attempts dropped because capacity is full. This prevents capacity pressure from shifting the keyed random values of later scheduled attempts.
+
+### Keyed randomness
+
+Random values are pure functions of:
+
+```text
+(globalSeed, emitterStableId, spawnOrdinal, randomChannel)
+```
+
+Hard rules:
+
+- no mutable per-emitter PRNG stream,
+- no allocation/string/hash/distribution lookup in random helpers,
+- emitter identity is stable numeric state, never pointer/allocation/vector/unordered-iteration identity,
+- random-channel IDs are explicit stable integers and existing IDs are never renumbered merely because new properties are inserted,
+- the exact 64-bit mixing algorithm and domain constants are documented and tested,
+- CPU `[0,1)` uses the top 24 random bits multiplied by exactly `2^-24`,
+- range mapping uses the documented CPU expression and fixed bit-vector test,
+- same key => exact same integer/CPU float bits on the supported deterministic toolchain,
+- querying another ordinal/emitter/channel has no side effect on existing values.
+
+Committed reference vector:
+
+```text
+globalSeed      = 0x0123456789ABCDEF
+emitterStableId = 0xFEDCBA9876543210
+spawnOrdinal    = 42
+channel         = SpawnPositionX
+
+bits            = 0xE2B5E492311156F8
+u32             = 0xE2B5E492
+unit-float bits = 0x3F62B5E4
+```
+
+See [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md) for the exact integer algorithm, channel table, lifetime examples, and #48 handoff constraints.
+
+## Completed #41 renderer workload foundation — PR #63
 
 Committed deterministic workloads:
 
@@ -76,32 +137,15 @@ Committed deterministic workloads:
 | `alternating_two_textures` | 400 | 400 | 0 | 400 |
 | `interleaved_culling` | 600 | 400 | 200 | 1 |
 
-The intended evidence split is:
+#41 established:
 
-```text
-committed workload
-  -> headless deterministic structure
-       authored / visible / culled / contiguous texture runs
-  -> optional local windowed execution
-       Renderer::Metrics before
-       -> warm workload submission loop
-       -> Renderer::Metrics after
-       -> successful-submission delta
-  -> optional CPU wall-clock RenderFrame submission timing
-       + machine / GPU / driver / OS / compiler / build / SDL backend metadata
-```
-
-Hard #41 rules:
-
-- preserve caller painter order; no global texture sorting,
-- preserve inclusive AABB culling semantics,
-- do not add per-frame allocation merely for benchmark instrumentation,
-- `draw_calls` and `submitted_sprites` are reported as actual successful `Renderer::Metrics()` deltas, not speculative pre-submit counts,
-- deterministic structure is CI-testable without a GPU,
-- wall-clock timing is local evidence and never a hosted-CI correctness threshold,
-- the current timing scope is explicitly CPU wall-clock around `Renderer::RenderFrame` submission; it is not claimed to be GPU completion timing,
-- timing reports require explicit machine/GPU/driver labels and also record build/compiler/OS/backend metadata,
-- future renderer optimization claims must identify a concrete workload/regression and reproducible evidence.
+- machine-readable headless deterministic workload structure,
+- actual successful `Renderer::Metrics()` deltas for local windowed runs,
+- optional CPU wall-clock `RenderFrame` submission timing with machine/GPU/driver/OS/compiler/build/backend metadata,
+- no benchmark-only allocation/JSON/clock work inside `Renderer::RenderFrame`,
+- no global texture sorting or culling-semantics change,
+- no hosted-CI wall-clock threshold,
+- an evidence requirement for future renderer optimization claims.
 
 See [`docs/RENDERER_WORKLOADS.md`](docs/RENDERER_WORKLOADS.md).
 
@@ -203,9 +247,9 @@ See [`docs/UI.md`](docs/UI.md).
 
 See [`docs/MCP.md`](docs/MCP.md).
 
-## Particle target after #41
+## Particle target
 
-Particle implementation is governed by #46 and `docs/PARTICLES.md`.
+Particle implementation is governed by #46, `docs/PARTICLES.md`, and the active child contract.
 
 The defining workflow remains:
 
@@ -264,9 +308,9 @@ Wall-clock timing is environment-dependent evidence and must not become a determ
 
 - `engine/core` has no SDL dependency.
 - SDL-specific ownership/types stay behind platform/render boundaries.
-- `engine/assets` and `engine/ui` are SDL-free.
-- renderer GPU state is presentation state, never authoritative gameplay/UI/animation state.
-- runtime/scene/input/UI/agent/testing semantic state does not depend on MCP transport.
+- `engine/assets`, `engine/ui`, and `engine/particles` deterministic/CPU semantics are SDL-free.
+- renderer GPU state is presentation state, never authoritative gameplay/UI/animation/particle state.
+- runtime/scene/input/UI/particles/agent/testing semantic state does not depend on MCP transport.
 - MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
 - authored project/scene/UI/particle/sprite metadata is text-first and deterministic where practical.
 - semantic selectors beat coordinate targeting where identity exists.
