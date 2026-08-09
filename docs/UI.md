@@ -176,7 +176,7 @@ Rules:
 - text input requires the textbox to be focused first
 - a successful text-input action changes `text`, not semantic `name`
 
-Button activation and focus remain allocation-free. Text replacement is an explicit user/agent mutation and may resize the element's existing `std::string`; it is not part of a per-frame simulation hot path.
+`UiDocument` button activation and focus remain allocation-free. Agent-facing actions return copied structured result snapshots, so explicit automation requests may allocate observation strings. Text replacement is an explicit user/agent mutation and may resize the element's existing `std::string`; none of these explicit tooling costs occur automatically in a per-frame simulation hot path.
 
 Stable action diagnostics include:
 
@@ -193,6 +193,26 @@ not_text_input
 not_focused
 action_rejected
 ```
+
+## Deterministic gameplay handoff
+
+V1 deliberately avoids a callback graph, polymorphic UI command objects, or a heap-allocating event queue just to connect a button to game logic.
+
+For buttons, `activationCount` is the engine-owned deterministic edge counter. Gameplay code can keep the last consumed count and process the positive delta during its deterministic update:
+
+```text
+semantic ActivateUi("Start Game")
+  -> UiDocument.start.activationCount increments
+  -> fixed-step gameplay consumes activationCount delta exactly once
+  -> authoritative scene/game state changes
+  -> Agent queries/asserts resulting structured state
+```
+
+Re-running the gameplay update without another activation observes no new delta, so the action is not replayed. Multiple activations before one update remain representable as a count delta instead of being collapsed into a boolean.
+
+This keeps V1 dispatch explicit, deterministic, and allocation-light. If future practical controls require richer payload events, they should extend this boundary from measured requirements rather than introduce a generic event framework preemptively.
+
+`tests/agent/UiGameInteractionTests.cpp` proves the complete headless path by selecting `role=button, name="Start Game"` without coordinates, activating it, consuming the activation edge into scene state, and then verifying the changed entity through the existing structured Agent query surface.
 
 ## Semantic assertions
 
@@ -212,7 +232,7 @@ UI iteration and all semantic multi-query output preserve authored order. No has
 
 Current element lookup/query/action target resolution is a deterministic O(N) scan. This is deliberate: the first UI surface is small, predictable, and allocation-light. An index should be introduced only when measured authored UI sizes demonstrate that O(N) lookup is a meaningful cost.
 
-The semantic query path is explicit tooling work and may allocate result snapshots. Focus and activation themselves add no heap allocation. No semantic snapshot, JSON object, fingerprint, or MCP payload is produced during ordinary rasterization or simulation.
+The semantic query path is explicit tooling work and may allocate result snapshots. `UiDocument` focus/activation state mutation itself adds no heap allocation. No semantic snapshot, JSON object, fingerprint, or MCP payload is produced during ordinary rasterization or simulation.
 
 Bounds use unsigned integer canvas pixels. The same loaded document therefore produces the same element rectangles independent of renderer resolution, GPU vendor, locale, or wall-clock timing.
 
@@ -283,6 +303,7 @@ The current UI/semantic automation surface does not introduce:
 - coordinate-only automation
 - a UI-specific GPU renderer
 - a DOM clone or browser abstraction
+- a generic callback/event framework without a demonstrated payload requirement
 - JSON/MCP types inside engine modules
 - a font cache system without a real authored-font requirement
 
