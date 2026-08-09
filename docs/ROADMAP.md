@@ -99,8 +99,8 @@ Current sequence:
 #40 deterministic texture asset cache — complete
   -> #42 text/basic UI — complete
   -> #43 semantic UI automation — complete via PR #56
-  -> #39 MCP transport over the completed facade — active next
-  -> #41 reproducible renderer workloads
+  -> #39 MCP transport over the completed facade — implemented via PR #58
+  -> #41 reproducible renderer workloads — active next after PR #58 merges
   -> particle pipeline #46 / #47-#53
   -> one next explicit breadth item
 ```
@@ -114,10 +114,13 @@ Delivered or active:
 - engine-owned semantic UI tree — complete via PR #56
 - headless semantic UI inspection/query/focus/activation/text/assertion — complete via PR #56
 - semantic UI -> game/scene state -> structured Agent verification without coordinate targeting — complete via PR #56
-- MCP as a transport over the already-complete protocol-independent facade — **#39 active next**
-- reproducible renderer workload/measurement foundation — #41 after MCP
+- MCP `2026-07-28` stdio transport over the existing Agent/Testing contracts — implemented via PR #58
+- deterministic MCP discovery/tool listing and headless runtime/scene/UI/input/assertion protocol tests — implemented via PR #58
+- reproducible renderer workload/measurement foundation — **#41 active next after PR #58 merges**
 
-Semantic UI deliberately keeps the engine contract protocol-independent. `UiDocument` remains authoritative, Agent selectors use stable ID/role/name instead of coordinates, and MCP is added only after this vocabulary is stable.
+MCP deliberately remains a narrow adapter. Runtime/scene/input/UI/agent/testing semantic contracts stay protocol-independent, and JSON work is request-driven rather than a steady-frame responsibility.
+
+See [`MCP.md`](MCP.md).
 
 ### P6-B — Agent-verifiable particle pipeline
 
@@ -174,7 +177,7 @@ Do not begin those while an earlier owner-fixed P6 item is incomplete.
 
 ## Later phase numbering
 
-The original roadmap listed MCP under a separate P7 adapter phase. The owner-fixed post-alpha sequence now implements MCP earlier as Issue #39 inside the active P6 breadth sequence, after semantic UI. Therefore the exact numbering/content of phases after P6 is intentionally **not frozen here**.
+The original roadmap listed MCP under a separate P7 adapter phase. The owner-fixed post-alpha sequence implements MCP earlier as Issue #39 inside the active P6 breadth sequence, after semantic UI. Therefore the exact numbering/content of phases after P6 is intentionally **not frozen here**.
 
 Future phase numbering should be updated only when P6 is sufficiently complete and the repository owner selects the next concrete milestone.
 

@@ -6,7 +6,7 @@ This document is the operational handoff for the next contributor or coding agen
 
 ## Current phase
 
-**Public Alpha released — #40 deterministic texture assets, #42 text/basic UI, and #43 semantic UI automation are complete. #39 MCP transport is now the active next implementation task.**
+**Public Alpha released — #40 deterministic texture assets, #42 text/basic UI, and #43 semantic UI automation are complete. #39 MCP transport is implemented by PR #58; after that PR merges green, #41 reproducible renderer workloads is the active next implementation task.**
 
 `v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
 
@@ -17,8 +17,8 @@ The repository owner fixed this sequence on **2026-08-08**. Future coding agents
 1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
 2. **#42 — text rendering and basic UI primitives** — complete via PR #55
 3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
-4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — **active next task**
-5. **#41 — reproducible renderer performance workloads**
+4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — implemented by PR #58; merge only after green CI
+5. **#41 — reproducible renderer performance workloads** — **active next task after PR #58 merges**
 6. **#47 — particle deterministic frame/keyed-random contracts**
 7. **#48 — rich deterministic CPU particle reference simulation**
 8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`**
@@ -35,14 +35,15 @@ Particle umbrella: **#46**. Detailed particle contract: [`docs/PARTICLES.md`](do
 - Work only on the first incomplete and unblocked item above.
 - If that item has an active PR, finish/repair that PR before starting anything else.
 - Merge only with green CI, then advance exactly one step.
-- #43 is merged, so #39 MCP may now begin.
+- While PR #58 is open, finish/repair #58 and do not start #41.
+- After PR #58 merges, #41 becomes the first incomplete task.
 - Do **not** start #47 particles before #41 renderer workloads are complete.
 - Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
 - MCP is transport, not the engine API.
 - UI automation is semantic-first: stable identity/role/name plus structured state/actions. Coordinates are observable bounds, not the primary automation identity when semantic identity exists.
 - Structured state beats pixel inference for gameplay, UI, and CPU-reference particle assertions.
 
-**Active next implementation task: #39.**
+**Active next implementation task after PR #58 merges: #41.**
 
 ## Completed #40 texture asset slice
 
@@ -99,28 +100,7 @@ InputUiText
 AssertUi
 ```
 
-UI snapshots expose:
-
-- stable ID
-- role
-- name
-- bounds
-- visible
-- enabled
-- focused
-- text
-- activation count
-
-`UiSelector` supports exact ID, role, and name criteria; multiple criteria are ANDed. `QueryUi` preserves authored order, and `QueryOneUi` reports stable no-match/ambiguity diagnostics.
-
-V1 role mapping is:
-
-```text
-panel      -> panel
-label      -> label
-button     -> button
-text_input -> textbox
-```
+UI snapshots expose stable ID, role, name, bounds, visible, enabled, focused, text, and activation count. `UiSelector` supports exact ID, role, and name criteria; multiple criteria are ANDed. `QueryUi` preserves authored order, and `QueryOneUi` reports stable no-match/ambiguity diagnostics.
 
 Semantic actions resolve exactly one target before mutating the authoritative `UiDocument`. Text input requires prior focus. `AssertUi` checks visible/enabled/focused/text/activation-count state and returns structured mismatch context.
 
@@ -128,17 +108,7 @@ Semantic actions resolve exactly one target before mutating the authoritative `U
 
 Button `activationCount` is the minimal deterministic edge signal. Gameplay can consume the count delta exactly once during deterministic update logic without a callback graph or heap event-object framework.
 
-The committed headless game-interaction test proves:
-
-```text
-query role=button name="Start Game"
-  -> semantic activation
-  -> activation-count edge consumed by game logic
-  -> authoritative scene entity changes
-  -> existing Agent scene query verifies the result
-```
-
-No screen-coordinate targeting or renderer initialization participates in this flow.
+The committed headless game-interaction test proves semantic activation -> authoritative scene state change -> existing Agent scene verification with no screen-coordinate targeting or renderer initialization.
 
 ### Performance/scope contract
 
@@ -147,29 +117,87 @@ No screen-coordinate targeting or renderer initialization participates in this f
 - `UiDocument` focus and activation state mutation add no heap allocation,
 - explicit text replacement may resize its existing string and is not a per-frame hot path,
 - Agent snapshots/results allocate only on explicit inspection/query/action requests,
-- ordinary UI raster/simulation does not build JSON, MCP payloads, snapshots, or fingerprints,
-- no DOM clone, browser abstraction, hierarchy/layout framework, coordinate-primary automation, or MCP implementation is introduced by #43.
-
-### Headless verification
-
-PR #56 tests cover:
-
-- authored TOML -> `UiDocument` -> semantic Agent interaction,
-- role/name query without coordinates,
-- focus, activation, text input, and assertions,
-- authored-order multi-query determinism,
-- invalid selectors and ambiguity,
-- unbound UI, hidden, disabled, wrong-type, and focus-required failures,
-- semantic TOML fields and hidden-element raster behavior,
-- semantic UI activation -> game/scene state change -> structured Agent scene verification.
-
-PR #56 merged only after `windows-msvc`, full CTest, `clean-clone-quick-start`, and `release-audit` were green.
+- ordinary UI raster/simulation does not build JSON, MCP payloads, snapshots, or fingerprints.
 
 See [`docs/UI.md`](docs/UI.md).
 
+## Implemented #39 MCP transport — PR #58
+
+PR #58 adds a deliberately thin adapter over the existing Agent/Testing vocabulary.
+
+### Boundary
+
+```text
+Runtime / Scene / Input / UI
+          |
+          v
+      AgentFacade
+          |
+          v
+  GameplayScenario
+          |
+          v
+      engine/mcp
+          |
+          v
+   trace2d_mcp stdio host
+```
+
+`engine/mcp` owns protocol parsing/serialization only. JSON/MCP types do not enter core/runtime/scene/input/UI/agent/testing public contracts.
+
+### Protocol surface
+
+Trace2D is a modern-only MCP `2026-07-28` server:
+
+- `server/discover`,
+- required modern per-request `_meta` version/capability fields,
+- server identity in response `_meta`,
+- deterministic cacheable `tools/list`,
+- `tools/call`,
+- newline-delimited UTF-8 stdio.
+
+The adapter exposes fixed semantic tools for runtime/scene inspect/query, semantic UI inspect/query/focus/activate/text/assert, frame-indexed virtual input scheduling/inspection, explicit stepping, and existing gameplay float assertions.
+
+Legacy session semantics are not advertised or implemented. A legacy `initialize` request is rejected with `UnsupportedProtocolVersionError` listing `2026-07-28`, avoiding a partially compatible session.
+
+### Determinism and failure behavior
+
+- input continues to be scheduled by explicit simulation frame,
+- stepping continues through `GameplayScenario::RunFrames`,
+- runtime frame and seed remain engine-owned,
+- scene/UI selectors continue to use existing semantic identity,
+- gameplay and UI failures preserve existing structured diagnostics,
+- unknown tools/malformed protocol requests remain JSON-RPC errors,
+- one MCP step call is bounded to 100,000 frames without changing fixed-step semantics.
+
+### Performance/scope contract
+
+- MCP performs no JSON work unless a protocol message arrives,
+- no MCP snapshot is retained between requests,
+- tool-list order is stable and cacheable,
+- nlohmann/json is private to the MCP adapter/tests,
+- ordinary gameplay/UI/render paths acquire no MCP dependency or per-frame allocation,
+- the stdio host initializes no renderer/GPU/window,
+- HTTP/session/auth/editor frameworks remain out of scope.
+
+### Headless verification
+
+PR #58 protocol tests cover:
+
+- modern discovery metadata and server identity,
+- deterministic/cacheable tool listing,
+- explicit rejection of legacy initialize with the supported modern version,
+- MCP virtual input scheduling -> explicit stepping -> `#player` state change through an existing frame callback,
+- semantic query and existing gameplay assertion after that state change,
+- structured gameplay failure frame/seed/snapshot context,
+- semantic UI focus/text/activation/assertion without renderer or coordinate targeting,
+- structured UI mismatch context.
+
+See [`docs/MCP.md`](docs/MCP.md).
+
 ## Why this order
 
-Assets provide deterministic resource identity. Basic UI provides the smallest engine-owned UI state/rendering input. Semantic UI makes that same state directly inspectable and controllable before MCP. #39 can therefore be a thin adapter over an already-complete protocol-independent vocabulary instead of forcing transport concerns into engine architecture.
+Assets provide deterministic resource identity. Basic UI provides the smallest engine-owned UI state/rendering input. Semantic UI makes that same state directly inspectable and controllable. #39 then exposes that stable vocabulary through MCP as a transport adapter instead of forcing transport concerns into engine architecture.
 
 #41 follows MCP to establish reproducible renderer workloads before the particle pipeline. Particles then use deterministic CPU reference behavior plus measured cost evidence before any explicit human-selected GPU backend.
 
@@ -226,7 +254,7 @@ Release-facing CI remains the baseline:
 - `windows-msvc` configure/build/full CTest
 - `clean-clone-quick-start` using the README-pinned vcpkg baseline
 
-New machine-facing capabilities require deterministic automated tests when practical. GPU presentation itself is not a hosted-runner requirement; backend-independent UI state/query/actions/assertions/rasterization must remain headless-CI testable.
+New machine-facing capabilities require deterministic automated tests when practical. GPU presentation itself is not a hosted-runner requirement; backend-independent UI/MCP state/query/actions/assertions/rasterization must remain headless-CI testable.
 
 Wall-clock timing is environment-dependent evidence and must not become a deterministic correctness threshold.
 
