@@ -81,21 +81,6 @@ Json RpcRequest(
     return response;
 }
 
-Json LegacyInitialize(trace2d::mcp::McpServer& server, const std::uint64_t id)
-{
-    const Json request{
-        {"jsonrpc", "2.0"},
-        {"id", id},
-        {"method", "initialize"},
-        {"params", Json{
-            {"protocolVersion", std::string{trace2d::mcp::LegacyProtocolVersion}},
-            {"clientInfo", Json{{"name", "legacy-test"}, {"version", "1"}}},
-            {"capabilities", Json::object()},
-        }},
-    };
-    return Json::parse(server.HandleMessage(request.dump()));
-}
-
 Json ToolCall(
     trace2d::mcp::McpServer& server,
     const std::uint64_t id,
@@ -162,17 +147,30 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     EXPECT_EQ(toolList.back()["name"], "trace2d.assert_float");
 }
 
-TEST(McpServerTests, LegacyInitializeRemainsAvailableAsUnadvertisedStdioProbe)
+TEST(McpServerTests, LegacyInitializeIsRejectedByModernOnlyServer)
 {
     trace2d::testing::GameplayScenario scenario{};
     scenario.LoadScene(MakeScene());
     trace2d::agent::AgentFacade agent{&scenario.Runtime(), scenario.ActiveScene()};
     trace2d::mcp::McpServer server{agent, scenario};
 
-    const Json response = LegacyInitialize(server, 3U);
-    ASSERT_TRUE(response.contains("result"));
-    EXPECT_EQ(response["result"]["protocolVersion"], trace2d::mcp::LegacyProtocolVersion);
-    EXPECT_EQ(response["result"]["serverInfo"]["name"], "trace2d-mcp");
+    const Json request{
+        {"jsonrpc", "2.0"},
+        {"id", 3U},
+        {"method", "initialize"},
+        {"params", Json{
+            {"protocolVersion", "2025-11-25"},
+            {"clientInfo", Json{{"name", "legacy-test"}, {"version", "1"}}},
+            {"capabilities", Json::object()},
+        }},
+    };
+
+    const Json response = Json::parse(server.HandleMessage(request.dump()));
+    ASSERT_TRUE(response.contains("error"));
+    EXPECT_EQ(response["error"]["code"], -32022);
+    ASSERT_EQ(response["error"]["data"]["supported"].size(), 1U);
+    EXPECT_EQ(response["error"]["data"]["supported"][0], trace2d::mcp::ProtocolVersion);
+    EXPECT_EQ(response["error"]["data"]["requested"], "2025-11-25");
 }
 
 TEST(McpServerTests, ScheduledInputStepQueryAndGameplayAssertionReuseExistingContracts)
