@@ -24,7 +24,7 @@ MCP is transport. It does not own gameplay state, UI state, simulation time, sel
 
 ## Protocol and transport
 
-The primary wire version is MCP `2026-07-28`.
+Trace2D implements MCP `2026-07-28` as a modern-only server.
 
 Trace2D follows the final protocol shape relevant to this adapter:
 
@@ -38,7 +38,7 @@ Trace2D follows the final protocol shape relevant to this adapter:
 - `tools/call`,
 - newline-delimited UTF-8 stdio transport.
 
-The host also accepts the older `initialize` request shape as a narrow compatibility probe for clients that fall back from `server/discover`. The modern Trace2D MCP contract is the `2026-07-28` path above.
+Trace2D does not advertise or implement legacy session semantics. An old `initialize` request is rejected with `UnsupportedProtocolVersionError` and the supported `2026-07-28` version so the failure is explicit instead of creating a partially compatible session.
 
 Official MCP references:
 
