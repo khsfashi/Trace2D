@@ -47,17 +47,29 @@ trace2d::scene::Scene MakeScene()
     return scene;
 }
 
+Json ModernMeta()
+{
+    return Json{
+        {"io.modelcontextprotocol/protocolVersion", std::string{trace2d::mcp::ProtocolVersion}},
+        {"io.modelcontextprotocol/clientInfo", Json{{"name", "trace2d-tests"}, {"version", "1"}}},
+        {"io.modelcontextprotocol/clientCapabilities", Json::object()},
+    };
+}
+
 Json RpcRequest(
     trace2d::mcp::McpServer& server,
     const std::uint64_t id,
     const std::string_view method,
     const Json& params = Json::object())
 {
+    Json requestParams = params;
+    requestParams["_meta"] = ModernMeta();
+
     Json request = Json::object();
     request["jsonrpc"] = "2.0";
     request["id"] = id;
     request["method"] = std::string{method};
-    request["params"] = params;
+    request["params"] = std::move(requestParams);
 
     const std::string responseText = server.HandleMessage(request.dump());
     EXPECT_FALSE(responseText.empty());
@@ -67,6 +79,21 @@ Json RpcRequest(
     EXPECT_EQ(response.value("jsonrpc", std::string{}), "2.0");
     EXPECT_EQ(response.value("id", 0U), id);
     return response;
+}
+
+Json LegacyInitialize(trace2d::mcp::McpServer& server, const std::uint64_t id)
+{
+    const Json request{
+        {"jsonrpc", "2.0"},
+        {"id", id},
+        {"method", "initialize"},
+        {"params", Json{
+            {"protocolVersion", std::string{trace2d::mcp::LegacyProtocolVersion}},
+            {"clientInfo", Json{{"name", "legacy-test"}, {"version", "1"}}},
+            {"capabilities", Json::object()},
+        }},
+    };
+    return Json::parse(server.HandleMessage(request.dump()));
 }
 
 Json ToolCall(
@@ -118,6 +145,9 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     EXPECT_EQ(discovery["result"]["resultType"], "complete");
     EXPECT_EQ(discovery["result"]["supportedVersions"][0], trace2d::mcp::ProtocolVersion);
     EXPECT_EQ(discovery["result"]["supportedVersions"][1], trace2d::mcp::LegacyProtocolVersion);
+    EXPECT_EQ(discovery["result"]["ttlMs"], 60'000U);
+    EXPECT_EQ(discovery["result"]["cacheScope"], "public");
+    EXPECT_EQ(discovery["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "trace2d-mcp");
 
     const Json tools = RpcRequest(server, 2U, "tools/list");
     ASSERT_TRUE(tools.contains("result"));
@@ -130,6 +160,19 @@ TEST(McpServerTests, DiscoveryAndToolListAreDeterministicAndCacheable)
     ASSERT_EQ(toolList.size(), 12U);
     EXPECT_EQ(toolList.front()["name"], "trace2d.inspect");
     EXPECT_EQ(toolList.back()["name"], "trace2d.assert_float");
+}
+
+TEST(McpServerTests, LegacyInitializeRemainsAvailableForStdioFallback)
+{
+    trace2d::testing::GameplayScenario scenario{};
+    scenario.LoadScene(MakeScene());
+    trace2d::agent::AgentFacade agent{&scenario.Runtime(), scenario.ActiveScene()};
+    trace2d::mcp::McpServer server{agent, scenario};
+
+    const Json response = LegacyInitialize(server, 3U);
+    ASSERT_TRUE(response.contains("result"));
+    EXPECT_EQ(response["result"]["protocolVersion"], trace2d::mcp::LegacyProtocolVersion);
+    EXPECT_EQ(response["result"]["serverInfo"]["name"], "trace2d-mcp");
 }
 
 TEST(McpServerTests, ScheduledInputStepQueryAndGameplayAssertionReuseExistingContracts)
