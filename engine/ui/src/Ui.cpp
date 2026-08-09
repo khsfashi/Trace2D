@@ -37,12 +37,18 @@ std::string_view ToString(const UiActionResult result) noexcept
         return "invalid_bounds";
     case UiActionResult::NotFound:
         return "not_found";
+    case UiActionResult::NotVisible:
+        return "not_visible";
     case UiActionResult::Disabled:
         return "disabled";
     case UiActionResult::NotFocusable:
         return "not_focusable";
     case UiActionResult::NotActivatable:
         return "not_activatable";
+    case UiActionResult::NotTextInput:
+        return "not_text_input";
+    case UiActionResult::NotFocused:
+        return "not_focused";
     }
 
     return "unknown";
@@ -168,6 +174,11 @@ UiActionResult UiDocument::Focus(const std::string_view id) noexcept
             continue;
         }
 
+        if (!element.visible)
+        {
+            return UiActionResult::NotVisible;
+        }
+
         if (!element.enabled)
         {
             return UiActionResult::Disabled;
@@ -193,6 +204,11 @@ UiActionResult UiDocument::Activate(const std::string_view id) noexcept
         return UiActionResult::NotFound;
     }
 
+    if (!element->visible)
+    {
+        return UiActionResult::NotVisible;
+    }
+
     if (!element->enabled)
     {
         return UiActionResult::Disabled;
@@ -204,6 +220,38 @@ UiActionResult UiDocument::Activate(const std::string_view id) noexcept
     }
 
     ++element->activationCount;
+    return UiActionResult::Success;
+}
+
+UiActionResult UiDocument::InputText(const std::string_view id, const std::string_view text)
+{
+    UiElement* element = FindMutable(id);
+    if (element == nullptr)
+    {
+        return UiActionResult::NotFound;
+    }
+
+    if (!element->visible)
+    {
+        return UiActionResult::NotVisible;
+    }
+
+    if (!element->enabled)
+    {
+        return UiActionResult::Disabled;
+    }
+
+    if (element->kind != UiElementKind::TextInput)
+    {
+        return UiActionResult::NotTextInput;
+    }
+
+    if (!IsFocused(id))
+    {
+        return UiActionResult::NotFocused;
+    }
+
+    element->text.assign(text);
     return UiActionResult::Success;
 }
 

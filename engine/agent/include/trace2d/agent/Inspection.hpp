@@ -1,5 +1,7 @@
 #pragma once
 
+#include <trace2d/agent/UiAutomation.hpp>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -14,6 +16,11 @@ class FixedStepRuntime;
 namespace trace2d::scene
 {
 class Scene;
+}
+
+namespace trace2d::ui
+{
+class UiDocument;
 }
 
 namespace trace2d::agent
@@ -223,17 +230,32 @@ public:
     AgentFacade() = default;
     AgentFacade(
         const runtime::FixedStepRuntime* runtime,
-        const scene::Scene* scene) noexcept;
+        const scene::Scene* scene,
+        ui::UiDocument* uiDocument = nullptr) noexcept;
 
     void BindRuntime(const runtime::FixedStepRuntime* runtime) noexcept;
     void BindScene(const scene::Scene* scene) noexcept;
+    void BindUi(ui::UiDocument* uiDocument) noexcept;
 
     [[nodiscard]] InspectionResult Inspect() const;
     [[nodiscard]] QueryResult Query(std::string_view selector) const;
     [[nodiscard]] QueryOneResult QueryOne(std::string_view selector) const;
 
+    [[nodiscard]] UiTreeResult InspectUi() const;
+    [[nodiscard]] UiQueryResult QueryUi(const UiSelector& selector) const;
+    [[nodiscard]] UiQueryOneResult QueryOneUi(const UiSelector& selector) const;
+    [[nodiscard]] UiActionResponse FocusUi(const UiSelector& selector);
+    [[nodiscard]] UiActionResponse ActivateUi(const UiSelector& selector);
+    [[nodiscard]] UiActionResponse InputUiText(
+        const UiSelector& selector,
+        std::string_view text);
+    [[nodiscard]] UiAssertionResult AssertUi(
+        const UiSelector& selector,
+        const UiExpectedState& expected) const;
+
 private:
     const runtime::FixedStepRuntime* runtime_{nullptr};
     const scene::Scene* scene_{nullptr};
+    ui::UiDocument* ui_{nullptr};
 };
 } // namespace trace2d::agent

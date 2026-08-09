@@ -23,23 +23,27 @@ height = 96
 id = "root"
 kind = "panel"
 bounds = [0, 0, 160, 96]
+name = "Main Menu"
 
 [[elements]]
 id = "title"
 kind = "label"
 bounds = [8, 8, 100, 16]
+name = "Title"
 text = "Trace2D UI"
 
 [[elements]]
 id = "start"
 kind = "button"
 bounds = [8, 32, 96, 24]
+name = "Start Game"
 text = "Start Game"
 
 [[elements]]
 id = "player_name"
 kind = "text_input"
 bounds = [8, 64, 120, 24]
+name = "Player Name"
 text = "Player"
 )";
 
@@ -73,11 +77,14 @@ TEST(UiTextTests, AuthoredUiLoadsWithStableOrderAndDeterministicBounds)
     EXPECT_EQ(elements[1].id, "title");
     EXPECT_EQ(elements[2].id, "start");
     EXPECT_EQ(elements[3].id, "player_name");
+    EXPECT_EQ(elements[2].name, "Start Game");
+    EXPECT_EQ(elements[3].name, "Player Name");
     EXPECT_EQ(elements[2].bounds, (UiRect{8U, 32U, 96U, 24U}));
     EXPECT_EQ(elements[3].kind, UiElementKind::TextInput);
+    EXPECT_TRUE(elements[3].visible);
 }
 
-TEST(UiStateTests, FocusAndActivationAreInspectableWithoutRendering)
+TEST(UiStateTests, FocusActivationAndTextInputAreInspectableWithoutRendering)
 {
     UiLoadResult result = LoadUiToml(BasicUi);
     ASSERT_TRUE(result.Succeeded());
@@ -90,6 +97,11 @@ TEST(UiStateTests, FocusAndActivationAreInspectableWithoutRendering)
     EXPECT_EQ(document.FocusedElement()->id, "player_name");
     EXPECT_TRUE(document.IsFocused("player_name"));
 
+    EXPECT_EQ(document.InputText("player_name", "Ada"), UiActionResult::Success);
+    ASSERT_NE(document.Find("player_name"), nullptr);
+    EXPECT_EQ(document.Find("player_name")->text, "Ada");
+    EXPECT_EQ(document.Find("player_name")->name, "Player Name");
+
     EXPECT_EQ(document.Activate("title"), UiActionResult::NotActivatable);
     EXPECT_EQ(document.Activate("start"), UiActionResult::Success);
     EXPECT_EQ(document.Activate("start"), UiActionResult::Success);
@@ -100,6 +112,7 @@ TEST(UiStateTests, FocusAndActivationAreInspectableWithoutRendering)
 
     document.ClearFocus();
     EXPECT_EQ(document.FocusedElement(), nullptr);
+    EXPECT_EQ(document.InputText("player_name", "Grace"), UiActionResult::NotFocused);
 }
 
 TEST(UiRasterTests, SameDocumentProducesSamePixelsAndReusesOutputStorage)
@@ -164,7 +177,7 @@ mystery = 1
     EXPECT_TRUE(HasDiagnosticPath(result, "elements[2].mystery"));
 }
 
-TEST(UiStateTests, DisabledAndMissingTargetsFailDeterministically)
+TEST(UiStateTests, DisabledMissingAndWrongTargetsFailDeterministically)
 {
     UiDocument document{64U, 64U};
     UiElement disabled{};
@@ -176,9 +189,51 @@ TEST(UiStateTests, DisabledAndMissingTargetsFailDeterministically)
 
     EXPECT_EQ(document.Focus("disabled"), UiActionResult::Disabled);
     EXPECT_EQ(document.Activate("disabled"), UiActionResult::Disabled);
+    EXPECT_EQ(document.InputText("disabled", "x"), UiActionResult::Disabled);
     EXPECT_EQ(document.Focus("missing"), UiActionResult::NotFound);
     EXPECT_EQ(document.Activate("missing"), UiActionResult::NotFound);
+    EXPECT_EQ(document.InputText("missing", "x"), UiActionResult::NotFound);
     EXPECT_EQ(ToString(UiActionResult::NotFound), "not_found");
+}
+
+TEST(UiStateTests, HiddenStateControlsActionsAndRasterization)
+{
+    constexpr std::string_view HiddenUi = R"(format_version = 1
+
+[canvas]
+width = 64
+height = 32
+
+[[elements]]
+id = "visible_label"
+kind = "label"
+bounds = [0, 0, 32, 12]
+text = "Visible"
+
+[[elements]]
+id = "hidden_button"
+kind = "button"
+bounds = [0, 16, 32, 16]
+name = "Hidden Button"
+text = "Hidden"
+visible = false
+)";
+
+    UiLoadResult result = LoadUiToml(HiddenUi);
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.document.has_value());
+    UiDocument& document = *result.document;
+
+    const UiElement* hidden = document.Find("hidden_button");
+    ASSERT_NE(hidden, nullptr);
+    EXPECT_FALSE(hidden->visible);
+    EXPECT_EQ(document.Focus("hidden_button"), UiActionResult::NotVisible);
+    EXPECT_EQ(document.Activate("hidden_button"), UiActionResult::NotVisible);
+
+    UiRasterImage image{};
+    UiRasterMetrics metrics{};
+    ASSERT_TRUE(RasterizeUi(document, image, &metrics));
+    EXPECT_EQ(metrics.elementsRasterized, 1U);
 }
 } // namespace
 } // namespace trace2d::ui

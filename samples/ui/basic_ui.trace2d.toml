@@ -8,21 +8,25 @@ height = 96
 id = "root"
 kind = "panel"
 bounds = [0, 0, 160, 96]
+name = "Main Menu"
 
 [[elements]]
 id = "title"
 kind = "label"
 bounds = [8, 8, 100, 16]
+name = "Title"
 text = "Trace2D UI"
 
 [[elements]]
 id = "start"
 kind = "button"
 bounds = [8, 32, 96, 24]
+name = "Start Game"
 text = "Start Game"
 
 [[elements]]
 id = "player_name"
 kind = "text_input"
 bounds = [8, 64, 120, 24]
+name = "Player Name"
 text = "Player"

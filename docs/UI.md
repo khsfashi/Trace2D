@@ -1,37 +1,41 @@
-# Basic UI
+# UI and Semantic Automation
 
-Trace2D's first UI slice is intentionally small. Its job is to establish deterministic, engine-owned UI state before semantic automation is added in Issue #43.
+Trace2D UI is intentionally small, deterministic, engine-owned, and directly operable by coding agents without screen-coordinate targeting.
 
 The authoritative flow is:
 
 ```text
 text-authored TOML
   -> UiDocument
-  -> deterministic bounds/state
-  -> headless inspection/actions
+  -> deterministic engine-owned state
+  -> AgentFacade semantic inspect/query/action/assert
   -> deterministic RGBA8 raster
   -> optional renderer texture upload
 ```
 
-The GPU is presentation only. Focus, enabled state, activation counts, element identity, authored text, and bounds live in `engine/ui` and are available without creating a window or renderer.
+The GPU remains presentation only. Element identity, role, semantic name, bounds, visibility, enabled state, focus, text, and activation state live in `engine/ui` and are available without creating a window or renderer. `engine/agent` observes and mutates that same `UiDocument`; it does not maintain a second UI model.
 
 ## Module boundary
 
-`engine/ui` is SDL-free and does not depend on `engine/render`.
+`engine/ui` is SDL-free and does not depend on `engine/render`, `engine/agent`, JSON, MCP, or an LLM protocol.
 
 Current responsibilities:
 
 - strict versioned TOML loading
 - stable non-empty element IDs
+- stable semantic names
 - deterministic authored-order iteration
 - integer pixel bounds
+- visible/enabled/focused state
 - panel, label, button, and text-input primitives
-- focus state for button/text-input elements
 - button activation count
+- focused text-input replacement
 - deterministic CPU RGBA8 rasterization
 - minimal built-in 5x7 ASCII-oriented label font
 
-The separate `trace2d_ui_preview` tool is an adapter. In windowed mode it uploads the CPU raster through the existing renderer texture API and draws that texture as one sprite. That adapter does not become UI state ownership.
+`engine/agent` depends on `engine/ui` and exposes protocol-independent semantic snapshots, selectors, actions, and assertions. MCP is intentionally deferred to Issue #39 and will adapt this existing surface rather than define it.
+
+The separate `trace2d_ui_preview` tool remains a presentation adapter. In windowed mode it uploads the CPU raster through the existing renderer texture API and draws that texture as one sprite.
 
 ## Authored format
 
@@ -48,23 +52,27 @@ height = 96
 id = "root"
 kind = "panel"
 bounds = [0, 0, 160, 96]
+name = "Main Menu"
 
 [[elements]]
 id = "title"
 kind = "label"
 bounds = [8, 8, 100, 16]
+name = "Title"
 text = "Trace2D UI"
 
 [[elements]]
 id = "start"
 kind = "button"
 bounds = [8, 32, 96, 24]
+name = "Start Game"
 text = "Start Game"
 
 [[elements]]
 id = "player_name"
 kind = "text_input"
 bounds = [8, 64, 120, 24]
+name = "Player Name"
 text = "Player"
 ```
 
@@ -86,69 +94,169 @@ Each `[[elements]]` table requires:
 
 Optional element fields:
 
-- `text`: defaults to empty
+- `name`: stable semantic name used by agents; defaults to the initial authored `text`
+- `text`: current label/value text; defaults to empty
+- `visible`: defaults to `true`
 - `enabled`: defaults to `true`
+
+The `name` fallback is resolved when the authored document loads. Later text-input mutation changes `text` but does not silently change semantic identity.
 
 Unknown fields are rejected. Bounds must have positive width/height and remain inside the canvas.
 
-V1 canvas dimensions are bounded to `1..4096` on each axis. The bound is an authored-input safety limit, not a recommended production resolution: it prevents malformed or LLM-authored data from turning one preview/raster request into an unbounded allocation. A 4096x4096 RGBA8 raster is already 64 MiB before renderer resources, so practical UI should remain much smaller.
+V1 canvas dimensions are bounded to `1..4096` on each axis. The bound is an authored-input safety limit, not a recommended production resolution. A 4096x4096 RGBA8 raster is already 64 MiB before renderer resources.
 
-## Determinism
+## Semantic roles
 
-UI iteration preserves authored element order. No hash-container iteration order participates in observable output.
-
-Bounds use unsigned integer canvas pixels rather than floating-point layout. The same loaded document therefore produces the same element rectangles independent of renderer resolution, GPU vendor, locale, or wall-clock timing.
-
-The CPU rasterizer walks elements in authored order and writes a fixed RGBA8 result. Repeated rasterization of an unchanged document and state produces byte-identical pixels.
-
-## State and actions
-
-The narrow state surface is designed to become the base of semantic UI in #43.
-
-Current headless operations include:
-
-- find an element by stable ID
-- inspect authored kind, text, enabled state, bounds, and activation count
-- focus a button or text input
-- clear focus
-- activate a button
-
-Failures return stable `UiActionResult` values such as:
+Authored kinds map to stable Agent roles:
 
 ```text
-not_found
-not_focusable
-not_activatable
-disabled
+panel      -> panel
+label      -> label
+button     -> button
+text_input -> textbox
 ```
 
-Focus and activation perform no heap allocation. Element lookup is currently a deterministic O(N) scan because the first UI slice is intentionally small; an index should only be added after real authored UI sizes justify it.
+This vocabulary is intentionally smaller than a browser accessibility tree or DOM. V1 is a flat authored-order semantic tree rooted by the UI document itself; there is no speculative hierarchy, automatic layout tree, CSS model, or browser abstraction.
 
-## Rasterization and performance
+## Semantic selectors
+
+`agent::UiSelector` can contain any non-empty combination of:
+
+- `id`
+- `role`
+- `name`
+
+Multiple fields are ANDed. A normal agent workflow can therefore use a stable selector equivalent to:
+
+```text
+role=button name="Start Game"
+role=textbox name="Player Name"
+id=start
+```
+
+`QueryUi` returns every match in authored order. `QueryOneUi` requires exactly one match and returns stable `no_match` or `ambiguous_match` diagnostics otherwise.
+
+Coordinates are exposed as structured bounds for observation and assertions, but they are not needed to identify or activate a control when semantic identity exists.
+
+## Semantic inspection
+
+`AgentFacade::InspectUi()` returns the canvas and authored-order element snapshots. Each element exposes:
+
+- stable `id`
+- semantic `role`
+- semantic `name`
+- integer `bounds`
+- `visible`
+- `enabled`
+- `focused`
+- current `text`
+- `activationCount`
+
+Snapshots allocate only when an explicit inspection/query request asks for copied observation data. Ordinary UI state and raster paths do not build Agent snapshots.
+
+## Semantic actions
+
+The protocol-independent facade provides:
+
+```text
+FocusUi(selector)
+ActivateUi(selector)
+InputUiText(selector, text)
+```
+
+Each action first resolves exactly one semantic target, then mutates engine-owned `UiDocument` state.
+
+Rules:
+
+- invisible controls reject focus/activation/text input
+- disabled controls reject focus/activation/text input
+- only button/textbox controls are focusable
+- only buttons are activatable in V1
+- only textboxes accept text input
+- text input requires the textbox to be focused first
+- a successful text-input action changes `text`, not semantic `name`
+
+`UiDocument` button activation and focus remain allocation-free. Agent-facing actions return copied structured result snapshots, so explicit automation requests may allocate observation strings. Text replacement is an explicit user/agent mutation and may resize the element's existing `std::string`; none of these explicit tooling costs occur automatically in a per-frame simulation hot path.
+
+Stable action diagnostics include:
+
+```text
+ui_unavailable
+invalid_selector
+no_match
+ambiguous_match
+not_visible
+disabled
+not_focusable
+not_activatable
+not_text_input
+not_focused
+action_rejected
+```
+
+## Deterministic gameplay handoff
+
+V1 deliberately avoids a callback graph, polymorphic UI command objects, or a heap-allocating event queue just to connect a button to game logic.
+
+For buttons, `activationCount` is the engine-owned deterministic edge counter. Gameplay code can keep the last consumed count and process the positive delta during its deterministic update:
+
+```text
+semantic ActivateUi("Start Game")
+  -> UiDocument.start.activationCount increments
+  -> fixed-step gameplay consumes activationCount delta exactly once
+  -> authoritative scene/game state changes
+  -> Agent queries/asserts resulting structured state
+```
+
+Re-running the gameplay update without another activation observes no new delta, so the action is not replayed. Multiple activations before one update remain representable as a count delta instead of being collapsed into a boolean.
+
+This keeps V1 dispatch explicit, deterministic, and allocation-light. If future practical controls require richer payload events, they should extend this boundary from measured requirements rather than introduce a generic event framework preemptively.
+
+`tests/agent/UiGameInteractionTests.cpp` proves the complete headless path by selecting `role=button, name="Start Game"` without coordinates, activating it, consuming the activation edge into scene state, and then verifying the changed entity through the existing structured Agent query surface.
+
+## Semantic assertions
+
+`AgentFacade::AssertUi(selector, expected)` performs an exact single-target query and may verify any combination of:
+
+- `visible`
+- `enabled`
+- `focused`
+- `text`
+- `activationCount`
+
+A mismatch returns `state_mismatch` with expected and observed context. This gives coding agents a structured correctness oracle without screenshot inference.
+
+## Determinism and complexity
+
+UI iteration and all semantic multi-query output preserve authored order. No hash-container iteration order participates in observable output.
+
+Current element lookup/query/action target resolution is a deterministic O(N) scan. This is deliberate: the first UI surface is small, predictable, and allocation-light. An index should be introduced only when measured authored UI sizes demonstrate that O(N) lookup is a meaningful cost.
+
+The semantic query path is explicit tooling work and may allocate result snapshots. `UiDocument` focus/activation state mutation itself adds no heap allocation. No semantic snapshot, JSON object, fingerprint, or MCP payload is produced during ordinary rasterization or simulation.
+
+Bounds use unsigned integer canvas pixels. The same loaded document therefore produces the same element rectangles independent of renderer resolution, GPU vendor, locale, or wall-clock timing.
+
+## Rasterization and visibility
 
 `RasterizeUi` writes into a caller-owned `UiRasterImage`.
 
 When width and height are unchanged, the existing `std::vector<std::uint8_t>` storage is reused. The raster path does not allocate temporary element or glyph collections.
 
-Current complexity is proportional to the canvas pixels cleared plus the pixels covered by authored primitives and glyphs:
+Invisible elements are skipped entirely by rasterization. The same `visible` state exposed to Agent inspection therefore controls presentation rather than existing as automation-only metadata.
+
+Current complexity is proportional to the canvas pixels cleared plus visible primitive/glyph work:
 
 ```text
-O(canvas_pixels + filled_primitive_pixels + glyph_pixels)
+O(canvas_pixels + visible_filled_primitive_pixels + visible_glyph_pixels)
 ```
 
-The 4096-per-axis V1 limit bounds the raw CPU raster to 64 MiB. It exists to make worst-case authored allocation finite; it is not a performance target or permission to rasterize 64 MiB every frame.
-
-The preview adapter performs one texture upload when the authored UI is loaded, then reuses the resulting renderer texture for subsequent preview frames. It does not rebuild UI data or discover assets every frame.
-
-This is appropriate for the first deterministic UI foundation, not a claim that whole-canvas CPU rasterization is the final production UI renderer. Later optimization should be driven by renderer/UI workloads after the semantic surface is stable.
+The preview adapter performs one texture upload when the authored UI is loaded, then reuses the resulting renderer texture for subsequent preview frames. This first deterministic CPU rasterizer is not claimed as the final production UI renderer; later optimization should follow measured workloads.
 
 ## Built-in text scope
 
-The first font is deliberately dependency-free and deterministic. It is a fixed 5x7 bitmap glyph set covering ASCII letters, digits, space, and a small punctuation subset. Lowercase ASCII is rendered using the corresponding uppercase glyph.
+The built-in font is dependency-free and deterministic. It is a fixed 5x7 bitmap glyph set covering ASCII letters, digits, space, and a small punctuation subset. Lowercase ASCII renders through the corresponding uppercase glyph.
 
-This is enough for the first machine-verifiable labels and controls, but it is not presented as a complete production typography system.
-
-Not implemented in this slice:
+Not implemented:
 
 - Unicode shaping
 - CJK text
@@ -159,7 +267,7 @@ Not implemented in this slice:
 - rich text
 - localization layout
 
-Those capabilities must not be added merely as speculative breadth. When practical game content requires them, font assets and shaping should be introduced behind the same engine-owned UI/text contract without making the renderer authoritative.
+Those capabilities should be introduced only when practical authored content requires them, behind the same engine-owned semantic contract.
 
 ## Preview commands
 
@@ -181,11 +289,11 @@ build\windows-debug\tools\ui_preview\Debug\trace2d_ui_preview.exe `
     --frames 600
 ```
 
-The exact executable output directory can vary by generator/configuration. The important contract is that headless and windowed modes load and rasterize the same authored file; windowed mode only adds the existing renderer presentation step.
+Headless semantic interaction is covered directly through `AgentFacade` tests over the same `UiDocument` state and requires no renderer initialization.
 
 ## Deliberate non-goals
 
-Issue #42 does not introduce:
+The current UI/semantic automation surface does not introduce:
 
 - a broad widget framework
 - nested automatic layout
@@ -194,6 +302,9 @@ Issue #42 does not introduce:
 - an editor
 - coordinate-only automation
 - a UI-specific GPU renderer
+- a DOM clone or browser abstraction
+- a generic callback/event framework without a demonstrated payload requirement
+- JSON/MCP types inside engine modules
 - a font cache system without a real authored-font requirement
 
-Issue #43 should build semantic identity, role/name/state querying, and semantic actions on top of this module rather than replacing it.
+Issue #39 may now expose this completed semantic vocabulary through MCP without redesigning UI ownership or automation semantics.

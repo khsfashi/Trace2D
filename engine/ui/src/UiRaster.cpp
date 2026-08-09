@@ -311,6 +311,11 @@ bool RasterizeUi(
     UiRasterMetrics localMetrics{};
     for (const UiElement& element : document.Elements())
     {
+        if (!element.visible)
+        {
+            continue;
+        }
+
         ++localMetrics.elementsRasterized;
         const Color textColor = element.enabled ? TextColor : DisabledTextColor;
 
