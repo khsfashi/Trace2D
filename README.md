@@ -6,7 +6,7 @@ Trace2D explores a simple question: why can coding agents build and test web app
 
 The project is designed so an agent can edit text-authored game state, build it, run it headlessly, advance simulation time explicitly, inspect authoritative structured state, inject virtual input, assert gameplay behavior, and capture a visual artifact only when pixels matter.
 
-> Current status: **Public Alpha released (`v0.1.0-alpha.1`)**. P0-P5, the end-to-end Public Alpha sample, measured contiguous same-texture instancing, repository-quality automation, dependency review, explicit limitations, and MIT licensing are complete. The repository is public; post-alpha work now extends the proven agent-first automation contract.
+> Current status: **Public Alpha released (`v0.1.0-alpha.1`)**. P0-P5 and the first post-alpha asset/UI/MCP slices are complete. See `PROJECT_STATUS.md` for the exact active PR/task and owner-fixed execution order.
 
 ## Why Trace2D
 
@@ -22,6 +22,8 @@ Agent-friendly game tooling needs stronger contracts than “launch the editor a
 - headless execution without renderer initialization
 - renderer output and screenshots as QA artifacts, not gameplay truth
 - measured optimization rather than speculative complexity
+
+The long-term asset direction extends the same idea from gameplay into authored visuals: generated/imported sprites should be normalized into canonical machine-readable assets, animated deterministically, inspected/asserted headlessly, rendered through production sprite semantics, and validated with motion/visual/performance QA.
 
 ## Public Alpha vertical sample
 
@@ -49,8 +51,8 @@ See [docs/PUBLIC_ALPHA_SAMPLE.md](docs/PUBLIC_ALPHA_SAMPLE.md) for the complete 
 
 For coding agents or contributors continuing development, start here:
 
-- [AGENTS.md](AGENTS.md) — repository operating rules and handoff protocol
-- [PROJECT_STATUS.md](PROJECT_STATUS.md) — live phase, validation state, next task, and execution order
+- [AGENTS.md](AGENTS.md) — repository operating rules, short `next/continue` execution protocol, and human gates
+- [PROJECT_STATUS.md](PROJECT_STATUS.md) — live phase, active PR, validation state, exact next task, and owner-fixed execution order
 - [Public Alpha sample](docs/PUBLIC_ALPHA_SAMPLE.md) — end-to-end executable workflow
 - [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) — explicit first-release boundaries and non-claims
 - [Public Alpha release notes](docs/RELEASE_NOTES_v0.1.0-alpha.1.md) — first public release summary
@@ -63,12 +65,16 @@ For coding agents or contributors continuing development, start here:
 - [Scene text format](docs/SCENE_FORMAT.md) — version-1 TOML schema and deterministic serialization
 - [Rendering](docs/RENDERING.md) — renderer, batching, presentation, capture, and readback contracts
 - [Batching](docs/BATCHING.md) — measurement-first contiguous batching policy and implementation
+- [MCP](docs/MCP.md) — modern stdio transport over the protocol-independent Agent/Testing surface
+- [Particles](docs/PARTICLES.md) — owner-approved CPU-reference -> explicit human backend choice -> GPU pipeline contract
+- [Sprite pipeline](docs/SPRITES.md) — future canonical assets, production-complete sprite renderer, deterministic animation, generation/import, QA, and end-to-end motion validation
+- [Spine compatibility](docs/SPINE.md) — planned optional compatibility target and explicit runtime-license integration gate
 - [Public Release Plan](docs/PUBLIC_RELEASE.md) — completed gates for `v0.1.0-alpha.1`
-- [Roadmap](docs/ROADMAP.md) — long-term phased development
+- [Roadmap](docs/ROADMAP.md) — long-term owner-fixed phased development
 - [Architecture](docs/ARCHITECTURE.md) — module and dependency direction
 - [Agent-first principles](docs/AGENT_FIRST_PRINCIPLES.md) — non-negotiable design intent
 
-A future coding-agent session should be able to continue from these repository files without previous chat history.
+A future coding-agent session should be able to continue from these repository files without previous chat history. Routine progress is intentionally designed to work from a short instruction such as `@GitHub Trace2D 다음 진행해줘`; `AGENTS.md` defines the exact algorithm.
 
 ## Implemented today
 
@@ -136,13 +142,29 @@ A future coding-agent session should be able to continue from these repository f
 - canonical packed top-down RGBA8 CPU pixels
 - deterministic dependency-free 32-bit BMP artifact
 
+### Authored assets and UI
+
+- deterministic project-relative texture asset identity/cache/import
+- engine-owned basic UI document/state
+- deterministic CPU text/UI raster path
+- semantic UI identity/role/name, focus, activation and text state
+- headless Agent UI inspection/query/actions/assertions
+
+### MCP transport
+
+- protocol-independent engine/Agent API remains the authority
+- modern MCP `2026-07-28` newline-delimited stdio adapter
+- deterministic tool discovery/listing
+- headless scene/UI/input/step/assert flows exposed through transport
+- no per-frame MCP/JSON work unless explicitly requested
+
 ## Intended agent workflow
 
 ```text
-Agent edits source / scene
+Agent edits source / scene / authored data
         |
         v
-      Build
+ Build / Import
         |
         v
   Headless run
@@ -154,15 +176,15 @@ Structured inspect/query
 Virtual input + explicit step
         |
         v
-Gameplay assertion
+Gameplay/UI/animation assertion
         |
         v
-Windowed render / frame capture
+Windowed render / frame capture when pixels matter
         |
         +---- structured failure context ----> Agent
 ```
 
-The Public Alpha sample executes this workflow end to end. Later phases extend engine breadth without replacing this contract.
+The Public Alpha sample executes the original gameplay loop end to end. Later phases extend engine breadth without replacing this contract.
 
 ## Technology
 
@@ -175,7 +197,7 @@ The Public Alpha sample executes this workflow end to end. Later phases extend e
 - **Tests:** GoogleTest / CTest
 - **CI:** GitHub Actions / MSVC
 
-Dependencies and abstractions are added only when a measured or phase-specific requirement justifies them.
+Dependencies and abstractions are added only when a measured or phase-specific requirement justifies them. Separately licensed integrations require an explicit dependency/license review before inclusion.
 
 ## Repository layout
 
@@ -302,19 +324,24 @@ Implemented capabilities are listed above and reflected by executable tests and 
 
 The following are **planned/later** and are not claims of the current engine:
 
-- MCP adapter / protocol transport
+- reproducible broader renderer workload suite
+- complete CPU-reference -> explicit human-choice -> GPU particle pipeline
+- canonical end-to-end Sprite asset/generation/processing/QA pipeline
+- production-complete traditional Sprite Renderer described in `docs/SPRITES.md`
+- deterministic SpriteAnimator2D and exact-frame Agent animation QA
+- generic TexturedMesh2D dynamic geometry foundation
+- Spine compatibility; intentionally **not included** pending the explicit license gate in `docs/SPINE.md`
 - graphical editor
 - broad physics integration
-- semantic UI tree
+- safe hot reload
 - audio/networking
-- advanced animation and asset pipelines
 - job system or custom allocator framework
 - advanced lighting/PBR renderer
 - Linux/macOS/mobile support
 
-The first contiguous same-texture instancing mechanism is implemented narrowly; it is not a claim of a generic material batching system, bindless renderer, texture atlas pipeline, or order-independent transparency solution. Texture sorting remains intentionally disallowed because caller-provided visible painter order is authoritative.
+The first contiguous same-texture instancing mechanism is implemented narrowly; it is not a claim of a generic material batching system, bindless renderer, complete texture-atlas pipeline, production-complete Sprite Renderer, or order-independent transparency solution. Texture sorting remains intentionally disallowed because caller-provided visible painter order is authoritative.
 
-See [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) for the complete non-claims and release boundaries.
+See [Public Alpha limitations](docs/PUBLIC_ALPHA_LIMITATIONS.md) for the complete first-release non-claims and release boundaries.
 
 ## Public Alpha
 
@@ -329,6 +356,8 @@ See [docs/PUBLIC_RELEASE.md](docs/PUBLIC_RELEASE.md), [release notes](docs/RELEA
 Trace2D is licensed under the **MIT License**. See [LICENSE](LICENSE).
 
 Third-party components retain their own licenses and notices; see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md). The rationale for the project-level license choice is recorded in [docs/LICENSE_DECISION.md](docs/LICENSE_DECISION.md).
+
+Planned Spine compatibility is not currently included and has a separate explicit license-integration gate; see [docs/SPINE.md](docs/SPINE.md).
 
 ## Project policy
 
