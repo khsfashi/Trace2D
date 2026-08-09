@@ -1,5 +1,6 @@
 add_executable(trace2d_particles_tests
     ParticleDeterminismTests.cpp
+    ParticleEffectTests.cpp
     ParticleReferenceTests.cpp
 )
 
