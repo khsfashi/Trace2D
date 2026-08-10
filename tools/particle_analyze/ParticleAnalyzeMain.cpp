@@ -82,6 +82,17 @@ void WriteJsonString(std::ostream& output, const std::string_view value)
     return true;
 }
 
+[[nodiscard]] bool TryParseNonNegativeU32(const std::string_view text, std::uint32_t& value) noexcept
+{
+    std::uint64_t parsed = 0U;
+    if (!TryParseU64(text, parsed) || parsed > std::numeric_limits<std::uint32_t>::max())
+    {
+        return false;
+    }
+    value = static_cast<std::uint32_t>(parsed);
+    return true;
+}
+
 [[nodiscard]] Options ParseOptions(const int argc, char** const argv)
 {
     Options options{};
@@ -144,9 +155,9 @@ void WriteJsonString(std::ostream& output, const std::string_view value)
         else if (argument == "--warmup")
         {
             const std::string_view value = requireValue("--warmup");
-            if (!TryParsePositiveU32(value, options.warmupIterations))
+            if (!TryParseNonNegativeU32(value, options.warmupIterations))
             {
-                throw std::invalid_argument{"--warmup must be a positive 32-bit integer."};
+                throw std::invalid_argument{"--warmup must be a non-negative 32-bit integer."};
             }
         }
         else if (argument == "--iterations")
@@ -194,7 +205,7 @@ void PrintHelp()
         << "\n"
         << "Optional machine-dependent timing (use a Release build):\n"
         << "  --timing\n"
-        << "  --warmup <N>       Warmup workload iterations (default 10).\n"
+        << "  --warmup <N>       Warmup workload iterations (default 10, zero allowed).\n"
         << "  --iterations <N>   Measured workload iterations (default 50).\n"
         << "  --machine-label <text>\n"
         << "  --cpu-model <text>\n";
@@ -312,18 +323,36 @@ void WriteGpuLayout(std::ostream& output, const trace2d::particles::ParticleProg
 
 void WriteOperationTotals(
     std::ostream& output,
+    const trace2d::particles::ParticleProgram& program,
     const trace2d::particles::ParticleStructuralCostReport& report)
 {
     output << '[';
     for (std::size_t index = 0U; index < report.operationTotals.size(); ++index)
     {
         if (index != 0U) output << ',';
+        const auto& cost = program.operationCosts[index];
         const auto& total = report.operationTotals[index];
         output << "{\"operation\":";
         WriteJsonString(output, trace2d::particles::ToString(total.operation));
+        output << ",\"per_admitted_spawn\":" << cost.perAdmittedSpawn;
+        output << ",\"per_updated_particle\":" << cost.perUpdatedParticle;
+        output << ",\"per_surviving_updated_particle\":" << cost.perSurvivingUpdatedParticle;
         output << ",\"evaluations\":" << total.evaluations << '}';
     }
     output << ']';
+}
+
+void StepPlayback(
+    trace2d::particles::ParticleEmitter2D& emitter,
+    const std::uint32_t frames)
+{
+    for (std::uint32_t frame = 0U; frame < frames; ++frame)
+    {
+        if (!emitter.Step())
+        {
+            throw std::runtime_error{"CPU reference workload step failed."};
+        }
+    }
 }
 
 [[nodiscard]] trace2d::particles::ParticleStructuralCostReport RunStructuralWorkload(
@@ -357,20 +386,6 @@ void WriteOperationTotals(
         accumulator.Observation(emitter));
 }
 
-void RunPlayback(
-    trace2d::particles::ParticleEmitter2D& emitter,
-    const std::uint32_t frames)
-{
-    emitter.Restart();
-    for (std::uint32_t frame = 0U; frame < frames; ++frame)
-    {
-        if (!emitter.Step())
-        {
-            throw std::runtime_error{"CPU reference timing workload step failed."};
-        }
-    }
-}
-
 void WriteTiming(
     std::ostream& output,
     const trace2d::particles::ParticleProgram& program,
@@ -390,7 +405,8 @@ void WriteTiming(
 
     for (std::uint32_t iteration = 0U; iteration < options.warmupIterations; ++iteration)
     {
-        RunPlayback(emitter, options.frames);
+        emitter.Restart();
+        StepPlayback(emitter, options.frames);
     }
 
     std::vector<std::uint64_t> samples{};
@@ -398,8 +414,11 @@ void WriteTiming(
     std::uint64_t totalNanoseconds = 0U;
     for (std::uint32_t iteration = 0U; iteration < options.timingIterations; ++iteration)
     {
+        // Reset/playback setup is deliberately outside the measured interval. The measured
+        // scope is only repeated ParticleEmitter2D::Step() work for the deterministic window.
+        emitter.Restart();
         const auto start = std::chrono::steady_clock::now();
-        RunPlayback(emitter, options.frames);
+        StepPlayback(emitter, options.frames);
         const auto end = std::chrono::steady_clock::now();
         const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
         const std::uint64_t nanoseconds = elapsed > 0 ? static_cast<std::uint64_t>(elapsed) : 0U;
@@ -419,7 +438,8 @@ void WriteTiming(
         : static_cast<double>(totalNanoseconds) / static_cast<double>(totalParticleUpdates);
 
     output << "{\"metric_source\":\"machine_dependent_timing\"";
-    output << ",\"scope\":\"cpu_reference_particle_update_workload\"";
+    output << ",\"deterministic_equality_member\":false";
+    output << ",\"scope\":\"particle_emitter_step_window\"";
     output << ",\"warmup_iterations\":" << options.warmupIterations;
     output << ",\"measured_iterations\":" << options.timingIterations;
     output << ",\"frames_per_iteration\":" << options.frames;
@@ -450,6 +470,7 @@ void WriteResult(
 {
     std::cout << "{\"command\":\"particle-analyze\"";
     std::cout << ",\"metric_source\":\"deterministic_structure\"";
+    std::cout << ",\"analysis_execution_backend\":\"cpu_reference_oracle\"";
     std::cout << ",\"effect_asset_id\":";
     WriteJsonString(std::cout, program.effectAssetId);
     std::cout << ",\"effect_semantic_id\":";
@@ -497,7 +518,7 @@ void WriteResult(
     std::cout << ",\"particle_updates\":" << report.particleUpdates;
     std::cout << ",\"surviving_particle_updates\":" << report.survivingParticleUpdates;
     std::cout << ",\"operations\":";
-    WriteOperationTotals(std::cout, report);
+    WriteOperationTotals(std::cout, program, report);
     std::cout << '}';
 
     std::cout << ",\"planned_gpu_layout\":";
