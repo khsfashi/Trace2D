@@ -14,56 +14,64 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Completed AI-operated foundation so far:
+Completed AI-operated foundation:
 
 - #97 machine-readable intent / Definition of Done — complete via PR #115,
 - #98 unified verification / diagnosis / repair / WorkResult — complete via PR #116,
-- **#99 Trace2D Workspace / human feedback loop — active in draft PR #117.**
+- #99 Trace2D Workspace / human feedback loop — complete via PR #117, merge `f45e3acf72de26c8c2e2757b75a0a221a76300e5`.
 
-Do not begin #102 while PR #117 is open.
+**Active core work: #102 Benchmark B0 in draft PR #118.**
 
-PR #117 establishes the first concrete result-review Workspace baseline:
+Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active or blocked on its recognized live qualification gate.
 
-- `WorkspaceSnapshot` derives intent, deliverable progress, acceptance evidence, review queue, changes, artifacts, limitations, revision history and external-truth requirements from #97/#98 state,
-- deterministic/presentation failures cannot be promoted into subjective human review,
-- live clients may attach the existing protocol-independent `InspectionSnapshot` rather than inventing GUI-owned world/entity truth,
-- feedback and approval are strict versioned Workspace action packets bound to the current work ID/revision,
-- stale-revision actions are rejected,
-- approval is accepted only for an item currently present in the review queue,
-- `trace2d_workspace` exposes text/JSON review state, self-contained HTML review output, artifact links/media previews, and feedback/approval packet generation,
-- committed Workspace fixtures preserve a human review -> feedback -> Agent revision -> deterministic re-verification -> revised review loop,
-- Workspace parsing/rendering/action generation remains explicit tooling work outside frame hot paths.
+## #102 active gate
 
-Current #99 contracts/implementation:
+PR #118 establishes the executable B0 harness and first matched current-capability task without fabricating live benchmark evidence.
 
-- [`docs/WORKSPACE.md`](docs/WORKSPACE.md)
-- [`docs/WORKSPACE_IMPLEMENTATION.md`](docs/WORKSPACE_IMPLEMENTATION.md)
-- [`engine/agent/include/trace2d/agent/Workspace.hpp`](engine/agent/include/trace2d/agent/Workspace.hpp)
-- [`tests/data/workspace_spec.trace2d.toml`](tests/data/workspace_spec.trace2d.toml)
-- [`tests/data/workspace_result.trace2d.toml`](tests/data/workspace_result.trace2d.toml)
+Current committed B0 state:
 
-Hosted final-head CI is the active acceptance gate for PR #117. Do not mark #99 complete, mark PR #117 ready, merge it, or advance to #102 until that final head is green.
+- three exact lanes: `godot.generic`, `godot.agent`, `trace2d.agent`,
+- same prompt intent and task budget across lanes,
+- one frozen external coding-Agent/model profile is required per matched cohort,
+- current first Godot Agent bridge qualification target: `@satelliteoflove/godot-mcp@4.1.0`,
+- first task: semantic scene authoring with stable `player` identity, `Player` name and exact `(4, 1)` position,
+- public cross-engine semantic mapping is part of the common prompt rather than a hidden verifier convention,
+- independent engine-side verification decides the score,
+- committed known-good and meaningful known-bad fixtures validate the oracle,
+- candidate trials use fresh copied workspaces/processes,
+- raw trial records are append-only-at-harness SHA-256 hash-chained JSONL,
+- infrastructure, implementation, eligibility, human and integrity outcomes remain separate,
+- reports preserve raw counts/success rates/distributions and do not produce a weighted composite score,
+- independent re-verification can rerun after the original stochastic Agent is gone,
+- benchmark tooling is Python stdlib tooling outside engine runtime/frame hot paths.
 
-## Completed foundation and particle sequence
+Primary B0 implementation/contracts:
 
-1. #40 deterministic texture asset cache/import — complete via PR #45
-2. #42 text/basic UI — complete via PR #55
-3. #43 semantic UI tree/Agent interaction — complete via PR #56
-4. #39 MCP transport over Agent/Testing — complete via PR #58
-5. #41 reproducible renderer workloads — complete via PR #63
-6. #47 particle deterministic frame/keyed-random contracts — complete via PR #64
-7. #48 rich deterministic CPU particle reference — complete via PR #65
-8. #49 text-authored effects + `ParticleEmitter2D` — complete via PR #66
-9. #50 complete Agent verification over CPU particle reference state — complete via PR #83
-10. #51 CPU cost analysis + explicit backend ownership + deterministic compiler — complete via PR #84
-11. #52 explicit GPU particle runtime — complete via PR #95 after required local real-GPU smoke evidence
-12. #53 CPU/GPU conformance, workloads and measured recommendation guidance — complete via PR #114
-13. #97 machine-readable intent / Definition of Done — complete via PR #115
-14. #98 unified verification / diagnosis / repair / WorkResult — complete via PR #116
+- [`benchmarks/b0/README.md`](benchmarks/b0/README.md)
+- [`benchmarks/b0/suite.json`](benchmarks/b0/suite.json)
+- [`benchmarks/b0/BASELINES.md`](benchmarks/b0/BASELINES.md)
+- [`benchmarks/b0/AGENT_WRAPPER.md`](benchmarks/b0/AGENT_WRAPPER.md)
+- [`benchmarks/b0/qualification/README.md`](benchmarks/b0/qualification/README.md)
+- [`scripts/benchmark_b0.py`](scripts/benchmark_b0.py)
+- [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md)
 
-Production architecture freeze #85 is complete via PR #94.
+The suite/task intentionally remain `qualification_required` / `qualification_candidate`. The harness must reject `--scored` runs until live qualification evidence exists.
 
-The seven-part particle program #47-#53 and umbrella #46 are closed complete after the owner-provided Windows/NVIDIA real-GPU smoke/conformance evidence and Release CPU-reference calibration were committed.
+### Live external gate before PR #118 may merge / #102 may close
+
+All of the following remain required:
+
+1. freeze and record the exact Godot engine version used by the selected Godot Agent bridge,
+2. run the `godot.generic` gold/known-bad oracle qualification in the real Godot environment,
+3. qualify the exact `godot.agent` bridge and prove normal authoring, structured runtime inspection, timed input and deterministic/frozen stepping,
+4. freeze one real coding-Agent/model wrapper/profile and prove its workspace/tool isolation,
+5. mark the suite/task eligible only after those checks are positive,
+6. run the same Agent/model/settings/budget repeatedly across all three lanes,
+7. retain every raw attempt, including losses and infrastructure outcomes,
+8. independently re-verify/replay recorded result artifacts,
+9. publish raw sample counts and distributions without best-of-N cherry-picking.
+
+A green repository CI run proves the harness/code contract, **not** those live external facts. Do not create placeholder `qualified: true` evidence.
 
 ## Owner-fixed core execution order
 
@@ -73,8 +81,8 @@ Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent fol
 AI-operated foundation
  -> #97 machine-readable intent / Definition of Done         [complete via PR #115]
  -> #98 unified verify / diagnose / repair / WorkResult      [complete via PR #116]
- -> #99 result-review Workspace / feedback loop              [active draft PR #117; hosted CI gate]
- -> #102 Benchmark B0 matched harness + current-capability tasks
+ -> #99 result-review Workspace / feedback loop              [complete via PR #117]
+ -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118]
 
 Content production
  -> #59 complete Sprite program
@@ -121,9 +129,31 @@ Umbrellas/registers:
 
 #93/#101/#106 do not authorize routine continuation to bypass the fixed order.
 
-## #97 machine-readable intent boundary
+## Completed foundation and particle sequence
 
-PR #115 keeps committed and live truth separate:
+1. #40 deterministic texture asset cache/import — complete via PR #45
+2. #42 text/basic UI — complete via PR #55
+3. #43 semantic UI tree/Agent interaction — complete via PR #56
+4. #39 MCP transport over Agent/Testing — complete via PR #58
+5. #41 reproducible renderer workloads — complete via PR #63
+6. #47 particle deterministic frame/keyed-random contracts — complete via PR #64
+7. #48 rich deterministic CPU particle reference — complete via PR #65
+8. #49 text-authored effects + `ParticleEmitter2D` — complete via PR #66
+9. #50 complete Agent verification over CPU particle reference state — complete via PR #83
+10. #51 CPU cost analysis + explicit backend ownership + deterministic compiler — complete via PR #84
+11. #52 explicit GPU particle runtime — complete via PR #95 after required owner real-GPU evidence
+12. #53 CPU/GPU conformance, workloads and measured recommendation guidance — complete via PR #114
+13. #97 machine-readable intent / Definition of Done — complete via PR #115
+14. #98 unified verification / diagnosis / repair / WorkResult — complete via PR #116
+15. #99 result-review Workspace / feedback loop — complete via PR #117
+
+Production architecture freeze #85 is complete via PR #94.
+
+The seven-part particle program #47-#53 and umbrella #46 are closed complete after owner-provided Windows/NVIDIA real-GPU smoke/conformance evidence and Release CPU-reference calibration were committed.
+
+## Durable AI-operated boundaries
+
+### #97 WorkSpec / capability boundary
 
 ```text
 committed WorkSpec / capability catalog
@@ -133,20 +163,9 @@ live GitHub / CI / environment / hardware / license / human state
   -> queried by the owning orchestration stage when required
 ```
 
-Important rules:
+A capability is not inferred from a symbol merely existing. Missing capability makes a task not eligible rather than an Agent failure. Live facts remain external truth.
 
-- a capability is never inferred from a symbol/file merely existing,
-- positive capability claims carry repository evidence,
-- `production_supported => tested => available`, but the reverse is not implied,
-- a task requiring an unavailable capability is blocked/not eligible rather than counted as an Agent implementation failure,
-- deterministic and presentation criteria may complete at `verified`,
-- multimodal and human criteria require explicit `approved`,
-- live CI/hardware/license/human facts are declared as external requirements rather than copied into stale committed state,
-- work-state parsing/evaluation is explicit tooling work and never enters engine frame hot paths.
-
-## #98 WorkResult boundary
-
-PR #116 extends #97 identities into a revision/result flow:
+### #98 WorkResult boundary
 
 ```text
 WorkSpec acceptance
@@ -155,89 +174,54 @@ WorkSpec acceptance
  -> external Agent/user repair
  -> new revision
  -> deterministic re-verification
- -> presentation/multimodal/human review where required
+ -> subjective review only where required
 ```
 
-Important rules:
+Agent self-report is not independent truth. Historical failures remain preserved after repair, and #102 owns an independent benchmark verifier/provenance boundary.
 
-- engine runtime does not silently repair source/content,
-- current deterministic failure remains machine-authoritative even if a screenshot looks good,
-- passed/approved records require evidence references,
-- human/multimodal `passed` is not final approval,
-- historical failures remain reviewable after a later repair passes,
-- `external_truth` remains separate from local result completion,
-- `WorkResult` composes evidence but does not turn `Agent says done` into independent truth,
-- #102 keeps an independent benchmark verifier/provenance boundary.
-
-## #99 Workspace boundary
-
-PR #117 adds a derived review client over #97/#98 rather than a second editor/project database.
+### #99 Workspace boundary
 
 ```text
-WorkSpec + WorkResult + optional Agent InspectionSnapshot
- -> WorkspaceSnapshot
- -> text / JSON / HTML / future client
- -> human review
- -> feedback or approval action packet
+WorkSpec + WorkResult + optional existing Agent InspectionSnapshot
+ -> derived WorkspaceSnapshot
+ -> result review
+ -> revision-bound feedback/approval packet
  -> external Agent/user edit
- -> deterministic re-verification
+ -> re-verification
  -> next WorkResult revision
 ```
 
-Important rules:
+Workspace does not create a second editor/project database, silently mutate engine state, or promote machine-owned failure into human review.
 
-- Workspace progress is derived from explicit acceptance/result state rather than hidden model conversation,
-- current machine-owned failures remain machine-owned and cannot enter the subjective review queue,
-- live world/entity inspection reuses `AgentFacade::Inspect()` semantic state when a client has a running engine,
-- offline file review leaves live inspection absent rather than fabricating runtime state,
-- feedback may carry a stable semantic target and optional acceptance identity,
-- feedback never mutates engine state by itself,
-- approval is revision-bound and may only target the current eligible review queue,
-- HTML/media preview consumes already-produced artifact paths and never performs continuous capture/readback,
-- there is no browser framework, HTTP server, editor database or normal-frame serialization requirement.
-
-Committed #99 representative flow:
+### #102 Benchmark boundary
 
 ```text
-revision-1 change
- -> deterministic PASS
- -> human review + preview
- -> human feedback
- -> revision-2 change
- -> deterministic PASS again
- -> revised preview returns to review
+frozen task + lane + Agent/model/budget
+ -> isolated fresh trial
+ -> independent verifier
+ -> immutable raw result record
+ -> repeated matched cohort
+ -> aggregate raw statistics
+ -> independent re-verification/replay
 ```
 
-After PR #117 merges green, close #99 and advance this file to **#102 Benchmark B0**.
+Benchmark truth must remain independent from the candidate Agent and its WorkResult. Capability admission, infrastructure failures and human intervention remain separate from implementation success/failure.
 
 ## Particle architecture frozen by #47-#53
 
-The V1 particle contract is:
+The V1 particle contract remains:
 
 ```text
 rich text-authored effect
-  -> deterministic CPU semantic oracle
-  -> exact structured Agent verification
-  -> deterministic structural cost analysis
-  -> optional environment-labelled Release timing
-  -> explicit human CPU/GPU backend decision
-  -> deterministic minimized GPU artifact when selected
-  -> persistent GPU compute/instanced presentation
-  -> layered CPU/GPU conformance
+ -> deterministic CPU semantic oracle
+ -> exact structured Agent verification
+ -> deterministic structural cost analysis
+ -> optional environment-labelled Release timing
+ -> explicit human CPU/GPU backend decision
+ -> deterministic minimized GPU artifact when selected
+ -> persistent GPU compute/instanced presentation
+ -> layered CPU/GPU conformance
 ```
-
-Hard invariants:
-
-- CPU reference remains semantic authority,
-- backend is explicit authored text; analyzer/build never silently changes it,
-- normal GPU mode does not duplicate the full CPU reference simulation,
-- normal GPU frames perform no particle readback/fence wait,
-- GPU storage is capacity-bounded and reused,
-- no per-particle draw-call path,
-- compiler/artifact/layout identity is deterministic,
-- cross-vendor GPU floating point is checked through explicit tolerance/invariants, not universal float-bit identity,
-- structural evidence and machine timing remain separate,
-- visual style/feel may use multimodal review; final creative judgment remains human.
 
 Primary particle contracts/evidence:
 
@@ -245,19 +229,9 @@ Primary particle contracts/evidence:
 - [`docs/PARTICLE_ANALYSIS.md`](docs/PARTICLE_ANALYSIS.md)
 - [`docs/PARTICLE_GPU_RUNTIME.md`](docs/PARTICLE_GPU_RUNTIME.md)
 - [`docs/PARTICLE_CONFORMANCE.md`](docs/PARTICLE_CONFORMANCE.md)
-- [`docs/evidence/particle-53/924dbc1/`](docs/evidence/particle-53/924dbc1/README.md)
+- [`docs/evidence/particle-53/924dbc1/README.md`](docs/evidence/particle-53/924dbc1/README.md)
 
-## AI-operated product / benchmark handoff
-
-The roadmap builds toward a workflow where:
-
-- human intent becomes machine-readable Definition of Done,
-- verify/diagnose/repair share structured truth,
-- Workspace presents results/review/feedback instead of requiring a Unity-style editor loop,
-- CLI/MCP/Workspace share protocol-independent Agent/result contracts,
-- benchmark claims are based on matched multi-run evidence rather than demos.
-
-Autonomous benchmark growth remains:
+## Benchmark growth after #102
 
 ```text
 #102 B0 — harness + current-capability matched tasks
@@ -265,4 +239,4 @@ Autonomous benchmark growth remains:
  -> #104 B2 — coherent autonomous top-down combat micro-game
 ```
 
-#102 is the next core task only after #99/PR #117 is green and merged.
+Do not advance to #59/#103 until #102's recognized live gate is actually resolved or the owner explicitly changes the fixed order.
