@@ -25,4 +25,38 @@ if(BUILD_TESTING)
         PROPERTIES
             PASS_REGULAR_EXPRESSION "trace2d_particle_analyze"
     )
+
+    add_test(
+        NAME trace2d_particle_analyze_structure
+        COMMAND trace2d_particle_analyze
+            --project-root "${CMAKE_SOURCE_DIR}"
+            --effect "tests/particles/fixtures/analyze.trace2d.particle.toml"
+            --frames 4
+            --seed 7
+            --stable-id 11
+    )
+    set_tests_properties(
+        trace2d_particle_analyze_structure
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "deterministic_structure.*backend_changed_by_analyzer.*false"
+    )
+
+    # This validates timing-output provenance only. It deliberately has no timing threshold.
+    add_test(
+        NAME trace2d_particle_analyze_timing_schema
+        COMMAND trace2d_particle_analyze
+            --project-root "${CMAKE_SOURCE_DIR}"
+            --effect "tests/particles/fixtures/analyze.trace2d.particle.toml"
+            --frames 1
+            --timing
+            --warmup 0
+            --iterations 1
+            --machine-label "ci-schema-smoke"
+            --cpu-model "unscored-ci-cpu"
+    )
+    set_tests_properties(
+        trace2d_particle_analyze_timing_schema
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "machine_dependent_timing.*deterministic_equality_member.*false"
+    )
 endif()
