@@ -63,19 +63,20 @@ Before changing code:
 2. `PROJECT_STATUS.md`
 3. exact active issue / PR
 4. active subsystem contract
-5. `docs/AI_OPERATED_WORKFLOW.md` for product/verification/human-feedback rules
-6. `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md` when work can affect world/components/resources/rendering/camera/material/tween/profiling/GPU validation
-7. `docs/PRODUCTION_GAPS.md` when entering an owning future subsystem named there
-8. `docs/ROADMAP.md`
-9. `docs/ARCHITECTURE.md`
-10. `docs/AGENT_FIRST_PRINCIPLES.md`
+5. `docs/EXTERNAL_REFERENCE_PROTOCOL.md` for substantive subsystem/architecture/determinism/benchmark/performance/integration work
+6. `docs/AI_OPERATED_WORKFLOW.md` for product/verification/human-feedback rules
+7. `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md` when work can affect world/components/resources/rendering/camera/material/tween/profiling/GPU validation
+8. `docs/PRODUCTION_GAPS.md` when entering an owning future subsystem named there
+9. `docs/ROADMAP.md`
+10. `docs/ARCHITECTURE.md`
+11. `docs/AGENT_FIRST_PRINCIPLES.md`
 
 Additional required subsystem/program reading:
 
 - particles #46 / #47-#53: `docs/PARTICLES.md` plus the exact child contract,
 - AI-operated loop #96: `docs/AI_OPERATED_WORKFLOW.md`,
 - result/feedback UI #98/#99: `docs/AI_OPERATED_WORKFLOW.md` and `docs/WORKSPACE.md`,
-- autonomous benchmark #100/#102-#104: `docs/AUTONOMOUS_BENCHMARK.md` and `docs/REFERENCE_PROJECTS.md`,
+- autonomous benchmark #100/#102-#104: `docs/AUTONOMOUS_BENCHMARK.md`, `docs/REFERENCE_PROJECTS.md`, and `docs/EXTERNAL_REFERENCE_PROTOCOL.md`,
 - Sprite #59: `docs/SPRITES.md` and `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`,
 - game production #69-#79 plus #86-#92: `docs/GAME_PRODUCTION.md`, `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`, and relevant sections of `docs/PRODUCTION_GAPS.md`,
 - Mesh2D #60: #60 plus relevant Sprite/Game Production handoff,
@@ -103,6 +104,8 @@ When sources disagree, use this order:
 8. active subsystem/program contract,
 9. `docs/ROADMAP.md`,
 10. older issue descriptions/discussion.
+
+External references inform Trace2D design but never outrank compiling code, live project state, owner decisions or Trace2D's committed contracts. When external evidence reveals that an existing contract is wrong or obsolete, change the Trace2D contract explicitly rather than silently following the external source.
 
 If live code/state has advanced beyond prose, reconcile documentation in the same work rather than silently relying on stale text.
 
@@ -136,14 +139,44 @@ Equivalent requests mean: **execute the core continuation lane without asking th
 8. If there is no active core/governance blocker, select the first incomplete and unblocked item from `PROJECT_STATUS.md`.
 9. If the item is an umbrella with a fixed child order, select the first incomplete child already named by the contract. Do not create a substitute stage or re-open an owner choice.
 10. Read the exact issue and affected subsystem documents.
-11. Implement one coherent issue/child vertical slice.
-12. Add/update automated tests, deterministic fixtures, diagnostics and measurement evidence appropriate to the behavior.
-13. Run the strongest practical validation available.
-14. Update subsystem/product contracts when behavior finalizes or changes.
-15. Update `PROJECT_STATUS.md` so completed/current/next is obvious.
-16. Publish/update one scoped PR using `agent/<short-description>` unless an existing branch/PR owns the work.
-17. Do not begin the next core child until the current core PR is merged green.
-18. Stop only when the turn's current work is complete, a real external blocker exists, or a recognized human gate is reached.
+11. For substantive subsystem/architecture/determinism/benchmark/performance/integration work, perform the bounded current external-reference pass in `docs/EXTERNAL_REFERENCE_PROTOCOL.md` **before freezing the design**. Start from `docs/REFERENCE_PROJECTS.md`, then refresh current primary sources. Extract `ADOPT / ADAPT / REJECT / DEFER` decisions instead of copying architectures blindly. Narrow regressions/typos may reuse an already-current established contract without a fresh literature search.
+12. Implement one coherent issue/child vertical slice using Trace2D-owned contracts. External references do not authorize scope creep, dependency addition, lane reordering or waiver of a human/environment gate.
+13. Add/update automated tests, deterministic fixtures, diagnostics and measurement evidence appropriate to the behavior, including evidence for any adopted non-obvious external lesson.
+14. Run the strongest practical validation available.
+15. Update subsystem/product contracts when behavior finalizes or changes. Add durable newly useful sources to `docs/REFERENCE_PROJECTS.md` when later work should rediscover them.
+16. Update `PROJECT_STATUS.md` so completed/current/next is obvious.
+17. Publish/update one scoped PR using `agent/<short-description>` unless an existing branch/PR owns the work. For substantive work, preserve a compact external-reference review in the PR or owning contract.
+18. Do not begin the next core child until the current core PR is merged green.
+19. Stop only when the turn's current work is complete, a real external blocker exists, or a recognized human gate is reached.
+
+## External reference absorption rule
+
+Trace2D should not repeatedly reinvent solved engineering problems from model memory.
+
+For substantive work:
+
+```text
+active Trace2D uncertainty
+    ↓
+current primary references
+    ↓
+ADOPT / ADAPT / REJECT / DEFER
+    ↓
+Trace2D-owned contract/test/workload/metric
+    ↓
+implementation evidence
+```
+
+Hard rules:
+
+- search both **direct analogues** and the relevant **lower-layer precedent**; a database simulator, replay system, verifier framework or benchmarking tool may be more useful than another AI-game product,
+- prefer official docs/repos/specs/papers and maintainer engineering posts over secondary summaries,
+- use external work to learn edge cases and proven techniques, not to import its entire abstraction stack,
+- references are not dependencies; vendoring/linking/redistribution still requires current version/license/security review,
+- no external reference can reorder the owner-fixed core lane or mark an unmet gate complete,
+- a borrowed technique is not "absorbed" until Trace2D has its own contract and evidence for it,
+- performance/determinism/autonomy claims require reproducible Trace2D evidence rather than citation by authority,
+- `docs/REFERENCE_PROJECTS.md` is a starting registry, not an exhaustive whitelist; future agents must search for stronger/newer work when the owning task activates.
 
 ## Owner-fixed core order
 
@@ -285,6 +318,8 @@ Record at minimum:
 
 Published comparative claims require multiple trials, disclosed sample sizes and pinned versions. Do not cherry-pick one successful run.
 
+The benchmark must also preserve enough execution identity/trace to distinguish stochastic Agent decisions from environment nondeterminism, and final objective success must come from an independent verifier rather than the Agent's self-declared completion. `docs/AUTONOMOUS_BENCHMARK.md` owns the full harness/replay/verifier contract.
+
 ## Production architecture hard rules
 
 The frozen contract in `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md` exists to prevent later subsystem rework.
@@ -419,6 +454,7 @@ Normal core flow:
 ```text
 Issue
  -> branch
+ -> external-reference pass when substantive
  -> implementation
  -> automated tests / fixtures
  -> local or CI validation
@@ -467,6 +503,7 @@ Main uses squash merges. Keep one PR understandable as one coherent change.
 - Expensive snapshots/fingerprints/reports/capture/migration/generation/profiling/WorkResult/benchmark/multimodal work remain request/setup/tooling work, not ordinary frame work.
 - If a safe versioned file edit is sufficient, do not create a redundant narrow MCP action for every property.
 - Multimodal review is advisory; final subjective judgment remains human.
+- For substantive new work, current external precedents are engineering input under `docs/EXTERNAL_REFERENCE_PROTOCOL.md`; they are never an excuse to violate Trace2D's authority/performance/ownership rules.
 
 Target vocabulary remains intentionally small and composable:
 
