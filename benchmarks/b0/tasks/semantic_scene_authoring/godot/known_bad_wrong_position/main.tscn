@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="Player" type="Node2D" parent="." groups=["player"]]
+position = Vector2(3, 1)
