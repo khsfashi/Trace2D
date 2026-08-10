@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "suite_id": "trace2d-b0",
+  "lane_id": "godot.agent",
+  "qualified": true,
+  "scope": "selected Godot Agent bridge live Q1-Q4 qualification plus independent b0-semantic-scene-authoring oracle",
+  "engine": {
+    "id": "godot",
+    "version": "4.7.1-stable",
+    "reported_version": "4.7.1-stable (official)",
+    "oracle_reported_version": "4.7.1.stable.official.a13da4feb",
+    "binary_family": "official-linux-x86_64"
+  },
+  "bridge": {
+    "id": "satelliteoflove/godot-mcp",
+    "package": "@satelliteoflove/godot-mcp",
+    "version": "4.1.0",
+    "npm_integrity": "sha512-uq3Gh5n7fos8vIoXpr32/K7r9tL9eYLbERr+Tolksg3Y+FC5coYEkRkbJ1JktMMhoH/BnGWsWhE5E+XJ/nMEPg=="
+  },
+  "checks": {
+    "authoring": true,
+    "runtime_inspection": true,
+    "timed_input": true,
+    "deterministic_step": true
+  },
+  "environment": {
+    "provider": "GitHub Actions hosted runner",
+    "os": "Ubuntu 24.04.4 LTS",
+    "architecture": "x86_64",
+    "runner_image": "ubuntu-24.04",
+    "runner_image_version": "20260720.247.2",
+    "runner_version": "2.336.0",
+    "node_version": "v22.18.0",
+    "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@1"
+  },
+  "fixture": {
+    "task_id": "b0-semantic-scene-authoring",
+    "source_tree_sha256": "3d8fc5ff4a3b03bd595c8ee5a48baa9a7653d89896dc62dc7108a6ca32e5cd88",
+    "installed_tree_sha256_before_qualification": "1da3004d0d9b4061248bef52c1bee1c57edae7577e730588b0d19eee3a8ba4bc",
+    "installed_tree_sha256_after_qualification": "ca58616e453895a672b27c2bf94d885d4f41bf675e13a6cce5b3996e74281022",
+    "known_good_passed": true,
+    "known_bad_failed": true,
+    "known_bad_code": "position_mismatch"
+  },
+  "determinism_observation": {
+    "step_duration_ms_requested": 200,
+    "input": "raw D key held from 0ms through 180ms",
+    "first_run": {
+      "elapsed_ms": 201,
+      "physics_ticks": 12,
+      "position_x": 1.83,
+      "position_y": 0
+    },
+    "replay_run": {
+      "elapsed_ms": 201,
+      "physics_ticks": 12,
+      "position_x": 1.83,
+      "position_y": 0
+    },
+    "render_frames_intentionally_not_compared": {
+      "first_run": 204,
+      "replay_run": 261,
+      "reason": "uncapped hosted rendering is not the fixed game-time determinism domain"
+    },
+    "wall_wait_preserved_frame_zero_state": true
+  },
+  "bridge_evidence": {
+    "repository": "khsfashi/Trace2D",
+    "pull_request": 118,
+    "source_head": "64badb26489445c38805017818775e4ebb32ac8f",
+    "workflow_run_id": 31415374188,
+    "job_id": 93543024897,
+    "job_name": "godot-agent-qualification",
+    "artifact_id": 9073221134,
+    "artifact_name": "godot-agent-qualification-evidence",
+    "artifact_sha256": "fc9e985c15c0ecfed481ef0314e50843da1e2d0d6755d2774b538f1e2f930a70",
+    "passed": true
+  },
+  "oracle_evidence": {
+    "source_head": "a631d7bcd94eebc260182bf84bc16fe0bf076c75",
+    "workflow_run_id": 31415748318,
+    "job_id": 93544223996,
+    "job_name": "godot-agent-fixture-oracle",
+    "known_good_verifier": "godot-semantic-scene-v1",
+    "known_good_passed": true,
+    "known_bad_code": "position_mismatch",
+    "known_bad_failed": true,
+    "official_sha512_verified": true,
+    "passed": true
+  },
+  "generated_at": "2026-08-10T17:47:07.839Z"
+}
