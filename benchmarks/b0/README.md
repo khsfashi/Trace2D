@@ -94,9 +94,11 @@ The hosted qualification proved:
 - structured runtime inspection,
 - launch-frozen frame-zero state,
 - raw timed `D` key input through normal gameplay input,
-- replay of the same fixed 200 ms game-time interval in clean sessions.
+- deterministic replay through the public `step_until` control using the fixture's authoritative `physics_ticks >= 12` predicate.
 
-Both replay runs produced 12 physics ticks and `Player.position_x == 1.83`. Their uncapped render-frame counts differed, so render frames are retained as environment evidence but are not treated as the fixed determinism domain.
+Both clean replay runs stopped at exactly 12 physics ticks with `Player.position_x == 2`. Their uncapped render-frame counts differed (`267` vs `271`), so render frames are retained as environment evidence but are not treated as the deterministic domain.
+
+The measurement history is part of the evidence. Fixed render-frame stepping was rejected first. A fixed 200 ms game-time boundary then passed one run but later exposed 12-vs-13 physics-tick scheduler-phase variance and was also rejected. The accepted criterion therefore stops on authoritative fixed-physics state instead of choosing a convenient wall/game-time approximation.
 
 This baseline is now `selected_qualified`; it is not changed after seeing scored outcomes.
 
