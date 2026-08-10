@@ -22,28 +22,32 @@ Completed AI-operated foundation:
 
 **Active core work: #102 Benchmark B0 in draft PR #118.**
 
-Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active or blocked on its recognized live qualification gate.
+Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active or blocked on its recognized external coding-Agent gate.
 
 ## #102 active gate
 
-PR #118 establishes the executable B0 harness and first matched current-capability task without fabricating live benchmark evidence.
+PR #118 now establishes the executable B0 harness, the first matched current-capability task, and real qualification evidence for all three engine/adapter lanes.
 
 Current committed B0 state:
 
 - three exact lanes: `godot.generic`, `godot.agent`, `trace2d.agent`,
 - same prompt intent and task budget across lanes,
-- one frozen external coding-Agent/model profile is required per matched cohort,
-- current first Godot Agent bridge qualification target: `@satelliteoflove/godot-mcp@4.1.0`,
 - first task: semantic scene authoring with stable `player` identity, `Player` name and exact `(4, 1)` position,
 - public cross-engine semantic mapping is part of the common prompt rather than a hidden verifier convention,
 - independent engine-side verification decides the score,
-- committed known-good and meaningful known-bad fixtures validate the oracle,
+- committed known-good and meaningful known-bad fixtures validate the oracles,
 - candidate trials use fresh copied workspaces/processes,
 - raw trial records are append-only-at-harness SHA-256 hash-chained JSONL,
 - infrastructure, implementation, eligibility, human and integrity outcomes remain separate,
 - reports preserve raw counts/success rates/distributions and do not produce a weighted composite score,
 - independent re-verification can rerun after the original stochastic Agent is gone,
 - benchmark tooling is Python stdlib tooling outside engine runtime/frame hot paths.
+
+### Environment/bridge qualification — complete
+
+- `godot.generic` — official Godot `4.7.1-stable` Linux x86_64 binary checksum/version verified; known-good accepted and wrong-position known-bad rejected.
+- `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted fixed 200 ms game-time replay produced 12 physics ticks and `Player.position_x == 1.83` in both clean runs. Its independent lane oracle also accepted known-good and rejected wrong-position known-bad.
+- `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; all 188 repository tests passed in the qualification run, then the independent known-good/known-bad task oracle passed.
 
 Primary B0 implementation/contracts:
 
@@ -52,26 +56,25 @@ Primary B0 implementation/contracts:
 - [`benchmarks/b0/BASELINES.md`](benchmarks/b0/BASELINES.md)
 - [`benchmarks/b0/AGENT_WRAPPER.md`](benchmarks/b0/AGENT_WRAPPER.md)
 - [`benchmarks/b0/qualification/README.md`](benchmarks/b0/qualification/README.md)
+- [`benchmarks/b0/qualification/godot-agent.json`](benchmarks/b0/qualification/godot-agent.json)
 - [`scripts/benchmark_b0.py`](scripts/benchmark_b0.py)
 - [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md)
 
-The suite/task intentionally remain `qualification_required` / `qualification_candidate`. The harness must reject `--scored` runs until live qualification evidence exists.
+The suite/task intentionally remain `qualification_required` / `qualification_candidate`. The harness must continue rejecting `--scored` runs until the external coding-Agent/model gate below is real. Three qualified environments are readiness evidence, not a comparative result.
 
-### Live external gate before PR #118 may merge / #102 may close
+### Remaining external gate before PR #118 may merge / #102 may close
 
-All of the following remain required:
+The Godot/Trace2D environment qualification gate is resolved. The remaining acceptance work is specifically the **real matched coding-Agent cohort**:
 
-1. freeze and record the exact Godot engine version used by the selected Godot Agent bridge,
-2. run the `godot.generic` gold/known-bad oracle qualification in the real Godot environment,
-3. qualify the exact `godot.agent` bridge and prove normal authoring, structured runtime inspection, timed input and deterministic/frozen stepping,
-4. freeze one real coding-Agent/model wrapper/profile and prove its workspace/tool isolation,
-5. mark the suite/task eligible only after those checks are positive,
-6. run the same Agent/model/settings/budget repeatedly across all three lanes,
-7. retain every raw attempt, including losses and infrastructure outcomes,
-8. independently re-verify/replay recorded result artifacts,
-9. publish raw sample counts and distributions without best-of-N cherry-picking.
+1. freeze one real coding-Agent/model wrapper/profile, including exact model revision/settings and the existing task budget,
+2. prove that wrapper's filesystem/tool boundary is isolated to the candidate workspace and cannot read the held-out verifier as a solution oracle,
+3. only then promote the suite/task to `eligible`,
+4. run the same Agent/model/settings/budget repeatedly across all three lanes,
+5. retain every raw attempt, including losses and infrastructure outcomes,
+6. independently re-verify/replay recorded result artifacts,
+7. publish raw sample counts and distributions without best-of-N cherry-picking.
 
-A green repository CI run proves the harness/code contract, **not** those live external facts. Do not create placeholder `qualified: true` evidence.
+Do **not** manufacture a model identity, token counts, provider usage, or successful trials when no real coding-Agent execution surface is connected. A green repository CI run proves the harness/environment contracts, not the missing model-run facts.
 
 ## Owner-fixed core execution order
 
@@ -82,7 +85,7 @@ AI-operated foundation
  -> #97 machine-readable intent / Definition of Done         [complete via PR #115]
  -> #98 unified verify / diagnose / repair / WorkResult      [complete via PR #116]
  -> #99 result-review Workspace / feedback loop              [complete via PR #117]
- -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118]
+ -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118; coding-Agent cohort gate]
 
 Content production
  -> #59 complete Sprite program
@@ -239,4 +242,4 @@ Primary particle contracts/evidence:
  -> #104 B2 — coherent autonomous top-down combat micro-game
 ```
 
-Do not advance to #59/#103 until #102's recognized live gate is actually resolved or the owner explicitly changes the fixed order.
+Do not advance to #59/#103 until #102's recognized coding-Agent gate is actually resolved or the owner explicitly changes the fixed order.
