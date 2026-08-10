@@ -108,6 +108,7 @@ $requiredFiles = @(
     'docs/AUTONOMOUS_BENCHMARK.md',
     'docs/COMMIT_KNOWLEDGE.md',
     'docs/COMPETITIVE_STRATEGY.md',
+    'docs/DEVELOPMENT_CONTENT_PIPELINE.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REFERENCE_PROJECTS.md',
@@ -145,6 +146,15 @@ Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'satelliteoflove/godot-mcp' 'runtim
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'hi-godot/godot-ai' 'broad-authoring Godot baseline candidate'
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'Erodenn/godot-mcp-runtime' 'zero-footprint Godot baseline candidate'
 
+# Development-derived content stops at evidence/candidate metadata. The owner
+# authors every external post, and platform configuration stays extensible.
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)maintainer writes the actual posts' 'content authoring remains human-owned'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)no automatic article body generation' 'automatic article prose remains out of scope'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)dynamic platform registry' 'platform targets remain registry-driven'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)do not hard-code Tistory, X, Reddit, Hacker News, GeekNews' 'platform list is not hard-coded into core schema'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)do not need to share wording, length, angle, language' 'platform content may differ while sharing evidence'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' 'Content: none \| candidate \| major \| release' 'optional content-significance trailer remains reserved'
+
 # Durable commit history must preserve real validation gaps/gates and allow
 # intentional replacement of an old decision.
 foreach ($trailer in @('Tested:', 'Not-tested:', 'Gate:', 'Supersedes:')) {
@@ -170,6 +180,7 @@ $linkAuditFiles = @(
     'docs/AUTONOMOUS_BENCHMARK.md',
     'docs/COMMIT_KNOWLEDGE.md',
     'docs/COMPETITIVE_STRATEGY.md',
+    'docs/DEVELOPMENT_CONTENT_PIPELINE.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REPOSITORY_AUTOMATION.md'
