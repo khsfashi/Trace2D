@@ -1,0 +1,53 @@
+format_version = 1
+
+[result]
+work_id = "work-spec-representative"
+
+[[revisions]]
+id = "revision-1"
+changed_paths = ["tests/data/work_spec.trace2d.toml"]
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-verification"
+verification = "deterministic"
+outcome = "failed"
+summary = "Seeded semantic verification failure for repair-loop coverage."
+evidence = ["artifacts/revision-1/verification.json"]
+failure_code = "seeded_mismatch"
+failure_target = "acceptance/semantic-verification"
+failure_message = "The seeded first revision intentionally fails."
+reproduction = "trace2d_verify --spec tests/data/work_spec.trace2d.toml --result tests/data/work_result.trace2d.toml --json"
+
+[[revisions.verification]]
+acceptance = "human-review"
+verification = "human"
+outcome = "not_run"
+summary = "Human review waits until deterministic repair succeeds."
+evidence = []
+
+[[revisions]]
+id = "revision-2"
+parent = "revision-1"
+changed_paths = ["tests/data/work_spec.trace2d.toml"]
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-verification"
+verification = "deterministic"
+outcome = "passed"
+summary = "Deterministic verification passes after the representative repair."
+evidence = ["artifacts/revision-2/verification.json"]
+
+[[revisions.verification]]
+acceptance = "human-review"
+verification = "human"
+outcome = "review_needed"
+summary = "Machine verification is complete; human approval remains outstanding."
+evidence = ["artifacts/revision-2/review-summary.md"]
+
+[[revisions.artifacts]]
+id = "review-summary"
+kind = "report"
+path = "artifacts/revision-2/review-summary.md"
+description = "Review-facing evidence for the current revision."
