@@ -5,6 +5,7 @@ add_library(trace2d_agent STATIC
     src/ParticleInspection.cpp
     src/Query.cpp
     src/UiAutomation.cpp
+    src/WorkResult.cpp
     src/WorkSpec.cpp
 )
 
