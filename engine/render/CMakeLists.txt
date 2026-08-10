@@ -3,6 +3,8 @@ find_package(SDL3_shadercross CONFIG REQUIRED)
 
 add_library(trace2d_render STATIC
     src/Capture.cpp
+    src/ParticleGpuBackend.cpp
+    src/ParticleGpuRuntime.cpp
     src/RenderData.cpp
     src/Renderer.cpp
     src/RendererWorkload.cpp
@@ -19,6 +21,7 @@ target_link_libraries(trace2d_render
     PUBLIC
         Trace2D::Platform
     PRIVATE
+        Trace2D::Particles
         SDL3::SDL3
         SDL3_shadercross::SDL3_shadercross
 )
