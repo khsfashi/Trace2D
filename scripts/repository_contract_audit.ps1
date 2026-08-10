@@ -107,6 +107,7 @@ $requiredFiles = @(
     'docs/AI_OPERATED_WORKFLOW.md',
     'docs/AUTONOMOUS_BENCHMARK.md',
     'docs/COMMIT_KNOWLEDGE.md',
+    'docs/COMPETITIVE_STRATEGY.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REFERENCE_PROJECTS.md',
@@ -136,6 +137,14 @@ Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' 'Godot \+.*MCP' 'Godot Agent-bridge
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)independent verifier' 'independent benchmark verifier'
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)(Harness self-determinism / replay validation|replay.{0,80}determinism|determinism.{0,80}replay)' 'replay/self-determinism evidence'
 
+# Competitive comparisons must use a strong current baseline and publish losses
+# rather than selecting an easy opponent or hiding unfavorable results.
+Require-Regex 'docs/COMPETITIVE_STRATEGY.md' '(?i)strongest-baseline rule' 'strongest current Godot baseline selection'
+Require-Regex 'docs/COMPETITIVE_STRATEGY.md' '(?i)losing results are valid results' 'unfavorable benchmark results remain publishable evidence'
+Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'satelliteoflove/godot-mcp' 'runtime-verification Godot baseline candidate'
+Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'hi-godot/godot-ai' 'broad-authoring Godot baseline candidate'
+Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'Erodenn/godot-mcp-runtime' 'zero-footprint Godot baseline candidate'
+
 # Durable commit history must preserve real validation gaps/gates and allow
 # intentional replacement of an old decision.
 foreach ($trailer in @('Tested:', 'Not-tested:', 'Gate:', 'Supersedes:')) {
@@ -160,6 +169,7 @@ $linkAuditFiles = @(
     'SECURITY.md',
     'docs/AUTONOMOUS_BENCHMARK.md',
     'docs/COMMIT_KNOWLEDGE.md',
+    'docs/COMPETITIVE_STRATEGY.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REPOSITORY_AUTOMATION.md'
