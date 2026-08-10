@@ -1,351 +1,372 @@
 # Roadmap
 
-Trace2D is built vertically: every phase should leave behind a runnable, testable slice instead of a collection of disconnected engine subsystems.
+Trace2D is built vertically: every phase should leave behind a runnable, testable, documented slice rather than disconnected engine subsystems.
 
-`PROJECT_STATUS.md` is the operational source for the exact next issue/PR and validation state. This roadmap describes the longer owner-approved direction. Live code/PR/CI state wins over stale prose.
+`PROJECT_STATUS.md` is the operational source for the exact current issue/PR. This file records the longer owner-approved direction. Live code/PR/CI state wins over stale prose.
+
+## Design direction
+
+Trace2D is not trying to clone a large editor-first engine feature-for-feature.
+
+Its differentiator remains:
+
+- deterministic fixed-step execution,
+- text-first authored state,
+- stable semantic identity,
+- structured headless observability,
+- semantic input/actions and exact-frame assertions,
+- visual/audio output as presentation evidence rather than the only correctness oracle,
+- explicit ownership/resource lifetimes,
+- measurement-driven performance work,
+- coding-agent workflows that do not depend on hidden editor state.
+
+The roadmap therefore has two responsibilities:
+
+1. deepen the agent-verifiable runtime/rendering foundation,
+2. make that foundation usable by third-party game developers through a coherent project/game/world lifecycle.
 
 ## P0 — Project foundation
 
-Status: **complete**
+Status: **complete**.
 
 Delivered:
 
-- C++20 / CMake project
-- pinned vcpkg baseline
-- MSVC warning policy
-- `trace2d` CLI bootstrap
-- GoogleTest / CTest integration
-- Windows CI
-- architecture and agent-first design documents
+- C++20 / CMake,
+- pinned vcpkg baseline,
+- MSVC warning policy,
+- CLI bootstrap,
+- GoogleTest / CTest,
+- Windows CI,
+- architecture and Agent-first contracts.
 
 ## P1 — Deterministic runtime foundation
 
-Status: **complete**
+Status: **complete**.
 
 Delivered:
 
-- SDL3 platform boundary
-- windowed/headless startup
-- monotonic clock boundary
-- fixed simulation timestep
-- explicit frame stepping
-- runtime frame counter
-- deterministic seed ownership/reset
+- SDL3 platform boundary,
+- windowed/headless startup,
+- fixed simulation timestep,
+- explicit frame stepping,
+- frame/simulation-time observation,
+- deterministic seed/reset ownership,
+- wall-clock separation from explicit test stepping.
 
-## P2 — Scene and entity model
+## P2 — Scene/entity authored-state baseline
 
-Status: **complete**
+Status: **complete for the current baseline**.
 
 Delivered:
 
-- generation-safe runtime entity identity
-- stable authored semantic IDs
-- transform/name/tags
-- text-first versioned TOML scenes
-- deterministic canonical serialization
-- structured schema diagnostics
+- generation-safe runtime entity identity,
+- stable authored semantic IDs,
+- name/tags,
+- `Transform2D`,
+- versioned TOML scenes,
+- canonical deterministic serialization,
+- structured schema diagnostics.
+
+A production world hierarchy/component model is intentionally deferred to #71 rather than retrofitted speculatively into the initial proof.
 
 ## P3 — Structured observability
 
-Status: **complete**
+Status: **complete baseline**.
 
 Delivered:
 
-- protocol-independent Agent facade
-- structured runtime/scene/entity/component inspection
-- semantic selectors and deterministic queries
-- CLI JSON serialization at the tool boundary
-- stable errors and deterministic ordering
+- protocol-independent Agent facade,
+- runtime/scene/entity/component snapshots,
+- semantic selectors and deterministic queries,
+- stable structured diagnostics,
+- CLI JSON only at tool/adaptor boundaries.
 
-## P4 — Virtual input and gameplay tests
+## P4 — Virtual input and gameplay testing
 
-Status: **complete**
-
-Delivered:
-
-- engine-owned physical/virtual input model
-- deterministic frame-indexed input scheduling
-- exact fixed-frame scenario execution
-- semantic component assertions
-- structured reproducible failure reports
-
-## P5 — 2D renderer and capture
-
-Status: **complete for Public Alpha**
+Status: **complete baseline**.
 
 Delivered:
 
-- SDL3 GPU renderer boundary
-- orthographic camera
-- textured sprite rendering baseline
-- inclusive visibility/culling baseline
-- measured contiguous same-texture instancing
-- persistent/capacity-reused renderer resources
-- offscreen render target
-- exact-simulation-frame capture
-- deterministic CPU-normalized BMP artifacts
+- engine-owned physical/virtual input state,
+- deterministic frame-indexed scheduling,
+- fixed-frame scenarios,
+- semantic component assertions,
+- reproducible failure reports.
 
-The renderer remains presentation/visual-QA state and is not authoritative gameplay state.
+Gameplay-facing semantic Input Actions and broader devices are a later external-engine requirement in #72.
 
-## P6 — Practical authored-game breadth
+## P5 — 2D renderer and exact-frame capture
 
-Status: **active**
+Status: **complete for Public Alpha baseline**.
 
-The exact owner-fixed execution order lives in `PROJECT_STATUS.md` and Issue #13.
+Delivered:
 
-Current sequence:
+- SDL3 GPU boundary,
+- orthographic camera,
+- baseline textured sprites,
+- inclusive AABB culling,
+- order-preserving contiguous same-texture instancing,
+- persistent/capacity-reused resources,
+- offscreen presentation/capture target,
+- explicit simulation-frame capture,
+- deterministic CPU-normalized BMP artifact,
+- reproducible renderer workloads and metric boundaries.
+
+The production traditional SpriteRenderer is a larger separate program under #59.
+
+## P6 — Practical deterministic/Agent-verifiable breadth
+
+Status: **active**.
+
+Completed:
 
 ```text
-#40 deterministic texture asset cache — complete
-  -> #42 text/basic UI — complete
-  -> #43 semantic UI automation — complete
-  -> #39 MCP transport — complete via PR #58
-  -> #41 reproducible renderer workloads
-  -> particle pipeline #46 / #47-#53
-  -> #59 end-to-end Sprite program
-  -> #60 Mesh2D foundation
-  -> #61 Spine SP0 license gate / optional integration if approved
+#40 texture asset cache/import
+ -> #42 text/basic UI
+ -> #43 semantic UI automation
+ -> #39 MCP transport
+ -> #41 renderer workloads
+ -> #47 particle determinism
+ -> #48 rich CPU particle reference
+ -> #49 text-authored effects + ParticleEmitter2D
 ```
 
-The older post-#53 "choose physics vs sprite animation vs hot reload" fork is no longer active. On 2026-08-09 the repository owner explicitly selected the Sprite -> Mesh2D -> Spine-license-gate direction. Physics/Box2D and safe hot reload remain future candidates but do not preempt this fixed sequence.
-
-### P6-A — Assets, UI, automation transport, measurement
-
-Delivered or active:
-
-- deterministic project-relative asset identity/cache — complete
-- text rendering and practical basic UI — complete
-- engine-owned semantic UI tree — complete
-- headless semantic UI inspection/query/focus/activation/text/assertion — complete
-- semantic UI -> game/scene state -> structured Agent verification without coordinate targeting — complete
-- MCP `2026-07-28` stdio transport over the existing Agent/Testing contracts — complete via PR #58
-- deterministic MCP discovery/tool listing and headless runtime/scene/UI/input/assertion protocol tests — complete via PR #58
-- reproducible renderer workload/measurement foundation — #41
-
-MCP deliberately remains a narrow adapter. Runtime/scene/input/UI/agent/testing semantic contracts stay protocol-independent, and JSON work is request-driven rather than a steady-frame responsibility.
-
-See [`MCP.md`](MCP.md).
-
-### P6-B — Agent-verifiable particle pipeline
-
-Detailed contract: [`PARTICLES.md`](PARTICLES.md).
-
-The particle phase deliberately separates semantic verification from runtime backend optimization:
+Exact next core task:
 
 ```text
-rich text-authored effect
-  -> deterministic CPU reference simulation
-  -> complete Agent inspection/assertion
-  -> structural CPU cost report
-  -> optional local timing evidence
-  -> human backend decision
-       | cpu
-       | gpu
-  -> deterministic compiler for GPU-selected effects
-  -> minimized GPU runtime state
-  -> CPU/GPU conformance + visual QA
+#50 complete Agent particle verification
+ -> #51 CPU cost + human backend choice + deterministic compiler
+ -> #52 explicit GPU runtime
+ -> #53 CPU/GPU conformance, workloads and guidance
 ```
 
-Particle implementation order:
+Detailed particle contract: [`PARTICLES.md`](PARTICLES.md).
 
-1. #47 semantics/randomness
-2. #48 rich CPU reference
-3. #49 authored effect/emitter
-4. #50 Agent verification
-5. #51 CPU cost + human backend choice + compiler
-6. #52 explicit GPU runtime
-7. #53 conformance/workloads/guidance
+### Particle architecture
 
-Hard rules include bounded capacity, no unnecessary ordinary-frame snapshot/JSON work, keyed-random isolation, raw structural metrics separated from machine timing, explicit human CPU/GPU backend selection, no silent GPU fallback, minimized GPU runtime state, and no claim of universal cross-vendor bit-identical floating-point GPU behavior without proof.
+```text
+text-authored effect
+ -> deterministic CPU semantic/reference simulation
+ -> complete structured Agent verification
+ -> deterministic structural cost report
+ -> optional local machine timing
+ -> HUMAN backend decision cpu|gpu
+ -> deterministic minimized GPU program
+ -> GPU runtime for explicitly gpu-selected effects
+ -> CPU/GPU conformance + visual/performance QA
+```
 
-## P7 — End-to-end Sprite program (#59)
+Hard rules remain:
 
-Status: **owner-fixed future program; blocked by all earlier items through #53**
+- CPU is the semantic oracle,
+- backend choice is explicit and reviewable,
+- an LLM may recommend but never silently switch,
+- unsupported GPU selection fails clearly rather than silently falling back,
+- normal GPU mode does not duplicate full CPU reference simulation,
+- no fake portable CPU percentages,
+- no universal cross-vendor bit-identical GPU float claim without proof.
+
+## P7 — Complete Sprite program (#59)
+
+Status: **owner-fixed future program after #53**.
 
 Detailed contract: [`SPRITES.md`](SPRITES.md).
 
-This phase is not merely "sprite animation" and is not a minimal renderer milestone. The goal is for an agent to move from source/generated pixels through deterministic import/processing/QA into a canonical Trace2D sprite asset, deterministic animation, production-grade rendering, exact-frame headless verification, visual/motion QA, and measured performance evidence.
-
-### P7-A — Canonical Sprite foundation
+This is intentionally broader than a minimal SpriteRenderer or frame-animation feature.
 
 Fixed order:
 
 ```text
-S0 architecture/contract
- -> S1 canonical SpriteAsset model
+S0 -> S1
+ -> SR0 -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
+ -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SE2E -> SPERF
 ```
 
-Key direction:
+The program covers:
 
-- external formats/providers are inputs, not runtime APIs,
-- exact integer source-pixel geometry is preferred as authored truth,
-- normalized UV/GPU state is renderer-derived,
-- trim and atlas packing may optimize storage but cannot silently change source-space pivot/placement semantics.
+- canonical Trace2D Sprite assets,
+- standalone and atlas regions,
+- trim/source-size/pivot correctness,
+- position/rotation/non-uniform scale/flip,
+- tint/opacity, sampling, documented alpha/blend semantics,
+- stable painter order, sorting groups, masking,
+- 9-slice and tiled/repeated sprite presentation,
+- pixel-perfect runtime presentation,
+- measured batching/resource reuse,
+- deterministic `SpriteAnimator2D`, events and state,
+- Agent/MCP exact-frame animation QA,
+- deterministic import/processing/repair QA,
+- Aseprite/generic and external sprite-generation manifest interoperability,
+- provider-neutral generation orchestration,
+- end-to-end import/generate -> normalize -> QA -> animate -> assert -> render/capture -> motion QA,
+- final reproducible Sprite/animation performance evidence.
 
-### P7-B — Production-complete traditional Sprite Renderer
+Live image generation may be nondeterministic; deterministic post-processing/runtime CI uses recorded/synthetic fixtures.
 
-Fixed order:
+## P8 — Open-source game-production foundation (#67)
+
+Status: **owner-fixed future program after #59**.
+
+Detailed contract: [`GAME_PRODUCTION.md`](GAME_PRODUCTION.md).
+
+This phase exists because an open-source engine needs more than sophisticated internals: a third party needs a coherent answer to where game code lives, how a project is consumed, how world state is composed, and how practical 2D game systems integrate with the same headless Agent model.
+
+Fixed children:
 
 ```text
-SR0 renderer contract
- -> SR1 complete transform/geometry
- -> SR2 atlas/trim/pivot/rotated packing
- -> SR3 color/alpha/blend/sampling
- -> SR4 sorting groups/masking
- -> SR5 9-slice/tiled sprites
- -> SR6 runtime pixel-perfect presentation
- -> SR7 production batching/resource reuse
- -> SR8 conformance/workloads
+#69 E0 Game/Application module boundary
+ -> #70 E1 project manifest + external consumer build/install/package
+ -> #71 E2 scene hierarchy + typed authored component composition
+ -> #72 E3 Input Actions + gamepad/mouse/text/IME
+ -> #73 E4 TileSet/TileMap
+ -> #74 E5 production UTF-8 font/text/localization
+ -> #75 E6 practical deterministic UI hierarchy/layout/widgets
+ -> #76 E7 Physics2D
+ -> #77 E8 Audio
+ -> #78 E9 Linux/compiler/toolchain hardening
+ -> #79 E10 save/persistence + authored schema migration
 ```
 
-The renderer target includes practical traditional 2D sprite features such as standalone/atlas regions, pivot, trim/source-size reconstruction, position/rotation/non-uniform scale, semantic flip, tint/opacity, nearest/linear sampling, documented alpha convention, conventional blend modes, deterministic painter order, sorting groups, bounded sprite masking, 9-slice, tiled sprites, pixel-perfect presentation, and measured order-preserving batching.
+### Why this precedes Mesh2D/Spine
 
-This does **not** authorize a generic shader/material graph, PBR, render graph, bindless renderer, deferred 2D lighting, arbitrary deformable mesh animation, or skeletal runtime.
+Trace2D's deterministic/Agent/rendering foundations are already deeper than its user-facing game architecture. Before prioritizing compatibility-oriented arbitrary meshes or Spine, external users need:
 
-### P7-C — Deterministic sprite animation
+- a supported C++ game/application boundary,
+- a versioned project root and external consumer/package flow,
+- hierarchy/components rather than subsystem-specific parallel world models,
+- semantic input actions and real devices/text input,
+- tilemaps,
+- real UTF-8/font/CJK text,
+- practical UI layout,
+- physics,
+- audio,
+- more than one continuously validated compiler/platform path,
+- save data and authored-schema migration.
 
-Fixed order:
+These are foundational engine capabilities, not feature-count padding.
 
-```text
-SA0 exact animation-time/frame/event contract
- -> SA1 SpriteAnimator2D authoritative runtime state
- -> SA2 playback/loop/speed/events/transitions
- -> SA3 Agent/MCP exact-frame inspection/actions/assertions
- -> SA4 conformance/determinism/performance workloads
-```
+### Constraints
 
-Animation state is renderer-independent and headless-testable. Screenshots are supplemental visual QA, not the only correctness oracle.
+#67 does **not** authorize a generic ECS, reflection system, binary plugin ABI, custom allocator framework, job system, render graph, material graph, visual scripting system, broad editor, or lock-free infrastructure.
 
-### P7-D — Offline sprite intelligence and interoperability
+Complexity still follows measured requirements.
 
-Fixed order:
+### Existing implementation hardening assigned to #67
 
-```text
-SPP0 QA/report contract
- -> SPP1 alpha/background/frame extraction and segmentation
- -> SPP2 pixel-grid/palette/pivot/identity/motion QA and repair
- -> SPP3 Aseprite/generic importers
- -> SPP4 sprite-gen/PerfectPixel-style manifest interoperability
- -> SPP5 provider-neutral generation orchestration
-```
+- texture-handle tombstones/reuse: generation-safe recycling only when realistic churn proves need,
+- shader packaging: #70 owns offline/reproducible build artifacts if distribution requires them,
+- current 5x7 ASCII path remains a deterministic fixture; #74 adds production text,
+- alpha authored formats have no migration tooling; #79 closes that gap.
 
-Reference projects inform algorithms/workflows but are not automatically runtime dependencies. Any code reuse requires separate license/dependency review.
+## P9 — Flagship external sample game (#12)
 
-Generation is allowed to be nondeterministic. Deterministic import/repair/QA/runtime behavior is tested using recorded/synthetic fixtures; ordinary CI does not require paid/live model access.
+Status: **blocked by #67**.
 
-### P7-E — End-to-end proof and performance
+After #69-#79 complete, build one deliberately small real game through the exact external/public contracts established by the engine.
 
-Fixed order:
+It must not be an engine-internal test fixture or use sample-only hidden shortcuts.
 
-```text
-SE2E generation/import
- -> deterministic cleanup/QA
- -> canonical SpriteAsset
- -> deterministic animation
- -> headless exact-frame QA
- -> production render/capture
- -> motion/visual QA
+The proof should exercise a coherent subset of:
 
-then SPERF final reproducible workload/guidance
-```
+- external C++ game module,
+- project manifest/build/test consumer flow,
+- hierarchy/components,
+- Input Actions,
+- TileMap,
+- production UTF-8 text/UI,
+- Physics2D,
+- semantic audio,
+- persistence/migration,
+- headless semantic QA,
+- exact-frame visual capture,
+- Windows and the non-MSVC platform/toolchain from #78,
+- reproducible performance evidence for at least one relevant workload.
 
-The flagship proof should demonstrate meaningful trim/pivot/atlas/animation-event behavior rather than only a trivial square sprite.
+This is the practical open-source-engine proof before later compatibility breadth.
 
-## P8 — Generic Mesh2D foundation (#60)
+## P10 — Generic Mesh2D foundation (#60)
 
-Status: **owner-fixed future program after #59**
+Status: **blocked by #59, #67 and #12**.
 
-Purpose: add reusable arbitrary textured indexed 2D geometry without turning the traditional SpriteRenderer into a generic renderer solely for a later Spine integration.
+Purpose: reusable arbitrary textured indexed 2D geometry without bloating SpriteRenderer or building Spine-specific rendering infrastructure.
 
 Fixed order:
 
 ```text
 M0 TexturedMesh2D contract/render path
- -> M1 persistent dynamic geometry resources + conformance/workloads
+ -> M1 persistent/capacity-reused dynamic geometry + conformance/workloads
 ```
 
-Expected presentation data includes positions, UVs, indices, vertex color, texture, blend mode and stable painter order. Mesh2D remains renderer/presentation state, not authoritative gameplay state.
+Expected data includes positions, UVs, indices, vertex color, texture, blend mode, and stable painter order.
 
-Do not expand this phase into a material graph, skeletal animation runtime, or general scene renderer.
+Mesh2D remains presentation state and must reuse the project/resource/distribution contracts already established by #67.
 
-## P9 — Spine compatibility gate and optional integration (#61)
+## P11 — Spine compatibility gate and optional integration (#61)
 
-Status: **planned; blocked at SP0 human license gate**
+Status: **planned; blocked by #59, #67, #12 and #60; then blocked at SP0 human license gate**.
 
 Detailed contract: [`SPINE.md`](SPINE.md).
 
-Spine support is desired, but the Spine Runtime is separately licensed. Trace2D therefore intentionally ships no Spine Runtime integration until the owner records an explicit approval after confirming the intended public MIT engine/optional integration/source/binary/CI/notice/downstream-user licensing model.
+Spine remains a desired compatibility target, not Trace2D's native animation/project architecture.
 
-Before SP0 approval, agents must not vendor/copy/fetch/build/distribute Spine Runtime code as part of Trace2D and must not claim shipped Spine support.
+Before SP0 approval:
 
-Only if SP0 is approved, continue:
+- no `spine-cpp` vendoring/copy,
+- no package/submodule/download build dependency,
+- no Spine-containing prebuilt binary,
+- no Spine-derived implementation code,
+- no claim that Trace2D ships Spine support.
+
+Only after explicit owner approval of the then-current public MIT core / optional integration / source / binary / CI / notice / downstream-user licensing model may the sequence continue:
 
 ```text
-SP1 optional official spine-cpp adapter/version/license boundary
- -> SP2 Spine loading + Mesh2D rendering
- -> SP3 semantic tracks/animations/skins/slots/attachments/events/bone observations
+SP1 official optional runtime adapter/version boundary
+ -> SP2 loading + Mesh2D rendering
+ -> SP3 semantic animation/track/skin/slot/attachment/event state
  -> SP4 Agent/MCP QA + conformance/workloads
 ```
 
-Spine is a compatibility backend, not the architecture of Trace2D's native Sprite/Animation/Mesh2D systems.
+## Open-source contribution model
 
-## Later breadth after the fixed sequence
+The fixed sequence governs **core roadmap progression and the `Trace2D next/continue` command**.
 
-Physics/Box2D, safe hot reload, audio, broader platform support and other practical engine breadth remain candidates for later owner decisions. They should not be started merely because they were mentioned in an older roadmap while #41/#47-#53/#59/#60/#61 are incomplete or blocked at a named gate.
+Independent community contributions may still be reviewed when they are narrow fixes, tests, docs, portability improvements, or isolated enhancements that do not overlap the active core implementation, preempt a future owner design, add unresolved dependency/license obligations, or violate hard architecture/performance contracts.
 
-## Agent continuation model
+See `AGENTS.md` and Issue #80.
 
-`AGENTS.md` intentionally defines `@GitHub Trace2D 다음 진행해줘` / `next` / `continue` as an executable repository protocol:
+## Later candidates after the fixed sequence
 
-```text
-read status
- -> inspect active PR/CI
- -> finish first incomplete work
- -> create/select exactly one next child from fixed umbrella order
- -> implement/test
- -> update status/contracts
- -> draft PR
- -> merge gate
- -> repeat
-```
+Possible later areas remain valid only after a concrete owner decision and demonstrated need, for example:
 
-Agents should stop only at a concrete blocker or recognized human gate, not because the next task requires re-reading old chat history.
+- safe hot reload,
+- additional desktop/mobile/Web targets,
+- networking,
+- navigation/pathfinding,
+- richer audio features,
+- editor tooling built on the text/semantic contracts,
+- additional rendering features.
 
-## Long-term portfolio proof
+They are not license to bypass the current fixed sequence.
 
-The long-term proof is an engine where an agent can work end-to-end without editor-only state or pixel guessing:
+## Long-term proof
+
+The desired engine workflow remains:
 
 ```text
-Agent edits source / authored data / generation request
-        |
-        v
-      Build / Import / Generate
-        |
-        v
-Deterministic processing / validation
-        |
-        v
-   Headless run
-        |
-        v
-Structured inspect/query
-        |
-        v
-Virtual input + explicit step
-        |
-        v
-Gameplay/UI/particle/sprite-animation assertions
-        |
-        v
-Performance/cost analysis where relevant
-        |
-        v
-Explicit human gates only where required
-        |
-        v
-Visual capture / motion QA
-        |
-        +---- structured failure context ----> Agent
+external game/project source
+ -> build/import/generate
+ -> deterministic normalization/validation
+ -> headless run
+ -> structured inspect/query
+ -> virtual semantic actions + exact stepping
+ -> gameplay/UI/particle/sprite/tile/physics/audio assertions
+ -> performance/cost analysis when relevant
+ -> explicit human gates only where contracts require them
+ -> visual/audio presentation QA
+ -> save/migrate supported authored/user data
+ -> structured failure context back to the coding agent
 ```
 
-Desired final proof assets include a complete sample game, end-to-end agent development demos, a sprite generation/import-to-motion-QA demonstration, benchmark/workload suites, determinism stress tests, architecture/license decisions, measured optimization reports, and contributor documentation.
+Trace2D succeeds when this workflow works for a real third-party-style game without requiring hidden editor state or engine-source edits.
