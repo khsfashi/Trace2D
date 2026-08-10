@@ -104,6 +104,7 @@ $requiredFiles = @(
     'docs/COMMIT_KNOWLEDGE.md',
     'docs/COMPETITIVE_STRATEGY.md',
     'docs/DEVELOPMENT_CONTENT_PIPELINE.md',
+    'docs/CONTENT_AUTHOR_STYLE.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REFERENCE_PROJECTS.md',
@@ -154,6 +155,15 @@ Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)never invent personal 
 Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)no draft is generated without an explicit maintainer request' 'C1 preserves explicit drafting trigger'
 Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)never automatically published' 'generated drafts cannot become external posts automatically'
 
+# The derived author style profile must stay tied to real maintainer writing and
+# cannot override evidence or invent biography.
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' 'https://woodroot\.tistory\.com/' 'author style profile records approved public corpus'
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' '(?i)Engineering-thesis mode' 'author style supports thesis/analysis writing mode'
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' '(?i)Practical technical-explanation mode' 'author style supports practical technical mode'
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' '(?i)Development-log mode' 'author style supports development-log mode'
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' '(?i)invented autobiographical anecdotes' 'author style forbids fabricated personal history'
+Require-Regex 'docs/CONTENT_AUTHOR_STYLE.md' '(?i)Style must never strengthen a claim beyond evidence' 'style remains subordinate to factual evidence'
+
 # Durable commit history preserves validation gaps/gates and decision lineage.
 foreach ($trailer in @('Tested:', 'Not-tested:', 'Gate:', 'Supersedes:')) {
     Require-Regex 'docs/COMMIT_KNOWLEDGE.md' ([regex]::Escape($trailer)) "commit trailer $trailer"
@@ -177,6 +187,7 @@ $linkAuditFiles = @(
     'docs/COMMIT_KNOWLEDGE.md',
     'docs/COMPETITIVE_STRATEGY.md',
     'docs/DEVELOPMENT_CONTENT_PIPELINE.md',
+    'docs/CONTENT_AUTHOR_STYLE.md',
     'docs/EXTERNAL_REFERENCE_PROTOCOL.md',
     'docs/FOUNDATIONAL_AI_GAME_REFERENCES.md',
     'docs/REPOSITORY_AUTOMATION.md'
