@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+  "source_event": "merge",
+  "event_id": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#98",
+        "url": "https://github.com/khsfashi/Trace2D/issues/98"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+        "authored_at": "2026-08-11T00:46:43+09:00",
+        "subject": "Add unified verification and WorkResult contract (#98)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "agent"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "WorkResult composes WorkSpec acceptance identities, verification evidence, artifacts, failures, revisions, and feedback without becoming a second source of engine truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Repair remains an external Agent/user action; each repaired revision is appended and affected machine-owned verification must rerun before subjective review",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Deterministic and presentation acceptance stay out of subjective review queues until their owning verification passes; multimodal and human review remain explicitly separate",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Result parsing, serialization, reporting, and artifacts are explicit tooling work outside frame hot paths",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Preserve historical failed revisions and structured reproduction context instead of overwriting failure history during repair",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "directives-002",
+        "text": "Keep live external-truth requirements separate from local WorkResult completion and preserve the independent benchmark verifier boundary owned by #102",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Directive",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "GitHub CI windows-msvc configure/build/full test | passed on final head 4c6e21b19f7ba36bfefac7b98d36b24b6c26d678",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "clean-clone-quick-start | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "release-audit | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "tested-004",
+        "text": "repository-contract-audit | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Tested",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      },
+      {
+        "id": "tested-005",
+        "text": "Content Evidence C0+C1 fixture suite | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d7c7ee4599526a962d4dc5dc3e6209fc8b219991",
+            "trailer": "Tested",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d7c7ee4599526a962d4dc5dc3e6209fc8b219991"
+          }
+        ]
+      }
+    ],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#97",
+    "#99",
+    "#102"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
