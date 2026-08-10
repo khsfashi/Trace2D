@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-698ec85cf18280aeeae650186516a56f63b71b30",
+  "source_event": "merge",
+  "event_id": "698ec85cf18280aeeae650186516a56f63b71b30",
+  "significance": "major",
+  "significance_source": "content-trailer",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#108",
+        "url": "https://github.com/khsfashi/Trace2D/issues/108"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 112,
+        "url": "https://github.com/khsfashi/Trace2D/pull/112"
+      },
+      {
+        "number": 95,
+        "url": "https://github.com/khsfashi/Trace2D/pull/95"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "698ec85cf18280aeeae650186516a56f63b71b30",
+        "authored_at": "2026-08-10T15:35:04+09:00",
+        "subject": "Implement C0 development Fact Packs (#108)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "content-tooling"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "C0 derives versioned Fact Packs from durable final-main Git knowledge and stops before authored prose",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Candidate identity is stable per source event and event identity; repeated extraction reconciles derived evidence while preserving maintainer-owned review/platform metadata",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Platform destinations are registry data and do not change the Fact Pack schema",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "C0 uses dependency-free JSON for deterministic cross-tool consumption instead of adding a YAML parser dependency",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Content evidence automation is non-core and cannot block Trace2D engine progression",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "C0 never invokes #109 drafting or any external publication action",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "merge-triggered article generation | evidence collection and authoring remain separate stages",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ],
+        "alternative": "merge-triggered article generation",
+        "reason": "evidence collection and authoring remain separate stages"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "hard-coded platform fields | platform registry keeps future destinations extensible",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ],
+        "alternative": "hard-coded platform fields",
+        "reason": "platform registry keeps future destinations extensible"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Preserve Tested and Not-tested as distinct evidence; never promote missing validation into a stronger claim",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "directives-002",
+        "text": "Keep automatic main-push content workflow advisory and independently recoverable from Git history",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Directive",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "Python C0 fixture suite | 6 tests passed locally",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "Python bytecode compilation | extractor and tests compiled locally",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "Content Evidence workflow | validate-content-evidence passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-004",
+        "text": "repository-contract-audit | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-005",
+        "text": "release-audit | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-006",
+        "text": "windows-msvc configure/build/ctest | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 6,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      },
+      {
+        "id": "tested-007",
+        "text": "clean-clone-quick-start configure/build/ctest | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Tested",
+            "ordinal": 7,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "main-push automation branch/PR creation | requires the post-merge main event and repository token policy",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "698ec85cf18280aeeae650186516a56f63b71b30",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/698ec85cf18280aeeae650186516a56f63b71b30"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "PR #112",
+    "PR #95",
+    "#109"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
