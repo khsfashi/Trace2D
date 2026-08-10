@@ -15,6 +15,17 @@ env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
 
 jobs:
+  repository-contract-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Audit repository contracts
+        shell: pwsh
+        run: ./scripts/repository_contract_audit.ps1
+
   release-audit:
     runs-on: ubuntu-latest
 
