@@ -7,6 +7,7 @@ add_library(trace2d_agent STATIC
     src/UiAutomation.cpp
     src/WorkResult.cpp
     src/WorkSpec.cpp
+    src/Workspace.cpp
 )
 
 add_library(Trace2D::Agent ALIAS trace2d_agent)
