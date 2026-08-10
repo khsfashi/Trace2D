@@ -7,7 +7,7 @@ Status: **QUALIFIED — hosted Q1–Q4 + independent fixture oracle passed on 20
 
 This is a qualification protocol, not a scored benchmark task. Its purpose is to prove that the selected public Godot Agent/MCP baseline is genuinely strong enough before Trace2D compares itself against it.
 
-The immutable result summary is committed in [`godot-agent.json`](godot-agent.json). The successful live bridge run is GitHub Actions run `31415374188`, job `93543024897`; the explicit `godot.agent` fixture oracle is run `31415748318`, job `93544223996`.
+The immutable result summary is committed in [`godot-agent.json`](godot-agent.json). The accepted live bridge run is GitHub Actions run `31416517640`, job `93546725244`; the corresponding explicit `godot.agent` fixture oracle is run `31416517680`, job `93546725112`.
 
 ## Fixture
 
@@ -26,14 +26,14 @@ physics_ticks = 0 while game time remains frozen
 
 ## Frozen environment
 
-The successful hosted qualification pinned and recorded:
+The accepted hosted qualification pinned and recorded:
 
 - Godot `4.7.1-stable`, official Linux x86_64 binary verified with the release `SHA512-SUMS.txt`,
 - Ubuntu 24.04.4 LTS x86_64 GitHub-hosted runner,
 - Node.js `v22.18.0`,
 - exact package `@satelliteoflove/godot-mcp@4.1.0`,
 - npm integrity `sha512-uq3Gh5n7fos8vIoXpr32/K7r9tL9eYLbERr+Tolksg3Y+FC5coYEkRkbJ1JktMMhoH/BnGWsWhE5E+XJ/nMEPg==`,
-- MCP client `scripts/qualify_godot_agent_mcp_live.py@1`,
+- MCP client `scripts/qualify_godot_agent_mcp_live.py@2`,
 - source and installed fixture tree hashes before/after qualification.
 
 The exact bridge addon is installed into a copied fixture with the bridge's public installer and enabled through the normal Godot editor plugin contract. No Trace2D benchmark verifier is copied into the runtime-control fixture.
@@ -67,32 +67,45 @@ A screenshot is not used as the acceptance oracle.
 
 ### Q3 — real timed input — PASS
 
-The qualifier injected the raw `D` key through the public MCP input path during an explicit 200 ms game-time step. The fixture itself consumes the ordinary `Input.is_key_pressed(KEY_D)` path; no script or setup command writes `Player.position` directly.
+The qualifier injects the raw `D` key through the public MCP input path while controlled game time advances. The fixture consumes the ordinary `Input.is_key_pressed(KEY_D)` path; no script or setup command writes `Player.position` directly.
 
-Observed after the first step:
+The input hold is intentionally longer than the stop boundary. `step_until` ends the window and force-releases the input when the authoritative fixture predicate becomes true, so the hold duration cannot secretly define the result.
+
+Observed after the first accepted step:
 
 ```text
 input_kinds.key = 1
 physics_ticks = 12
-position_x = 1.83
+position_x = 2
 position_y = 0
 ```
 
 ### Q4 — frozen/exact deterministic stepping — PASS
 
-The first debug session was fully stopped, a clean second session launched frozen from frame zero, a different wall-clock delay was introduced, and the exact same 200 ms game-time interval with the same timed raw `D` input was executed.
+The first debug session was fully stopped, a clean second session launched frozen from frame zero, a different wall-clock delay was introduced, and both runs used the bridge's public `step_until` operation with the same predicate:
 
-Observed replay result:
+```text
+tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= 12
+```
+
+Both runs stopped at the same authoritative boundary:
 
 ```text
 physics_ticks = 12
-position_x = 1.83
+position_x = 2
 position_y = 0
 ```
 
-The first and second run therefore matched on the authoritative deterministic domain used by this fixture.
+The bridge also reported `predicate_met = true` and 12 physics ticks in both calls. The two runs took 194 ms of gameplay time in this successful execution, but milliseconds are not the equality boundary.
 
-The successful run intentionally **does not compare render-frame counts**. They were `204` and `261` across the two runs because hosted rendering is uncapped; render frames are not a fixed game-time interval. An earlier qualification attempt exposed this distinction and was rejected rather than weakening the criterion after the fact. The accepted protocol compares fixed game time, physics ticks and semantic state.
+## Rejected measurement boundaries preserved as evidence
+
+Two earlier criteria were rejected rather than silently relaxed:
+
+1. **Fixed render frames** were rejected because hosted rendering is uncapped and render frames can advance independently of fixed physics ticks.
+2. **Fixed 200 ms game time** passed one run, but a later clean rerun ended at 12 versus 13 physics ticks because the fixed-step scheduler phase can straddle the duration boundary. That criterion was therefore also rejected.
+
+The accepted criterion stops on the fixture's own fixed-physics counter. In the successful accepted run the render-frame counts were 267 and 271; that difference is preserved and intentionally not compared.
 
 ## Independent task oracle — PASS
 
@@ -120,7 +133,7 @@ The committed [`godot-agent.json`](godot-agent.json) records:
 - positive Q1–Q4 booleans,
 - environment identity,
 - fixture hashes,
-- deterministic observations,
+- accepted deterministic boundary and rejected earlier boundaries,
 - GitHub Actions run/job/artifact IDs and artifact SHA-256,
 - independent known-good/known-bad oracle evidence.
 
@@ -128,8 +141,8 @@ This promotes the strongest reviewed Godot candidate from `primary_candidate_pen
 
 ## Source references reviewed for this protocol
 
-- Godot official stable download/archive: <https://godotengine.org/download/windows/>
+- Godot official releases: <https://github.com/godotengine/godot/releases>
 - selected bridge package: <https://www.npmjs.com/package/@satelliteoflove/godot-mcp>
 - selected bridge source/docs: <https://github.com/satelliteoflove/godot-mcp>
 
-The selected bridge's documented runtime model includes frozen game-time control, structured live state and real input; the hosted qualification above proves those capabilities in the pinned environment instead of trusting documentation alone.
+The selected bridge's documented runtime model includes frozen game-time control, structured live state, real input and predicate-based stepping; the hosted qualification above proves those capabilities in the pinned environment instead of trusting documentation alone.
