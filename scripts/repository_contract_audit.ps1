@@ -64,21 +64,16 @@ function Test-LocalMarkdownLinks {
             continue
         }
 
-        # Ignore external URLs, anchors and mail links. This auditor owns only
-        # deterministic repository-local file existence.
         if ($rawTarget -match '^(https?://|mailto:|#)') {
             continue
         }
 
-        # Strip optional markdown title text and angle brackets, then anchors.
         $target = ($rawTarget -split '\s+')[0].Trim('<', '>')
         $target = ($target -split '#', 2)[0]
         if ([string]::IsNullOrWhiteSpace($target)) {
             continue
         }
 
-        # Keep the initial audit deliberately low-noise: only contract/document
-        # file links are checked. Asset/sample links may have generator semantics.
         if ($target -notmatch '(?i)(\.md|AGENTS\.md|PROJECT_STATUS\.md|SECURITY\.md)$') {
             continue
         }
@@ -124,8 +119,7 @@ foreach ($file in $requiredFiles) {
     Require-File $file
 }
 
-# Agent continuation must remain connected to the durable research and history
-# protocols. These are intentionally path-level checks rather than prose parsing.
+# Agent continuation must remain connected to durable research/history protocols.
 Require-Regex 'AGENTS.md' 'docs/EXTERNAL_REFERENCE_PROTOCOL\.md' 'external-reference protocol is required reading'
 Require-Regex 'AGENTS.md' 'docs/COMMIT_KNOWLEDGE\.md' 'commit-knowledge protocol is required reading'
 Require-Regex 'AGENTS.md' 'docs/REPOSITORY_AUTOMATION\.md' 'repository-automation contract is required reading'
@@ -138,37 +132,39 @@ Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' 'Godot \+.*MCP' 'Godot Agent-bridge
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)independent verifier' 'independent benchmark verifier'
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)(Harness self-determinism / replay validation|replay.{0,80}determinism|determinism.{0,80}replay)' 'replay/self-determinism evidence'
 
-# Competitive comparisons must use a strong current baseline and publish losses
-# rather than selecting an easy opponent or hiding unfavorable results.
+# Competitive comparisons use a strong current baseline and preserve losses.
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' '(?i)strongest-baseline rule' 'strongest current Godot baseline selection'
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' '(?i)losing results are valid results' 'unfavorable benchmark results remain publishable evidence'
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'satelliteoflove/godot-mcp' 'runtime-verification Godot baseline candidate'
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'hi-godot/godot-ai' 'broad-authoring Godot baseline candidate'
 Require-Regex 'docs/COMPETITIVE_STRATEGY.md' 'Erodenn/godot-mcp-runtime' 'zero-footprint Godot baseline candidate'
 
-# Development-derived content stops at evidence/candidate metadata. The owner
-# authors every external post, and platform configuration stays extensible.
-Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)maintainer writes the actual posts' 'content authoring remains human-owned'
-Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)no automatic article body generation' 'automatic article prose remains out of scope'
-Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)dynamic platform registry' 'platform targets remain registry-driven'
-Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)do not hard-code Tistory, X, Reddit, Hacker News, GeekNews' 'platform list is not hard-coded into core schema'
-Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)do not need to share wording, length, angle, language' 'platform content may differ while sharing evidence'
+# Development content may accumulate evidence automatically, but prose requires
+# an explicit owner request and remains a draft until human edit/publication.
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Evidence is accumulated automatically' 'automatic evidence collection remains separate from prose'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Prose is generated only when the maintainer explicitly asks' 'draft generation requires explicit maintainer request'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Editorial Brief' 'on-demand authoring preserves explicit editorial direction'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Author Reference Corpus' 'maintainer-authored style corpus is an explicit input'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' 'https://woodroot\.tistory\.com/' 'approved public author style reference remains recorded'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Dynamic platform registry' 'platform targets remain registry-driven'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)Do not hard-code Tistory, X, Reddit, Hacker News, GeekNews' 'platform list is not hard-coded into core schema'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)do not need to share wording, length, angle, language, structure' 'platform content may differ while sharing evidence'
 Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' 'Content: none \| candidate \| major \| release' 'optional content-significance trailer remains reserved'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)never invent personal anecdotes' 'style imitation cannot fabricate biography'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)no draft is generated without an explicit maintainer request' 'C1 preserves explicit drafting trigger'
+Require-Regex 'docs/DEVELOPMENT_CONTENT_PIPELINE.md' '(?i)never automatically published' 'generated drafts cannot become external posts automatically'
 
-# Durable commit history must preserve real validation gaps/gates and allow
-# intentional replacement of an old decision.
+# Durable commit history preserves validation gaps/gates and decision lineage.
 foreach ($trailer in @('Tested:', 'Not-tested:', 'Gate:', 'Supersedes:')) {
     Require-Regex 'docs/COMMIT_KNOWLEDGE.md' ([regex]::Escape($trailer)) "commit trailer $trailer"
 }
 Require-Regex 'docs/COMMIT_KNOWLEDGE.md' '(?i)final squash commit' 'final squash commit is the durable knowledge atom'
 
-# The Spine compatibility boundary is intentionally human/licensing gated and
-# must not disappear through an unrelated automated edit.
+# Spine remains explicitly human/license gated.
 Require-Regex 'docs/SPINE.md' 'SP0.*mandatory HUMAN license gate' 'Spine SP0 human license gate'
 Require-Regex 'docs/SPINE.md' '(?i)do not vendor.*spine-cpp' 'Spine runtime is not silently vendored before SP0'
 
-# The repository automation contract must keep future self-description derived
-# from existing truth rather than introducing a second mandatory task database.
+# Repository automation derives truth instead of duplicating project state.
 Require-Regex 'docs/REPOSITORY_AUTOMATION.md' '(?i)derive rather than duplicate' 'future readiness is derived rather than duplicated'
 Require-Regex 'docs/REPOSITORY_AUTOMATION.md' '(?i)not eligible' 'capability eligibility remains separate from Agent failure'
 Require-Regex 'docs/REPOSITORY_AUTOMATION.md' '(?i)artifact attestation' 'release provenance direction remains recorded'
