@@ -3,6 +3,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 add_library(trace2d_particles STATIC
     src/ParticleDeterminism.cpp
     src/ParticleEffect.cpp
+    src/ParticleProgram.cpp
     src/ParticleReference.cpp
 )
 
