@@ -78,6 +78,11 @@ outcome = "not_run"
 summary = "Presentation review waits for semantic repair."
 evidence = []
 
+[[revisions.feedback]]
+id = "feedback-1"
+target = "scene/player"
+message = "Repair authoritative movement before presentation review."
+
 [[revisions]]
 id = "r2"
 parent = "r1"
@@ -111,6 +116,11 @@ description = "Exact-frame presentation evidence"
     ASSERT_EQ(parsed.result->revisions[0].verification.size(), 2U);
     ASSERT_TRUE(parsed.result->revisions[0].verification[0].failure.has_value());
     EXPECT_EQ(parsed.result->revisions[0].verification[0].failure->code, "state_mismatch");
+    ASSERT_EQ(parsed.result->revisions[0].feedback.size(), 1U);
+    EXPECT_EQ(parsed.result->revisions[0].feedback[0].target, "scene/player");
+    EXPECT_EQ(
+        parsed.result->revisions[0].feedback[0].message,
+        "Repair authoritative movement before presentation review.");
     EXPECT_EQ(parsed.result->revisions[1].parentRevisionId, "r1");
 
     const auto evaluation = trace2d::agent::EvaluateWorkResult(ParseRepresentativeSpec(), *parsed.result);
@@ -253,13 +263,13 @@ TEST(WorkResultTests, MalformedPrecedingRevisionIsDiagnosedWithoutUnsafeLineageA
 {
     constexpr std::string_view text = R"toml(
 format_version = 1
-[result]
-work_id = "repair-flow"
-
 revisions = [
     7,
     { id = "r2", parent = "r1", changed_paths = [], limitations = [] }
 ]
+
+[result]
+work_id = "repair-flow"
 )toml";
 
     const auto parsed = trace2d::agent::ParseWorkResultToml(text, "malformed.toml");
@@ -292,5 +302,41 @@ failure_code = "stale"
     const auto parsed = trace2d::agent::ParseWorkResultToml(text);
     EXPECT_FALSE(parsed.Succeeded());
     EXPECT_GE(parsed.diagnostics.size(), 2U);
+}
+
+TEST(WorkResultTests, DeterministicReviewNeededRemainsIncompleteInsteadOfEnteringHumanQueue)
+{
+    constexpr std::string_view text = R"toml(
+format_version = 1
+[result]
+work_id = "repair-flow"
+
+[[revisions]]
+id = "r1"
+changed_paths = []
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-proof"
+verification = "deterministic"
+outcome = "review_needed"
+summary = "A deterministic criterion cannot be delegated to subjective review."
+evidence = []
+
+[[revisions.verification]]
+acceptance = "owner-review"
+verification = "human"
+outcome = "approved"
+summary = "Owner approval is present."
+evidence = ["artifacts/r1/approval.txt"]
+)toml";
+
+    const auto parsed = trace2d::agent::ParseWorkResultToml(text);
+    ASSERT_TRUE(parsed.Succeeded());
+    const auto evaluation = trace2d::agent::EvaluateWorkResult(ParseRepresentativeSpec(), *parsed.result);
+    EXPECT_EQ(evaluation.state, trace2d::agent::WorkResultState::Incomplete);
+    ASSERT_EQ(evaluation.outstandingAcceptanceIds.size(), 1U);
+    EXPECT_EQ(evaluation.outstandingAcceptanceIds[0], "semantic-proof");
+    EXPECT_TRUE(evaluation.reviewAcceptanceIds.empty());
 }
 } // namespace
