@@ -16,13 +16,14 @@ WorkSpec intent / acceptance
  -> re-verification
  -> revision result package
  -> presentation / multimodal / human review where required
+ -> human feedback or approval
 ```
 
 The engine and its deterministic subsystem tools remain correctness authorities for facts they own. `WorkResult` composes their evidence; it does not make an Agent's prose authoritative.
 
 ## 2. Versioned result record
 
-The baseline result format is TOML and references the exact `work_id` from the corresponding `WorkSpec`.
+The baseline result format is strict versioned TOML and references the exact `work_id` from the corresponding `WorkSpec`. Unknown fields and invalid field types are rejected rather than silently ignored.
 
 ```toml
 format_version = 1
@@ -46,6 +47,11 @@ failure_target = "effect/hit/alive_count"
 failure_message = "Expected 4, observed 3."
 reproduction = "trace2d ..."
 
+[[revisions.feedback]]
+id = "feedback-1"
+target = "effect/hit"
+message = "Fix the semantic mismatch before requesting visual approval."
+
 [[revisions]]
 id = "r2"
 parent = "r1"
@@ -60,7 +66,7 @@ summary = "Deterministic verification passes after repair."
 evidence = ["artifacts/r2/verify.json"]
 ```
 
-Revision lineage is intentionally linear in V1. The first revision has no parent; every later revision names the immediately preceding revision. This is enough to make an Agent repair loop reviewable without creating a generic version-control graph inside project metadata.
+Revision lineage is intentionally linear in V1. The first revision has no parent; every later revision names the immediately preceding valid revision. Malformed revision input is diagnosed instead of being assumed to contain a usable predecessor. This is enough to make an Agent repair loop reviewable without creating a generic version-control graph inside project metadata.
 
 ## 3. Verification outcomes
 
@@ -81,7 +87,9 @@ The verification class must correspond to the `WorkSpec` acceptance criterion:
 - `multimodal` — advisory perceptual review,
 - `human` — final human judgment.
 
-`passed` or `approved` requires at least one evidence reference. A deterministic/presentation criterion is complete at `passed` or `approved`. Multimodal/human criteria require `approved`; a mere `passed` or `review_needed` outcome remains review work.
+`passed` or `approved` requires at least one evidence reference. A deterministic/presentation criterion is complete at `passed` or `approved`. Multimodal/human criteria require `approved`; a `passed` or `review_needed` outcome remains review work.
+
+A deterministic/presentation criterion cannot move into the human review queue merely by declaring `review_needed`; if it has not passed its machine-owned check, it remains locally incomplete or failed. This keeps machine-verifiable truth out of the subjective review path.
 
 ## 4. Structured failure context
 
@@ -97,15 +105,16 @@ evidence[]
 
 The target should be a stable semantic location where possible: acceptance ID, entity/component/property identity, asset/content ID, subsystem fixture, or another engine-owned target. Do not require an Agent to infer a semantic failure from pixels or an unstructured console transcript when the engine already owns the state.
 
-The reproduction string is a bounded actionable invocation/description, not hidden chain-of-thought.
+The reproduction string is a bounded actionable invocation/description, not hidden chain-of-thought. Failure-only fields are rejected on non-failed records so stale failure metadata cannot survive unnoticed beside a later pass.
 
-## 5. Revision and artifact evidence
+## 5. Revision, artifact, and feedback evidence
 
 Each revision may record:
 
 - changed source/assets/content paths,
 - verification records,
 - explicit artifacts,
+- human feedback,
 - known limitations.
 
 Artifacts are typed by a small string `kind` so current and future producers can retain evidence such as:
@@ -115,12 +124,25 @@ structured report
 performance/resource report
 capture/image
 video
- audio
+audio
 multimodal review
-human feedback/approval record
+human approval record
 ```
 
 The artifact path/ID is evidence metadata. It does not automatically establish the semantic truth of the artifact contents.
+
+Human feedback is explicit revision data rather than hidden chat memory:
+
+```toml
+[[revisions.feedback]]
+id = "feedback-2"
+target = "effect/hit" # optional when no stable target exists
+message = "Make the impact feel heavier without changing gameplay damage."
+```
+
+`id` and `message` are required. `target` is optional because feedback may refer to the whole result, but when Trace2D has a stable semantic identity the Workspace should provide it. Feedback records user intent; they never mutate engine state by themselves.
+
+Human **approval** remains an acceptance outcome (`approved`) plus any referenced evidence/external truth. Feedback and approval are intentionally separate concepts.
 
 ## 6. Result evaluation
 
@@ -137,8 +159,9 @@ complete
 
 Rules:
 
-- any current deterministic failure makes the result `failed`,
+- any current verification failure makes the result `failed`,
 - missing/not-run current acceptance remains `incomplete`,
+- deterministic/presentation work must pass its machine-owned criterion instead of entering subjective review,
 - completed machine verification with pending multimodal/human acceptance is `review_needed`,
 - only all locally satisfied acceptance criteria produce `complete`,
 - `external_truth` requirements from #97 remain visible separately through `requires_live_truth`; local completion never auto-clears CI/hardware/license/human gates.
@@ -156,7 +179,7 @@ trace2d_verify `
   --json
 ```
 
-It emits machine-readable current state, outstanding/review acceptance IDs, current structured failures, revision count, historical failure count, current revision identity, and whether live external truth is still required.
+It emits machine-readable current state, outstanding/review acceptance IDs, current structured failures, revision count, historical failure count, current revision identity, per-revision verification/artifact/feedback counts, and whether live external truth is still required.
 
 This baseline command **composes** verification records produced by subsystem/tooling work. It does not pretend a manually written `passed` token is an independent verifier. #102's benchmark harness adds stronger trial isolation, verifier provenance, replay, and oracle/mutation self-validation for comparative claims.
 
@@ -165,7 +188,7 @@ This baseline command **composes** verification records produced by subsystem/to
 Trace2D runtime does not silently edit source or assets.
 
 ```text
-structured failure
+structured failure or human feedback
  -> Agent/user inspects code/content + evidence
  -> external edit
  -> affected deterministic verification reruns
@@ -176,7 +199,7 @@ This keeps the engine provider/model independent and prevents a runtime self-rep
 
 ## 9. Performance boundary
 
-WorkResult parsing, JSON serialization, captures, report aggregation, and revision history are explicit tooling work:
+WorkResult parsing, JSON serialization, captures, report aggregation, feedback records, and revision history are explicit tooling work:
 
 - no frame-loop JSON/TOML generation,
 - no per-frame filesystem result writes,
