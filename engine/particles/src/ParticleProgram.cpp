@@ -96,11 +96,6 @@ private:
     return range.minValue != 0.0F || range.maxValue != 0.0F;
 }
 
-[[nodiscard]] bool ColorsEqual(const ParticleColor& left, const ParticleColor& right) noexcept
-{
-    return left == right;
-}
-
 void AddVec2(FingerprintBuilder& builder, const ParticleVec2 value) noexcept
 {
     builder.AddFloat(value.x);
@@ -233,11 +228,31 @@ void AddGpuField(
     program.gpuStrideBytes += sizeBytes;
 }
 
+[[nodiscard]] ParticleProgramMask GpuPipelineFeatureMask() noexcept
+{
+    return
+        ParticleProgramBit(ParticleProgramFeature::SpawnPoint) |
+        ParticleProgramBit(ParticleProgramFeature::SpawnBox) |
+        ParticleProgramBit(ParticleProgramFeature::SpawnCircle) |
+        ParticleProgramBit(ParticleProgramFeature::VariableLifetime) |
+        ParticleProgramBit(ParticleProgramFeature::InitialMotion) |
+        ParticleProgramBit(ParticleProgramFeature::Acceleration) |
+        ParticleProgramBit(ParticleProgramFeature::VariableInitialSize) |
+        ParticleProgramBit(ParticleProgramFeature::SizeOverLife) |
+        ParticleProgramBit(ParticleProgramFeature::InitialRotation) |
+        ParticleProgramBit(ParticleProgramFeature::AngularVelocity) |
+        ParticleProgramBit(ParticleProgramFeature::VariableInitialColor) |
+        ParticleProgramBit(ParticleProgramFeature::ColorOverLife) |
+        ParticleProgramBit(ParticleProgramFeature::SpriteChoice) |
+        ParticleProgramBit(ParticleProgramFeature::WorldSpace) |
+        ParticleProgramBit(ParticleProgramFeature::AdditiveBlend);
+}
+
 [[nodiscard]] std::uint64_t ComputeGpuPipelineVariantId(const ParticleProgram& program) noexcept
 {
     FingerprintBuilder builder{};
     builder.AddUInt32(ParticleGpuArtifactVersion);
-    builder.AddUInt64(program.featureMask);
+    builder.AddUInt64(program.featureMask & GpuPipelineFeatureMask());
     builder.AddByte(static_cast<std::uint8_t>(program.blendMode));
     builder.AddUInt32(program.gpuFieldCount);
     for (std::uint32_t index = 0U; index < program.gpuFieldCount; ++index)
@@ -250,8 +265,7 @@ void AddGpuField(
     return builder.Value();
 }
 
-[[nodiscard]] std::uint64_t ComputeGpuArtifactFingerprint(
-    const ParticleProgram& program) noexcept
+[[nodiscard]] std::uint64_t ComputeGpuArtifactFingerprint(const ParticleProgram& program) noexcept
 {
     FingerprintBuilder builder{};
     builder.AddUInt32(ParticleGpuArtifactVersion);
@@ -273,8 +287,13 @@ void AddGpuField(
 
 [[nodiscard]] std::uint64_t CounterDelta(
     const std::uint64_t current,
-    const std::uint64_t previous) noexcept
+    const std::uint64_t previous,
+    const bool referenceReset) noexcept
 {
+    if (referenceReset)
+    {
+        return current;
+    }
     return current >= previous ? current - previous : current;
 }
 } // namespace
@@ -294,6 +313,23 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
     program.blendMode = effect.blendMode;
 
     const ParticleReferenceDefinition& definition = program.definition;
+    const bool lifetimeVaries = RangeVaries(definition.lifetimeFrames);
+    const bool speedVaries = RangeVaries(definition.speed);
+    const bool angleVaries = RangeVaries(definition.angleRadians);
+    const bool initialSizeVaries = RangeVaries(definition.initialSize);
+    const bool initialRotationVaries = RangeVaries(definition.rotationRadians);
+    const bool angularVelocityVaries = RangeVaries(definition.angularVelocityRadiansPerFrame);
+    const bool initialColorVaries = ColorRangeVaries(definition.initialColor);
+    const bool spriteVaries = definition.spriteChoiceCount > 1U;
+    const bool hasInitialMotion = RangeContainsNonZero(definition.speed);
+    const bool hasAcceleration = !IsZero(definition.acceleration);
+    const bool sizeIsConstant = !initialSizeVaries && definition.endSizeMultiplier == 1.0F;
+    const bool rotationIsConstant =
+        !initialRotationVaries &&
+        !angularVelocityVaries &&
+        definition.angularVelocityRadiansPerFrame.minValue == 0.0F;
+    const bool colorIsConstant =
+        !initialColorVaries && definition.initialColor.minValue == definition.endColor;
 
     if (definition.periodicCount != 0U) AddFeature(program, ParticleProgramFeature::PeriodicEmission);
     if (!program.bursts.empty()) AddFeature(program, ParticleProgramFeature::Bursts);
@@ -303,20 +339,20 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
     case ParticleSpawnShapeType::Box: AddFeature(program, ParticleProgramFeature::SpawnBox); break;
     case ParticleSpawnShapeType::Circle: AddFeature(program, ParticleProgramFeature::SpawnCircle); break;
     }
-    if (RangeVaries(definition.lifetimeFrames)) AddFeature(program, ParticleProgramFeature::VariableLifetime);
-    if (RangeContainsNonZero(definition.speed)) AddFeature(program, ParticleProgramFeature::InitialMotion);
-    if (!IsZero(definition.acceleration)) AddFeature(program, ParticleProgramFeature::Acceleration);
-    if (RangeVaries(definition.initialSize)) AddFeature(program, ParticleProgramFeature::VariableInitialSize);
+    if (lifetimeVaries) AddFeature(program, ParticleProgramFeature::VariableLifetime);
+    if (hasInitialMotion) AddFeature(program, ParticleProgramFeature::InitialMotion);
+    if (hasAcceleration) AddFeature(program, ParticleProgramFeature::Acceleration);
+    if (initialSizeVaries) AddFeature(program, ParticleProgramFeature::VariableInitialSize);
     if (definition.endSizeMultiplier != 1.0F) AddFeature(program, ParticleProgramFeature::SizeOverLife);
     if (RangeContainsNonZero(definition.rotationRadians)) AddFeature(program, ParticleProgramFeature::InitialRotation);
     if (RangeContainsNonZero(definition.angularVelocityRadiansPerFrame)) AddFeature(program, ParticleProgramFeature::AngularVelocity);
-    if (ColorRangeVaries(definition.initialColor)) AddFeature(program, ParticleProgramFeature::VariableInitialColor);
-    if (!ColorsEqual(definition.initialColor.minValue, definition.endColor) ||
-        !ColorsEqual(definition.initialColor.maxValue, definition.endColor))
+    if (initialColorVaries) AddFeature(program, ParticleProgramFeature::VariableInitialColor);
+    if (definition.initialColor.minValue != definition.endColor ||
+        definition.initialColor.maxValue != definition.endColor)
     {
         AddFeature(program, ParticleProgramFeature::ColorOverLife);
     }
-    if (definition.spriteChoiceCount > 1U) AddFeature(program, ParticleProgramFeature::SpriteChoice);
+    if (spriteVaries) AddFeature(program, ParticleProgramFeature::SpriteChoice);
     if (definition.simulationSpace == ParticleSimulationSpace::World) AddFeature(program, ParticleProgramFeature::WorldSpace);
     if (program.lifecycle.loop) AddFeature(program, ParticleProgramFeature::Looping);
     if (program.blendMode == ParticleBlendMode::Additive) AddFeature(program, ParticleProgramFeature::AdditiveBlend);
@@ -347,32 +383,33 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
         ParticleProgramBit(ParticleProgramAttribute::SpriteIndex);
 
     program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Acceleration);
-    if (!RangeVaries(definition.lifetimeFrames))
+    if (!lifetimeVaries)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::LifetimeFrames);
-    if (!RangeVaries(definition.initialSize))
+    if (!initialSizeVaries)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::InitialSize);
-    if (!RangeVaries(definition.rotationRadians))
+    if (sizeIsConstant)
+        program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Size);
+    if (rotationIsConstant)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Rotation);
-    if (!RangeVaries(definition.angularVelocityRadiansPerFrame))
+    if (!angularVelocityVaries)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::AngularVelocity);
-    if (!ColorRangeVaries(definition.initialColor))
+    if (!initialColorVaries)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::InitialColor);
-    if (definition.spriteChoiceCount == 1U)
+    if (colorIsConstant)
+        program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Color);
+    if (!spriteVaries)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::SpriteIndex);
-    if (definition.spawnShape.type == ParticleSpawnShapeType::Point &&
-        !RangeContainsNonZero(definition.speed) && IsZero(definition.acceleration))
-    {
+    if (definition.spawnShape.type == ParticleSpawnShapeType::Point && !hasInitialMotion && !hasAcceleration)
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Position);
-    }
-    if (!RangeContainsNonZero(definition.speed) && IsZero(definition.acceleration))
-    {
+    if (!hasAcceleration && ((!speedVaries && !angleVaries) || !hasInitialMotion))
         program.constantAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Velocity);
-    }
 
-    program.derivedGpuAttributeMask =
-        ParticleProgramBit(ParticleProgramAttribute::Size) |
-        ParticleProgramBit(ParticleProgramAttribute::Rotation) |
-        ParticleProgramBit(ParticleProgramAttribute::Color);
+    if (!sizeIsConstant)
+        program.derivedGpuAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Size);
+    if (!rotationIsConstant)
+        program.derivedGpuAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Rotation);
+    if (!colorIsConstant)
+        program.derivedGpuAttributeMask |= ParticleProgramBit(ParticleProgramAttribute::Color);
 
     std::uint32_t spawnPositionRandoms = 0U;
     if (definition.spawnShape.type == ParticleSpawnShapeType::Box ||
@@ -382,12 +419,12 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
         AddRandomChannel(program, ParticleRandomChannel::SpawnPositionY);
         spawnPositionRandoms = 2U;
     }
-    if (RangeVaries(definition.lifetimeFrames)) AddRandomChannel(program, ParticleRandomChannel::Lifetime);
-    if (RangeVaries(definition.speed)) AddRandomChannel(program, ParticleRandomChannel::Speed);
-    if (RangeVaries(definition.angleRadians)) AddRandomChannel(program, ParticleRandomChannel::Angle);
-    if (RangeVaries(definition.rotationRadians)) AddRandomChannel(program, ParticleRandomChannel::Rotation);
-    if (RangeVaries(definition.angularVelocityRadiansPerFrame)) AddRandomChannel(program, ParticleRandomChannel::AngularVelocity);
-    if (RangeVaries(definition.initialSize)) AddRandomChannel(program, ParticleRandomChannel::Size);
+    if (lifetimeVaries) AddRandomChannel(program, ParticleRandomChannel::Lifetime);
+    if (speedVaries) AddRandomChannel(program, ParticleRandomChannel::Speed);
+    if (angleVaries) AddRandomChannel(program, ParticleRandomChannel::Angle);
+    if (initialRotationVaries) AddRandomChannel(program, ParticleRandomChannel::Rotation);
+    if (angularVelocityVaries) AddRandomChannel(program, ParticleRandomChannel::AngularVelocity);
+    if (initialSizeVaries) AddRandomChannel(program, ParticleRandomChannel::Size);
 
     std::uint32_t colorRandoms = 0U;
     if (definition.initialColor.minValue.r != definition.initialColor.maxValue.r)
@@ -410,17 +447,17 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
         AddRandomChannel(program, ParticleRandomChannel::ColorA);
         ++colorRandoms;
     }
-    if (definition.spriteChoiceCount > 1U) AddRandomChannel(program, ParticleRandomChannel::SpriteChoice);
+    if (spriteVaries) AddRandomChannel(program, ParticleRandomChannel::SpriteChoice);
 
     SetOperationCost(program, ParticleProgramOperation::SpawnPositionRandom, spawnPositionRandoms, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnLifetimeRandom, RangeVaries(definition.lifetimeFrames) ? 1U : 0U, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnSpeedRandom, RangeVaries(definition.speed) ? 1U : 0U, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnAngleRandom, RangeVaries(definition.angleRadians) ? 1U : 0U, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnSizeRandom, RangeVaries(definition.initialSize) ? 1U : 0U, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnRotationRandom, RangeVaries(definition.rotationRadians) ? 1U : 0U, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnAngularVelocityRandom, RangeVaries(definition.angularVelocityRadiansPerFrame) ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnLifetimeRandom, lifetimeVaries ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnSpeedRandom, speedVaries ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnAngleRandom, angleVaries ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnSizeRandom, initialSizeVaries ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnRotationRandom, initialRotationVaries ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnAngularVelocityRandom, angularVelocityVaries ? 1U : 0U, 0U, 0U);
     SetOperationCost(program, ParticleProgramOperation::SpawnColorRandom, colorRandoms, 0U, 0U);
-    SetOperationCost(program, ParticleProgramOperation::SpawnSpriteRandom, definition.spriteChoiceCount > 1U ? 1U : 0U, 0U, 0U);
+    SetOperationCost(program, ParticleProgramOperation::SpawnSpriteRandom, spriteVaries ? 1U : 0U, 0U, 0U);
     SetOperationCost(program, ParticleProgramOperation::ApplyAcceleration, 0U, 1U, 0U);
     SetOperationCost(program, ParticleProgramOperation::IntegratePosition, 0U, 1U, 0U);
     SetOperationCost(program, ParticleProgramOperation::IntegrateRotation, 0U, 1U, 0U);
@@ -428,22 +465,22 @@ ParticleProgram CompileParticleProgram(const ParticleEffectAsset& effect)
     SetOperationCost(program, ParticleProgramOperation::EvaluateSizeOverLife, 0U, 0U, 1U);
     SetOperationCost(program, ParticleProgramOperation::EvaluateColorOverLife, 0U, 0U, 1U);
 
-    const bool positionNeedsStorage =
-        definition.spawnShape.type != ParticleSpawnShapeType::Point ||
-        RangeContainsNonZero(definition.speed) ||
-        !IsZero(definition.acceleration);
-    const bool velocityNeedsStorage =
-        RangeContainsNonZero(definition.speed) || !IsZero(definition.acceleration);
+    // Position is retained even for a currently constant point effect. #52 must be able to
+    // preserve spawn-space position when emitter transforms change; that safety requirement
+    // outweighs an unproven 8-byte elimination.
+    AddGpuField(program, ParticleGpuRuntimeFieldKind::Position, 8U);
 
-    if (positionNeedsStorage) AddGpuField(program, ParticleGpuRuntimeFieldKind::Position, 8U);
-    if (velocityNeedsStorage) AddGpuField(program, ParticleGpuRuntimeFieldKind::Velocity, 8U);
+    const bool velocityVariesAcrossParticles =
+        speedVaries || (angleVaries && hasInitialMotion);
+    if (velocityVariesAcrossParticles)
+        AddGpuField(program, ParticleGpuRuntimeFieldKind::Velocity, 8U);
     AddGpuField(program, ParticleGpuRuntimeFieldKind::AgeFrames, 4U);
-    if (RangeVaries(definition.lifetimeFrames)) AddGpuField(program, ParticleGpuRuntimeFieldKind::LifetimeFrames, 4U);
-    if (RangeVaries(definition.initialSize)) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialSize, 4U);
-    if (RangeVaries(definition.rotationRadians)) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialRotation, 4U);
-    if (RangeVaries(definition.angularVelocityRadiansPerFrame)) AddGpuField(program, ParticleGpuRuntimeFieldKind::AngularVelocity, 4U);
-    if (ColorRangeVaries(definition.initialColor)) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialColor, 16U);
-    if (definition.spriteChoiceCount > 1U) AddGpuField(program, ParticleGpuRuntimeFieldKind::SpriteIndex, 4U);
+    if (lifetimeVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::LifetimeFrames, 4U);
+    if (initialSizeVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialSize, 4U);
+    if (initialRotationVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialRotation, 4U);
+    if (angularVelocityVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::AngularVelocity, 4U);
+    if (initialColorVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::InitialColor, 16U);
+    if (spriteVaries) AddGpuField(program, ParticleGpuRuntimeFieldKind::SpriteIndex, 4U);
 
     program.gpuBufferBytes =
         static_cast<std::uint64_t>(program.gpuStrideBytes) * definition.maxParticles;
@@ -510,7 +547,6 @@ ParticleStructuralCostReport BuildParticleStructuralCostReport(
             (static_cast<std::uint64_t>(cost.perUpdatedParticle) * report.particleUpdates) +
             (static_cast<std::uint64_t>(cost.perSurvivingUpdatedParticle) * report.survivingParticleUpdates);
         report.operationTotals[index] = ParticleOperationTotal{cost.operation, evaluations};
-
         if (cost.operation <= ParticleProgramOperation::SpawnSpriteRandom)
         {
             report.spawnRandomEvaluations += evaluations;
@@ -537,11 +573,17 @@ void ParticleCostAccumulator::ObserveAfterStep(const ParticleEmitter2D& emitter)
     }
 
     const ParticleReferenceCounters& current = emitter.Reference().Counters();
-    totals_.spawnAttempts += CounterDelta(current.spawnAttempts, previous_.spawnAttempts);
-    totals_.spawned += CounterDelta(current.spawned, previous_.spawned);
-    totals_.updated += CounterDelta(current.updated, previous_.updated);
-    totals_.expired += CounterDelta(current.expired, previous_.expired);
-    totals_.dropped += CounterDelta(current.dropped, previous_.dropped);
+    const bool referenceReset =
+        emitter.Effect() != nullptr &&
+        emitter.Effect()->lifecycle.loop &&
+        emitter.CompletedLoops() != 0U &&
+        emitter.CycleFrame() == 1U;
+
+    totals_.spawnAttempts += CounterDelta(current.spawnAttempts, previous_.spawnAttempts, referenceReset);
+    totals_.spawned += CounterDelta(current.spawned, previous_.spawned, referenceReset);
+    totals_.updated += CounterDelta(current.updated, previous_.updated, referenceReset);
+    totals_.expired += CounterDelta(current.expired, previous_.expired, referenceReset);
+    totals_.dropped += CounterDelta(current.dropped, previous_.dropped, referenceReset);
     peakAlive_ = std::max(peakAlive_, emitter.Reference().AliveCount());
     peakAlive_ = std::max(peakAlive_, current.peakAlive);
     totals_.peakAlive = peakAlive_;
