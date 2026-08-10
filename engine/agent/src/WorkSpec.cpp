@@ -519,7 +519,7 @@ WorkSpecParseResult ParseWorkSpecToml(
                     continue;
                 }
 
-                ValidateKnownKeys(*item, path, {"id", "description", "state"}, result.diagnostics);
+                ValidateKnownKeys(*item, path, {"id", "description", "state", "depends_on"}, result.diagnostics);
                 WorkDeliverable deliverable{};
                 const std::optional<std::string> id =
                     ReadRequiredString(*item, "id", path + ".id", result.diagnostics);
@@ -530,6 +530,13 @@ WorkSpecParseResult ParseWorkSpecToml(
                 if (id.has_value()) deliverable.id = *id;
                 if (description.has_value()) deliverable.description = *description;
                 if (state.has_value()) deliverable.state = *state;
+                static_cast<void>(ReadStringArray(
+                    *item,
+                    "depends_on",
+                    path + ".depends_on",
+                    deliverable.dependsOn,
+                    result.diagnostics,
+                    false));
 
                 if (id.has_value())
                 {
@@ -543,6 +550,34 @@ WorkSpecParseResult ParseWorkSpecToml(
     else
     {
         AddDiagnostic(result.diagnostics, "deliverables", "Required deliverables array is missing.");
+    }
+
+    for (std::size_t index = 0; index < spec.deliverables.size(); ++index)
+    {
+        const WorkDeliverable& deliverable = spec.deliverables[index];
+        std::unordered_set<std::string> dependencyIds{};
+        for (std::size_t dependencyIndex = 0; dependencyIndex < deliverable.dependsOn.size(); ++dependencyIndex)
+        {
+            const std::string& dependency = deliverable.dependsOn[dependencyIndex];
+            const std::string path =
+                "deliverables[" + std::to_string(index) + "].depends_on[" +
+                std::to_string(dependencyIndex) + "]";
+            if (dependency == deliverable.id)
+            {
+                AddDiagnostic(result.diagnostics, path, "A deliverable cannot depend on itself.");
+            }
+            else if (!deliverableIds.contains(dependency))
+            {
+                AddDiagnostic(
+                    result.diagnostics,
+                    path,
+                    "Dependency references unknown deliverable '" + dependency + "'.");
+            }
+            if (!dependencyIds.insert(dependency).second)
+            {
+                AddDiagnostic(result.diagnostics, path, "Duplicate deliverable dependency '" + dependency + "'.");
+            }
+        }
     }
 
     if (const toml::node* node = root.get("requirements"); node != nullptr)
@@ -867,6 +902,32 @@ WorkEvaluation EvaluateWork(
     }
 
     bool blocked = false;
+    std::unordered_map<std::string_view, WorkItemState> deliverableStates{};
+    deliverableStates.reserve(spec.deliverables.size());
+    for (const WorkDeliverable& deliverable : spec.deliverables)
+    {
+        deliverableStates.emplace(deliverable.id, deliverable.state);
+    }
+    for (const WorkDeliverable& deliverable : spec.deliverables)
+    {
+        bool deliverableBlocked = false;
+        for (const std::string& dependency : deliverable.dependsOn)
+        {
+            const auto found = deliverableStates.find(dependency);
+            if (found == deliverableStates.end() ||
+                (found->second != WorkItemState::Verified && found->second != WorkItemState::Approved))
+            {
+                deliverableBlocked = true;
+                break;
+            }
+        }
+        if (deliverableBlocked)
+        {
+            blocked = true;
+            evaluation.blockedDeliverableIds.push_back(deliverable.id);
+        }
+    }
+
     evaluation.capabilityRequirements.reserve(spec.capabilityRequirements.size());
     for (const CapabilityRequirement& requirement : spec.capabilityRequirements)
     {
