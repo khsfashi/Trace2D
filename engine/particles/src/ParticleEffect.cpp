@@ -649,7 +649,8 @@ bool ValidateBurstBudget(
             attempts += bursts[index].count;
             ++index;
         }
-        if (definition.periodicCount != 0U && frame >= definition.periodicStartFrame &&
+        if (definition.periodicCount != 0U && definition.periodicEveryFrames != 0U &&
+            frame >= definition.periodicStartFrame &&
             ((frame - definition.periodicStartFrame) % definition.periodicEveryFrames) == 0U)
         {
             attempts += definition.periodicCount;
