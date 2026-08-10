@@ -2,7 +2,7 @@
 
 Last repository-state update: **2026-08-10**
 
-This file is the operational handoff for the next contributor or coding agent. Live PR/CI/merge state and explicit owner-approved contracts win over stale prose.
+This file is the operational handoff for the next contributor or coding agent. Compiling code/tests, live PR/CI/merge state, and explicit owner-approved contracts outrank stale prose.
 
 ## Current state
 
@@ -14,17 +14,27 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-The seven-part particle program #47-#53 is implementation-complete in PR #114. #53 now contains real Windows presentation-GPU conformance evidence, Release CPU-oracle calibration evidence, measured backend recommendation bands, and the final author -> verify -> measure -> human decide -> GPU compile/execute -> conform contract.
+The seven-part particle program #47-#53 is complete via PR #114. Issue #53 and umbrella #46 are closed complete after the required real Windows GPU conformance/smoke evidence and Release CPU-reference calibration were committed.
 
-At the time of this update PR #114 is the active core PR and must receive final-head hosted CI before merge. **Do not begin the next core implementation until #114 merges green.** After it merges, close #53 and umbrella #46 and advance directly to **#97 machine-readable intent / Definition of Done**.
+**#97 machine-readable intent / Definition of Done is now the active core implementation in draft PR #115. Do not begin #98 while #115 is open.**
 
-Primary final-particle contracts:
+PR #115 establishes:
 
-- [`docs/PARTICLES.md`](docs/PARTICLES.md)
-- [`docs/PARTICLE_ANALYSIS.md`](docs/PARTICLE_ANALYSIS.md)
-- [`docs/PARTICLE_GPU_RUNTIME.md`](docs/PARTICLE_GPU_RUNTIME.md)
-- [`docs/PARTICLE_CONFORMANCE.md`](docs/PARTICLE_CONFORMANCE.md)
-- [`docs/evidence/particle-53/924dbc1/`](docs/evidence/particle-53/924dbc1/README.md)
+- versioned machine-readable work intent, deliverables, acceptance and constraints,
+- explicit deterministic / presentation / multimodal / human verification classes,
+- an evidence-backed capability catalog that separates `available`, `tested`, and `production_supported`,
+- derived local `ready` / `blocked` / `review_needed` / `complete` / `failed` state,
+- unavailable capability as an eligibility block rather than an implementation failure,
+- explicit `external_truth` requirements for changing GitHub/CI/environment/hardware/license/human facts,
+- the `trace2d_work_state` JSON query for Agent/harness consumption.
+
+Current #97 contracts on the PR branch:
+
+- [`docs/WORK_SPEC.md`](docs/WORK_SPEC.md)
+- [`config/trace2d.capabilities.toml`](config/trace2d.capabilities.toml)
+- [`engine/agent/include/trace2d/agent/WorkSpec.hpp`](engine/agent/include/trace2d/agent/WorkSpec.hpp)
+
+The connector environment used to author PR #115 could not run a local repository build, so **hosted final-head CI is the current acceptance gate**. Do not mark #97 complete or advance to #98 until #115 is green and merged.
 
 ## Completed foundation and particle sequence
 
@@ -39,56 +49,54 @@ Primary final-particle contracts:
 9. #50 complete Agent verification over CPU particle reference state — complete via PR #83
 10. #51 CPU cost analysis + explicit backend ownership + deterministic compiler — complete via PR #84
 11. #52 explicit GPU particle runtime — complete via PR #95 after the required real-GPU smoke gate
-12. #53 CPU/GPU conformance, workloads, measured recommendation guidance — implementation-complete in PR #114; merge is the remaining repository-state gate
+12. #53 CPU/GPU conformance, workloads, measured recommendation guidance — complete via PR #114
 
 Production architecture freeze #85 is complete via PR #94.
 
-## #53 final evidence
+## Particle architecture frozen by #47-#53
 
-The final gate was executed against PR #114 commit `924dbc19027a350c9bae819eea28789eea77bbdd` on:
-
-- AMD Ryzen 5 5600X,
-- NVIDIA GeForce RTX 3070,
-- Windows/MSVC,
-- Debug real-GPU tests,
-- Release analyzer timings.
-
-Required real-GPU tests passed, not skipped:
+The V1 particle contract is:
 
 ```text
-ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime
-ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity
+rich text-authored effect
+  -> deterministic CPU semantic oracle
+  -> exact structured Agent verification
+  -> deterministic structural cost analysis
+  -> optional environment-labelled Release timing
+  -> explicit human CPU/GPU backend decision
+  -> deterministic minimized GPU artifact when selected
+  -> persistent GPU compute/instanced presentation
+  -> layered CPU/GPU conformance
 ```
 
-Release calibration uses deterministic 240-frame CPU-reference windows. The normalized p95 values are p95 window totals divided by 240, not individual-frame p95 histograms:
+Hard invariants:
 
-```text
-small:      capacity 128,  peak 42    -> 0.0009525 ms/frame equivalent
-medium:     capacity 1024, peak 856   -> 0.0291575 ms/frame equivalent
-gpu-scale:  capacity 4096, peak 3400  -> 0.1075925 ms/frame equivalent
-```
+- CPU reference remains semantic authority.
+- Backend is explicit authored text; analyzer/build never silently changes it.
+- Normal GPU mode does not duplicate the full CPU reference simulation.
+- Normal GPU frames perform no particle readback/fence wait.
+- GPU storage is capacity-bounded and reused.
+- No per-particle draw-call path.
+- Compiler/artifact/layout identity is deterministic.
+- Cross-vendor GPU floating point is checked through explicit tolerance/invariants, not universal float-bit identity.
+- Structural evidence and machine timing remain separate.
+- Visual style/feel may use multimodal review; final creative judgment remains human.
 
-The `gpu-scale` timing is CPU-reference-oracle timing for the same semantic program, not GPU wall-clock timing. Real GPU correctness/resource behavior is covered by the hardware conformance/smoke tests and structural runtime metrics.
+Primary particle contracts/evidence:
 
-Trace2D V1 recommendation bands on a representative target machine are:
-
-```text
-<= 0.05 ms/frame normalized p95  -> keep_cpu comfort band
-0.05 .. 0.10 ms/frame            -> human judgment band
->= 0.10 ms/frame                  -> consider_gpu
-```
-
-These are measured guidance bands, not automatic backend switching and not universal particle-count limits. Final backend text remains human-controlled.
+- [`docs/PARTICLES.md`](docs/PARTICLES.md)
+- [`docs/PARTICLE_ANALYSIS.md`](docs/PARTICLE_ANALYSIS.md)
+- [`docs/PARTICLE_GPU_RUNTIME.md`](docs/PARTICLE_GPU_RUNTIME.md)
+- [`docs/PARTICLE_CONFORMANCE.md`](docs/PARTICLE_CONFORMANCE.md)
+- [`docs/evidence/particle-53/924dbc1/`](docs/evidence/particle-53/924dbc1/README.md)
 
 ## Owner-fixed core execution order
 
-Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent follows the first incomplete/unblocked item below, but never skips an active core PR or required local gate.
+Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent follows the first incomplete/unblocked item below and never skips an active core PR or recognized human/environment gate.
 
 ```text
-#53 particle CPU/GPU conformance/workloads/guidance   [active PR #114; merge gate]
-
 AI-operated foundation
- -> #97 machine-readable intent / Definition of Done
+ -> #97 machine-readable intent / Definition of Done         [active draft PR #115; hosted CI gate]
  -> #98 unified verify / diagnose / repair / WorkResult
  -> #99 result-review Workspace / feedback loop
  -> #102 Benchmark B0 matched harness + current-capability tasks
@@ -127,7 +135,6 @@ Proof / later geometry and compatibility
 Umbrellas/registers:
 
 - #13 core practical-engine roadmap,
-- #46 particle program,
 - #96 AI-operated production loop,
 - #100 autonomous benchmark program,
 - #59 Sprite program,
@@ -139,38 +146,34 @@ Umbrellas/registers:
 
 #93/#101/#106 do not authorize routine continuation to bypass the fixed order.
 
-## Particle architecture now frozen by #47-#53
+## #97 machine-readable intent boundary
 
-The V1 particle contract is:
+PR #115 deliberately keeps committed and live truth separate:
 
 ```text
-rich text-authored effect
-  -> deterministic CPU semantic oracle
-  -> exact structured Agent verification
-  -> deterministic structural cost analysis
-  -> optional environment-labelled Release timing
-  -> explicit human CPU/GPU backend decision
-  -> deterministic minimized GPU artifact when selected
-  -> persistent GPU compute/instanced presentation
-  -> layered CPU/GPU conformance
+committed WorkSpec / capability catalog
+  -> local readiness + outstanding acceptance + capability eligibility
+
+live GitHub / CI / environment / hardware / license / human state
+  -> queried by the owning orchestration stage when required
 ```
 
-Hard invariants:
+Important rules:
 
-- CPU reference remains semantic authority.
-- Backend is explicit authored text; analyzer/build never silently changes it.
-- Normal GPU mode does not duplicate the full CPU reference simulation.
-- Normal GPU frames perform no particle readback/fence wait.
-- GPU storage is capacity-bounded and reused.
-- No per-particle draw-call path.
-- Compiler/artifact/layout identity is deterministic.
-- Cross-vendor GPU floating point is checked through explicit tolerance/invariants, not universal float-bit identity.
-- Structural evidence and machine timing remain separate.
-- Visual style/feel may use multimodal review; final creative judgment remains human.
+- a capability is never inferred from a symbol/file merely existing,
+- positive capability claims carry repository evidence,
+- `production_supported => tested => available`, but the reverse is not implied,
+- a task requiring an unavailable capability is blocked/not eligible rather than counted as an Agent failure,
+- deterministic and presentation criteria may complete at `verified`,
+- multimodal and human criteria require explicit `approved`,
+- live CI/hardware/license/human facts are declared as external requirements rather than copied into stale committed state,
+- work-state parsing/evaluation is explicit tooling work and never enters engine frame hot paths.
+
+After #115 merges green, close #97 and advance this file to **#98 unified verify / diagnose / repair / WorkResult**.
 
 ## AI-operated product foundation
 
-After #114 merges, #97 is the exact next core implementation. The AI-operated roadmap must build toward a workflow where:
+The roadmap builds toward a workflow where:
 
 - human intent becomes machine-readable Definition of Done,
 - verify/diagnose/repair share structured truth,
@@ -186,7 +189,7 @@ Autonomous benchmark growth remains:
  -> #104 B2 — coherent autonomous top-down combat micro-game
 ```
 
-Primary matched environments remain Godot + generic coding tools, Godot + a pinned reviewed bridge, and Trace2D + its public Agent surface. Track success, repair iterations, token/tool usage when measurable, multimodal calls, human interventions, deterministic verification coverage, unresolved failures, and environment-labelled elapsed time.
+Primary matched environments remain Godot + generic coding tools, Godot + a pinned reviewed bridge, and Trace2D + its public Agent surface. Missing Trace2D capability is reported as not eligible, not as an autonomous-agent failure.
 
 ## Continuation rule
 
