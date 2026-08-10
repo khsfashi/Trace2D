@@ -7,16 +7,25 @@ Do not commit placeholder `qualified: true` files.
 ## Current state — 2026-08-11
 
 - `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified it against the release `SHA512-SUMS.txt`, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
-- `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json). The exact selected bridge is `@satelliteoflove/godot-mcp@4.1.0`. A hosted Godot editor session proved Q1 authoring, Q2 structured runtime inspection under frame-zero freeze, Q3 real raw-`D` timed input, and Q4 deterministic replay over the same fixed 200 ms game-time interval. Both clean runs produced 12 physics ticks and `Player.position_x == 1.83`; wall-clock waiting while frozen did not advance the state. The independent `godot.agent` gold/known-bad oracle also passed.
-- `trace2d.agent` — **oracle-qualified** with committed hosted evidence in [`trace2d-agent.json`](trace2d-agent.json). The Windows CI candidate passed all 188 repository tests and the built `trace2d.exe` accepted the known-good fixture while rejecting the wrong-position known-bad fixture.
+- `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json). The exact selected bridge is `@satelliteoflove/godot-mcp@4.1.0`. A hosted Godot editor session proved Q1 authoring, Q2 structured runtime inspection under frame-zero freeze, Q3 real raw-`D` input, and Q4 deterministic replay by using the public `step_until` control to stop on the fixture's authoritative `physics_ticks == 12` boundary. Both clean runs stopped at tick 12 with `Player.position_x == 2`; wall-clock waiting while frozen did not advance state. The independent `godot.agent` gold/known-bad oracle also passed.
+- `trace2d.agent` — **oracle-qualified** with committed hosted evidence in [`trace2d-agent.json`](trace2d-agent.json). The Windows CI qualification run passed all 188 repository tests and the built `trace2d.exe` accepted the known-good fixture while rejecting the wrong-position known-bad fixture.
 
 All three **environment/bridge qualification records now exist**. The suite/task deliberately remain `qualification_required` / `qualification_candidate` because B0 still requires one real coding-Agent/model wrapper/profile to be frozen and isolated before scored repeated trials can begin. Environment readiness is not a benchmark result.
 
 ## Determinism note for the Godot Agent lane
 
-The first live qualification attempt used a fixed render-frame count and exposed an important measurement mistake: an uncapped hosted renderer can execute many render frames between fixed physics ticks, so render-frame count is not the deterministic game-time domain for this fixture.
+The qualification deliberately preserved and learned from two rejected measurement boundaries instead of hiding them:
 
-The accepted Q4 protocol therefore uses a fixed **200 ms game-time interval** with the same timed raw `D` key input in two clean launch-frozen runs. Render-frame counts are retained as evidence but intentionally not compared. Physics ticks and authoritative semantic state are compared and matched exactly in the successful hosted run.
+1. A fixed render-frame count was rejected because uncapped hosted rendering can execute many render frames between fixed physics ticks.
+2. A fixed 200 ms game-time window passed once, but a later clean rerun exposed scheduler-phase variance: the two sessions ended with 12 versus 13 physics ticks. Fixed milliseconds were therefore also rejected as the equality boundary for this fixed-physics fixture.
+
+The accepted Q4 protocol uses the bridge's public `step_until` action with:
+
+```text
+until = tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= 12
+```
+
+The raw `D` key hold extends beyond that boundary and is force-released by the bridge when stepping stops, so input duration does not define the stop condition. Two clean launch-frozen runs both stopped at exactly 12 physics ticks with `Player.position_x == 2`. Their render-frame counts were 267 and 271 and are retained as evidence but intentionally not compared.
 
 ## Required lane evidence shape
 
