@@ -6,7 +6,7 @@ The Trace2D Workspace is the human-facing review surface for an AI-operated game
 
 It is **not** intended to become a Unity-style editor where the primary workflow is selecting objects, manually tuning properties and saving hidden editor state.
 
-The Workspace exists because humans still need to see the game, inspect what changed, understand verification evidence, judge subjective quality and provide feedback.
+The Workspace exists because humans still need to understand what the AI is building, see the game and recent results, inspect verification evidence, judge subjective quality and provide feedback.
 
 ## 1. Product role
 
@@ -20,7 +20,7 @@ The intended AI loop around it is:
 
 ```text
 receive intent/feedback
- -> author/modify
+ -> plan/author/modify
  -> build/run
  -> deterministic verification
  -> presentation evidence
@@ -39,6 +39,8 @@ The Workspace must not invent a separate GUI-only model.
 Preferred architecture:
 
 ```text
+#97 Intent / project state
+              |
 Authoritative engine/project state
               |
               v
@@ -50,15 +52,45 @@ Protocol-independent Agent / verification / result APIs
 
 Consequences:
 
-- what the human sees and what the agent sees come from the same semantic state,
+- what the human sees and what the agent sees come from the same semantic/project state,
 - GUI presentation never becomes authoritative gameplay truth,
+- plan/progress state is explicit project/tooling state, not hidden model chain-of-thought,
 - no hidden scene database is required just for the Workspace,
 - Workspace-specific caching/presentation state is allowed but remains derived,
 - expensive snapshots/reports are requested explicitly rather than generated every frame.
 
 ## 3. Core views
 
-### 3.1 Recent work
+### 3.1 Intent and progress
+
+The user should be able to answer:
+
+- what did I ask the AI to build,
+- which deliverables are planned,
+- what is currently being worked on,
+- what is already verified,
+- what failed,
+- what needs review,
+- what has been approved.
+
+This view consumes the explicit #97 intent/Definition-of-Done and #98 result state.
+
+Conceptually:
+
+```text
+Building: Top-down RPG slice
+
+Player combat             VERIFIED
+Slime enemy               VERIFIED
+Attack animation          REVIEW
+Hit particle              REVIEW
+Inventory                 WORKING
+Save system               PLANNED
+```
+
+A hierarchy/tree is useful when it represents explicit project/task state. Do **not** expose private model chain-of-thought as a Workspace requirement.
+
+### 3.2 Recent work
 
 The default landing experience should answer:
 
@@ -81,7 +113,7 @@ Inventory layout             FAILED
 
 This is result-first rather than hierarchy-first.
 
-### 3.2 Review queue
+### 3.3 Review queue
 
 Items requiring human judgment should be explicit.
 
@@ -95,7 +127,7 @@ Examples:
 
 The queue must not include machine-verifiable failures merely because a screenshot exists. Those remain verification failures.
 
-### 3.3 Workspace/world view
+### 3.4 Workspace/world view
 
 A semantic project/world browser is useful for orientation and inspection.
 
@@ -110,7 +142,7 @@ It may expose:
 
 A traditional editable inspector is optional and secondary. The main modification path remains source/authored-data editing by humans or `Ask AI to modify`/equivalent feedback.
 
-### 3.4 Artifact previews
+### 3.5 Artifact previews
 
 The Workspace should present the smallest useful artifact for the review question:
 
@@ -124,7 +156,7 @@ The Workspace should present the smallest useful artifact for the review questio
 
 Artifacts record enough context to identify the relevant simulation frame/time, viewport/camera and revision when those concepts apply.
 
-### 3.5 Verification evidence
+### 3.6 Verification evidence
 
 A result should clearly separate:
 
@@ -136,7 +168,7 @@ A result should clearly separate:
 
 Do not blend these into one opaque AI confidence score.
 
-### 3.6 Revision history
+### 3.7 Revision history
 
 The user should be able to understand a sequence such as:
 
@@ -176,7 +208,8 @@ Issue #98 owns the shared result model. The Workspace should consume equivalent 
 Minimum useful categories:
 
 ```text
-Task identity
+Intent / task identity
+Planned/current status
 Changed items
 Deterministic verification
 Diagnostics
@@ -216,7 +249,8 @@ V1 does not need:
 - a visual scripting graph,
 - a material graph,
 - a DOM/CSS-style engine UI architecture,
-- GUI-only project truth.
+- GUI-only project truth,
+- exposure of hidden model chain-of-thought.
 
 A small manual control may be added when it demonstrably improves review or debugging, but manual authoring breadth is not the product goal.
 
@@ -224,9 +258,10 @@ A small manual control may be added when it demonstrably improves review or debu
 
 The Workspace contract is proven when a representative AI-produced change can be reviewed end to end:
 
-1. the user sees the new/changed result,
-2. deterministic verification is visible separately from subjective review,
-3. the relevant animation/particle/UI/gameplay result can be previewed or played,
-4. the user can submit targeted natural-language feedback or approve,
-5. an agent can consume that feedback, revise the project and return a new verified result,
-6. no hidden editor-only state is required in the loop.
+1. the user understands current intent and work status,
+2. the user sees the new/changed result,
+3. deterministic verification is visible separately from subjective review,
+4. the relevant animation/particle/UI/gameplay result can be previewed or played,
+5. the user can submit targeted natural-language feedback or approve,
+6. an agent can consume that feedback, revise the project and return a new verified result,
+7. no hidden editor-only state is required in the loop.
