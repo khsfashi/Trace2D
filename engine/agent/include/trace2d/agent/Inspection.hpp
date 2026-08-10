@@ -1,5 +1,6 @@
 #pragma once
 
+#include <trace2d/agent/ParticleInspection.hpp>
 #include <trace2d/agent/UiAutomation.hpp>
 
 #include <cstdint>
@@ -240,6 +241,19 @@ public:
     [[nodiscard]] InspectionResult Inspect() const;
     [[nodiscard]] QueryResult Query(std::string_view selector) const;
     [[nodiscard]] QueryOneResult QueryOne(std::string_view selector) const;
+
+    [[nodiscard]] ParticleEmitterInspectionResult InspectParticleEmitter(
+        const ParticleEmitterBinding& binding) const;
+    [[nodiscard]] ParticleDetailInspectionResult InspectParticles(
+        const ParticleEmitterBinding& binding,
+        std::uint32_t offset,
+        std::uint32_t limit) const;
+    [[nodiscard]] ParticleSingleInspectionResult InspectParticle(
+        const ParticleEmitterBinding& binding,
+        particles::ParticleSpawnOrdinal spawnOrdinal) const;
+    [[nodiscard]] ParticleAssertionResult AssertParticle(
+        const ParticleEmitterBinding& binding,
+        const ParticleAssertion& assertion) const;
 
     [[nodiscard]] UiTreeResult InspectUi() const;
     [[nodiscard]] UiQueryResult QueryUi(const UiSelector& selector) const;
