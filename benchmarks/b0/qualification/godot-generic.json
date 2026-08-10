@@ -32,5 +32,13 @@
     "job_id": 93530306004,
     "job_name": "godot-benchmark-oracle"
   },
+  "checksum_verified_evidence": {
+    "source_head": "c613aff2d8b04bba898f63be57c9b87bbdb755fc",
+    "workflow_run_id": 31411712168,
+    "job_id": 93531101772,
+    "job_name": "godot-benchmark-oracle",
+    "archive_checksum_source": "official SHA512-SUMS.txt",
+    "passed": true
+  },
   "generated_at": "2026-08-10T16:55:58.633Z"
 }
