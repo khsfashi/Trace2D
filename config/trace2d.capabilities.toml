@@ -1,0 +1,100 @@
+format_version = 1
+
+# Repository-owned capability evidence only.
+# Live CI, hardware, environment, license, and owner gates remain external truth.
+
+[[capabilities]]
+id = "runtime.fixed_step"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = false
+hardware_evidence = false
+human_judgment = false
+evidence = [
+  "engine/runtime/include/trace2d/runtime/FixedStepRuntime.hpp",
+  "tests/runtime/FixedStepRuntimeTests.cpp"
+]
+
+[[capabilities]]
+id = "scene.semantic_inspection"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = false
+hardware_evidence = false
+human_judgment = false
+evidence = [
+  "engine/agent/include/trace2d/agent/Inspection.hpp",
+  "tests/agent/InspectionTests.cpp",
+  "tests/agent/QueryTests.cpp"
+]
+
+[[capabilities]]
+id = "ui.semantic_interaction"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = true
+hardware_evidence = false
+human_judgment = true
+evidence = [
+  "engine/agent/include/trace2d/agent/UiAutomation.hpp",
+  "tests/agent/UiAutomationTests.cpp",
+  "tests/agent/UiGameInteractionTests.cpp"
+]
+
+[[capabilities]]
+id = "particles.cpu_reference"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = true
+hardware_evidence = false
+human_judgment = true
+evidence = [
+  "engine/particles/include/trace2d/particles/ParticleReference.hpp",
+  "tests/particles/ParticleReferenceTests.cpp",
+  "docs/PARTICLE_CONFORMANCE.md"
+]
+
+[[capabilities]]
+id = "particles.gpu_runtime"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = true
+hardware_evidence = true
+human_judgment = true
+evidence = [
+  "docs/PARTICLE_GPU_RUNTIME.md",
+  "docs/PARTICLE_CONFORMANCE.md",
+  "docs/evidence/particle-53/924dbc1/README.md"
+]
+
+[[capabilities]]
+id = "sprite.production"
+available = false
+tested = false
+production_supported = false
+deterministic_verification = false
+presentation_evidence = false
+hardware_evidence = false
+human_judgment = true
+evidence = ["docs/SPRITES.md"]
+
+[[capabilities]]
+id = "physics2d"
+available = false
+tested = false
+production_supported = false
+deterministic_verification = false
+presentation_evidence = false
+hardware_evidence = false
+human_judgment = false
+evidence = ["docs/PRODUCTION_GAPS.md"]

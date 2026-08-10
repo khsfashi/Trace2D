@@ -1,0 +1,39 @@
+format_version = 1
+
+[work]
+id = "work-spec-representative"
+intent = "Demonstrate repository-visible intent, deterministic acceptance, and explicit human review."
+state = "implemented"
+constraints = [
+  "Do not infer human approval from deterministic verification.",
+  "Do not copy live CI state into committed work metadata."
+]
+
+[[deliverables]]
+id = "particle-proof"
+description = "Use an existing tested particle capability as representative machine-verifiable work."
+state = "verified"
+
+[[requirements]]
+deliverable = "particle-proof"
+capability = "particles.cpu_reference"
+minimum = "tested"
+
+[[acceptance]]
+id = "semantic-verification"
+deliverable = "particle-proof"
+description = "The representative capability has repository-backed deterministic verification."
+verification = "deterministic"
+state = "verified"
+
+[[acceptance]]
+id = "human-review"
+deliverable = "particle-proof"
+description = "A human explicitly approves the representative result."
+verification = "human"
+state = "review_needed"
+
+[[external_truth]]
+id = "human-approval"
+kind = "human_approval"
+description = "Approval is live human state and is never auto-cleared by this committed specification."

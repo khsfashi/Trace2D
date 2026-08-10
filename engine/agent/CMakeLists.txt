@@ -1,8 +1,11 @@
+find_package(tomlplusplus CONFIG REQUIRED)
+
 add_library(trace2d_agent STATIC
     src/Inspection.cpp
     src/ParticleInspection.cpp
     src/Query.cpp
     src/UiAutomation.cpp
+    src/WorkSpec.cpp
 )
 
 add_library(Trace2D::Agent ALIAS trace2d_agent)
@@ -18,6 +21,8 @@ target_link_libraries(trace2d_agent
         Trace2D::Scene
         Trace2D::Ui
         Trace2D::Particles
+    PRIVATE
+        tomlplusplus::tomlplusplus
 )
 
 target_compile_features(trace2d_agent PUBLIC cxx_std_20)
