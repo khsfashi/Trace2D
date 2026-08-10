@@ -6,15 +6,15 @@ This is the operational handoff for the next contributor or coding agent. Compil
 
 ## Current state
 
-**Public Alpha `v0.1.0-alpha.1` is released. Particle children #47-#51 are complete. PR #84 merged #51 CPU cost analysis/compiler. Owner-requested architecture/governance PR #94 is currently active and freezes the missing production-engine integration contracts before later Sprite/game-production implementation. Do not start #52 while PR #94 is open. After #94 merges green, #52 is the exact next core implementation task.**
+**Public Alpha `v0.1.0-alpha.1` is released. Particle children #47-#51 are merged complete. Production architecture freeze #85 is complete via PR #94. PR #95 implements #52, the explicit GPU particle runtime; while #95 is open, finish only that PR. After #95 merges green, #53 is the exact next core implementation task.**
 
-PR #94 changes contracts/roadmap only; it does not implement a later engine feature or reorder the active particle pair #52 -> #53.
+PR #95 consumes the deterministic #51 compiler artifact without changing CPU semantic authority or the fixed long-term core order.
 
-Primary architecture-freeze contract:
+Primary contracts for the current handoff:
 
+- [`docs/PARTICLE_GPU_RUNTIME.md`](docs/PARTICLE_GPU_RUNTIME.md)
+- [`docs/PARTICLES.md`](docs/PARTICLES.md)
 - [`docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`](docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md)
-- tracking issue #85
-- concrete future implementation issues #86-#93
 
 ## Completed foundation and particle predecessors
 
@@ -28,14 +28,14 @@ Primary architecture-freeze contract:
 8. **#49** text-authored particle effects + `ParticleEmitter2D` — complete via PR #66
 9. **#50** complete Agent verification over CPU particle reference state — complete via PR #83
 10. **#51** CPU particle cost analysis + explicit human backend choice + deterministic particle compiler — complete via PR #84
+11. **#52** explicit GPU particle runtime — implementation complete in PR #95; treat it as complete only after #95 merges green
 
 ## Current owner-fixed core execution order
 
-After PR #94 merges, routine `Trace2D next/continue` follows exactly:
+While PR #95 is open, finish #95 only. After it merges green, routine `Trace2D next/continue` follows exactly:
 
 ```text
-#52 explicit GPU particle runtime
- -> #53 CPU/GPU conformance, workloads, safe budgets and guidance
+#53 CPU/GPU conformance, workloads, safe budgets and guidance
  -> #59 complete Sprite program
  -> #69 Game/Application boundary
  -> #70 Project manifest + external consumer build/install/package
@@ -78,7 +78,7 @@ For `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, `Trace2D continue`, o
 1. read `AGENTS.md` and this file,
 2. inspect live open PRs/CI and recent merges,
 3. reconcile stale status if live state advanced,
-4. if an owner-requested roadmap/governance PR such as #94 is active, finish that contract work first,
+4. finish an active owner-governance PR first when one blocks routine progression,
 5. otherwise finish the active core PR if one exists,
 6. if none exists, select the first incomplete/unblocked item from the fixed sequence above,
 7. implement exactly one issue/child vertical slice,
@@ -86,7 +86,7 @@ For `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, `Trace2D continue`, o
 9. publish/update one scoped PR,
 10. do not begin the next core child until the current one merges green.
 
-The owner does **not** need to re-select Sprite vs Physics, whether user gameplay components exist, whether resources need a common lifecycle, whether Camera2D/Material2D/Tween/profiling/GPU conformance belong before the external-game proof, or whether Mesh2D/Spine precede those foundations. Those decisions are now fixed by #13/#85 and the contract documents.
+The owner does **not** need to re-select Sprite vs Physics, whether user gameplay components exist, whether resources need a common lifecycle, whether Camera2D/Material2D/Tween/profiling/GPU conformance belong before the external-game proof, or whether Mesh2D/Spine precede those foundations. Those decisions are fixed by #13/#85 and the contract documents.
 
 ## #51 completion contract
 
@@ -115,27 +115,48 @@ Performance/ownership rules remain:
 - CPU analysis reuses the semantic reference backend,
 - deterministic structural metrics and wall-clock timing remain separate,
 - hosted CI does not treat arbitrary machine timing as portable truth,
-- GPU-selected effects did not silently fall back before #52.
+- GPU-selected effects never silently fall back.
 
-## Immediate #52 entry gate
+## #52 completion contract
 
-After PR #94 merges green, #52 owns the actual GPU execution backend for effects explicitly authored with `backend = "gpu"`.
+PR #95 implements the actual GPU execution backend for effects explicitly authored with `backend = "gpu"`.
 
-#52 must consume the deterministic program/layout contract from #51 and preserve:
+Implemented surface:
+
+- `ParticleProgram` / `ParticleGpuCompileArtifact` remains the only minimized-layout authority,
+- SDL GPU types stay private to `engine/render`,
+- exact compiler-sized per-particle storage plus separately cached immutable program constants,
+- persistent particle buffers with no steady-frame growth/recreation,
+- clear/update/spawn compute paths using the CPU-oracle frame and keyed-random contracts,
+- CPU-side lifecycle/emission scheduling only; no duplicate `ParticleReferenceEmitter` simulation in normal GPU mode,
+- conservative GPU instance upper bound instead of synchronous alive-count readback,
+- one instanced draw per GPU emitter rather than one draw per particle,
+- mixed Sprite/GPU-particle painter order through `(layer, stableOrder)` merge traversal without global texture/material sorting,
+- alpha/additive presentation, local/world simulation space and compiler-derived size/color/rotation,
+- explicit runtime-support diagnostics with no CPU fallback,
+- variable per-particle SpriteChoice deliberately rejected in #52 rather than silently approximated,
+- structural GPU metrics for fingerprints/layout/retained bytes/dispatches/instances/draws/resource creation/readback waits,
+- backend-independent CI tests for exact #51 artifact consumption and unsupported/backend gates,
+- opt-in real-GPU smoke test via `TRACE2D_RUN_GPU_SMOKE=1` for create -> step -> capture -> resource-reuse evidence.
+
+Primary #52 contract: [`docs/PARTICLE_GPU_RUNTIME.md`](docs/PARTICLE_GPU_RUNTIME.md).
+
+Hard runtime invariants:
 
 - CPU reference remains the semantic oracle,
-- normal GPU mode does not run a duplicate full CPU simulation,
+- normal GPU mode does not run duplicate full CPU particle simulation,
 - unsupported GPU features fail explicitly,
-- persistent/capacity-reused GPU resources,
-- no normal-frame readback/fence wait for inspection,
-- no shader compilation/filesystem/report work in normal particle stepping,
-- no per-particle draw-call path.
+- no normal-frame GPU readback or fence wait for particle inspection,
+- no normal-frame shader compilation,
+- no per-particle draw-call path,
+- no global texture/material reorder that violates painter order,
+- GPU particle storage is bounded by authored capacity and compiler stride.
 
-#53 then closes CPU/GPU conformance, representative workloads, safe budgets/build flow and human/LLM guidance before Sprite begins.
+After PR #95 merges green, **#53 is next** and owns CPU/GPU conformance criteria, representative workloads, safe budgets/build flow and human/LLM guidance before Sprite begins.
 
 ## Production architecture freeze (#85 / PR #94)
 
-PR #94 freezes contracts now but deliberately leaves implementation to the correct later stage.
+PR #94 is merged. It froze contracts deliberately while leaving implementation to the correct later stages.
 
 The mandatory seams are:
 
