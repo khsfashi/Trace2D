@@ -1,0 +1,5 @@
+format_version = 1
+
+[scene]
+id = "b0_semantic_scene"
+name = "B0 Semantic Scene"
