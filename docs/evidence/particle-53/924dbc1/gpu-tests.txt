@@ -1,0 +1,54 @@
+UpdateCTestConfiguration  from :<checkout>/DartConfiguration.tcl
+Test project <checkout>/build/windows-msvc
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 30
+    Start 30: ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime
+
+30: Test command: <checkout>\build\windows-msvc\tests\render\Debug\trace2d_render_tests.exe "--gtest_filter=ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime" "--gtest_also_run_disabled_tests"
+30: Working Directory: <checkout>/build/windows-msvc/tests/render
+30: Test timeout computed to be: 10000000
+30: Running main() from <user-temp>\trace2d-vcpkg\buildtrees\gtest\src\v1.17.0-e243b8ee0f.clean\googletest\src\gtest_main.cc
+30: Note: Google Test filter = ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime
+30: [==========] Running 1 test from 1 test suite.
+30: [----------] Global test environment set-up.
+30: [----------] 1 test from ParticleGpuConformanceTests
+30: [ RUN      ] ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime
+30: [       OK ] ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime (4510 ms)
+30: [----------] 1 test from ParticleGpuConformanceTests (4511 ms total)
+30:
+30: [----------] Global test environment tear-down
+30: [==========] 1 test from 1 test suite ran. (4511 ms total)
+30: [  PASSED  ] 1 test.
+1/2 Test #30: ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime ...   Passed    4.57 sec
+test 35
+    Start 35: ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity
+
+35: Test command: <checkout>\build\windows-msvc\tests\render\Debug\trace2d_render_tests.exe "--gtest_filter=ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity" "--gtest_also_run_disabled_tests"
+35: Working Directory: <checkout>/build/windows-msvc/tests/render
+35: Test timeout computed to be: 10000000
+35: Running main() from <user-temp>\trace2d-vcpkg\buildtrees\gtest\src\v1.17.0-e243b8ee0f.clean\googletest\src\gtest_main.cc
+35: Note: Google Test filter = ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity
+35: [==========] Running 1 test from 1 test suite.
+35: [----------] Global test environment set-up.
+35: [----------] 1 test from ParticleGpuSmokeTests
+35: [ RUN      ] ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity
+35: [       OK ] ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity (3636 ms)
+35: [----------] 1 test from ParticleGpuSmokeTests (3636 ms total)
+35:
+35: [----------] Global test environment tear-down
+35: [==========] 1 test from 1 test suite ran. (3637 ms total)
+35: [  PASSED  ] 1 test.
+2/2 Test #35: ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity ...........................   Passed    3.70 sec
+
+The following tests passed:
+	ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime
+	ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity
+
+100% tests passed out of 2
+
+Total Test time (real) =   9.01 sec
