@@ -1,5 +1,6 @@
 add_executable(trace2d_render_tests
     CaptureTests.cpp
+    ParticleGpuConformanceTests.cpp
     ParticleGpuRuntimeTests.cpp
     ParticleGpuSmokeTests.cpp
     RenderDataTests.cpp
