@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last repository-state update: **2026-08-10**
+Last repository-state update: **2026-08-11**
 
 This file is the operational handoff for the next contributor or coding agent. Compiling code/tests, live PR/CI/merge state, and explicit owner-approved contracts outrank stale prose.
 
@@ -16,25 +16,28 @@ Verification rule:
 
 The seven-part particle program #47-#53 is complete via PR #114. Issue #53 and umbrella #46 are closed complete after the required real Windows GPU conformance/smoke evidence and Release CPU-reference calibration were committed.
 
-**#97 machine-readable intent / Definition of Done is now the active core implementation in draft PR #115. Do not begin #98 while #115 is open.**
+#97 machine-readable intent / Definition of Done is complete via PR #115.
 
-PR #115 establishes:
+**#98 unified verification / diagnosis / repair / WorkResult is now the active core implementation in draft PR #116. Do not begin #99 while #116 is open.**
 
-- versioned machine-readable work intent, deliverables, acceptance and constraints,
-- explicit deterministic / presentation / multimodal / human verification classes,
-- an evidence-backed capability catalog that separates `available`, `tested`, and `production_supported`,
-- derived local `ready` / `blocked` / `review_needed` / `complete` / `failed` state,
-- unavailable capability as an eligibility block rather than an implementation failure,
-- explicit `external_truth` requirements for changing GitHub/CI/environment/hardware/license/human facts,
-- the `trace2d_work_state` JSON query for Agent/harness consumption.
+PR #116 establishes:
 
-Current #97 contracts on the PR branch:
+- typed `WorkResult` / revision / verification / failure / artifact contracts on the same acceptance identities as #97,
+- versioned text result packages with explicit revision lineage,
+- structured failure code/target/message/reproduction/evidence for deterministic diagnosis,
+- current-revision evaluation that keeps deterministic/presentation completion distinct from multimodal/human approval,
+- historical failed revisions retained after repair rather than overwritten,
+- live GitHub/CI/environment/hardware/license/human facts kept as external truth rather than cached result state,
+- `trace2d_verify --spec ... --result ... --json` for machine-readable result composition,
+- explicit tooling-only ownership so result parsing/reporting does not enter frame hot paths.
 
-- [`docs/WORK_SPEC.md`](docs/WORK_SPEC.md)
-- [`config/trace2d.capabilities.toml`](config/trace2d.capabilities.toml)
-- [`engine/agent/include/trace2d/agent/WorkSpec.hpp`](engine/agent/include/trace2d/agent/WorkSpec.hpp)
+Current #98 contracts on the PR branch:
 
-The connector environment used to author PR #115 could not run a local repository build, so **hosted final-head CI is the current acceptance gate**. Do not mark #97 complete or advance to #98 until #115 is green and merged.
+- [`docs/WORK_RESULT.md`](docs/WORK_RESULT.md)
+- [`engine/agent/include/trace2d/agent/WorkResult.hpp`](engine/agent/include/trace2d/agent/WorkResult.hpp)
+- [`tests/data/work_result.trace2d.toml`](tests/data/work_result.trace2d.toml)
+
+Hosted final-head CI is the current acceptance gate. Do not mark #98 complete or advance to #99 until #116 is green and merged.
 
 ## Completed foundation and particle sequence
 
@@ -50,6 +53,7 @@ The connector environment used to author PR #115 could not run a local repositor
 10. #51 CPU cost analysis + explicit backend ownership + deterministic compiler — complete via PR #84
 11. #52 explicit GPU particle runtime — complete via PR #95 after the required real-GPU smoke gate
 12. #53 CPU/GPU conformance, workloads, measured recommendation guidance — complete via PR #114
+13. #97 machine-readable intent / Definition of Done — complete via PR #115
 
 Production architecture freeze #85 is complete via PR #94.
 
@@ -96,8 +100,8 @@ Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent fol
 
 ```text
 AI-operated foundation
- -> #97 machine-readable intent / Definition of Done         [active draft PR #115; hosted CI gate]
- -> #98 unified verify / diagnose / repair / WorkResult
+ -> #97 machine-readable intent / Definition of Done         [complete via PR #115]
+ -> #98 unified verify / diagnose / repair / WorkResult      [active draft PR #116; hosted CI gate]
  -> #99 result-review Workspace / feedback loop
  -> #102 Benchmark B0 matched harness + current-capability tasks
 
@@ -148,7 +152,7 @@ Umbrellas/registers:
 
 ## #97 machine-readable intent boundary
 
-PR #115 deliberately keeps committed and live truth separate:
+PR #115 keeps committed and live truth separate:
 
 ```text
 committed WorkSpec / capability catalog
@@ -169,7 +173,32 @@ Important rules:
 - live CI/hardware/license/human facts are declared as external requirements rather than copied into stale committed state,
 - work-state parsing/evaluation is explicit tooling work and never enters engine frame hot paths.
 
-After #115 merges green, close #97 and advance this file to **#98 unified verify / diagnose / repair / WorkResult**.
+## #98 WorkResult boundary
+
+PR #116 extends those identities into a revision/result flow:
+
+```text
+WorkSpec acceptance
+ -> verification record
+ -> structured failure + reproduction context
+ -> external Agent/user repair
+ -> new revision
+ -> deterministic re-verification
+ -> presentation/multimodal/human review where required
+```
+
+Important rules:
+
+- engine runtime does not silently repair source/content,
+- current deterministic failure remains machine-authoritative even if a screenshot looks good,
+- passed/approved records require evidence references,
+- human/multimodal `passed` is not final approval,
+- historical failures remain reviewable after a later repair passes,
+- `external_truth` remains separate from local result completion,
+- `WorkResult` composes evidence but does not turn `Agent says done` into independent truth,
+- #102 keeps an independent benchmark verifier/provenance boundary.
+
+After #116 merges green, close #98 and advance this file to **#99 result-review Workspace / feedback loop**.
 
 ## AI-operated product foundation
 
