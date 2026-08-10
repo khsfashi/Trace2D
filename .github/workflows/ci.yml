@@ -47,15 +47,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Download pinned official Godot build
+      - name: Download and verify pinned official Godot build
         shell: bash
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/godot.zip"
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
           install_dir="$RUNNER_TEMP/godot"
-          curl --fail --location --retry 3 \
-            "https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B0_GODOT_VERSION}/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip" \
-            --output "$archive"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B0_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
           mkdir -p "$install_dir"
           unzip -q "$archive" -d "$install_dir"
           chmod +x "$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64"
