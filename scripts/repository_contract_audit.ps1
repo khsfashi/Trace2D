@@ -42,7 +42,7 @@ function Require-Regex {
 
     $text = Get-Content -LiteralPath $fullPath -Raw
     if ($text -notmatch $Pattern) {
-        Add-Failure "$RelativePath: missing invariant '$Description'."
+        Add-Failure "${RelativePath}: missing invariant '$Description'."
     }
 }
 
@@ -94,7 +94,7 @@ function Test-LocalMarkdownLinks {
         $script:checks++
         if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
             $relativeCandidate = [IO.Path]::GetRelativePath($RepositoryRoot, $candidate)
-            Add-Failure "$RelativePath: local Markdown link '$rawTarget' resolves to missing file '$relativeCandidate'."
+            Add-Failure "${RelativePath}: local Markdown link '$rawTarget' resolves to missing file '$relativeCandidate'."
         }
     }
 }
