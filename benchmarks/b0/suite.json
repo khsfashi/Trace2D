@@ -25,7 +25,7 @@
         "id": "satelliteoflove/godot-mcp",
         "package": "@satelliteoflove/godot-mcp",
         "version": "4.1.0",
-        "selection_state": "primary_candidate_pending_qualification"
+        "selection_state": "selected_qualified"
       },
       "qualification": {
         "required": true,
