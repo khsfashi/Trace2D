@@ -1,5 +1,6 @@
 #pragma once
 
+#include <trace2d/agent/Inspection.hpp>
 #include <trace2d/agent/WorkResult.hpp>
 
 #include <cstddef>
@@ -80,11 +81,13 @@ struct WorkspaceSnapshot final
     std::vector<std::string> currentLimitations{};
     std::vector<WorkspaceRevisionView> revisions{};
     std::vector<ExternalTruthRequirement> externalTruth{};
+    std::optional<InspectionSnapshot> inspection{};
 };
 
 [[nodiscard]] WorkspaceSnapshot BuildWorkspaceSnapshot(
     const WorkSpec& spec,
-    const WorkResult& result);
+    const WorkResult& result,
+    const InspectionSnapshot* inspection = nullptr);
 
 enum class WorkspaceActionKind : std::uint8_t
 {
