@@ -1,0 +1,46 @@
+format_version = 1
+
+[effect]
+id = "workload_cpu_small"
+backend = "cpu"
+max_particles = 128
+duration_frames = 240
+loop = false
+play_on_load = true
+simulation_space = "local"
+
+[emission]
+start_frame = 0
+count = 2
+every_frames = 2
+
+[spawn]
+shape = "box"
+offset = [0.0, 0.0]
+box_half_extents = [0.25, 0.25]
+circle_radius = 0.0
+
+[lifetime]
+frames = [30, 45]
+
+[motion]
+speed = [0.02, 0.08]
+angle_radians = [-0.5, 0.5]
+acceleration = [0.0, -0.0005]
+
+[scale]
+initial = [0.2, 0.35]
+end_multiplier = 0.5
+
+[rotation]
+initial_radians = [-0.2, 0.2]
+angular_velocity_radians_per_frame = [-0.01, 0.01]
+
+[color]
+initial_min = [0.8, 0.9, 1.0, 0.8]
+initial_max = [1.0, 1.0, 1.0, 1.0]
+end = [0.4, 0.6, 1.0, 0.0]
+
+[presentation]
+blend = "alpha"
+sprites = ["textures/particles/workload.png"]

@@ -41,6 +41,27 @@ if(BUILD_TESTING)
             PASS_REGULAR_EXPRESSION "deterministic_structure.*backend_changed_by_analyzer.*false"
     )
 
+    foreach(workload IN ITEMS
+        workload_cpu_small
+        workload_cpu_medium
+        workload_gpu_scale
+    )
+        add_test(
+            NAME trace2d_particle_analyze_${workload}
+            COMMAND trace2d_particle_analyze
+                --project-root "${CMAKE_SOURCE_DIR}"
+                --effect "tests/particles/fixtures/${workload}.trace2d.particle.toml"
+                --frames 240
+                --seed 1311768467463790320
+                --stable-id 1234605616436508552
+        )
+        set_tests_properties(
+            trace2d_particle_analyze_${workload}
+            PROPERTIES
+                PASS_REGULAR_EXPRESSION "deterministic_structure.*backend_changed_by_analyzer.*false"
+        )
+    endforeach()
+
     # This validates timing-output provenance only. It deliberately has no timing threshold.
     add_test(
         NAME trace2d_particle_analyze_timing_schema
