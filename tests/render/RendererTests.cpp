@@ -16,6 +16,8 @@ TEST(RendererTests, RenderMetricsDefaultToZero)
     EXPECT_EQ(metrics.renderPasses, 0U);
     EXPECT_EQ(metrics.drawCalls, 0U);
     EXPECT_EQ(metrics.submittedSprites, 0U);
+    EXPECT_EQ(metrics.submittedGpuParticleInstances, 0U);
+    EXPECT_EQ(metrics.gpuParticleDrawCalls, 0U);
     EXPECT_EQ(metrics.culledSprites, 0U);
     EXPECT_EQ(metrics.lastTargetWidth, 0U);
     EXPECT_EQ(metrics.lastTargetHeight, 0U);
