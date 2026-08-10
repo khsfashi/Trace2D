@@ -1,5 +1,6 @@
 add_library(trace2d_agent STATIC
     src/Inspection.cpp
+    src/ParticleInspection.cpp
     src/Query.cpp
     src/UiAutomation.cpp
 )
@@ -16,6 +17,7 @@ target_link_libraries(trace2d_agent
         Trace2D::Runtime
         Trace2D::Scene
         Trace2D::Ui
+        Trace2D::Particles
 )
 
 target_compile_features(trace2d_agent PUBLIC cxx_std_20)
