@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+  "source_event": "merge",
+  "event_id": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#99",
+        "url": "https://github.com/khsfashi/Trace2D/issues/99"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+        "authored_at": "2026-08-11T01:22:40+09:00",
+        "subject": "Add Trace2D Workspace review and feedback surface (#99)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "workspace"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "WorkspaceSnapshot is derived from WorkSpec/WorkResult and optional existing InspectionSnapshot; Workspace does not own engine/project truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Subjective review is exposed only when machine-owned acceptance is complete; deterministic or presentation failure/incomplete state cannot be promoted into human review",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Feedback and approval are strict versioned current-revision action packets handed to an external Agent/user workflow rather than runtime mutation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "Adapt explicit human review/change-request/result-check summary patterns from current GitHub Agent UX while rejecting PR/chat/session state as Trace2D engine truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Offline review does not fabricate live world state; live clients may explicitly attach the existing AgentFacade inspection snapshot",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "Workspace snapshot/report/HTML/action generation and artifact presentation are explicit tooling work outside normal frame hot paths",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "Global editor asset database, background project asset scan, and browser/server framework in engine core | conflicts with existing deterministic asset/shared-state boundaries and is unnecessary for the V1 review loop",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ],
+        "alternative": "Global editor asset database, background project asset scan, and browser/server framework in engine core",
+        "reason": "conflicts with existing deterministic asset/shared-state boundaries and is unnecessary for the V1 review loop"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Reject stale-revision actions and allow approval only for acceptance currently eligible in the review queue",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "directives-002",
+        "text": "Preserve human feedback as revision-scoped intent and rerun affected deterministic verification after Agent/user repair before returning to subjective review",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Directive",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "GitHub CI windows-msvc configure/build/full test | passed on final head 763963bb66cdb806cde17d5d953d7b9e306a35bb",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "clean-clone-quick-start | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "release-audit | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "tested-004",
+        "text": "repository-contract-audit | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Tested",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      },
+      {
+        "id": "tested-005",
+        "text": "Content Evidence fixture suite | passed on final head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+            "trailer": "Tested",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+          }
+        ]
+      }
+    ],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#97",
+    "#98",
+    "#102"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
