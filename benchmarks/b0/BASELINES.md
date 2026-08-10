@@ -6,11 +6,11 @@ This file records the external-reference refresh required by #102. It is not its
 
 ## Frozen Godot engine qualification candidate
 
-Pinned engine candidate: **Godot `4.6.3-stable`**.
+Pinned engine candidate: **Godot `4.7.1-stable`**.
 
 Primary reference:
 
-- <https://github.com/godotengine/godot/releases/tag/4.6.3-stable>
+- <https://github.com/godotengine/godot/releases/tag/4.7.1-stable>
 
 Why this version is pinned for the first qualification round:
 
@@ -37,7 +37,7 @@ Why it is the current first qualification target:
 - editor/runtime inspection and screenshots,
 - ordinary project-file authoring remains available instead of forcing every edit through custom tools.
 
-B0 classification: **ADAPT / QUALIFY FIRST**. The runtime verification surface is a strong match for Trace2D's deterministic Agent thesis, but the benchmark must prove the exact package/version works with the pinned Godot 4.6.3 environment before selecting it as the scored `godot.agent` lane.
+B0 classification: **ADAPT / QUALIFY FIRST**. The runtime verification surface is a strong match for Trace2D's deterministic Agent thesis, but the benchmark must prove the exact package/version works with the pinned Godot 4.7.1 environment before selecting it as the scored `godot.agent` lane.
 
 ## Alternative — Erodenn/godot-mcp-runtime
 
@@ -113,7 +113,7 @@ B0 classification: **DEFER FROM FIRST QUALIFICATION ROUND**. This is not a quali
 
 The scored `godot.agent` lane is not chosen by stars, tool count, or marketing claims. Before changing `suite.json` from `qualification_required` to `eligible`, run the same bridge qualification fixture and require:
 
-1. both Godot lanes use the exact pinned Godot 4.6.3-stable binary/environment,
+1. both Godot lanes use the exact pinned Godot 4.7.1-stable binary/environment,
 2. authoring works in a fresh starter project,
 3. structured runtime inspection works,
 4. timed player input works,
