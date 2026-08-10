@@ -31,7 +31,7 @@ Primary references:
 
 Why it was qualified first:
 
-- exact/frozen game-time control,
+- frozen and predicate-controlled game-time control,
 - structured live runtime state rather than screenshot-only observation,
 - real timed input injection,
 - editor/runtime inspection and screenshots,
@@ -44,10 +44,12 @@ The hosted qualification proved, against Godot 4.7.1-stable and the exact npm pa
 1. reversible real editor authoring/save/readback,
 2. structured runtime inspection while launch-frozen,
 3. raw `D` key input affecting ordinary gameplay input code,
-4. deterministic replay over the same fixed 200 ms game-time interval,
+4. deterministic replay by stopping on the fixture's authoritative `physics_ticks == 12` predicate through public `step_until`,
 5. independent known-good acceptance and wrong-position known-bad rejection.
 
-The two replay runs both produced 12 physics ticks and `Player.position_x == 1.83`. Their uncapped render-frame counts differed; that difference is retained as evidence and deliberately excluded from the deterministic domain rather than hidden.
+The accepted two clean runs both stopped at exactly 12 physics ticks and `Player.position_x == 2`. Their uncapped render-frame counts differed (`267` vs `271`); that difference is retained and deliberately excluded from the deterministic domain.
+
+Two weaker measurement criteria were rejected during qualification. Fixed render-frame stepping did not map to fixed physics progress on an uncapped hosted renderer. A fixed 200 ms game-time criterion then passed once but exposed 12-vs-13 physics-tick phase variance on a later clean rerun, so it was also rejected rather than normalized away. The selected baseline is qualified only under the stronger authoritative physics-tick boundary.
 
 This selection was made on the predefined qualification contract, before any scored Trace2D-vs-Godot result exists.
 
@@ -129,7 +131,7 @@ The `godot.agent` baseline was not chosen by stars, tool count, or marketing cla
 2. authoring in a fresh project,
 3. structured runtime inspection,
 4. timed player input,
-5. deterministic/frozen game-time control,
+5. deterministic/frozen game-time control with an authoritative replay boundary,
 6. no task-specific solution logic,
 7. exact bridge/package integrity recording,
 8. independent gold/known-bad verifier behavior.
