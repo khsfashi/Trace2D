@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+  "source_event": "merge",
+  "event_id": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#53",
+        "url": "https://github.com/khsfashi/Trace2D/issues/53"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 114,
+        "url": "https://github.com/khsfashi/Trace2D/pull/114"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+        "authored_at": "2026-08-10T22:11:50+09:00",
+        "subject": "Prove particle conformance and measured backend guidance (#53)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "particles"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "CPU reference remains semantic oracle; backend remains explicit human-authored CPU/GPU choice",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "V1 recommendation bands use normalized p95 240-frame windows: <=0.05 ms keep_cpu, 0.05-0.10 judgment, >=0.10 consider_gpu",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "GPU floating-point presentation is verified with bounded invariants, not universal bit identity",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "Normal GPU frames perform no particle readback/fence wait and do not duplicate CPU reference simulation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "public particle-buffer readback API for #53 | existing explicit capture plus structural metrics proves V1 without polluting normal runtime",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ],
+        "alternative": "public particle-buffer readback API for #53",
+        "reason": "existing explicit capture plus structural metrics proves V1 without polluting normal runtime"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Do not treat capacity alone or analyzer timing as an automatic backend switch",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "directives-002",
+        "text": "workload_gpu_scale timing is CPU-reference-oracle timing, not GPU wall-clock timing",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Directive",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "final-head Content Evidence run 19",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "final-head CI run 282 including windows-msvc configure/build/test, clean-clone quick start, repository-contract-audit, release-audit",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "local real-GPU ParticleGpuConformanceTests on NVIDIA GeForce RTX 3070",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "tested-004",
+        "text": "local real-GPU ParticleGpuSmokeTests on NVIDIA GeForce RTX 3070",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Tested",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      },
+      {
+        "id": "tested-005",
+        "text": "local Release 10-warmup/50-measurement calibration on AMD Ryzen 5 5600X for 128/1024/4096 workloads",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Tested",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "GPU wall-clock particle timing; workload_gpu_scale timing is CPU reference oracle evidence",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "local-real-gpu-conformance | passed without skip on owner Windows presentation GPU at source commit 924dbc19027a350c9bae819eea28789eea77bbdd",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ],
+        "gate": "local-real-gpu-conformance",
+        "status": "passed without skip on owner Windows presentation GPU at source commit 924dbc19027a350c9bae819eea28789eea77bbdd"
+      },
+      {
+        "id": "gates-002",
+        "text": "local-release-particle-calibration | passed and committed under docs/evidence/particle-53/924dbc1/",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+            "trailer": "Gate",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+          }
+        ],
+        "gate": "local-release-particle-calibration",
+        "status": "passed and committed under docs/evidence/particle-53/924dbc1/"
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "SDL3 GPU API | ADOPT | verification-only synchronization and persistent resource reuse",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "Direct3D floating-point rules | ADAPT | exact discrete plus bounded float/presentation invariants",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+        }
+      ]
+    },
+    {
+      "id": "reference-003",
+      "text": "Vulkan specification | ADAPT | explicit cross-device numeric portability boundary",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+          "trailer": "Reference",
+          "ordinal": 3,
+          "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+        }
+      ]
+    },
+    {
+      "id": "reference-004",
+      "text": "Google Benchmark guidance | ADAPT | warmup/repetitions/statistics/environment labelling without new dependency",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0",
+          "trailer": "Reference",
+          "ordinal": 4,
+          "url": "https://github.com/khsfashi/Trace2D/commit/9f7d2f7c3fe05b535242f3efbc1f2ebb612dd7e0"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#46",
+    "PR #114"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
