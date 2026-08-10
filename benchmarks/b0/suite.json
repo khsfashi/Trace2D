@@ -4,7 +4,8 @@
   "state": "qualification_required",
   "description": "Matched current-capability micro-benchmark for the same coding Agent/model across Godot generic, Godot Agent/MCP, and Trace2D Agent lanes.",
   "frozen_source": {
-    "trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5"
+    "trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+    "godot_version": "4.6.3-stable"
   },
   "lanes": [
     {
