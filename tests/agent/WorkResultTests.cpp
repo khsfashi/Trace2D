@@ -248,4 +248,49 @@ limitations = []
     EXPECT_FALSE(parsed.Succeeded());
     EXPECT_FALSE(parsed.diagnostics.empty());
 }
+
+TEST(WorkResultTests, MalformedPrecedingRevisionIsDiagnosedWithoutUnsafeLineageAccess)
+{
+    constexpr std::string_view text = R"toml(
+format_version = 1
+[result]
+work_id = "repair-flow"
+
+revisions = [
+    7,
+    { id = "r2", parent = "r1", changed_paths = [], limitations = [] }
+]
+)toml";
+
+    const auto parsed = trace2d::agent::ParseWorkResultToml(text, "malformed.toml");
+    EXPECT_FALSE(parsed.Succeeded());
+    EXPECT_GE(parsed.diagnostics.size(), 2U);
+}
+
+TEST(WorkResultTests, UnknownFieldsAndStaleFailureFieldsAreRejected)
+{
+    constexpr std::string_view text = R"toml(
+format_version = 1
+unexpected_root = true
+[result]
+work_id = "repair-flow"
+
+[[revisions]]
+id = "r1"
+changed_paths = []
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-proof"
+verification = "deterministic"
+outcome = "passed"
+summary = "Passed but carries stale failure metadata."
+evidence = ["artifacts/r1/verify.json"]
+failure_code = "stale"
+)toml";
+
+    const auto parsed = trace2d::agent::ParseWorkResultToml(text);
+    EXPECT_FALSE(parsed.Succeeded());
+    EXPECT_GE(parsed.diagnostics.size(), 2U);
+}
 } // namespace
