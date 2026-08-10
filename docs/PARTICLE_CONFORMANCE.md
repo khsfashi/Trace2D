@@ -4,15 +4,15 @@ Issue: #53
 Parent: #46  
 Last reviewed: 2026-08-10
 
-This document closes the design contract for the seventh particle slice. It connects the existing text-authored effect, CPU reference oracle, Agent verification, structural cost analyzer, explicit GPU compiler/runtime, and real-GPU presentation path without adding automatic backend switching or normal-frame diagnostic work.
+This document closes the seventh and final particle slice. It connects text-authored effects, the deterministic CPU reference oracle, structured Agent verification, measured CPU cost, explicit human backend choice, deterministic GPU compilation, real GPU execution, and bounded CPU/GPU conformance.
 
 The governing rule is:
 
 > **Verify semantics on the CPU oracle, measure raw cost, let a human choose the backend explicitly, then prove the selected GPU path against the same program/seed/identity.**
 
-The particle phase does not introduce a profiler framework, a generic GPU state debugger, a hidden CPU fallback, or a heuristic that rewrites authored `backend` text.
+Trace2D never silently changes `backend = "cpu" | "gpu"`, never treats GPU floating point as universally bit-identical, and never adds normal-frame GPU readback merely for diagnostics.
 
-## 1. End-to-end workflow
+## 1. End-to-end contract
 
 ```text
 .trace2d.particle.toml
@@ -29,246 +29,176 @@ The particle phase does not introduce a profiler framework, a generic GPU state 
   -> conformance + visual QA
 ```
 
-The CPU reference remains available as the semantic oracle for analysis even when the authored effect selects `backend = "gpu"`. `PrepareParticleProgramCpuEmitter()` deliberately clones the program definition into a CPU-selected oracle; it does not mutate the authored program.
+`PrepareParticleProgramCpuEmitter()` may execute the same semantic program through the CPU reference oracle for analysis even when the authored effect selects GPU. That analysis path does not mutate authored backend state and is not simultaneous CPU simulation during normal GPU execution.
 
-## 2. What conformance means
+## 2. Conformance boundary
 
-Trace2D does **not** claim cross-vendor bit-identical floating-point GPU particle state.
+### Exact structured facts
 
-Conformance is layered instead of reduced to a screenshot hash.
-
-### 2.1 Exact deterministic checks
-
-These are exact where they are represented by Trace2D-owned integer/structural state:
+The following are exact where represented by Trace2D-owned integer/structural state:
 
 - `ParticleProgram` fingerprint,
-- compiled GPU artifact fingerprint,
-- pipeline variant and minimized layout identity,
-- authored capacity,
-- step count,
-- submitted spawn-attempt count,
-- burst/periodic emission schedule,
-- spawn-ordinal progression implied by submitted attempts,
-- integer lifetime sampling and lifetime boundary behavior,
-- explicit backend selection,
-- unsupported-feature rejection with no fallback,
-- retained-buffer creation/reuse counters,
-- no normal-frame GPU readback or fence wait.
+- deterministic GPU artifact/pipeline identity,
+- authored backend and capacity,
+- emission schedule and submitted spawn attempts,
+- integer lifetime sampling/boundaries,
+- feature/random-channel identity,
+- minimized GPU layout/stride,
+- retained GPU bytes,
+- dispatch/draw/resource counters,
+- buffer creation/growth/reuse facts,
+- zero normal-frame particle readback/fence waits,
+- unsupported GPU feature rejection with no CPU fallback.
 
-The existing GPU runtime owns scheduler control on the CPU side and the GPU compute path owns particle state. Conformance tests therefore compare the CPU oracle's deterministic counters against the GPU runtime's submitted structural facts and then verify the resulting presentation behavior.
+### Floating/presentation facts
 
-### 2.2 Floating-point checks
+Trace2D does **not** claim universal cross-vendor bit-identical GPU particle floats.
 
-Position, motion, rotation, size, and color are not required to be universally bit-identical across GPU vendors/drivers.
+The committed V1 real-GPU probe therefore combines the exact structured facts above with a bounded presentation invariant:
 
-For the committed V1 real-GPU conformance probe, floating-point motion is checked as a **presentation-space invariant**:
-
-- same `ParticleProgram`, global seed, and emitter stable ID,
+- same program, global seed, and emitter stable ID,
 - same exact frame steps,
-- CPU oracle supplies the expected world position,
-- actual GPU presentation is captured through the existing explicit `CaptureFrame` path,
-- the bright-particle center must land within **2 pixels** of the CPU-projected center in the fixed `128x128`, vertical-size `4.0` probe,
-- positive fixed X velocity must move the observed center in the expected direction,
-- the particle must disappear on the exact CPU-sampled integer lifetime boundary.
+- CPU oracle provides expected world motion/lifetime,
+- actual SDL GPU presentation is captured through the explicit `CaptureFrame` verification path,
+- bright-particle center must remain within 2 pixels of the CPU-projected center in the fixed 128x128 probe,
+- positive X velocity must move presentation in the expected direction,
+- disappearance must occur on the CPU-sampled integer lifetime boundary.
 
-The 2-pixel value is a **test-space rasterization tolerance**, not a world-space physics tolerance and not a general engine rendering quality threshold. Future workloads that need tighter numeric state diagnosis should add a dedicated explicit diagnostic owned by #91 rather than adding readback to normal particle frames.
+The 2-pixel value is a fixed-probe raster tolerance, not a general world-space physics tolerance. A future direct GPU-state diagnostic belongs to #91 if evidence shows it is necessary.
 
-### 2.3 Why no particle-buffer readback API is added here
+## 3. Real-GPU proof
 
-A storage-buffer readback would require an explicit GPU download plus synchronization before CPU inspection. That is useful for deep diagnostics, but #53 can prove the current V1 runtime with the already-supported explicit capture path plus structural metrics.
-
-Decision for #53: **REJECT a new public particle-buffer readback surface for the ordinary particle API.**
-
-Reasons:
-
-- it would add a new synchronized diagnostic path solely to close this stage,
-- it is unnecessary for the representative V1 conformance proof,
-- it risks blurring the hard rule that normal GPU execution performs no readback/fence wait,
-- #91 already owns unified profiler/diagnostic expansion if future failures justify direct GPU-state inspection.
-
-This does not prohibit an explicit future diagnostic readback. It prohibits making it part of normal particle execution or inventing it before evidence requires it.
-
-## 3. Real-GPU conformance test
-
-`tests/render/ParticleGpuConformanceTests.cpp` is opt-in under the same hardware gate as the existing GPU smoke test:
+The opt-in hardware tests use:
 
 ```powershell
 $env:TRACE2D_RUN_GPU_SMOKE = "1"
-ctest --preset windows-debug -R ParticleGpuConformanceTests --output-on-failure
+ctest --preset windows-debug -R "ParticleGpu(Smoke|Conformance)Tests" --output-on-failure
 ```
 
-The probe uses:
+Hosted CI may build/discover these tests and skip them without a presentation GPU. A skip is not hardware evidence.
 
-- one GPU-selected effect,
-- one CPU oracle prepared from the same `ParticleProgram`,
-- fixed global seed and emitter stable ID,
-- random box spawn position,
-- random integer lifetime,
-- fixed positive-X motion,
-- actual SDL GPU execution,
-- actual offscreen/render capture,
-- structural runtime metrics.
+Final #53 evidence was captured on PR #114 commit `924dbc19027a350c9bae819eea28789eea77bbdd` on:
 
-The test proves that random-channel mapping is observable in the same location/lifetime outcome, that GPU presentation follows CPU motion within the declared raster tolerance, and that the same retained particle buffer is reused without normal-frame readback/fence synchronization.
+- AMD Ryzen 5 5600X,
+- NVIDIA GeForce RTX 3070,
+- driver `32.0.15.9186`,
+- Windows/MSVC,
+- Debug real-GPU tests + Release analyzer timings.
 
-Hosted CI may compile/discover this test and skip it when the opt-in environment variable is absent. A skip is **not** real-GPU evidence.
+Both required tests passed, not skipped:
 
-## 4. Deterministic calibration workloads
+- `ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime`
+- `ParticleGpuSmokeTests.ExplicitGpuEmitterAdvancesCapturesAndReusesCapacity`
 
-The repository commits three calibration effects. They are measurement points, **not guessed safe limits**.
+Repository-safe evidence is committed under [`docs/evidence/particle-53/924dbc1/`](evidence/particle-53/924dbc1/README.md). Local checkout/user-profile paths in the textual GPU log are redacted only for public-release safety; pass/fail evidence and timing are unchanged.
 
-| Workload | Backend text | Capacity | Purpose |
+## 4. Calibration workloads and structural evidence
+
+The repository commits three deterministic 240-frame calibration effects:
+
+| Workload | Authored backend | Capacity | Purpose |
 | --- | --- | ---: | --- |
-| `workload_cpu_small` | `cpu` | 128 | small observable rich effect |
-| `workload_cpu_medium` | `cpu` | 1024 | medium rich CPU scaling point |
-| `workload_gpu_scale` | `gpu` | 4096 | heavier rich effect for explicit GPU consideration |
+| `workload_cpu_small` | `cpu` | 128 | small rich CPU reference point |
+| `workload_cpu_medium` | `cpu` | 1024 | representative rich CPU point |
+| `workload_gpu_scale` | `gpu` | 4096 | heavier scale point for explicit GPU consideration |
 
-All three use deterministic 240-frame windows and exercise variable lifetime, randomized spawn/motion/presentation attributes, acceleration, over-life data, and bounded storage. The GPU-scale fixture avoids V1-unsupported variable `SpriteChoice`.
+The analyzer reports machine-independent structural evidence including program/backend identity, current/peak alive count, spawn/update/expire/drop totals, 92-byte CPU reference payload accounting, semantic operation counts, random channels, steady-state allocation count, planned GPU layout, and deterministic artifact identity when GPU is authored.
 
-Normal CI executes structural analysis for all three and validates that analysis never mutates the authored backend. Wall-clock timing remains unscored.
+All three final-gate workloads reported:
 
-## 5. Structural evidence
+- zero dropped particles,
+- zero steady-state particle-step allocations,
+- unchanged authored backend (`backend_changed_by_analyzer: false`).
 
-Run the analyzer without `--timing` when you need machine-independent evidence:
+## 5. Release timing evidence
 
-```powershell
-.\build\windows-msvc\tools\particle_analyze\Debug\trace2d_particle_analyze.exe `
-  --project-root . `
-  --effect tests/particles/fixtures/workload_cpu_small.trace2d.particle.toml `
-  --frames 240 `
-  --seed 1311768467463790320 `
-  --stable-id 1234605616436508552
-```
+Timing uses 10 warmup iterations and 50 measured iterations. Each measured iteration executes a deterministic 240-frame `particle_emitter_step_window`; setup/reset is outside the measured interval.
 
-Repeat with `workload_cpu_medium` and `workload_gpu_scale`.
+The analyzer reports average/median/p95 across those 240-frame windows. Therefore the normalized values below are **p95 window total / 240**, not an individual-frame latency histogram.
 
-The JSON authority includes:
+| Workload | Peak alive | Updates / 240f | p95 window | Normalized p95 / frame |
+| --- | ---: | ---: | ---: | ---: |
+| `workload_cpu_small` | 42 | 8,333 | 0.2286 ms | 0.0009525 ms |
+| `workload_cpu_medium` | 856 | 179,234 | 6.9978 ms | 0.0291575 ms |
+| `workload_gpu_scale` | 3,400 | 716,305 | 25.8222 ms | 0.1075925 ms |
 
-- effect/program identity and selected backend,
-- feature/random-channel/attribute sets,
-- configured capacity,
-- current/peak alive count,
-- spawn/update/expire/drop counters,
-- exact 92-byte CPU reference particle payload accounting,
-- prepared CPU-state bytes,
-- steady-state simulation allocations,
-- semantic operation totals,
-- planned minimized GPU stride/buffer bytes,
-- GPU artifact status/fingerprint when the authored backend selects GPU,
-- `backend_changed_by_analyzer: false`.
+Important: `workload_gpu_scale` is authored as GPU, but analyzer timing explicitly uses `analysis_execution_backend = "cpu_reference_oracle"`. Its timing is CPU-oracle cost for the same semantic program, **not GPU wall-clock timing**. GPU correctness/runtime behavior is proven by the real-GPU tests and structural metrics above.
 
-Structural evidence can be compared exactly across machines where the supported deterministic contracts hold.
+Timing remains machine-dependent evidence and must not become a hosted-CI wall-clock gate.
 
-## 6. Local Release timing evidence
+## 6. V1 CPU recommendation budget
 
-Timing is machine evidence, never a deterministic CI gate.
+The final calibration creates an intentionally conservative Trace2D V1 recommendation policy for a representative target machine:
 
-Build Release:
+- **keep CPU comfort band:** normalized p95 240-frame-window cost `<= 0.05 ms/frame`,
+- **human judgment band:** `> 0.05 ms/frame` and `< 0.10 ms/frame`,
+- **consider GPU:** normalized p95 cost `>= 0.10 ms/frame`, or desired scale materially exceeds the measured CPU envelope.
 
-```powershell
-cmake --preset windows-msvc
-cmake --build --preset windows-release --parallel
-```
+These bands are derived from the committed calibration gap: the rich 1024-capacity / 856-peak workload measured `0.0291575 ms`, while the 4096-capacity / 3400-peak semantic workload measured `0.1075925 ms` on the recorded Ryzen 5 5600X Release run.
 
-Then run each calibration workload with truthful environment labels:
+The bands are **recommendation thresholds, not automatic switching rules and not universal particle-count limits**. Feature mix, emitter count, target CPU, and game-wide CPU budget still matter. A target project should rerun the analyzer and may adopt a stricter budget.
 
-```powershell
-.\build\windows-msvc\tools\particle_analyze\Release\trace2d_particle_analyze.exe `
-  --project-root . `
-  --effect tests/particles/fixtures/workload_cpu_small.trace2d.particle.toml `
-  --frames 240 `
-  --seed 1311768467463790320 `
-  --stable-id 1234605616436508552 `
-  --timing `
-  --warmup 10 `
-  --iterations 50 `
-  --machine-label "<machine-label>" `
-  --cpu-model "<cpu-model>"
-```
+Accordingly, the measured V1 reference guidance is:
 
-The timing object reports average, median, p95, and nanoseconds per particle update together with OS/compiler/build/environment metadata. Reset/setup is outside the measured step window.
+- the committed rich medium workload is a safe `keep_cpu` reference envelope on the recorded machine,
+- the committed scale workload is a valid `consider_gpu` reference envelope,
+- capacity alone never determines the backend.
 
-Do not compare two machines as if their wall-clock numbers were deterministic truth. Do not fail hosted CI because a shared runner crosses a timing number.
+Tooling/LLMs may emit `keep_cpu` / `consider_gpu` only when they include the threshold source and raw measurements. They must never rewrite backend text.
 
 ## 7. Human backend decision
 
-Trace2D V1 intentionally emits raw evidence rather than an automatic backend recommendation threshold.
+For an authored effect:
 
-Use this process:
+1. verify exact CPU semantics first,
+2. inspect capacity, peak alive, state bytes, operation counts, drops, and allocations,
+3. run Release timing on a representative target machine when cost matters,
+4. compare normalized p95 evidence with the project budget/guidance bands,
+5. keep CPU when comfortably inside budget for maximal observability/simplicity,
+6. consider GPU when measured cost or desired scale is material,
+7. change `backend` explicitly in authored text only after human review,
+8. re-run GPU conformance and presentation QA.
 
-1. Author and validate the effect on the CPU oracle.
-2. Inspect capacity, peak alive count, prepared bytes, operation counts, drops, and steady-state allocation evidence.
-3. If runtime CPU cost matters, run the local Release timing workload on a representative target machine.
-4. Compare the measured effect/workload against the **project's explicit CPU frame budget**, if the game has one.
-5. If the cost is comfortably inside that budget, keep `backend = "cpu"` for maximal observability and simplicity.
-6. If measured cost or required scale is material, inspect GPU compiler/runtime support and change the authored text to `backend = "gpu"` deliberately.
-7. Re-run the real-GPU conformance test and capture visual QA.
-8. Keep the final backend choice in reviewable authored text.
-
-No analyzer, Agent, or build step may rewrite the backend merely because an effect resembles one of the calibration workloads.
-
-### Safe-budget publication gate
-
-The 128/1024/4096 fixtures are calibration points only. A public Trace2D statement such as "CPU particles are safe up to X" must not be written until:
-
-- the raw Release measurements are recorded,
-- the target machine/build/workload is identified,
-- the project CPU budget used for the recommendation is stated,
-- the recommendation is conservative relative to measured p95 rather than inferred from capacity alone.
-
-Until then, the correct guidance is **measure, do not guess**.
+Final backend ownership remains human-controlled and reviewable in text.
 
 ## 8. Agent authoring checklist
 
-A fresh coding Agent should follow this order:
+A coding Agent should:
 
 1. author a bounded `.trace2d.particle.toml`,
-2. load/normalize it before runtime,
-3. keep `backend` explicit,
-4. verify exact CPU frames with Agent inspection/assertions,
-5. request bounded particle details only when needed,
-6. run `trace2d_particle_analyze` for deterministic structural cost,
-7. distinguish structural evidence from optional local timing,
-8. present raw measurements to the human rather than silently changing backend,
-9. if GPU is selected, compile the deterministic artifact and reject unsupported features explicitly,
-10. run the real-GPU smoke/conformance gate,
-11. use capture/multimodal review only for presentation/style questions,
-12. keep final creative/backend approval human-controlled.
+2. normalize/validate it before runtime,
+3. keep backend explicit,
+4. verify exact CPU frames and bounded particle details,
+5. run `trace2d_particle_analyze` for structural evidence,
+6. distinguish deterministic metrics from local timing,
+7. include raw timing + threshold source in any recommendation,
+8. wait for the human backend decision,
+9. compile deterministic GPU artifacts only for authored GPU effects,
+10. run real-GPU conformance/capture QA,
+11. keep perceptual style review separate from engine-owned semantic/cost evidence.
 
-## 9. External reference review
+## 9. External reference decisions
 
-The design was refreshed against primary sources on 2026-08-10.
+The #53 design was refreshed against primary sources on 2026-08-10:
 
-- SDL3 GPU API — https://wiki.libsdl.org/SDL3/CategoryGPU
-  - Lesson: GPU download/readback requires an explicit copy/download and synchronization; resources should be reused rather than churned.
-  - Decision: **ADOPT** the explicit-verification-only synchronization boundary and persistent-resource rule.
-  - Trace2D evidence: normal GPU particle metrics remain readback/fence-free; conformance uses the already-explicit capture path.
+- SDL3 GPU API — **ADOPT** explicit verification-only synchronization and persistent resource reuse; normal particle frames remain readback/fence-free.
+- Microsoft Direct3D floating-point rules — **ADAPT** exact discrete checks plus bounded float/presentation invariants; reject universal float-bit identity.
+- Vulkan specification — **ADAPT** the same explicit numeric portability boundary.
+- Google Benchmark user guide — **ADAPT** warmup/repetitions/statistics/environment labelling through the existing dependency-free analyzer; no new benchmark dependency.
 
-- Microsoft Direct3D floating-point rules — https://learn.microsoft.com/en-us/windows/win32/direct3d11/floating-point-rules
-  - Lesson: shader floating-point evaluation is not a portable basis for universal bit-identical claims.
-  - Decision: **ADAPT** into exact discrete checks plus bounded floating/presentation invariants.
-  - Trace2D evidence: CPU oracle owns semantic expectation; real-GPU probe uses a declared raster tolerance instead of float-bit equality.
+## 10. #53 exit evidence
 
-- Vulkan specification — https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html
-  - Lesson: shader floating-point capabilities/controls are device-dependent enough that portability claims require an explicit contract.
-  - Decision: **ADAPT**; no universal cross-vendor float-bit identity claim.
-  - Trace2D evidence: same layered conformance contract as above.
+The final particle slice has evidence for:
 
-- Google Benchmark user guide — https://google.github.io/benchmark/user_guide.html
-  - Lesson: warmup/repetitions/statistics and environment context matter for performance evidence.
-  - Decision: **ADAPT**, not add as a dependency.
-  - Trace2D evidence: the existing dependency-free analyzer already reports warmup, repetitions, average/median/p95 and environment metadata while keeping timing out of deterministic CI equality.
+- hosted configure/build/full tests,
+- deterministic calibration workload tests,
+- real Windows GPU smoke pass without skip,
+- real Windows GPU conformance pass without skip,
+- local Release raw timing on the committed workloads,
+- measured recommendation bands with evidence and machine metadata,
+- explicit human backend ownership,
+- deterministic GPU artifact/layout evidence,
+- zero normal-frame GPU particle readback/fence wait,
+- zero normal GPU-mode CPU reference duplication by contract.
 
-## 10. Exit evidence for #53
-
-#53 can close only when the final PR records all of the following from its actual final head:
-
-- hosted configure/build/full tests green,
-- calibration workload structural tests green,
-- real Windows presentation-GPU `ParticleGpuSmokeTests` pass, not skip,
-- real Windows presentation-GPU `ParticleGpuConformanceTests` pass, not skip,
-- local Release raw timing for the committed calibration workloads,
-- conservative backend guidance derived from those measurements and an explicitly stated budget basis,
-- no automatic backend mutation,
-- no normal-frame GPU readback/fence wait,
-- final `PROJECT_STATUS.md` handoff advanced to #97 only after those gates are satisfied.
+After PR #114 merges green, #53 and umbrella #46 may close and the fixed core lane advances to #97 machine-readable intent / Definition of Done.
