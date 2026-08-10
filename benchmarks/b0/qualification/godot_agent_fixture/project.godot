@@ -8,6 +8,9 @@ run/main_scene="res://main.tscn"
 window/size/viewport_width=320
 window/size/viewport_height=180
 
+[editor_plugins]
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
