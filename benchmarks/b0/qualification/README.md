@@ -1,10 +1,16 @@
 # B0 qualification evidence
 
-This directory is intentionally empty of positive lane evidence until the real environments are exercised.
-
 A **scored** B0 trial is blocked by `scripts/benchmark_b0.py` until `suite.json` and the task are marked `eligible` and the lane's configured evidence file exists with a positive result.
 
 Do not commit placeholder `qualified: true` files.
+
+## Current state — 2026-08-11
+
+- `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
+- `godot.agent` — **not qualified**. The exact bridge remains `@satelliteoflove/godot-mcp@4.1.0`; [`GODOT_AGENT.md`](GODOT_AGENT.md) defines the required Q1–Q4 authoring/runtime/input/frozen-step protocol. Do not create `godot-agent.json` until those live checks pass.
+- `trace2d.agent` — **oracle evidence pending final-head Windows CI**. The CI job exercises the built `trace2d.exe` against the same task's known-good/known-bad fixtures; commit positive evidence only after a successful run on the intended final candidate head.
+
+The suite/task remain `qualification_required` / `qualification_candidate`, so the presence of one lane's positive evidence does not enable scored runs.
 
 ## Required lane evidence shape
 
