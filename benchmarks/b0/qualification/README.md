@@ -7,10 +7,16 @@ Do not commit placeholder `qualified: true` files.
 ## Current state — 2026-08-11
 
 - `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified it against the release `SHA512-SUMS.txt`, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
-- `godot.agent` — **not qualified**. The exact bridge remains `@satelliteoflove/godot-mcp@4.1.0`; [`GODOT_AGENT.md`](GODOT_AGENT.md) defines the required Q1–Q4 authoring/runtime/input/frozen-step protocol. Do not create `godot-agent.json` until those live checks pass.
+- `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json). The exact selected bridge is `@satelliteoflove/godot-mcp@4.1.0`. A hosted Godot editor session proved Q1 authoring, Q2 structured runtime inspection under frame-zero freeze, Q3 real raw-`D` timed input, and Q4 deterministic replay over the same fixed 200 ms game-time interval. Both clean runs produced 12 physics ticks and `Player.position_x == 1.83`; wall-clock waiting while frozen did not advance the state. The independent `godot.agent` gold/known-bad oracle also passed.
 - `trace2d.agent` — **oracle-qualified** with committed hosted evidence in [`trace2d-agent.json`](trace2d-agent.json). The Windows CI candidate passed all 188 repository tests and the built `trace2d.exe` accepted the known-good fixture while rejecting the wrong-position known-bad fixture.
 
-The suite/task remain `qualification_required` / `qualification_candidate`, so two positive engine-oracle records do **not** enable scored runs. The remaining live bridge and frozen coding-Agent/model gates still outrank local repository readiness.
+All three **environment/bridge qualification records now exist**. The suite/task deliberately remain `qualification_required` / `qualification_candidate` because B0 still requires one real coding-Agent/model wrapper/profile to be frozen and isolated before scored repeated trials can begin. Environment readiness is not a benchmark result.
+
+## Determinism note for the Godot Agent lane
+
+The first live qualification attempt used a fixed render-frame count and exposed an important measurement mistake: an uncapped hosted renderer can execute many render frames between fixed physics ticks, so render-frame count is not the deterministic game-time domain for this fixture.
+
+The accepted Q4 protocol therefore uses a fixed **200 ms game-time interval** with the same timed raw `D` key input in two clean launch-frozen runs. Render-frame counts are retained as evidence but intentionally not compared. Physics ticks and authoritative semantic state are compared and matched exactly in the successful hosted run.
 
 ## Required lane evidence shape
 
@@ -39,7 +45,7 @@ Every lane evidence file is JSON format version 1 and records the exact environm
 }
 ```
 
-`godot.agent` additionally must record the bridge identity/version and these positive checks:
+`godot.agent` additionally records the exact bridge package/integrity and these positive checks:
 
 ```json
 {
