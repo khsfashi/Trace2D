@@ -2,13 +2,13 @@
 
 Last reviewed: 2026-08-10.
 
-Trace2D is developed by repeatedly executing a short continuation request such as `@GitHub Trace2D 다음 진행해줘`. That workflow must not turn into isolated reinvention from model memory. When a substantive subsystem, benchmark, determinism, performance, integration or production-engine task becomes active, the coding agent should deliberately inspect proven public work and absorb the strongest compatible ideas before freezing the design.
+Trace2D is developed by repeatedly executing a short continuation request such as `@GitHub Trace2D 다음 진행해줘`. That workflow must not turn into isolated reinvention from model memory. When a substantive subsystem, benchmark, determinism, performance, integration or production-engine task becomes active, the coding agent should recover both **Trace2D's own durable decision history** and proven public work before freezing the design.
 
-This document defines that research-and-adoption discipline.
+This document defines that research-and-adoption discipline. `docs/COMMIT_KNOWLEDGE.md` defines the companion Git-native protocol for carrying durable decisions, rejected alternatives, validation boundaries and gates forward between agents.
 
-The rule is intentionally similar to good open-source engineering practice: understand the problem, inspect mature precedents, reuse ideas and techniques where they fit, then implement them through Trace2D-owned contracts rather than cargo-culting another project's architecture.
+The rule is intentionally similar to good open-source engineering practice: understand the problem, inspect what this repository already learned, inspect mature precedents, reuse ideas and techniques where they fit, then implement them through Trace2D-owned contracts rather than cargo-culting another project's architecture.
 
-> **Research before invention; adopt evidence, not fashion.**
+> **Recover before rediscovering. Research before invention; adopt evidence, not fashion.**
 
 External projects, papers and engineering posts are references by default, not dependencies. Trace2D remains responsible for its own authority model, determinism, performance, licensing, tests and public API.
 
@@ -23,16 +23,22 @@ live active PR / review / CI / required human or environment gate
     ↓
 first incomplete unblocked owner-fixed task
     ↓
+current Trace2D contracts + relevant final-main commit knowledge
+    ↓
 relevant external-reference pass
     ↓
 Trace2D design decision
     ↓
 implementation + verification
+    ↓
+final squash commit knowledge atom
 ```
 
 If an active predecessor is waiting on a real hardware or human gate, research may be performed in a separate documentation/governance PR only when it explicitly does not supersede or falsely complete the active implementation.
 
 A reference that suggests an attractive future subsystem does not promote that subsystem ahead of the fixed lane.
+
+Commit knowledge is historical evidence, not a second source of truth. Current compiling code, tests, live PR state, owner decisions, active issue acceptance criteria and committed subsystem contracts outrank old trailers. Use `Supersedes:` when a substantive final commit intentionally replaces an older durable decision.
 
 ## 2. When an external-reference pass is required
 
@@ -50,6 +56,8 @@ Perform a bounded current-reference pass before design is frozen when the active
 - a production claim for which mature engines or systems already have substantial field experience.
 
 A fresh internet search is not mandatory for every typo, narrow regression fix or obvious test repair. Those tasks may reuse current repository references when the relevant contract is already well established and there is no material uncertainty.
+
+The commit-knowledge protocol follows the same signal rule: substantive work should query and preserve durable decision context; trivial mechanical changes should not create metadata noise merely to satisfy a checklist.
 
 ## 3. Search from both the direct layer and the lower layer
 
@@ -127,7 +135,7 @@ For load-bearing architecture, determinism, benchmark or licensing decisions, do
 
 For rapidly changing Agent/MCP/benchmark projects, check the current repository/paper/site at task time instead of trusting a stale description in this document.
 
-## 5. Bounded research procedure
+## 5. Bounded research and recovery procedure
 
 A normal substantive task should perform the following before implementation design is considered final.
 
@@ -144,19 +152,39 @@ How should an imported Sprite preserve trim/pivot identity without per-frame wor
 
 Do not browse broadly without a design question.
 
-### Step B — inspect the repository registry
+### Step B — recover Trace2D's own decision history
 
-Read the applicable sections of `docs/REFERENCE_PROJECTS.md` to recover already-vetted leads and the stage-to-reference map.
+Read the current owning contracts first, then query relevant final-main commit knowledge according to `docs/COMMIT_KNOWLEDGE.md` for the affected subsystem/path/issue.
+
+Look especially for:
+
+```text
+Decision
+Constraint
+Rejected
+Directive
+Not-tested
+Gate
+Supersedes
+```
+
+The purpose is to avoid re-proposing an already rejected design, silently breaking an intentional constraint, or forgetting a previous validation boundary.
+
+Old trailers do not override current contracts. If history and current repository truth disagree, follow the normal source-of-truth hierarchy and determine whether a later decision superseded the old record.
+
+### Step C — inspect the repository registry
+
+Read the applicable sections of `docs/REFERENCE_PROJECTS.md` and any focused companion reference document to recover already-vetted leads and the stage-to-reference map.
 
 The registry is a starting index, never an exhaustive whitelist.
 
-### Step C — search for current primary sources
+### Step D — search for current primary sources
 
 Search the web/GitHub/paper corpus for current authoritative sources relevant to the active uncertainty. Prefer a small number of load-bearing sources over dozens of shallow mentions.
 
 As a default, two to five strong sources are sufficient for a normal subsystem decision. Use more when the area is contested, safety/correctness critical, licensing-sensitive or the benchmark claim requires broader methodology review.
 
-### Step D — extract decisions, not summaries
+### Step E — extract decisions, not summaries
 
 For each important reference, classify the result as:
 
@@ -169,7 +197,7 @@ DEFER  — useful later but not justified by the active task
 
 Record the reason.
 
-### Step E — convert adopted ideas into Trace2D-owned evidence
+### Step F — convert adopted ideas into Trace2D-owned evidence
 
 An external pattern is not considered absorbed merely because the PR mentions it.
 
@@ -185,15 +213,33 @@ A useful idea should become one or more of:
 - an actionable diagnostic,
 - a documented non-goal or rejected architecture.
 
-### Step F — implement the smallest compatible design
+### Step G — implement the smallest compatible design
 
 Prefer the simplest design that satisfies Trace2D's actual requirement.
 
 Do not add generic ECS/reflection/job systems/render graphs/editor machinery or another project's abstraction stack merely because a reference uses it.
 
-### Step G — validate the borrowed lesson
+### Step H — validate the borrowed lesson
 
 After implementation, ask whether the adopted lesson is actually evidenced by Trace2D tests/workloads rather than merely copied into prose.
+
+### Step I — preserve the new durable knowledge
+
+For a substantive PR, prepare the final squash knowledge described by `docs/COMMIT_KNOWLEDGE.md` from the **final implementation and final validation state**.
+
+Preserve high-signal facts such as:
+
+- the owning issue/area,
+- final non-obvious decisions,
+- constraints,
+- rejected alternatives worth preventing from being rediscovered,
+- directives future modifiers need,
+- what actually ran and passed,
+- meaningful remaining `Not-tested:` boundaries,
+- human/environment/license gate disposition,
+- `Supersedes:` lineage when replacing older decisions.
+
+Do not paste the research transcript or private model reasoning into Git history.
 
 ## 6. Required PR evidence
 
@@ -209,7 +255,29 @@ External reference review
 
 Do not turn every PR into a literature survey. The purpose is to preserve why a non-obvious design was chosen and let a future agent refresh the decision when the source changes.
 
-If a source becomes a durable recurring reference for later work, add/update it in `docs/REFERENCE_PROJECTS.md`.
+If a source becomes a durable recurring reference for later work, add/update it in `docs/REFERENCE_PROJECTS.md` or an appropriate focused companion document.
+
+A substantive PR should also preserve enough final information to construct the squash commit knowledge atom. A compact block such as the following is sufficient when the facts exist:
+
+```text
+Squash commit knowledge
+Issue: #...
+Area: ...
+Decision: ...
+Constraint: ...
+Rejected: ... | ...
+Directive: ...
+Tested: ...
+Not-tested: ...
+Gate: ... | ...
+Reference: ... | ADAPT | ...
+Related: PR #...
+Supersedes: ... | ...
+Agent: ...
+Model: ...
+```
+
+Only high-signal applicable fields should be included. The final squash message must be refreshed after any material code or validation change.
 
 ## 7. Version, recency and reproducibility rules
 
@@ -261,7 +329,9 @@ Do not:
 - use an LLM grader where an independent deterministic verifier is possible,
 - hide failed trials or choose only a favorable seed,
 - let benchmark-specific detection or shortcuts leak into the engine,
-- treat a paper's reported result as proof that the same technique works in Trace2D.
+- treat a paper's reported result as proof that the same technique works in Trace2D,
+- treat old commit knowledge as immutable architecture when current contracts supersede it,
+- turn commit trailers into boilerplate that repeats the diff instead of preserving otherwise-lost rationale.
 
 ## 10. Benchmark-specific research rule
 
@@ -310,9 +380,24 @@ When a task introduces a performance claim or optimization:
 
 BenchExec-style measurement discipline and MLPerf-style fairness/replicability rules are useful methodological references even when Trace2D does not depend on those projects.
 
-## 13. Reference refresh and retirement
+## 13. Commit-knowledge-specific research rule
 
-`docs/REFERENCE_PROJECTS.md` is reviewed opportunistically when an owning task activates and before published comparative claims.
+`docs/COMMIT_KNOWLEDGE.md` owns Trace2D's durable Git-history protocol.
+
+The current methodological precedents include:
+
+- Git native `interpret-trailers` / `%(trailers:...)`,
+- Lore's structured decision-context trailers,
+- long-running Git/Linux `Signed-off-by` / `Tested-by` / `Reviewed-by` practices,
+- Gerrit `Change-Id` as structured review lifecycle metadata,
+- GitHub Copilot coding agent's `Agent-Logs-Url` provenance trailer,
+- `git-ai` as a deferred line-level/Git-Notes provenance direction.
+
+Refresh these sources if Trace2D later adds automated commit validation, a history query tool, signed Agent provenance, Git Notes, external session-log links or another persistence mechanism. Do not add such infrastructure merely because it exists elsewhere; the native trailer protocol is the current minimal solution.
+
+## 14. Reference refresh and retirement
+
+`docs/REFERENCE_PROJECTS.md` and focused companion reference documents are reviewed opportunistically when an owning task activates and before published comparative claims.
 
 A reference may be retired or downgraded when:
 
@@ -324,7 +409,7 @@ A reference may be retired or downgraded when:
 
 Preserve significant rejected/deferred lessons when forgetting them would invite repeated rediscovery or architectural churn.
 
-## 14. Success criterion
+## 15. Success criterion
 
 This protocol succeeds when a fresh coding agent can receive only:
 
@@ -335,11 +420,14 @@ This protocol succeeds when a fresh coding agent can receive only:
 and, without previous chat history:
 
 1. recover the actual active task and gates,
-2. identify the important design uncertainties,
-3. locate the best current external precedents,
-4. distinguish proven ideas from incompatible or fashionable complexity,
-5. absorb useful lessons into Trace2D-owned contracts/tests/metrics,
-6. implement and validate one scoped vertical slice,
-7. leave enough evidence that the next agent can understand and refresh the decision.
+2. read current Trace2D contracts and query relevant durable commit knowledge,
+3. recover important prior decisions, constraints, rejected alternatives and validation boundaries,
+4. identify the important current design uncertainties,
+5. locate the best current external precedents,
+6. distinguish proven ideas from incompatible or fashionable complexity,
+7. absorb useful lessons into Trace2D-owned contracts/tests/metrics,
+8. implement and validate one scoped vertical slice,
+9. prepare a factual final squash knowledge atom for the completed work,
+10. leave enough repository-native evidence that the next agent can understand, query and refresh the decision.
 
-The objective is not to imitate every project. It is to make Trace2D accumulate the best verified engineering ideas available while preserving a coherent, deterministic, performant and AI-operated engine design.
+The objective is not to imitate every project. It is to make Trace2D accumulate both its **own verified engineering history** and the best compatible external ideas available while preserving a coherent, deterministic, performant and AI-operated engine design.
