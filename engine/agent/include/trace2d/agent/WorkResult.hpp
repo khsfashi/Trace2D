@@ -59,6 +59,13 @@ struct WorkArtifact final
     std::string description{};
 };
 
+struct WorkFeedback final
+{
+    std::string id{};
+    std::string target{};
+    std::string message{};
+};
+
 struct WorkRevision final
 {
     std::string id{};
@@ -66,6 +73,7 @@ struct WorkRevision final
     std::vector<std::string> changedPaths{};
     std::vector<VerificationRecord> verification{};
     std::vector<WorkArtifact> artifacts{};
+    std::vector<WorkFeedback> feedback{};
     std::vector<std::string> limitations{};
 };
 
