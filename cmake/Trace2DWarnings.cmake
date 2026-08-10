@@ -1,6 +1,6 @@
 function(trace2d_enable_warnings target)
     if(MSVC)
-        target_compile_options(${target} PRIVATE /W4 /permissive- /Zc:preprocessor /Zc:__cplusplus)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /Zc:preprocessor /Zc:__cplusplus /utf-8)
         if(TRACE2D_WARNINGS_AS_ERRORS)
             target_compile_options(${target} PRIVATE /WX)
         endif()

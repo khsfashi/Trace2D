@@ -1,5 +1,7 @@
 add_executable(trace2d_render_tests
     CaptureTests.cpp
+    ParticleGpuRuntimeTests.cpp
+    ParticleGpuSmokeTests.cpp
     RenderDataTests.cpp
     RendererTests.cpp
     RendererWorkloadTests.cpp
@@ -7,6 +9,7 @@ add_executable(trace2d_render_tests
 
 target_link_libraries(trace2d_render_tests
     PRIVATE
+        Trace2D::Particles
         Trace2D::Render
         GTest::gtest_main
 )
