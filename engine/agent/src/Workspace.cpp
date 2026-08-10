@@ -213,14 +213,14 @@ WorkspaceProgressState DeriveDeliverableState(
     {
         return ProgressFromAuthoredState(deliverable.state);
     }
-    if (hasReview)
-    {
-        return WorkspaceProgressState::ReviewNeeded;
-    }
     if (hasIncomplete)
     {
         const WorkspaceProgressState authored = ProgressFromAuthoredState(deliverable.state);
         return authored == WorkspaceProgressState::Planned ? authored : WorkspaceProgressState::Working;
+    }
+    if (hasReview)
+    {
+        return WorkspaceProgressState::ReviewNeeded;
     }
     return hasSubjective ? WorkspaceProgressState::Approved : WorkspaceProgressState::Verified;
 }
@@ -315,36 +315,39 @@ WorkspaceSnapshot BuildWorkspaceSnapshot(const WorkSpec& spec, const WorkResult&
         snapshot.deliverables.push_back(std::move(view));
     }
 
-    snapshot.reviewQueue.reserve(evaluation.reviewAcceptanceIds.size());
-    for (const auto& acceptanceId : evaluation.reviewAcceptanceIds)
+    if (evaluation.state == WorkResultState::ReviewNeeded)
     {
-        const auto criterion = std::find_if(
-            spec.acceptance.begin(),
-            spec.acceptance.end(),
-            [&acceptanceId](const AcceptanceCriterion& value)
+        snapshot.reviewQueue.reserve(evaluation.reviewAcceptanceIds.size());
+        for (const auto& acceptanceId : evaluation.reviewAcceptanceIds)
+        {
+            const auto criterion = std::find_if(
+                spec.acceptance.begin(),
+                spec.acceptance.end(),
+                [&acceptanceId](const AcceptanceCriterion& value)
+                {
+                    return value.id == acceptanceId;
+                });
+            if (criterion == spec.acceptance.end())
             {
-                return value.id == acceptanceId;
-            });
-        if (criterion == spec.acceptance.end())
-        {
-            continue;
-        }
+                continue;
+            }
 
-        WorkspaceReviewItem item{};
-        item.acceptanceId = criterion->id;
-        item.deliverableId = criterion->deliverableId;
-        item.description = criterion->description;
-        item.verification = criterion->verification;
-        item.target = "acceptance/" + criterion->id;
+            WorkspaceReviewItem item{};
+            item.acceptanceId = criterion->id;
+            item.deliverableId = criterion->deliverableId;
+            item.description = criterion->description;
+            item.verification = criterion->verification;
+            item.target = "acceptance/" + criterion->id;
 
-        const VerificationRecord* record = FindVerification(currentRevision, criterion->id);
-        if (record != nullptr)
-        {
-            item.outcome = record->outcome;
-            item.summary = record->summary;
-            item.evidence = record->evidence;
+            const VerificationRecord* record = FindVerification(currentRevision, criterion->id);
+            if (record != nullptr)
+            {
+                item.outcome = record->outcome;
+                item.summary = record->summary;
+                item.evidence = record->evidence;
+            }
+            snapshot.reviewQueue.push_back(std::move(item));
         }
-        snapshot.reviewQueue.push_back(std::move(item));
     }
 
     snapshot.revisions.reserve(result.revisions.size());
