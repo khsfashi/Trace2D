@@ -7,6 +7,8 @@ add_executable(trace2d_agent_tests
     UiGameInteractionTests.cpp
     WorkResultTests.cpp
     WorkSpecTests.cpp
+    WorkspaceTests.cpp
+    WorkspaceInspectionTests.cpp
 )
 
 target_link_libraries(trace2d_agent_tests
