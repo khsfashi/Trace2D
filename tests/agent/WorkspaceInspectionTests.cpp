@@ -20,6 +20,13 @@ constraints = []
 id = "world"
 description = "World review"
 state = "implemented"
+
+[[acceptance]]
+id = "world-semantic"
+deliverable = "world"
+description = "World semantic state remains machine-verifiable."
+verification = "deterministic"
+state = "implemented"
 )toml";
     constexpr std::string_view resultText = R"toml(
 format_version = 1
@@ -30,6 +37,13 @@ work_id = "inspection-work"
 id = "r1"
 changed_paths = []
 limitations = []
+
+[[revisions.verification]]
+acceptance = "world-semantic"
+verification = "deterministic"
+outcome = "passed"
+summary = "World semantic state is available for review."
+evidence = ["workspace-inspection-fixture"]
 )toml";
 
     const auto spec = trace2d::agent::ParseWorkSpecToml(specText);
