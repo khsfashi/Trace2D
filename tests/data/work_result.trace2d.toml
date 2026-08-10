@@ -26,6 +26,11 @@ outcome = "not_run"
 summary = "Human review waits until deterministic repair succeeds."
 evidence = []
 
+[[revisions.feedback]]
+id = "repair-request"
+target = "acceptance/semantic-verification"
+message = "Repair the deterministic mismatch before requesting visual approval."
+
 [[revisions]]
 id = "revision-2"
 parent = "revision-1"
