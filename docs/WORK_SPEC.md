@@ -48,6 +48,7 @@ constraints = ["Backend choice remains explicit."]
 id = "effect"
 description = "Authored particle effect"
 state = "implemented"
+depends_on = []
 
 [[requirements]]
 deliverable = "effect"
@@ -86,7 +87,7 @@ approved
 failed
 ```
 
-They are explicit workflow evidence, not a hidden scheduler. A `failed` state is a real work/result failure. A missing capability is represented separately as a readiness block.
+They are explicit workflow evidence, not a hidden scheduler. A `failed` state is a real work/result failure. A missing capability is represented separately as a readiness block. A deliverable may declare `depends_on = ["other-id"]`; the dependent deliverable stays locally blocked until each dependency reaches `verified` or `approved`. Unknown, self, and duplicate dependencies are rejected at parse time.
 
 ## 3. Acceptance authority
 
@@ -148,7 +149,7 @@ trace2d_work_state `
   --json
 ```
 
-The JSON result includes capability eligibility, outstanding acceptance IDs, review IDs, and `requires_live_truth`.
+The JSON result includes intent, deliverable state/dependencies, capability eligibility and verification availability, blocked deliverable IDs, outstanding acceptance IDs, each acceptance criterion's verification class/state, review IDs, and `requires_live_truth`.
 
 `requires_live_truth=true` is deliberately **not** the same thing as `blocked`. The local repository can be internally ready while a later orchestrator still has to query GitHub, CI, hardware, environment, license, or a human before advancing. #102 may compose those live facts for benchmark admission; this local contract does not fabricate them.
 
