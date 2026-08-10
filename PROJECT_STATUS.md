@@ -6,16 +6,20 @@ This is the operational handoff for the next contributor or coding agent. Compil
 
 ## Current state
 
-**Public Alpha `v0.1.0-alpha.1` is released. Particle children #47-#50 are complete. PR #83 merged #50 complete Agent verification. Particle child #51 is implemented by draft PR #84 and is the active core work item while that PR remains open. After #84 merges green, #51 is complete and #52 becomes the exact next core implementation task.**
+**Public Alpha `v0.1.0-alpha.1` is released. Particle children #47-#51 are complete. PR #84 merged #51 CPU cost analysis/compiler. Owner-requested architecture/governance PR #94 is currently active and freezes the missing production-engine integration contracts before later Sprite/game-production implementation. Do not start #52 while PR #94 is open. After #94 merges green, #52 is the exact next core implementation task.**
 
-Do not start #52 or any later core feature while PR #84 remains open. Live PR/CI state wins over this handoff text.
+PR #94 changes contracts/roadmap only; it does not implement a later engine feature or reorder the active particle pair #52 -> #53.
 
-## Exact owner-fixed core execution order
+Primary architecture-freeze contract:
 
-Completed predecessors:
+- [`docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`](docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md)
+- tracking issue #85
+- concrete future implementation issues #86-#93
+
+## Completed foundation and particle predecessors
 
 1. **#40** deterministic texture asset cache/import — complete via PR #45
-2. **#42** text rendering/basic UI — complete via PR #55
+2. **#42** text/basic UI — complete via PR #55
 3. **#43** semantic UI tree/Agent interaction — complete via PR #56
 4. **#39** MCP transport over Agent/Testing — complete via PR #58
 5. **#41** reproducible renderer workloads — complete via PR #63
@@ -23,33 +27,49 @@ Completed predecessors:
 7. **#48** rich deterministic CPU particle reference — complete via PR #65
 8. **#49** text-authored particle effects + `ParticleEmitter2D` — complete via PR #66
 9. **#50** complete Agent verification over CPU particle reference state — complete via PR #83
-10. **#51** CPU particle cost analysis + explicit human backend choice + deterministic particle compiler — implemented by PR #84; complete after that PR merges green
+10. **#51** CPU particle cost analysis + explicit human backend choice + deterministic particle compiler — complete via PR #84
 
-Current and future core sequence after #84 merges:
+## Current owner-fixed core execution order
 
-11. **#52 — GPU runtime backend for explicitly GPU-selected particle effects — EXACT NEXT CORE TASK AFTER #84**
-12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow and human/LLM guidance**
-13. **#59 — complete Sprite program: canonical assets, production renderer, deterministic animation, processing/generation QA, end-to-end motion QA and performance**
-14. **#67 — open-source game-production foundation**, fixed children:
-    - **#69 E0** Game/Application module boundary
-    - **#70 E1** project manifest + external consumer build/install/package
-    - **#71 E2** scene hierarchy + typed authored component composition
-    - **#72 E3** Input Actions + gamepad/mouse/text/IME
-    - **#73 E4** TileSet/TileMap
-    - **#74 E5** production UTF-8 font/text/localization foundation
-    - **#75 E6** practical deterministic UI hierarchy/layout/widgets
-    - **#76 E7** Physics2D
-    - **#77 E8** Audio
-    - **#78 E9** Linux/compiler/toolchain hardening
-    - **#79 E10** save/persistence + authored schema migration
-15. **#12 — flagship external Trace2D sample game proof**
-16. **#60 — generic Mesh2D foundation, M0 then M1**
-17. **#61 — Spine compatibility, stop first at SP0 human license gate**
+After PR #94 merges, routine `Trace2D next/continue` follows exactly:
 
-Core roadmap umbrella: **#13**.
-Particle umbrella: **#46**.
-Sprite umbrella: **#59**.
-Open-source game-production umbrella: **#67**.
+```text
+#52 explicit GPU particle runtime
+ -> #53 CPU/GPU conformance, workloads, safe budgets and guidance
+ -> #59 complete Sprite program
+ -> #69 Game/Application boundary
+ -> #70 Project manifest + external consumer build/install/package
+ -> #71 Scene hierarchy + engine/game typed component composition
+ -> #86 unified typed resource lifecycle
+ -> #87 scene templates + deterministic instancing/world lifecycle
+ -> #88 Camera2D + Viewport2D
+ -> #72 Input Actions + gamepad/mouse/text/IME
+ -> #73 TileSet/TileMap
+ -> #74 production UTF-8 font/text/localization
+ -> #75 practical deterministic UI hierarchy/layout/widgets
+ -> #89 Material2D + Shader2D
+ -> #90 deterministic resolved-property tween animation
+ -> #76 Physics2D
+ -> #77 Audio
+ -> #91 unified Agent-readable profiler/diagnostics
+ -> #78 Linux/compiler/toolchain hardening
+ -> #92 tiered real-GPU conformance/release validation
+ -> #79 save/persistence + authored schema migration
+ -> #12 flagship external Trace2D game proof
+ -> #60 generic Mesh2D foundation
+ -> #61 Spine compatibility SP0 human license gate
+```
+
+Umbrellas/contracts:
+
+- core roadmap: **#13**
+- particle program: **#46**
+- Sprite program: **#59**
+- game-production foundation: **#67** and children/extensions above
+- architecture freeze: **#85** / `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`
+- later non-core production breadth gates: **#93**
+
+Issue #93 is deliberately **not** part of routine `next/continue`: it records lighting/shadows, navigation/pathfinding, broader platforms, networking and safe hot reload until an explicit owner decision promotes one area.
 
 ## Continuation rule
 
@@ -58,23 +78,24 @@ For `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, `Trace2D continue`, o
 1. read `AGENTS.md` and this file,
 2. inspect live open PRs/CI and recent merges,
 3. reconcile stale status if live state advanced,
-4. finish the active core PR if one exists,
-5. otherwise select the first incomplete/unblocked item above,
-6. implement exactly one issue/child vertical slice,
-7. test/validate/document it,
-8. publish/update one scoped PR,
-9. do not begin the next core child until the current one merges green.
+4. if an owner-requested roadmap/governance PR such as #94 is active, finish that contract work first,
+5. otherwise finish the active core PR if one exists,
+6. if none exists, select the first incomplete/unblocked item from the fixed sequence above,
+7. implement exactly one issue/child vertical slice,
+8. test/validate/document it,
+9. publish/update one scoped PR,
+10. do not begin the next core child until the current one merges green.
 
-The owner does **not** need to re-select Physics vs Sprite vs hot reload, or decide whether game/project/tile/text/audio foundations should precede Mesh2D/Spine. Those choices are fixed by #13/#67.
+The owner does **not** need to re-select Sprite vs Physics, whether user gameplay components exist, whether resources need a common lifecycle, whether Camera2D/Material2D/Tween/profiling/GPU conformance belong before the external-game proof, or whether Mesh2D/Spine precede those foundations. Those decisions are now fixed by #13/#85 and the contract documents.
 
-## #51 completion contract / PR #84
+## #51 completion contract
 
-Issue #51 is particle child 5 of 7. PR #84 introduces the explicit analysis/compiler gate after the complete CPU semantic/Agent oracle and before the GPU runtime.
+Issue #51 established the explicit analysis/compiler gate between CPU particle semantics and GPU runtime.
 
 Implemented surface:
 
-- one deterministic `ParticleProgram` compiled from the already-validated canonical `ParticleEffectAsset`,
-- deterministic semantic program fingerprint independent of runtime seed/emitter identity and human backend selection,
+- deterministic `ParticleProgram` compiled from the validated canonical `ParticleEffectAsset`,
+- semantic program fingerprint independent of runtime seed/emitter identity and human backend selection,
 - static feature and spawn/update/render attribute analysis,
 - stable required keyed-random-channel analysis,
 - exact CPU-reference semantic operation counts,
@@ -83,68 +104,59 @@ Implemented surface:
 - minimized planned GPU runtime fields/stride/buffer layout,
 - deterministic GPU artifact/layout fingerprint for explicitly GPU-selected effects,
 - `trace2d_particle_analyze` machine-readable structural analysis,
-- optional environment-labelled local timing path,
+- optional environment-labelled local timing,
 - explicit `backend = "cpu" | "gpu"` ownership with no analyzer mutation or silent fallback.
 
-Primary #51 contract:
+Primary #51 contract: [`docs/PARTICLE_ANALYSIS.md`](docs/PARTICLE_ANALYSIS.md).
 
-- [`docs/PARTICLE_ANALYSIS.md`](docs/PARTICLE_ANALYSIS.md)
+Performance/ownership rules remain:
 
-Preserved particle contracts:
+- `ParticleReferenceEmitter::Step()` and `ParticleEmitter2D::Step()` do not compile, hash, stringify, time, touch filesystems or build reports,
+- CPU analysis reuses the semantic reference backend,
+- deterministic structural metrics and wall-clock timing remain separate,
+- hosted CI does not treat arbitrary machine timing as portable truth,
+- GPU-selected effects did not silently fall back before #52.
 
-- [`docs/PARTICLES.md`](docs/PARTICLES.md)
-- [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md)
-- [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md)
-- [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md)
-- [`docs/PARTICLE_AGENT_VERIFICATION.md`](docs/PARTICLE_AGENT_VERIFICATION.md)
+## Immediate #52 entry gate
 
-### Performance/ownership rules
+After PR #94 merges green, #52 owns the actual GPU execution backend for effects explicitly authored with `backend = "gpu"`.
 
-- `ParticleReferenceEmitter::Step()` and `ParticleEmitter2D::Step()` are unchanged by #51.
-- No compiler, hash, JSON, timing, filesystem, or report work runs in ordinary particle stepping.
-- The CPU analyzer executes the existing reference backend rather than duplicating simulation semantics.
-- Structural metrics and wall-clock timing remain separate.
-- Timing is local evidence and is never a hosted-CI performance threshold.
-- No automatic CPU/GPU score or recommendation threshold is introduced before #53 establishes representative measured budgets.
-- A GPU-selected effect can compile a deterministic layout artifact, but normal runtime preparation still reports `BackendUnavailable` until #52. There is no CPU fallback.
+#52 must consume the deterministic program/layout contract from #51 and preserve:
 
-While PR #84 is open, its CI/review state is authoritative and #51 remains the active core item. After it merges green, this section is the final #51 handoff and #52 is next.
+- CPU reference remains the semantic oracle,
+- normal GPU mode does not run a duplicate full CPU simulation,
+- unsupported GPU features fail explicitly,
+- persistent/capacity-reused GPU resources,
+- no normal-frame readback/fence wait for inspection,
+- no shader compilation/filesystem/report work in normal particle stepping,
+- no per-particle draw-call path.
 
-## Particle phase invariant through #53
+#53 then closes CPU/GPU conformance, representative workloads, safe budgets/build flow and human/LLM guidance before Sprite begins.
 
-The intended flow remains:
+## Production architecture freeze (#85 / PR #94)
 
-```text
-text-authored effect
- -> deterministic CPU reference simulation
- -> complete Agent inspection/assertion (#50)
- -> deterministic structural CPU cost + optional local timing (#51)
- -> HUMAN backend decision cpu|gpu (#51)
- -> deterministic minimized GPU program/artifact (#51)
- -> GPU execution without simultaneous full CPU reference in normal mode (#52)
- -> CPU/GPU conformance + workloads + safe guidance (#53)
-```
+PR #94 freezes contracts now but deliberately leaves implementation to the correct later stage.
 
-Hard rules:
+The mandatory seams are:
 
-- CPU remains the semantic reference/oracle.
-- Backend choice is explicit and human-controlled; an LLM may recommend but never silently rewrite it.
-- GPU-selected unsupported effects fail clearly rather than silently falling back.
-- Normal GPU mode does not also run the full CPU reference simulation.
-- Structural deterministic metrics and machine-dependent timing stay separate.
-- No universal cross-vendor bit-identical GPU floating-point claim without proof.
+1. external user/game-defined typed components participate in the same Scene model as engine components without requiring generic reflection/ECS,
+2. fixed-step authoritative transforms/state are separate from interactive interpolated presentation,
+3. canonical typed resources use project-relative identity and generation-safe resolved handles with explicit lifetime/memory evidence,
+4. reusable authored scene templates instantiate/despawn/load/unload deterministically,
+5. Camera2D/Viewport2D provide backend-independent coordinate/presentation semantics,
+6. Sprite batching/rendering reserves a material-ready resolved pipeline identity for later Material2D/Shader2D,
+7. deterministic tween property targets are resolved during setup rather than string-looked-up each frame,
+8. unified profiling separates structural metrics from CPU/GPU machine timing,
+9. real-GPU conformance is tiered and does not claim universal bit-identical output,
+10. lighting/navigation/platform expansion/networking/hot reload are recorded but remain explicit later gates.
 
-## Immediate #52 entry gate after PR #84
-
-#52 may begin only after PR #84 is merged green.
-
-It owns the actual GPU execution backend for effects whose authored `backend` is explicitly `gpu`, consuming the deterministic `ParticleProgram`/GPU layout contract from #51.
-
-#52 must preserve the CPU reference as the semantic oracle without running a simultaneous full CPU simulation in normal GPU mode. Unsupported features must remain explicit errors; resource allocation should be persistent/capacity-reused; no normal-frame readback, fence wait for inspection, shader compilation, filesystem work, or per-particle draw-call path may be introduced.
+The detailed authority, lifecycle, performance and QA rules live in `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md` and take precedence over older prose that treats these areas as unspecified.
 
 ## Sprite phase #59
 
-After #53, follow `docs/SPRITES.md` exactly:
+After #53, follow `docs/SPRITES.md` plus `docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md`.
+
+Existing fixed Sprite program remains:
 
 ```text
 S0 -> S1
@@ -154,38 +166,105 @@ S0 -> S1
  -> SE2E -> SPERF
 ```
 
-The Sprite target includes canonical assets, production traditional SpriteRenderer semantics, deterministic animation/Agent QA, import/generation/repair interoperability, end-to-end visual/motion QA, and reproducible performance evidence.
+Additional frozen requirements from #85:
 
-## Open-source game-production phase #67
+- `SpriteRenderer2D` / `SpriteAnimator2D` semantics must be attachable as finite typed #71 components rather than owning a parallel entity model,
+- moving-sprite presentation must implement fixed-step previous/current interpolation while exact-frame capture renders authoritative current state unless an explicit sub-frame alpha is requested,
+- renderer/batch contracts must reserve a resolved built-in/custom material identity so #89 does not replace the architecture,
+- view input must be compatible with future #88 Camera2D/Viewport2D rather than permanently assuming one renderer-owned camera,
+- Sprite authored identity remains CPU/project-relative and separate from GPU handles for #86 compatibility.
 
-After #59, the exact next program is **#67**, not Mesh2D or Spine.
+## Expanded game-production sequence
 
-Detailed contract: [`docs/GAME_PRODUCTION.md`](docs/GAME_PRODUCTION.md).
+The original #69-#79 foundation remains valid but is now interleaved with concrete missing production children.
 
-Fixed child sequence:
+### #69 — Game/Application boundary
 
-```text
-#69 Game/Application boundary
- -> #70 project manifest + external build/install/package
- -> #71 scene hierarchy + typed components
- -> #72 Input Actions + device/text input
- -> #73 TileSet/TileMap
- -> #74 production UTF-8 font/text/localization
- -> #75 practical deterministic UI layout/widgets
- -> #76 Physics2D
- -> #77 Audio
- -> #78 Linux/compiler/toolchain hardening
- -> #79 persistence + authored schema migration
-```
+External game C++ lives outside `engine/`; headless/windowed compose the same game logic; SDL/MCP/backend types do not leak into gameplay APIs.
+
+### #70 — Project/build/package
+
+Versioned project identity, external CMake consumer flow, build/run/test/package contracts and distribution-facing shader/package policy.
+
+### #71 — Scene hierarchy + engine/game components
+
+In addition to hierarchy/local-world transforms and engine components, #71 must prove an **external user-defined authored gameplay component** with stable component type ID/schema version, explicit parse/validate/serialize/inspect adapter, strongly typed game access and Agent assertion. Runtime-only game components are allowed. Generic reflection/property bags remain unnecessary.
+
+### #86 — Unified resource lifecycle
+
+Typed project-relative identities, generation-safe runtime handles, CPU/GPU ownership separation, dependency/unload rules, cache reuse and memory accounting.
+
+### #87 — Scene templates/world lifecycle
+
+Reusable text-authored hierarchies, stable template-local/instance identity, deterministic instantiate/despawn safe points, explicit world/scene load/unload and no mandatory hidden pooling.
+
+### #88 — Camera2D/Viewport2D
+
+World component camera state, logical viewport/presentation mapping, deterministic active-camera rules, backend-independent world/screen conversion and integration with fixed-step presentation interpolation.
+
+### #72-#75 — Input/Tile/Text/UI
+
+Existing contracts remain, now built on the resolved world/resource/camera foundations.
+
+### #89 — Material2D/Shader2D
+
+Small programmable 2D fragment-shader/material surface with setup-time parameter binding, cached pipelines/resources and painter-order-preserving batch compatibility. No material graph/render graph.
+
+### #90 — Deterministic tween/property animation
+
+Fixed-step timeline and explicit resolved property bindings; no per-frame property strings/generic reflection.
+
+### #76-#77 — Physics2D/Audio
+
+Existing semantic/headless contracts remain.
+
+### #91 — Unified profiler/diagnostics
+
+One bounded machine-readable profile surface covering deterministic structural metrics, CPU timing, optional GPU timing and known resource memory evidence.
+
+### #78 — Linux/compiler hardening
+
+Windows/MSVC remains supported; add a continuously validated non-MSVC path and targeted sanitizers/static analysis where reliable.
+
+### #92 — Real-GPU conformance
+
+Tier A hosted math/shader validation, Tier B maintained real-GPU baseline before stable production-oriented claims, and Tier C release/vendor matrix only for claims actually covered.
+
+### #79 — Persistence/migration
+
+Versioned save state and authored schema migration close the external-user lifecycle before the flagship game proof.
+
+## Flagship proof #12
+
+The external sample game must be an ordinary external Trace2D consumer and should now prove a coherent subset of:
+
+- external game/application module,
+- at least one user-defined typed gameplay component,
+- project/build/package flow,
+- hierarchy and reusable template instancing,
+- shared resource lifecycle/memory inspection,
+- Camera2D/Viewport2D,
+- Input Actions,
+- TileMap,
+- production UTF-8 text/UI,
+- at least one Material2D effect,
+- deterministic tween,
+- Physics2D,
+- semantic audio,
+- profiler output,
+- Windows plus the non-MSVC platform/toolchain,
+- applicable GPU conformance evidence,
+- persistence/migration,
+- headless semantic QA and exact-frame capture.
+
+No sample-only hidden shortcut may substitute for public/external contracts.
 
 ## Later fixed gates
 
-After #67, complete #12 as an ordinary external Trace2D consumer proof before #60 Mesh2D. After #60 M0 -> M1, #61 Spine stops at SP0 unless explicit owner approval records the then-current licensing/integration/distribution model.
+After the flagship proof, #60 adds generic Mesh2D (`M0 -> M1`). #61 then stops at SP0 unless explicit owner approval records the then-current Spine licensing/integration/distribution model.
 
-Before Spine SP0 approval there is no Spine runtime dependency, vendoring, package/submodule, binary, derived implementation code, or claim that Trace2D ships Spine support.
+Issue #93 records later genuine gaps but is not routine core work until explicitly promoted.
 
 ## Open-source contribution lanes
 
-The owner-fixed order above governs **core continuation**. Independent community contributions may still be reviewed when they are narrow fixes/tests/docs/portability improvements that do not overlap the active core implementation, preempt future subsystem architecture, add unresolved dependencies/licenses, or violate hard contracts.
-
-See `AGENTS.md`.
+The fixed sequence governs core continuation. Independent community contributions may still be reviewed when narrow fixes/tests/docs/portability improvements do not overlap active implementation, preempt future architecture, add unresolved dependency/license obligations or violate hard determinism/performance/ownership contracts.
