@@ -2,9 +2,17 @@
 
 ## Goal
 
-Trace2D is a C++20 2D engine designed around deterministic simulation, structured observability, headless execution, and automation by coding agents.
+Trace2D is a C++20 2D engine designed around deterministic simulation, structured observability, headless execution and automation by coding agents.
 
-The architecture intentionally separates the engine's automation contract from any specific LLM protocol and separates authoritative game/animation state from renderer presentation state.
+The architecture separates:
+
+- authoritative game/runtime state from presentation state,
+- engine semantic APIs from protocol adapters,
+- CPU canonical assets from GPU/backend resources,
+- text-authored identities from hot-path resolved handles,
+- deterministic structural metrics from machine-specific timing.
+
+The production integration seams frozen by owner decision are detailed in [PRODUCTION_ARCHITECTURE_CONTRACTS.md](PRODUCTION_ARCHITECTURE_CONTRACTS.md). Future subsystem implementations must honor that document even when their implementation issue arrives later.
 
 ## Dependency direction
 
@@ -17,36 +25,62 @@ tools / protocol adapters
       agent facade
       /    |    \
      v     v     v
- runtime  scene   ui
+ runtime  world   ui
     |      |      |
   input    |      |
       \    |     /
           core
 
-assets  -----> authored/runtime consumers
-render  -----> platform
-mcp    ------> agent/testing adapter boundaries
+assets/resources ---> authored/runtime consumers
+render -----------> platform
+mcp -------------> agent/testing adapter boundaries
+external game ----> public game/world/runtime contracts
 ```
 
-Dependencies point inward. `engine/agent` may observe authoritative runtime/scene/UI and later authoritative animation state, but those modules never depend back on the agent facade. Core must not depend on SDL, rendering, MCP, an editor, image-generation providers, or separately licensed animation runtimes.
+Dependencies point inward. Authoritative runtime/world/UI/game modules never depend on Agent, MCP, JSON, an LLM protocol or renderer backend types.
 
-Platform-specific SDL3 ownership lives behind `engine/platform` and `engine/render`; SDL types must not leak into `engine/core`, simulation modules, assets, UI state, or gameplay-facing APIs. `engine/render` may depend on the platform boundary to identify the window, but authoritative simulation/runtime/UI/animation modules do not depend on rendering.
+SDL3 ownership remains behind `engine/platform` and `engine/render`. SDL/GPU types must not leak into core simulation, game component state, authored asset models, UI semantics, input actions or Agent-facing authoritative models.
+
+## State authority classes
+
+Every future subsystem classifies state as follows.
+
+### Authoritative
+
+Determines gameplay/test/save/semantic assertions. Must work headlessly and not depend on renderer initialization.
+
+Examples: current fixed transform, registered game component state, animation timeline, input actions, deterministic tween state, semantic audio commands.
+
+### Presentation
+
+Derived for output and may depend on viewport, interpolation alpha, GPU resources or backend support.
+
+Examples: interpolated render transform, UVs, pipeline handles, batch runs, render targets, physical audio output.
+
+### Tooling/observation
+
+Built only on explicit requests.
+
+Examples: Agent snapshots, fingerprints, profiling reports, migration reports, GPU readback/capture.
+
+Tooling may allocate bounded copied data. Ordinary frame paths must not automatically build it.
 
 ## Modules
 
 ### `engine/core`
 
-Low-level engine facilities with no platform dependency.
+Low-level platform-independent facilities.
 
-Initial/current responsibilities include engine version/build identity and shared low-level utilities as they are introduced.
+Current/planned responsibilities include:
 
-Planned responsibilities may include:
-
-- shared result/error types,
-- timing primitives,
-- diagnostics,
+- engine version/build identity,
+- shared result/error/diagnostic types,
 - deterministic utilities,
-- low-level profiling hooks.
+- timing primitives,
+- compact IDs/handles as introduced by concrete contracts,
+- low-level profiling primitives only when #91 requires them.
+
+Core must not depend on SDL, rendering, MCP, editor/tool providers or separately licensed animation runtimes.
 
 ### `engine/platform`
 
@@ -54,138 +88,227 @@ SDL3-backed platform boundary.
 
 Current responsibilities:
 
-- RAII ownership of initialized SDL subsystems,
-- explicit headless versus windowed startup,
-- window creation/destruction for interactive startup,
-- engine-owned quit-event translation,
-- keyboard and mouse translation into engine-owned input events,
+- RAII SDL subsystem ownership,
+- explicit headless/windowed startup,
+- window creation/destruction,
+- quit/input translation into engine-owned events,
 - SDL-free numeric window identity for renderer handoff.
 
-Current API rules:
+Rules:
 
-- public platform headers expose Trace2D types, not SDL types,
-- headless startup initializes only required non-video subsystems and creates no window,
-- windowed startup owns the window lifetime,
-- higher layers consume Trace2D events rather than raw `SDL_Event`,
-- renderer integration receives `WindowId`; public APIs do not expose `SDL_Window*`,
-- `Platform` must outlive a `Renderer` created from its window identity.
+- public headers expose Trace2D types,
+- headless startup creates no video window,
+- higher layers consume engine events rather than raw `SDL_Event`,
+- `Platform` outlives renderer resources created from its window identity.
 
 ### `engine/runtime`
 
-Owns deterministic simulation-time control independently of SDL, rendering, MCP, and the CLI.
+Owns deterministic simulation time independently of SDL/rendering/MCP/CLI.
 
 Current responsibilities:
 
-- fixed simulation timestep configuration,
-- explicit simulation frame counter,
-- `Step(count)` advancement without sleeping or reading wall-clock time,
-- deterministic seed ownership/reset point,
-- simulation-time reporting derived from fixed-step advancement,
-- separate monotonic wall-clock accumulation for interactive callers.
+- fixed timestep,
+- explicit frame counter,
+- `Step(count)` without sleeping,
+- deterministic seed/reset,
+- simulation time derived from fixed stepping,
+- separate wall-clock accumulator for interactive callers.
 
-Current API rules:
+Future presentation interpolation consumes runtime accumulator state but does not mutate authoritative simulation state. Exact-frame Agent/test stepping remains independent of wall-clock alpha.
 
-- tests/agents advance simulation with explicit fixed-frame stepping,
-- wall-clock time never changes explicit-step semantics,
-- reset clears frame/simulation/accumulated wall time while installing the requested seed,
-- runtime public code contains no SDL/renderer/CLI/JSON/MCP dependency.
+### `engine/scene` / production world model
 
-### `engine/scene`
+Current alpha Scene owns generation-safe runtime entity IDs, stable authored semantic IDs, names/tags, `Transform2D`, deterministic iteration and versioned TOML serialization.
 
-Owns the minimum entity and authored-state model needed for deterministic inspection and text-first scene authoring.
+Future #71 evolves this into the common world model.
 
-Current responsibilities include generation-safe runtime `EntityId`, stable authored semantic IDs, names/tags, mutable 2D transforms, deterministic observable iteration, versioned TOML scene loading/serialization, and structured diagnostics.
+#### Production rules
 
-Key rules:
+- deterministic parent/child hierarchy,
+- explicit local/world transforms,
+- cycle rejection and deterministic reparenting,
+- finite typed engine components,
+- external registered game-defined typed components,
+- stable component type IDs/schema versions,
+- authored vs runtime-only game component classification,
+- explicit component adapters for parse/validate/serialize/inspect/property binding,
+- strongly typed C++ game access,
+- no generic reflection/property bag requirement,
+- no C++ RTTI/allocation address as authored identity,
+- one instance/type/entity baseline until a concrete multiplicity requirement exists.
 
-- automation never uses a raw pointer as identity,
-- observable runtime iteration is deterministic,
-- authored serialization is canonical and stable for Git diffs,
-- no generic ECS is introduced before measured requirements justify one,
-- `toml++` remains private to the authored-data boundary.
+A component may opt into Agent observation without introducing JSON/MCP types into Scene/game code.
 
-Full version-1 scene schema: [SCENE_FORMAT.md](SCENE_FORMAT.md).
+Detailed contract: [PRODUCTION_ARCHITECTURE_CONTRACTS.md](PRODUCTION_ARCHITECTURE_CONTRACTS.md).
 
 ### `engine/input`
 
-Owns gameplay-facing input state independently of SDL event objects and physical devices.
+Owns gameplay-facing input state independently of SDL events/physical devices.
 
 Current responsibilities:
 
-- stable engine-level control identifiers,
-- press/release/held state,
-- one-frame `pressed` / `released` transitions,
+- stable engine controls,
+- held/pressed/released state,
 - deterministic frame-indexed scheduling,
-- virtual input for tests/agents,
-- predictable scenario reset.
+- virtual input,
+- predictable reset.
 
-Per-frame advancement performs no heap allocation after the schedule is authored. Detailed contract: [INPUT.md](INPUT.md).
+Future #72 adds semantic actions/axes, mouse/gamepad and text/IME while keeping physical and virtual input on the same gameplay-facing path.
 
-### `engine/assets`
+Detailed baseline: [INPUT.md](INPUT.md).
 
-Owns deterministic CPU-side imported asset identity/cache state, not GPU resources.
+### `engine/assets` and future common resource layer
 
-Current texture-asset rules include:
+Current assets own project-relative CPU-side imported asset identity/cache state, not GPU resources.
 
-- project-relative canonical reference identity,
-- explicit rejection of absolute/traversal references,
-- immutable decoded RGBA8 CPU texture data,
-- successful-import caching/reuse,
+Existing texture rules:
+
+- canonical project-relative identity,
+- rejection of absolute/traversal references,
+- immutable decoded RGBA8 CPU data,
+- successful-import caching,
 - explicit invalidation/clear,
 - no per-frame file discovery/decoding,
 - no SDL/GPU ownership.
 
-Detailed contract: [ASSETS.md](ASSETS.md).
+Future #86 unifies resource semantics across Sprite/Tile/Font/Audio/Material and other assets.
 
-Future Sprite source/import metadata will build on this separation. External authoring/generation formats are inputs to canonical Trace2D assets, not runtime APIs.
+Frozen future rules:
+
+- typed authored references,
+- setup-time canonicalization,
+- generation-safe resolved runtime handles,
+- CPU canonical asset truth separate from GPU/backend resources,
+- successful immutable resource reuse,
+- explicit dependency/unload policy,
+- no tracing GC,
+- no mandatory atomic shared ownership in hot paths,
+- known CPU and GPU resource-memory evidence reported separately,
+- hot reload not implied by caching.
+
+### Reusable scene templates/world instances
+
+Future #87 introduces one common text-authored reusable hierarchy model rather than subsystem-specific factories.
+
+Rules:
+
+- stable template-local entity identity,
+- explicit stable runtime instance identity,
+- deterministic instantiate/despawn structural-change phase,
+- typed component overrides only through registered schemas,
+- explicit scene/world load/unload,
+- deterministic additive-world order,
+- no hidden mandatory global entity pool.
 
 ### `engine/ui`
 
-Owns deterministic authored UI state independently of SDL, rendering, and protocol adapters.
+Owns deterministic authored UI state independently of SDL/rendering/protocol adapters.
 
 Current responsibilities:
 
-- strict versioned TOML UI loading,
-- stable IDs and semantic names,
-- deterministic authored-order storage,
-- integer pixel bounds,
+- versioned TOML loading,
+- stable semantic IDs/names,
+- authored-order storage,
+- integer bounds,
 - panel/label/button/text-input primitives,
-- visible/enabled/focused state,
-- activation count and text mutation,
-- deterministic dependency-free CPU text/raster output.
+- focus/activation/text state,
+- deterministic CPU raster output.
 
-`UiDocument` is authoritative. Renderer resources never become UI truth. Detailed contract: [UI.md](UI.md).
+Future #75 adds practical hierarchy/layout/widgets while keeping `UiDocument` semantic state authoritative.
 
-### `engine/render` — Public Alpha baseline complete
+Detailed baseline: [UI.md](UI.md).
 
-Owns presentation and visual-QA state through SDL3 GPU without becoming authoritative gameplay/UI/animation state.
+### `engine/render`
+
+Owns presentation and visual QA through SDL3 GPU without becoming authoritative gameplay state.
 
 Current responsibilities:
 
-- renderer-owned SDL3 GPU device lifetime,
-- platform window claim/release,
+- GPU device/window claim,
 - command submission,
-- swapchain and offscreen targets,
-- orthographic camera and baseline textured sprites,
-- inclusive visibility/culling,
-- caller/painter-order-preserving submission,
-- measured contiguous same-texture instancing,
-- persistent/capacity-reused renderer resources,
-- exact-simulation-frame capture,
+- swapchain/offscreen targets,
+- orthographic camera baseline,
+- textured sprite submission,
+- culling,
+- order-preserving contiguous batching,
+- persistent/capacity-reused resources,
+- exact-frame capture,
 - renderer metrics.
 
-Current hard rules:
+Current hard rules remain:
 
-- public headers expose Trace2D types, not SDL GPU handles,
-- renderer state is presentation/QA state,
-- headless semantic automation does not require a renderer/GPU,
-- persistent resources are reused rather than recreated every steady frame,
-- normal non-capture frames perform no capture download/map/file-I/O,
-- texture/material convenience never authorizes a global painter-order reorder.
+- public types hide SDL GPU handles,
+- headless semantic automation requires no GPU,
+- normal frames perform no capture readback/file I/O,
+- painter order cannot be globally reordered for batching.
 
-Renderer performance expansion is gated on reproducible workloads in #41. Current contract: [RENDERING.md](RENDERING.md).
+Detailed current contract: [RENDERING.md](RENDERING.md).
 
-The future production-complete Sprite Renderer is specified separately in [SPRITES.md](SPRITES.md) and must not be reduced to a minimal quad renderer merely because the Public Alpha baseline already draws sprites.
+#### Future Sprite integration seams
+
+#59 must preserve:
+
+- `SpriteRenderer2D`/`SpriteAnimator2D` as finite semantic state compatible with #71,
+- previous/current fixed transform history for interactive interpolation,
+- authoritative exact-frame capture mode independent of wall-clock remainder,
+- backend-independent resolved view input for #88,
+- canonical CPU Sprite asset identity separate from GPU handles for #86,
+- resolved material/pipeline compatibility identity for #89.
+
+Detailed Sprite contract: [SPRITES.md](SPRITES.md).
+
+### Camera2D / Viewport2D
+
+Future #88 turns baseline orthographic math into practical world/project presentation semantics.
+
+`Camera2D` is world component state. `Viewport2D` separates logical rendering from OS-window dimensions.
+
+Frozen semantics include:
+
+- deterministic active-camera selection,
+- positive orthographic vertical-size convention,
+- explicit viewport logical size/scaling mode,
+- backend-independent world-to-screen/screen-to-world conversion,
+- fixed-step camera smoothing when engine-owned,
+- deterministic presentation-only shake when Trace2D owns it,
+- capture metadata includes simulation frame + viewport/camera + interpolation mode.
+
+Renderer consumes resolved camera/view state; it does not own gameplay camera truth.
+
+### Material2D / Shader2D
+
+Future #89 provides a small programmable 2D surface.
+
+Frozen direction:
+
+- project-relative `Shader2D` resource,
+- existing Trace2D/SDL shader toolchain,
+- standard Sprite vertex ABI,
+- custom fragment stage first,
+- finite typed material parameters,
+- setup-time name-to-layout resolution,
+- cached pipelines/shaders/samplers,
+- bounded per-instance overrides,
+- material-aware contiguous batching,
+- no material graph/render graph,
+- unsupported backend capability fails explicitly.
+
+Generic vertex deformation belongs to later Mesh2D or separate approval.
+
+### Deterministic tween/property animation
+
+Future #90 provides fixed-step property animation without generic reflection.
+
+Rules:
+
+- integer fixed-step timeline authority,
+- finite supported interpolable value types,
+- explicit easing formulas,
+- target selectors/properties resolved at setup to typed binding IDs,
+- engine/game components opt into writable bindings explicitly,
+- deterministic conflict/cancel/completion semantics,
+- stale target generation causes cancellation/error rather than memory access,
+- no per-frame property-string lookup.
 
 ### `engine/agent`
 
@@ -194,100 +317,86 @@ Protocol-independent automation facade over authoritative engine state.
 Current responsibilities:
 
 - runtime/scene/entity inspection,
-- deterministic semantic entity queries,
-- semantic UI inspection/query/actions/assertions,
-- stable Trace2D-owned snapshot/error types,
-- explicit-request observation allocation only.
+- deterministic semantic queries,
+- UI inspection/query/actions/assertions,
+- stable Trace2D-owned snapshots/errors,
+- explicit-request observation allocation.
 
-Current API rules:
+Future subsystem support follows the same pattern:
 
-- authoritative modules never depend back on Agent,
-- public Agent types contain no JSON/MCP/SDL/LLM-protocol objects,
-- serialization belongs to adapters,
-- semantic identity/selectors are preferred over screen coordinates,
-- bounds/state are reported from authoritative owners rather than guessed.
+- world/user components,
+- resources,
+- templates/world instances,
+- camera/viewport,
+- material/tween,
+- profiler output,
+- GPU conformance report summaries.
 
-Entity contracts: [INSPECTION.md](INSPECTION.md), [QUERY.md](QUERY.md). UI contract: [UI.md](UI.md).
-
-Future Sprite animation Agent support must follow the same pattern: `SpriteAnimator2D` remains authoritative runtime state; Agent copies/observes it only when explicitly requested.
+Authoritative modules never depend back on Agent.
 
 ### `engine/mcp`
 
-Owns the current MCP transport adapter over existing protocol-independent Agent/Testing vocabulary.
-
-Current responsibilities from PR #58 include:
-
-- modern MCP `2026-07-28` discovery/tool metadata,
-- newline-delimited UTF-8 stdio host behavior,
-- JSON-RPC parsing/serialization,
-- fixed semantic tools for scene/runtime/UI/input/step/assert flows,
-- structured transport errors.
+Owns the MCP transport adapter over protocol-independent Agent/Testing vocabulary.
 
 Hard rules:
 
-- MCP is transport, not the engine API,
+- MCP is transport, not engine API,
 - JSON/MCP types remain private to adapter/tests,
-- ordinary runtime/UI/render frames perform no MCP JSON work,
-- the stdio host initializes no renderer/GPU/window,
-- new subsystem automation first lands in protocol-independent Agent/testing state, then adapters expose it.
+- normal frames perform no MCP serialization,
+- the stdio host needs no renderer for semantic operations,
+- new subsystem automation first lands in Agent/testing contracts.
 
 Detailed contract: [MCP.md](MCP.md).
 
 ### `tools/trace2d`
 
-Command-line entry point for humans, scripts, CI, and coding agents.
+CLI entry point for humans, scripts, CI and agents.
 
-The CLI keeps serialization/tool orchestration at the boundary. Existing commands compose runtime/scene/query/public-alpha workflows; later asset import/generation/validation commands may be added when the active Sprite contract requires them.
-
-A provider-specific image model SDK must not become a core/runtime dependency merely because `trace2d sprite generate` later orchestrates external generation.
-
-## Future owner-approved Sprite architecture (#59)
-
-Detailed contract: [SPRITES.md](SPRITES.md).
-
-The intended boundary is:
+Target vocabulary remains small and composable:
 
 ```text
-source/generator/external manifest
-        |
-        v
-offline import / normalize / QA
-        |
-        v
-canonical Trace2D SpriteAsset
-        |
-        +----> authoritative SpriteAnimator2D
-        |              |
-        |              +----> Agent inspect/assert
-        |
-        v
-derived SpriteRenderData
-        |
-        v
-production Sprite Renderer
-        |
-        v
-GPU / capture QA
+build
+run
+inspect
+query
+input/action
+step
+assert
+capture
+test
+analyze
+profile
+migrate
 ```
 
-Key rules:
+Provider-specific generation SDKs must not become core/runtime dependencies merely because tooling can orchestrate them.
 
-- source geometry prefers exact integer pixel metadata,
-- normalized UVs/GPU handles are derived presentation state,
-- trim/atlas packing cannot alter authored source-space pivot/placement semantics,
-- generated pixels are not canonical until explicit import/validation,
-- expensive repair/generation/QA remains offline explicit work,
-- deterministic Sprite animation is renderer-independent,
-- ordinary runtime frames do not build QA reports/snapshots unless requested,
-- batching may merge compatible contiguous work but cannot globally reorder semantic painter order.
+### Unified profiler/diagnostics
 
-The Sprite Renderer target is production-complete traditional sprite presentation: transforms/pivot/flip, atlas/trim/rotated packing, tint/opacity, alpha/blend/sampling, sorting groups/masking, 9-slice, tiled sprites, runtime pixel-perfect presentation, measured batching/resource lifetime, and conformance workloads.
+Future #91 unifies existing subsystem metrics.
 
-It intentionally excludes arbitrary deformable textured geometry and skeletal runtimes.
+Metric categories remain distinct:
+
+1. deterministic structural metrics,
+2. CPU machine timings with environment metadata,
+3. GPU device/backend timings when supported,
+4. known resource-memory evidence.
+
+Profiler scope names resolve to compact IDs outside hot loops. Report/JSON building occurs only on request. History is bounded/capacity-reused. Global allocator interception is not a baseline requirement.
+
+### GPU conformance
+
+Future #92 defines three validation tiers:
+
+- Tier A: always-on backend-independent/headless validation,
+- Tier B: maintained real-GPU baseline before stable production rendering claims,
+- Tier C: explicit vendor/backend release matrix only for claims covered.
+
+Cross-vendor exact floating-point pixels are not assumed. Readback/fence/image comparison remains explicit test work, not normal rendering.
 
 ## Future Mesh2D boundary (#60)
 
-After #59, arbitrary textured indexed geometry belongs to a separate generic presentation path:
+After the external-game proof, arbitrary textured indexed geometry belongs to a separate generic presentation path:
 
 ```text
 TexturedMesh2D
@@ -295,7 +404,7 @@ TexturedMesh2D
   UVs
   indices
   vertex color
-  texture
+  texture/material
   blend mode
   stable painter order
         |
@@ -303,80 +412,89 @@ TexturedMesh2D
 persistent/capacity-reused dynamic renderer resources
 ```
 
-Mesh2D exists so later systems such as Spine do not force the quad/9-slice SpriteRenderer into a generic renderer. It remains presentation state and does not define skeletal animation semantics.
+Mesh2D prevents SpriteRenderer from becoming a generic deformable renderer and gives later integrations such as Spine an appropriate geometry path.
 
 ## Spine compatibility boundary (#61)
 
-Detailed status: [SPINE.md](SPINE.md).
-
-Spine is a desired optional compatibility target but is separately licensed. The owner-approved architecture therefore has a hard SP0 human gate.
+Spine is a desired optional compatibility target but separately licensed.
 
 Before SP0 approval:
 
-- no Spine Runtime vendoring/copy,
+- no Spine runtime vendoring/copy,
 - no package/submodule/download dependency,
 - no Spine-derived implementation code,
 - no Spine-containing prebuilt binary,
 - no shipped-support claim.
 
-Only after explicit license/integration approval may a thin official-runtime adapter be added. Spine-specific runtime semantics remain owned by the official runtime; Trace2D supplies integration, generic Mesh2D presentation, and protocol-independent semantic observation/action boundaries.
+After explicit license approval, a thin official-runtime adapter may supply semantics while Trace2D provides integration, Mesh2D presentation and Agent observation.
 
-Do not reimplement the proprietary Spine runtime/format merely to bypass the gate.
+Do not reimplement the proprietary Spine runtime/format to bypass the gate.
 
 ## Runtime execution model
 
-The deterministic test execution model remains:
+The long-term deterministic workflow is:
 
 ```text
-Load authored project/scene/UI/assets
+Load project/resources/world/UI
     |
-Reset seed, simulation, input and authoritative subsystem state
+Register external typed game components
     |
-Schedule/inject virtual input
+Reset seed/simulation/input/authoritative subsystem state
     |
-Advance explicit simulation frame(s)
+Instantiate/load reusable world state
+    |
+Schedule/inject virtual semantic input
+    |
+Advance fixed simulation frame(s)
     |
 Inspect/query authoritative state
     |
-Perform semantic actions
+Assert gameplay/UI/animation/physics/audio/tween semantics
     |
-Assert behavior/state
+Profile/analyze explicitly when requested
     |
-Optionally render/capture explicitly selected state
+Optionally render using interpolated presentation state
+    |
+Capture explicit authoritative frame/sub-frame request
 ```
 
-Future `SpriteAnimator2D` integrates into this same fixed-step/headless model. Wall-clock-driven presentation must not replace explicit test advancement.
+Wall-clock interactive presentation never replaces explicit deterministic stepping.
 
-## Authored versus generated data
+## Authored versus generated/derived data
 
-Authored project data should be text-first and version controlled where practical.
+Authored project data stays text-first and version controlled where practical.
 
 Generated/derived data may include:
 
-- imported/compiled asset caches,
+- imported/compiled caches,
 - deterministic atlases,
 - generated raw sprite candidates,
 - normalized/QA-derived sprite artifacts,
-- shader caches,
+- shader artifacts,
 - packaged content,
-- benchmark output,
-- screenshots/test artifacts.
+- profiler/benchmark output,
+- screenshots/GPU conformance artifacts.
 
-A generated image model output is not automatically canonical authored state. The Sprite contract requires explicit import/validation. Disposable caches must remain rebuildable from the committed authoritative inputs/configuration appropriate to their workflow.
+Generated image output is not automatically canonical authored state. Disposable caches must remain rebuildable from committed authoritative inputs/configuration.
 
 ## Performance policy
-
-Performance is a design constraint, but specialized complexity is introduced only after measurement.
 
 Priorities:
 
 1. predictable ownership/lifetime,
-2. no unnecessary per-frame allocation in measured hot paths,
-3. resource/object reuse for steady-state work,
-4. cache-friendly data layouts where profiling demonstrates value,
-5. order-preserving batching and bounded submission overhead,
-6. explicit worker/threading architecture only when workloads justify it.
+2. setup-time resolution of authored strings/paths where practical,
+3. no unnecessary per-frame allocation in measured hot paths,
+4. persistent/capacity-reused resources,
+5. cache-friendly layouts when profiling demonstrates value,
+6. order-preserving batching and bounded submission overhead,
+7. explicit threading/job architecture only when workloads justify it.
 
-Explicit tooling/Agent/QA operations may allocate structured results when requested; ordinary simulation/render paths must not pay that observability cost automatically.
+Explicit Agent/QA/import/migration/profile/capture operations may allocate structured results when requested; normal simulation/render paths must not pay that observability cost automatically.
 
-Every significant optimization should retain reproducible benchmark/profiler evidence where practical. Structural metrics and machine-specific timing should remain distinguishable.
+Every significant optimization retains reproducible evidence where practical. Deterministic structural metrics and machine-specific timing remain separate.
+
+## Recorded later breadth (#93)
+
+2D lighting/shadows, navigation/pathfinding, broader platforms, networking and safe hot reload are recognized gaps but not current core steps.
+
+Promotion requires an explicit owner decision and a dedicated contract. They must build on existing foundations instead of silently expanding current scope.
