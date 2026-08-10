@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "suite_id": "trace2d-b0",
+  "lane_id": "godot.generic",
+  "qualified": true,
+  "scope": "b0-semantic-scene-authoring independent oracle and frozen engine environment",
+  "engine": {
+    "id": "godot",
+    "version": "4.7.1-stable",
+    "reported_version": "4.7.1.stable.official.a13da4feb",
+    "binary_family": "official-linux-x86_64"
+  },
+  "environment": {
+    "provider": "GitHub Actions hosted runner",
+    "os": "Ubuntu 24.04.4 LTS",
+    "architecture": "x86_64",
+    "runner_image": "ubuntu-24.04",
+    "runner_image_version": "20260720.247.2",
+    "runner_version": "2.336.0"
+  },
+  "fixture": {
+    "task_id": "b0-semantic-scene-authoring",
+    "known_good_passed": true,
+    "known_bad_failed": true,
+    "known_bad_code": "position_mismatch"
+  },
+  "evidence": {
+    "repository": "khsfashi/Trace2D",
+    "pull_request": 118,
+    "source_head": "74ab0b39ffeeaa9f031690f087dcded263c28b32",
+    "workflow_run_id": 31411471491,
+    "job_id": 93530306004,
+    "job_name": "godot-benchmark-oracle"
+  },
+  "generated_at": "2026-08-10T16:55:58.633Z"
+}
