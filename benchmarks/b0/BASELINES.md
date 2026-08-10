@@ -2,7 +2,23 @@
 
 Review date: **2026-08-11**
 
-This file records the external-reference refresh required by #102. It is not itself qualification evidence. A scored B0 run remains blocked until the selected lane has committed positive qualification evidence matching the exact version in `suite.json`.
+This file records the external-reference refresh required by #102. It is not itself qualification evidence. A scored B0 run remains blocked until the selected lane has committed positive qualification evidence matching the exact versions in `suite.json`.
+
+## Frozen Godot engine qualification candidate
+
+Pinned engine candidate: **Godot `4.6.3-stable`**.
+
+Primary reference:
+
+- <https://github.com/godotengine/godot/releases/tag/4.6.3-stable>
+
+Why this version is pinned for the first qualification round:
+
+- it is the current latest stable Godot release at the 2026-08-11 reference refresh,
+- the primary MCP candidate requires Godot 4.5 or newer,
+- pinning one exact stable engine version removes an otherwise uncontrolled engine variable across `godot.generic` and `godot.agent`.
+
+B0 classification: **PIN / QUALIFY FIRST**. Version compatibility on paper is not qualification evidence. Both Godot lanes must exercise the actual frozen binary/environment before the suite can become scored-eligible.
 
 ## Primary candidate — satelliteoflove/godot-mcp
 
@@ -21,7 +37,7 @@ Why it is the current first qualification target:
 - editor/runtime inspection and screenshots,
 - ordinary project-file authoring remains available instead of forcing every edit through custom tools.
 
-B0 classification: **ADAPT / QUALIFY FIRST**. The runtime verification surface is a strong match for Trace2D's deterministic Agent thesis, but the benchmark must prove the exact package/version works in the frozen test environment before selecting it as the scored `godot.agent` lane.
+B0 classification: **ADAPT / QUALIFY FIRST**. The runtime verification surface is a strong match for Trace2D's deterministic Agent thesis, but the benchmark must prove the exact package/version works with the pinned Godot 4.6.3 environment before selecting it as the scored `godot.agent` lane.
 
 ## Alternative — Erodenn/godot-mcp-runtime
 
@@ -97,12 +113,13 @@ B0 classification: **DEFER FROM FIRST QUALIFICATION ROUND**. This is not a quali
 
 The scored `godot.agent` lane is not chosen by stars, tool count, or marketing claims. Before changing `suite.json` from `qualification_required` to `eligible`, run the same bridge qualification fixture and require:
 
-1. authoring works in a fresh starter project,
-2. structured runtime inspection works,
-3. timed player input works,
-4. deterministic/frozen stepping works when the selected bridge claims it,
-5. the bridge does not inject task-specific solution logic,
-6. the exact bridge and Godot versions are recorded,
-7. the independent gold/known-bad verifier still behaves correctly.
+1. both Godot lanes use the exact pinned Godot 4.6.3-stable binary/environment,
+2. authoring works in a fresh starter project,
+3. structured runtime inspection works,
+4. timed player input works,
+5. deterministic/frozen stepping works when the selected bridge claims it,
+6. the bridge does not inject task-specific solution logic,
+7. the exact bridge and Godot versions are recorded,
+8. the independent gold/known-bad verifier still behaves correctly.
 
 If the primary candidate fails these checks, record the failure as qualification evidence and evaluate the next candidate. Do not silently choose the easiest bridge for Trace2D to beat.
