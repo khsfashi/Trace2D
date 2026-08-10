@@ -10,21 +10,29 @@ B0 is the first executable matched comparison harness for the Trace2D thesis. It
 
 B0 is intentionally small. It is a harness-integrity milestone, **not** evidence that Trace2D is generally better than Godot.
 
-## Current gate
+## Current gate — 2026-08-11
 
-The committed suite is `qualification_required`, and the first task is `qualification_candidate`.
+The three environment lanes now have real committed qualification evidence:
+
+- `godot.generic` — pinned Godot 4.7.1 official binary + independent gold/known-bad oracle,
+- `godot.agent` — selected `@satelliteoflove/godot-mcp@4.1.0` + hosted Q1–Q4 live bridge qualification + independent gold/known-bad oracle,
+- `trace2d.agent` — frozen Trace2D source/build + full repository tests + independent gold/known-bad oracle.
+
+See [`qualification/README.md`](qualification/README.md) and [`BASELINES.md`](BASELINES.md).
+
+The suite nevertheless remains `qualification_required`, and the first task remains `qualification_candidate`.
 
 That means:
 
 - schema/fixture/harness contracts can be tested in CI,
 - unscored calibration runs are allowed,
-- **scored runs are rejected by the harness**,
-- no benchmark result should be published yet,
-- #102 must remain open until all lane qualification evidence is real and at least one repeated three-lane cohort is recorded.
+- **scored runs are still rejected by the harness**,
+- no comparative benchmark result should be published yet,
+- #102 remains open until one real coding-Agent/model wrapper/profile is frozen, its isolation is proven, and at least one repeated matched three-lane cohort is recorded.
 
-This is deliberate. The repository does not currently have a connected Godot runtime or frozen external coding-Agent provider in GitHub CI, so pretending those live facts are complete would violate #97/#98's external-truth boundary.
+This distinction is intentional: engine/bridge readiness is external truth, but it is not a model benchmark result.
 
-## Why the first task is semantic scene authoring
+## First task: semantic scene authoring
 
 The first committed task is `b0-semantic-scene-authoring`:
 
@@ -38,9 +46,9 @@ same prompt
  -> independent structural verifier decides pass/fail
 ```
 
-It is chosen because all three current lanes can perform it using ordinary public engine authoring contracts without adding a benchmark-only Trace2D feature.
+It is admitted as a qualification candidate because all three lanes can perform it through ordinary public authoring contracts without adding a benchmark-only Trace2D feature.
 
-It is **not** the final B0 suite. Runtime/input/repair tasks can be admitted after the harness and bridge are qualified. In particular, the existing Trace2D `public-alpha` CLI movement path is not used as a benchmark task because its movement logic is sample-specific C++ code; using that would give Trace2D a task-shaped helper that Godot does not receive.
+The existing Trace2D `public-alpha` movement helper is deliberately **not** used as this task: its movement behavior is sample-specific C++ and would give Trace2D a task-shaped helper Godot does not receive.
 
 ## Public cross-engine semantic mapping
 
@@ -51,15 +59,15 @@ The common prompt openly defines the translation:
 
 Both lanes receive the same prompt containing both mappings. The Agent is not graded on guessing a hidden verifier convention.
 
-## Independent verifier
+## Independent verifier and self-validation
 
-The candidate workspace never contains the independent verifier.
+The held-out verifier is not copied into the candidate workspace.
 
 Godot:
 
 ```text
 fresh candidate workspace
- -> stock Godot headless process
+ -> pinned stock Godot headless process
  -> external benchmarks/b0/verifiers/godot_semantic_scene.gd
  -> load res://main.tscn
  -> inspect Player/group/position
@@ -74,49 +82,29 @@ fresh candidate workspace
  -> harness independently checks semantic ID/name/position
 ```
 
-The Agent may run its own checks, but its own `WorkResult`, textual claim, screenshot, or test log is not the score.
+Each committed verifier has a known-good fixture and a meaningful wrong-position known-bad fixture. The Godot verifier is exercised explicitly for both Godot lanes; the Trace2D verifier is exercised against the frozen built binary.
 
-## Gold / known-bad self-validation
+## Selected Godot Agent baseline
 
-Every task/lane must provide:
+The selected B0 bridge is `@satelliteoflove/godot-mcp@4.1.0` with the npm integrity recorded in [`qualification/godot-agent.json`](qualification/godot-agent.json).
 
-- a known-good fixture that the independent verifier accepts,
-- at least one meaningful known-bad fixture that it rejects.
+The hosted qualification proved:
 
-Run:
+- real editor authoring/save/readback,
+- structured runtime inspection,
+- launch-frozen frame-zero state,
+- raw timed `D` key input through normal gameplay input,
+- replay of the same fixed 200 ms game-time interval in clean sessions.
 
-```powershell
-$env:TRACE2D_BENCH_TRACE2D_BIN = "D:/path/to/trace2d.exe"
-python scripts/benchmark_b0.py qualify-fixtures `
-  --task b0-semantic-scene-authoring `
-  --lane trace2d.agent
-```
+Both replay runs produced 12 physics ticks and `Player.position_x == 1.83`. Their uncapped render-frame counts differed, so render frames are retained as environment evidence but are not treated as the fixed determinism domain.
 
-Godot lanes use `TRACE2D_BENCH_GODOT_BIN` instead.
-
-A verifier that cannot distinguish the committed gold and known-bad examples is not allowed to score Agent trials.
-
-## Strongest Godot baseline gate
-
-See [`BASELINES.md`](BASELINES.md).
-
-The current first qualification target is `@satelliteoflove/godot-mcp@4.1.0`, because the reviewed public surface combines structured runtime observation, real input, and frozen/exact stepping. The suite still marks this as `primary_candidate_pending_qualification`.
-
-Before `godot.agent` becomes eligible, committed evidence must prove the exact pinned bridge/environment supports:
-
-- normal authoring,
-- runtime inspection,
-- timed input,
-- deterministic/frozen stepping,
-- the independent task oracle.
-
-If it fails, the failure is recorded and the next reviewed candidate is qualified. Do not silently select a weaker bridge because it makes Trace2D look better.
+This baseline is now `selected_qualified`; it is not changed after seeing scored outcomes.
 
 ## Frozen Agent/model boundary
 
-See [`AGENT_WRAPPER.md`](AGENT_WRAPPER.md) and `agent-profile.example.json`.
+See [`AGENT_WRAPPER.md`](AGENT_WRAPPER.md) and [`agent-profile.example.json`](agent-profile.example.json).
 
-One profile freezes:
+One real profile must freeze:
 
 - coding-agent wrapper identity,
 - model ID and exact revision/snapshot,
@@ -124,16 +112,18 @@ One profile freezes:
 - wall/tool/token/human budget,
 - wrapper command.
 
-The exact JSON profile is SHA-256 hashed into every trial. The aggregate report fails its fairness integrity check if one task contains more than one Agent-profile hash across lanes.
+The exact JSON profile is SHA-256 hashed into every trial. A report rejects a task cohort that mixes Agent-profile hashes across lanes.
+
+No placeholder profile is accepted as evidence. This is the remaining external gate before the current task can become scored-eligible.
 
 ## Isolation
 
-`run-trial` creates a new directory:
+`run-trial` creates a fresh directory per attempt:
 
 ```text
 benchmark-runs/b0/
   trials/<unique-trial-id>/
-    workspace/          # copied starter only
+    workspace/
     prompt.md
     agent-result.json
     agent.stdout.txt
@@ -143,91 +133,38 @@ benchmark-runs/b0/
 
 Rules:
 
-- an existing trial directory is never reused,
+- a trial directory is never reused,
 - each Agent invocation is a fresh process,
 - verifier execution is a separate process,
-- scored environments must additionally qualify their Agent wrapper's workspace-only file/tool sandbox so the held-out verifier cannot be read as a solution oracle,
-- mutable MCP/editor/runtime state must be reset by the lane wrapper between trials,
-- retries create new immutable attempts; they never overwrite a failed record.
+- the scored Agent wrapper must prove workspace/tool isolation so the held-out verifier cannot become a solution oracle,
+- mutable MCP/editor/runtime state is reset by the lane wrapper between trials,
+- retries create new immutable attempts rather than overwriting failures.
 
-The harness hashes its suite, prompt, verifier and harness sources before the Agent runs. Mutation is classified as `benchmark_integrity_failure`.
+The harness hashes suite, prompt, verifier and harness sources before the Agent runs. Mutation is classified as `benchmark_integrity_failure`.
 
-## Raw record integrity
+## Raw record integrity and failure domains
 
-`raw.jsonl` is append-only at harness level. Every record contains:
+`raw.jsonl` is append-only at harness level. Each record carries a previous-record hash and its own canonical-record SHA-256 along with suite/task/lane/profile/environment/verifier/artifact/metric identity.
 
-- `previous_record_sha256`,
-- `record_sha256` over canonical JSON,
-- suite hash,
-- task/lane/trial IDs,
-- frozen Agent-profile hash,
-- environment/engine/adapter identity,
-- status and failure domain,
-- independent verifier evidence,
-- workspace tree hash,
-- raw metric fields.
+Infrastructure, implementation, eligibility, human-intervention and benchmark-integrity failures stay distinct. Provider outage or environment setup failure is preserved rather than silently converted into an Agent task failure.
 
-The hash chain makes later edits detectable. Reports and replay refuse a broken chain.
+## Metrics and reporting
 
-This is tamper-evidence, not a substitute for filesystem/WORM storage. For published benchmark evidence, archive the JSONL and trial artifacts in a write-protected or content-addressed location as a separate publication step.
+Each trial records raw success/failure class, revisions, tool calls, provider-reported token counts, wall time, verifier time, human interventions, normalized operations and engine-native operations where exposed reliably.
 
-## Failure classification
+Provider/model token counts must come from the provider/client's own usage accounting; the harness does not invent estimates using another tokenizer.
 
-Statuses are kept separate instead of collapsing everything into `failed`:
-
-| Status | Domain |
-| --- | --- |
-| `success` | success |
-| `environment_failure` | infrastructure |
-| `harness_setup_failure` | infrastructure |
-| `agent_setup_failure` | infrastructure |
-| `tool_transport_failure` | infrastructure |
-| `timeout` | implementation |
-| `engine_build_test_failure` | implementation |
-| `verifier_failure` | infrastructure |
-| `capability_not_eligible` | eligibility |
-| `human_intervention` | human |
-| `benchmark_integrity_failure` | integrity |
-
-Infrastructure failures are preserved in raw evidence and are never silently converted into ordinary task attempts. A retry, if policy permits one, gets a new trial ID.
-
-## Metrics
-
-Each trial records at least:
-
-- success/failure class,
-- revision count,
-- tool-call count,
-- provider-reported input tokens,
-- provider-reported output tokens,
-- wall time,
-- verifier time,
-- human interventions,
-- normalized operations,
-- engine-native operations.
-
-The wrapper must use provider/client usage accounting rather than estimate tokens with a different tokenizer.
-
-## Reporting
+Generate aggregates with:
 
 ```powershell
 python scripts/benchmark_b0.py report --records benchmark-runs/b0/raw.jsonl
 ```
 
-The report emits, per task/lane:
-
-- raw trial count,
-- success count/rate,
-- status counts,
-- medians,
-- min/max ranges,
-- Agent-profile integrity state.
-
-There is intentionally no single weighted/composite score.
+Reports keep raw trial count, success count/rate, status counts, medians/ranges and profile-integrity state. There is intentionally no weighted composite score.
 
 ## Independent re-verification
 
-After an Agent trial, the original Agent is not needed:
+A preserved candidate artifact can be checked again without the original stochastic Agent:
 
 ```powershell
 python scripts/benchmark_b0.py reverify `
@@ -236,19 +173,17 @@ python scripts/benchmark_b0.py reverify `
   --replay-records benchmark-runs/b0/replay.jsonl
 ```
 
-This reruns the independent verifier in a new process, checks the candidate workspace hash against the recorded artifact hash, compares the verdict, and appends separate hash-chained replay evidence.
-
-For later runtime tasks, this seam extends to engine-input replay/self-determinism checks; it is deliberately separate from the original Agent trajectory.
+This reruns the independent verifier, confirms the preserved workspace hash and appends separate hash-chained replay evidence.
 
 ## Commands
 
-Validate committed suite structure:
+Validate the suite:
 
 ```powershell
 python scripts/benchmark_b0.py validate-suite
 ```
 
-Non-scored environment preflight:
+Run environment preflight:
 
 ```powershell
 python scripts/benchmark_b0.py preflight `
@@ -256,7 +191,7 @@ python scripts/benchmark_b0.py preflight `
   --lane trace2d.agent
 ```
 
-Run an unscored calibration trial:
+Run an unscored calibration trial once a real profile exists:
 
 ```powershell
 python scripts/benchmark_b0.py run-trial `
@@ -265,17 +200,12 @@ python scripts/benchmark_b0.py run-trial `
   --agent-profile path/to/frozen-agent-profile.json
 ```
 
-A `--scored` invocation currently fails by design until the live qualification gate is completed.
+A `--scored` invocation still fails by design until the real Agent/model isolation gate is completed and the suite/task are explicitly promoted to `eligible`.
 
-## What B0 will not claim
+## What B0 can eventually claim
 
 Even after #102 is complete, B0 supports only narrow claims such as:
 
 > Under this frozen model/Agent/budget/environment and these admitted micro-tasks, lane X achieved Y/N successes with the recorded cost distribution.
 
-It does **not** justify:
-
-- “Trace2D is better than Godot,”
-- “Trace2D makes every Agent better,”
-- broad performance/GPU conclusions,
-- extrapolation to Sprite/animation/physics/audio tasks not yet admitted.
+It does **not** justify broad claims that Trace2D is generally better than Godot, that every Agent improves, or that untested Sprite/animation/physics/audio/GPU domains are covered.
