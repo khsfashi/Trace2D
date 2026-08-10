@@ -228,6 +228,45 @@ evidence = []
     EXPECT_FALSE(catalog.diagnostics.empty());
 }
 
+TEST(WorkSpecTests, DeclaredDeliverableDependencyBlocksUntilVerified)
+{
+    constexpr std::string_view specText = R"toml(
+format_version = 1
+[work]
+id = "dependency-task"
+intent = "Derive local blockers from declared deliverable dependencies."
+state = "planned"
+constraints = []
+
+[[deliverables]]
+id = "foundation"
+description = "Foundation slice"
+state = "implemented"
+
+[[deliverables]]
+id = "consumer"
+description = "Dependent slice"
+state = "planned"
+depends_on = ["foundation"]
+
+[[acceptance]]
+id = "foundation-proof"
+deliverable = "foundation"
+description = "Foundation verifies."
+verification = "deterministic"
+state = "planned"
+)toml";
+
+    const auto spec = trace2d::agent::ParseWorkSpecToml(specText);
+    ASSERT_TRUE(spec.Succeeded());
+    const trace2d::agent::CapabilityCatalog catalog{};
+
+    const auto evaluation = trace2d::agent::EvaluateWork(*spec.spec, catalog);
+    EXPECT_EQ(evaluation.localReadiness, trace2d::agent::LocalReadiness::Blocked);
+    ASSERT_EQ(evaluation.blockedDeliverableIds.size(), 1U);
+    EXPECT_EQ(evaluation.blockedDeliverableIds[0], "consumer");
+}
+
 TEST(WorkSpecTests, RejectsAcceptanceThatReferencesUnknownDeliverable)
 {
     constexpr std::string_view specText = R"toml(
