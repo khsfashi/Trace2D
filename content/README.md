@@ -64,7 +64,7 @@ Update review state without changing derived facts:
 
 ```bash
 python scripts/content_fact_pack.py review \
-  --candidate <candidate-id-or-json> \
+  --candidate content/candidates/<candidate>.json \
   --state reviewed
 ```
 
@@ -72,7 +72,7 @@ Attach platform metadata to selected source facts:
 
 ```bash
 python scripts/content_fact_pack.py platform \
-  --candidate <candidate-id-or-json> \
+  --candidate content/candidates/<candidate>.json \
   --platform show-hn \
   --state selected \
   --angle-tag deterministic-verification \
