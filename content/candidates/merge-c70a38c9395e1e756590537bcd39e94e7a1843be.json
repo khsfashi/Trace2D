@@ -1,0 +1,313 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-c70a38c9395e1e756590537bcd39e94e7a1843be",
+  "source_event": "merge",
+  "event_id": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+  "significance": "major",
+  "significance_source": "content-trailer",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#109",
+        "url": "https://github.com/khsfashi/Trace2D/issues/109"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 95,
+        "url": "https://github.com/khsfashi/Trace2D/pull/95"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+        "authored_at": "2026-08-10T15:55:02+09:00",
+        "subject": "Implement explicit on-demand content authoring (#109)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "content-tooling"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "C1 is provider-neutral Agent-operated authoring; repository-owned packets preserve factual/editorial authority while the active Agent supplies prose only after an explicit maintainer request",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "The same Fact Packs may form different deterministic request packets for different editorial briefs/platforms without automatic cross-post generation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Not-tested, gates, limitations and benchmark metrics are explicit truth-boundary facts that require deliberate disposition before a stored draft is accepted",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "The exact maintainer style contract and its hash travel with the request packet; style guides structure/voice but never factual authority or fabricated biography",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "C1 has no merge/release/benchmark trigger and no external publication/scheduling/reply surface",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "C1 remains non-core advisory tooling and cannot block Trace2D next/continue or engine acceptance",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "embedded provider-specific LLM SDK/API key | would couple repository content contracts to one model/provider and duplicate the active Agent layer",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ],
+        "alternative": "embedded provider-specific LLM SDK/API key",
+        "reason": "would couple repository content contracts to one model/provider and duplicate the active Agent layer"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "automatic platform fan-out | each platform/audience piece requires an explicit maintainer request/editorial direction",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ],
+        "alternative": "automatic platform fan-out",
+        "reason": "each platform/audience piece requires an explicit maintainer request/editorial direction"
+      },
+      {
+        "id": "rejected-alternatives-003",
+        "text": "silent omission of validation gaps | material truth boundaries must remain visible or be explicitly judged not material",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Rejected",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ],
+        "alternative": "silent omission of validation gaps",
+        "reason": "material truth boundaries must remain visible or be explicitly judged not material"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Treat Fact Packs/current repository evidence as Trace2D factual authority and refresh current external facts separately when requested content depends on them",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "directives-002",
+        "text": "Never invent personal anecdotes, employment history, feelings or motives to imitate maintainer style",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Directive",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "Content Evidence C0+C1 fixture suite | 13 tests passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "windows-msvc configure/build/ctest | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "clean-clone-quick-start | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "tested-004",
+        "text": "release-audit | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Tested",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "tested-005",
+        "text": "repository-contract-audit | passed on final PR head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Tested",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "automatic C1 invocation | intentionally nonexistent by contract",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      },
+      {
+        "id": "not-tested-002",
+        "text": "external publication | intentionally nonexistent by contract",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c70a38c9395e1e756590537bcd39e94e7a1843be",
+            "trailer": "Not-tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c70a38c9395e1e756590537bcd39e94e7a1843be"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#108",
+    "PR #95"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
