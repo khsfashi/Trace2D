@@ -6,11 +6,11 @@ Do not commit placeholder `qualified: true` files.
 
 ## Current state — 2026-08-11
 
-- `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
+- `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified it against the release `SHA512-SUMS.txt`, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
 - `godot.agent` — **not qualified**. The exact bridge remains `@satelliteoflove/godot-mcp@4.1.0`; [`GODOT_AGENT.md`](GODOT_AGENT.md) defines the required Q1–Q4 authoring/runtime/input/frozen-step protocol. Do not create `godot-agent.json` until those live checks pass.
-- `trace2d.agent` — **oracle evidence pending final-head Windows CI**. The CI job exercises the built `trace2d.exe` against the same task's known-good/known-bad fixtures; commit positive evidence only after a successful run on the intended final candidate head.
+- `trace2d.agent` — **oracle-qualified** with committed hosted evidence in [`trace2d-agent.json`](trace2d-agent.json). The Windows CI candidate passed all 188 repository tests and the built `trace2d.exe` accepted the known-good fixture while rejecting the wrong-position known-bad fixture.
 
-The suite/task remain `qualification_required` / `qualification_candidate`, so the presence of one lane's positive evidence does not enable scored runs.
+The suite/task remain `qualification_required` / `qualification_candidate`, so two positive engine-oracle records do **not** enable scored runs. The remaining live bridge and frozen coding-Agent/model gates still outrank local repository readiness.
 
 ## Required lane evidence shape
 
@@ -35,8 +35,7 @@ Every lane evidence file is JSON format version 1 and records the exact environm
     "task_id": "b0-semantic-scene-authoring",
     "known_good_passed": true,
     "known_bad_failed": true
-  },
-  "generated_at": "..."
+  }
 }
 ```
 
