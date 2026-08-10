@@ -1,0 +1,74 @@
+{
+  "schema": "trace2d.particle-final-gate.v1",
+  "generated_utc": "2026-08-10T12:42:08.8821992Z",
+  "commit": "924dbc19027a350c9bae819eea28789eea77bbdd",
+  "machine_label": "my-pc",
+  "cpu_model": "AMD Ryzen 5 5600X 6-Core Processor",
+  "gpu_controllers": [
+    {
+      "name": "NVIDIA GeForce RTX 3070",
+      "driver_version": "32.0.15.9186"
+    }
+  ],
+  "build": {
+    "configure_preset": "windows-msvc",
+    "gpu_test_preset": "windows-debug",
+    "timing_build_preset": "windows-release"
+  },
+  "gpu_test_log": {
+    "path": "gpu-tests.txt",
+    "source_sha256": "5bfe37859a9fb3490cd115a1f5c6a5e92272185ac28059696e7dcfccb0ea760e",
+    "repository_copy_path_sanitized": true,
+    "skipped": false
+  },
+  "timing": {
+    "warmup_iterations": 10,
+    "measured_iterations": 50,
+    "frames_per_iteration": 240,
+    "workloads": [
+      {
+        "workload": "workload_cpu_small",
+        "path": "workload_cpu_small.json",
+        "source_sha256": "5d6c92e0174cb2ffb5ef00254ce3e8da2c04bda9623e4ac32484499db0bdaa0c",
+        "selected_backend": "cpu",
+        "capacity": 128,
+        "peak_alive": 42,
+        "prepared_cpu_state_bytes": 11776,
+        "particle_updates": 8333,
+        "average_ns": 199800,
+        "median_ns": 198800,
+        "p95_ns": 228600,
+        "ns_per_particle_update": 23.977
+      },
+      {
+        "workload": "workload_cpu_medium",
+        "path": "workload_cpu_medium.json",
+        "source_sha256": "cfb09b01b0c82d57f42e73ab33062cbd93d6eaa97847f4046f0c9fe14a84cd42",
+        "selected_backend": "cpu",
+        "capacity": 1024,
+        "peak_alive": 856,
+        "prepared_cpu_state_bytes": 94208,
+        "particle_updates": 179234,
+        "average_ns": 5522810,
+        "median_ns": 5264500,
+        "p95_ns": 6997800,
+        "ns_per_particle_update": 30.8134
+      },
+      {
+        "workload": "workload_gpu_scale",
+        "path": "workload_gpu_scale.json",
+        "source_sha256": "e21bfeec94be8851a17e5fbd4529a5ebac1287b31663958fdb9809253cdd6e41",
+        "selected_backend": "gpu",
+        "capacity": 4096,
+        "peak_alive": 3400,
+        "prepared_cpu_state_bytes": 376832,
+        "particle_updates": 716305,
+        "average_ns": 20425100,
+        "median_ns": 19348700,
+        "p95_ns": 25822200,
+        "ns_per_particle_update": 28.5145
+      }
+    ]
+  },
+  "interpretation": "Final-gate source metadata plus repository-safe evidence transcription. Backend selection was never changed by analysis."
+}
