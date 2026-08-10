@@ -243,6 +243,31 @@ TEST(ParticleProgramTests, CostAccumulatorPreservesTotalsAcrossLoopResets)
     EXPECT_GE(observation.peakAlive, emitter.Reference().AliveCount());
 }
 
+TEST(ParticleProgramTests, CostAccumulatorHandlesOneFrameLoopCounterResets)
+{
+    std::string text = ValidEffectToml();
+    ReplaceOnce(text, "duration_frames = 12", "duration_frames = 1");
+    ReplaceOnce(text, "loop = false", "loop = true");
+    const ParticleProgram program = ParseProgram(text);
+
+    ParticleEmitter2D emitter{};
+    ASSERT_TRUE(PrepareParticleProgramCpuEmitter(program, 55U, 88U, emitter).Ok());
+    ParticleCostAccumulator accumulator{};
+    accumulator.Reset(emitter);
+
+    for (std::uint32_t frame = 0U; frame < 4U; ++frame)
+    {
+        ASSERT_TRUE(emitter.Step());
+        accumulator.ObserveAfterStep(emitter);
+    }
+
+    const auto observation = accumulator.Observation(emitter);
+    EXPECT_EQ(observation.observedFrames, 4U);
+    EXPECT_EQ(observation.counters.spawned, 16U);
+    EXPECT_EQ(emitter.Reference().Counters().spawned, 4U);
+    EXPECT_EQ(observation.counters.updated, 0U);
+}
+
 TEST(ParticleProgramTests, ConstantEffectEliminatesUnusedGpuParticleFields)
 {
     std::string text = ValidEffectToml();
@@ -265,16 +290,26 @@ TEST(ParticleProgramTests, ConstantEffectEliminatesUnusedGpuParticleFields)
 
     const ParticleProgram program = ParseProgram(text);
     EXPECT_EQ(program.requiredRandomChannelCount, 0U);
-    ASSERT_EQ(program.gpuFieldCount, 1U);
-    EXPECT_EQ(program.gpuFields[0].kind, ParticleGpuRuntimeFieldKind::AgeFrames);
-    EXPECT_EQ(program.gpuStrideBytes, 4U);
-    EXPECT_EQ(program.gpuBufferBytes, 4ULL * 64ULL);
+    ASSERT_EQ(program.gpuFieldCount, 2U);
+    EXPECT_EQ(program.gpuFields[0].kind, ParticleGpuRuntimeFieldKind::Position);
+    EXPECT_EQ(program.gpuFields[1].kind, ParticleGpuRuntimeFieldKind::AgeFrames);
+    EXPECT_EQ(program.gpuStrideBytes, 12U);
+    EXPECT_EQ(program.gpuBufferBytes, 12ULL * 64ULL);
     EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
         program.constantAttributeMask,
         ParticleProgramAttribute::Position));
     EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
         program.constantAttributeMask,
         ParticleProgramAttribute::Velocity));
+    EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
+        program.constantAttributeMask,
+        ParticleProgramAttribute::Size));
+    EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
+        program.constantAttributeMask,
+        ParticleProgramAttribute::Rotation));
+    EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
+        program.constantAttributeMask,
+        ParticleProgramAttribute::Color));
     EXPECT_TRUE(trace2d::particles::HasParticleProgramAttribute(
         program.constantAttributeMask,
         ParticleProgramAttribute::SpriteIndex));
