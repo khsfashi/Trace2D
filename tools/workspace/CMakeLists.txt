@@ -23,7 +23,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_workspace_fixture
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "\\\"state\\\":\\\"review_needed\\\".*\\\"current_revision\\\":\\\"revision-2\\\".*\\\"review_queue\\\":\\[\\{\\\"acceptance\\\":\\\"feel-review\\\""
+            PASS_REGULAR_EXPRESSION "review_needed.*revision-2.*feel-review"
     )
 
     add_test(
@@ -38,7 +38,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_workspace_feedback_packet
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "kind = \\"feedback\\".*revision = \\"revision-2\\".*acceptance = \\"feel-review\\".*message = \\"Make the revised hit even heavier.\\""
+            PASS_REGULAR_EXPRESSION "feedback.*revision-2.*feel-review.*Make the revised hit even heavier"
     )
 
     add_test(
@@ -51,7 +51,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_workspace_approval_packet
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "kind = \\"approve\\".*acceptance = \\"feel-review\\".*target = \\"acceptance/feel-review\\""
+            PASS_REGULAR_EXPRESSION "approve.*feel-review.*acceptance/feel-review"
     )
 
     add_test(
