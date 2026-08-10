@@ -166,7 +166,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/qualify_godot_agent_mcp.py \
+          python3 scripts/qualify_godot_agent_mcp_live.py \
             --server "$TRACE2D_B0_GODOT_MCP_SERVER" \
             --project "$TRACE2D_B0_GODOT_AGENT_FIXTURE" \
             --source-fixture benchmarks/b0/qualification/godot_agent_fixture \
