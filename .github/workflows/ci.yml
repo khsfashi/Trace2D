@@ -26,6 +26,19 @@ jobs:
         shell: pwsh
         run: ./scripts/repository_contract_audit.ps1
 
+  benchmark-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate B0 suite schema and fixtures
+        run: python3 scripts/benchmark_b0.py validate-suite
+
+      - name: Test B0 append-only and fairness contracts
+        run: python3 -m unittest discover -s scripts -p 'test_benchmark_b0.py'
+
   release-audit:
     runs-on: ubuntu-latest
 
@@ -66,6 +79,12 @@ jobs:
 
       - name: Test
         run: ctest --preset ci-windows-debug
+
+      - name: Qualify Trace2D B0 gold and known-bad fixtures
+        shell: pwsh
+        run: |
+          $env:TRACE2D_BENCH_TRACE2D_BIN = (Resolve-Path "build/ci-windows-msvc/tools/trace2d/Debug/trace2d.exe").Path
+          python scripts/benchmark_b0.py qualify-fixtures --task b0-semantic-scene-authoring --lane trace2d.agent
 
   clean-clone-quick-start:
     runs-on: windows-2022
