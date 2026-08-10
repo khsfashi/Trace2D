@@ -1,72 +1,92 @@
 # Open-Source Game Production Foundation
 
-Issue umbrella: **#67**.
+Roadmap umbrella: **#67**.
 
-This document defines the owner-approved phase that turns Trace2D from a strong deterministic/agent-verifiable engine core into an open-source 2D engine that a third party can actually use for a real game without editing engine internals.
+This document defines the owner-approved phase that turns Trace2D from a strong deterministic/Agent-verifiable engine core into an open-source 2D engine that a third party can actually use for a real game without editing engine internals.
 
-The phase begins only after the complete Sprite program (#59). It deliberately precedes flagship proof #12, generic Mesh2D #60, and Spine compatibility #61.
+The detailed cross-subsystem integration rules are additionally frozen in [`PRODUCTION_ARCHITECTURE_CONTRACTS.md`](PRODUCTION_ARCHITECTURE_CONTRACTS.md). Both documents are required reading for #69-#79 and #86-#92.
 
 ## Why this phase exists
 
-Trace2D already has unusually strong foundations for deterministic execution, semantic inspection, headless testing, structured Agent interaction, measurement-driven rendering, assets/UI/MCP, and the particle/Sprite direction.
+Trace2D already has unusually strong foundations for deterministic execution, semantic inspection, headless testing, structured Agent interaction, measurement-driven rendering, assets/UI/MCP and the particle/Sprite direction.
 
-The largest remaining architectural gap is different:
+The largest architectural gap is the production glue required by real external games:
 
-> Where does user game code live, how is a project identified and consumed, how is authored world state composed, and how does a third party build/run/test/package a real game through supported contracts instead of editing Trace2D itself?
+> Where does user game code live, how is a project identified/consumed, how is authored/runtime world state composed, how are reusable resources/world instances/cameras/materials owned, and how does a third party build/run/test/profile/package a real game through supported contracts instead of editing Trace2D itself?
 
-An open-source engine is not complete merely because its subsystems are sophisticated. The user-facing project/game/world lifecycle must be explicit.
+An open-source engine is not complete merely because individual subsystems are sophisticated. The user-facing project/game/world/resource/presentation lifecycle must be explicit.
 
 ## Entry gate and global order
 
 The owner-fixed core sequence is:
 
 ```text
-#50 -> #51 -> #52 -> #53
+#52 -> #53
  -> #59 complete Sprite program
- -> #67 game-production foundation
-      #69 -> #70 -> #71 -> #72 -> #73 -> #74 -> #75 -> #76 -> #77 -> #78 -> #79
- -> #12 flagship external sample game
+ -> #69
+ -> #70
+ -> #71
+ -> #86
+ -> #87
+ -> #88
+ -> #72
+ -> #73
+ -> #74
+ -> #75
+ -> #89
+ -> #90
+ -> #76
+ -> #77
+ -> #91
+ -> #78
+ -> #92
+ -> #79
+ -> #12 flagship external game proof
  -> #60 Mesh2D
  -> #61 Spine SP0 license gate
 ```
 
-Do not begin #67 before #59 is complete. Do not begin #12, #60, or #61 before #67 is complete.
+The architecture freeze #85/PR #94 is a contract predecessor, not an implementation stage. It defines semantics now so #59 and this program do not reinvent them independently.
+
+Issue #93 records later production gaps but is not routine core continuation until explicitly promoted.
 
 ## Non-negotiable architecture rules
 
 - User game code must not require modifying files under `engine/`.
 - Prefer a simple C++ source/static-library consumer contract before inventing a binary plugin ABI.
-- Do not introduce a generic ECS, reflection system, custom allocator framework, job system, render graph, material graph, visual scripting system, lock-free framework, or full graphical editor merely because a new subsystem needs composition.
-- Authored content remains versioned, text-first, diffable, and deterministic where practical.
-- Stable semantic identity beats pointers, allocation addresses, or unspecified container order.
-- Structured engine-owned state/events remain the semantic correctness oracle. Pixels and audible output are presentation/QA evidence.
-- Expensive inspection, migration, asset processing, capture, reporting, and Agent serialization remain explicit work rather than mandatory frame-loop work.
-- Hot paths resolve strings/paths/resources during setup where practical and reuse persistent/capacity-managed state.
+- One Scene/world model owns engine components and registered user/game components.
+- Do not introduce a generic ECS, generic reflection system, custom allocator framework, job system, render graph, material graph, visual scripting system, lock-free framework or full graphical editor merely because a new subsystem needs composition.
+- Authored content remains versioned, text-first, diffable and deterministic where practical.
+- Stable semantic identity beats pointers, allocation addresses, C++ RTTI names or unspecified container order.
+- Structured engine/game-owned state/events remain the semantic correctness oracle. Pixels and audible output remain presentation/QA evidence.
+- Expensive inspection, migration, asset processing, capture, profiling, reporting and Agent serialization remain explicit work rather than mandatory frame-loop work.
+- Hot paths resolve strings/paths/resources/property bindings during setup where practical and reuse persistent/capacity-managed state.
 - Performance claims require workload evidence. Machine timing and deterministic structural metrics remain distinct.
 - External dependencies require then-current license/distribution review before inclusion.
+- Tracing GC and mandatory atomic shared ownership are not default resource-lifetime strategies.
 
-## Fixed child order
+## Fixed implementation order
 
-### #69 — E0: external Game/Application module boundary
+### #69 — Game/Application module boundary
 
 Define the lifecycle and ownership relationship between Trace2D and user C++ game logic.
 
 Required direction:
 
 - a game lives outside engine internals,
-- one explicit application/game lifecycle owns startup, fixed-step game update, shutdown, and access to required engine services,
+- one explicit application/game lifecycle owns startup, fixed-step game update, shutdown and access to required engine services,
 - headless and windowed execution compose the same game logic,
 - SDL/MCP/backend types do not leak into user gameplay contracts,
 - an external minimal sample proves the boundary,
 - no plugin ABI or generic service locator/reflection framework without demonstrated need.
 
-This stage answers the most important open-source-engine question: **where does the game go?**
+This stage answers: **where does the game go?**
 
-### #70 — E1: project manifest + external consumer build/install/package
+### #70 — Project manifest + external consumer build/install/package
 
 Make a Trace2D game a first-class project.
 
-Expected capabilities include:
+Expected capabilities:
 
 - versioned project manifest,
 - stable project ID,
@@ -74,50 +94,159 @@ Expected capabilities include:
 - fixed-step/display/asset/input configuration only where justified,
 - documented external CMake consumer path,
 - install/export/package support as appropriate,
-- clean build/run/test commands discoverable from the project root,
+- clean build/run/test commands discoverable from project root,
 - distribution notices for resolved dependencies,
-- no source-tree-only undocumented shortcuts required for users.
+- no source-tree-only undocumented shortcuts.
 
-Distribution-facing shader policy belongs here. The current renderer compiles embedded HLSL through SDL3_shadercross during setup. For distributable builds, prefer reproducible build/offline shader validation or artifacts when the pinned backend/toolchain supports a clean solution. Do not build a generic asset compiler solely to eliminate one runtime setup step.
+Distribution-facing shader policy belongs here. Runtime shader setup is already outside the frame hot path, but distributable builds should prefer reproducible build/offline shader validation or artifacts when the pinned backend/toolchain supports a clean solution.
 
-### #71 — E2: scene hierarchy + typed authored component composition
+Do not build a generic asset compiler merely to eliminate one runtime setup step.
 
-Evolve Scene from identity + `Transform2D` into the coherent authored world model used by practical engine components.
+### #71 — Scene hierarchy + engine/game typed component composition
 
-Required direction:
+Evolve Scene from identity + `Transform2D` into the coherent authored world model.
+
+Required world direction:
 
 - deterministic parent/child hierarchy,
 - local/world transforms,
 - cycle rejection,
 - deterministic reparent/child ordering,
 - stable semantic identity,
-- finite typed authored component composition,
+- finite typed engine component composition,
 - versioned component serialization/validation,
 - Agent visibility over authoritative hierarchy/components,
-- subsystems reuse one world model rather than creating parallel entity graphs,
-- prefab/reusable composition only after a real authored sample demonstrates the requirement.
+- subsystems reuse one world model rather than parallel entity graphs.
 
-A generic ECS/property bag is not a prerequisite.
+#### External user/game components
 
-### #72 — E3: semantic Input Actions + practical devices/text input
+This stage must also prove at least one externally registered authored gameplay component.
 
-Keep the current deterministic low-level input foundation, but expose gameplay semantics rather than requiring direct physical-key coupling.
+Frozen semantics:
+
+- stable explicit component type ID,
+- explicit schema version for authored component types,
+- registration frozen before authored scene load,
+- authored vs runtime-only component classification,
+- explicit typed parse/validate/serialize/inspect adapters,
+- strongly typed external C++ access,
+- generation-safe invalidation,
+- one instance/type/entity baseline,
+- optional explicit writable-property adapter for future #90,
+- no generic `map<string, Variant>` truth model,
+- no C++ RTTI/allocation-address authored identity.
+
+Deterministic authored load order is:
+
+```text
+create identities
+ -> construct components in authored order
+ -> parse/validate
+ -> resolve entity/resource references
+ -> establish hierarchy/world transforms
+ -> publish scene-ready state to Game/Application
+```
+
+Agent observation may allocate copied values only on explicit request.
+
+### #86 — Unified typed resource lifecycle
+
+Unify the resource rules required by Sprite/Tile/Font/Audio/Material and future assets.
+
+Required semantics:
+
+- typed project-relative authored references,
+- absolute/traversal rejection,
+- setup-time canonicalization,
+- small generation-safe resolved runtime handles,
+- CPU canonical asset state separate from GPU/backend resources,
+- successful immutable resource caching/reuse,
+- explicit dependency graph,
+- strong dependency cycle diagnostics unless an asset class explicitly supports cycles,
+- explicit unload/release safe points,
+- no tracing GC,
+- no mandatory atomic shared ownership in render/game hot paths,
+- no filesystem/path hashing during normal per-frame access,
+- CPU retained bytes and engine-created GPU resource evidence reported separately,
+- hot reload not implied.
+
+The implementation should prove the common contract with at least two resource classes.
+
+### #87 — Reusable scene templates, instancing and world lifecycle
+
+Provide one common reusable text-authored hierarchy model rather than subsystem-specific factories.
+
+Required semantics:
+
+- working concept `SceneTemplate` or one final equivalent public name,
+- stable template-local entity IDs,
+- explicit stable runtime template-instance identity,
+- semantic child identity derived from world/scene + instance + template-local identity,
+- deterministic component/entity construction order,
+- explicit root transform on instantiation,
+- typed authored overrides only through registered component schemas,
+- no generic free-form property bag,
+- structural changes requested during a fixed step apply at a documented deterministic safe point in request order,
+- despawn invalidates generation-safe handles,
+- no silent engine-wide pooling of arbitrary gameplay entities,
+- explicit scene/world instance load/unload,
+- deterministic additive world update/observation ordering,
+- synchronous baseline loading is acceptable; streaming is later optimization.
+
+### #88 — Camera2D / Viewport2D
+
+Turn current orthographic renderer math into a practical world/project presentation contract.
+
+#### Camera2D
+
+A typed world component with:
+
+- entity/world transform position,
+- 2D rotation when implementation supports it,
+- positive orthographic `vertical_size` preserving current renderer convention,
+- enabled state,
+- deterministic priority/selection key,
+- target viewport identity,
+- optional bounds/clamp,
+- optional engine-owned follow/smoothing advanced on fixed steps.
+
+#### Viewport2D
+
+A stable logical viewport independent from OS-window identity, with:
+
+- logical size,
+- presentation target/rectangle,
+- scaling mode,
+- active camera,
+- persistent renderer target when required.
+
+Practical scaling modes may include `fit`, `fill` and `stretch` with exact mapping rules.
+
+World-to-screen/screen-to-world math is CPU/backend-independent and headless-testable.
+
+Camera shake, when engine-owned, is explicit presentation state and does not silently move gameplay targets.
+
+Capture records simulation frame + viewport/camera + interpolation mode.
+
+### #72 — Semantic Input Actions + practical devices/text input
+
+Keep the deterministic low-level input foundation, but expose gameplay semantics rather than direct physical-key coupling.
 
 Expected capabilities:
 
 - digital actions and analog axes,
 - project-authored bindings/rebinding,
 - gamepad buttons/axes and explicit deadzones,
-- mouse position, delta, wheel,
-- virtual Agent/test actions feed the same gameplay-facing path,
+- mouse position/delta/wheel,
+- virtual Agent/test actions on the same gameplay-facing path,
 - deterministic frame/reset/replay behavior,
-- proper text-input/IME boundary for production UI.
+- proper text-input/IME boundary.
 
-Normal per-frame action reads should be resolved/indexed and allocation-light after setup.
+Normal action reads are resolved/indexed and allocation-light after setup.
 
-### #73 — E4: TileSet / TileMap / TileLayer
+### #73 — TileSet / TileMap / TileLayer
 
-Tilemaps are a first-class 2D-engine capability and especially well suited to text/structured Agent authoring.
+Tilemaps are a first-class 2D-engine capability and especially suitable for text/structured Agent authoring.
 
 Expected capabilities:
 
@@ -129,13 +258,13 @@ Expected capabilities:
 - culling/batching without per-tile draw calls,
 - animated tiles only when justified,
 - collision metadata handoff,
-- semantic Agent query/assert by map/layer/cell/tile identity without pixel inference.
+- semantic Agent query/assert by map/layer/cell/tile identity.
 
-Do not represent a large map as one heap object/string per tile.
+Do not represent large maps as one heap object/string per tile.
 
-### #74 — E5: production UTF-8 font/text/localization foundation
+### #74 — Production UTF-8 font/text/localization foundation
 
-The existing 5x7 ASCII-oriented path remains useful as a deterministic narrow fixture, but is not sufficient as the production text system.
+The existing 5x7 ASCII path remains a deterministic narrow fixture, not the production text system.
 
 Expected capabilities:
 
@@ -146,15 +275,15 @@ Expected capabilities:
 - wrapping/alignment,
 - fallback policy,
 - Korean/CJK-capable output,
-- integration with E3 text/IME input,
-- localization-facing layout/string hooks,
-- kerning/shaping only through concrete requirements and mature reviewed dependencies.
+- text/IME integration,
+- localization-facing hooks,
+- shaping/kerning only through concrete requirements and mature reviewed dependencies.
 
 Do not rerasterize unchanged glyph/text work every frame without reason.
 
-### #75 — E6: practical deterministic UI hierarchy/layout/widgets
+### #75 — Practical deterministic UI hierarchy/layout/widgets
 
-Preserve the current semantic `UiDocument` and Agent-first targeting while adding the minimum composition needed for real HUD/menu work.
+Preserve semantic `UiDocument` and Agent-first targeting while adding real HUD/menu composition.
 
 Expected capabilities:
 
@@ -163,14 +292,53 @@ Expected capabilities:
 - resolution scaling,
 - small deterministic layout primitives,
 - margin/padding where justified,
-- image/progress/scroll or similarly demonstrated widgets,
+- practical image/progress/scroll-style widgets,
 - keyboard/gamepad focus/navigation,
 - production text from #74,
 - layout results inspectable/assertable headlessly.
 
-Do not clone DOM/CSS or introduce a browser layout engine.
+Do not clone DOM/CSS.
 
-### #76 — E7: Physics2D
+### #89 — Material2D / Shader2D
+
+Provide the small programmable rendering surface required by common 2D effects without a material/render graph.
+
+Frozen direction:
+
+- project-relative `Shader2D`,
+- existing pinned SDL3 GPU/shadercross toolchain,
+- Trace2D shader ABI rather than backend-owned public APIs,
+- standard Sprite vertex path,
+- custom fragment stage first,
+- finite typed `Material2D` parameter layout,
+- setup-time parameter-name to binding-index/offset resolution,
+- cached shaders/pipelines/samplers,
+- bounded resolved per-instance overrides,
+- renderer batch compatibility includes material/pipeline state while preserving painter order,
+- no shader compilation or filesystem discovery during ordinary drawing,
+- unsupported backend/shader behavior fails explicitly.
+
+Common Sprite tint/opacity stays on the optimized Sprite path rather than automatically becoming generic material parameters.
+
+### #90 — Deterministic resolved-property tween animation
+
+Add fixed-step property animation for UI/transform/color/camera/game-state use cases.
+
+Frozen semantics:
+
+- integer fixed-step timeline authority,
+- explicit delay/duration/repeat/ping-pong/pause/resume/stop/restart semantics,
+- small finite easing set with committed formulas/tests,
+- finite supported interpolable value types,
+- authored target resolves during load/setup to a compact typed property binding,
+- engine/game components explicitly opt into writable bindings,
+- no generic reflection,
+- no selector/component/property string lookup every frame,
+- deterministic target-conflict policy,
+- stale target generation causes cancel/error, not stale memory access,
+- Agent inspection of target/progress/state/completion.
+
+### #76 — Physics2D
 
 Add practical 2D physics through a reviewed mature dependency such as Box2D when then-current API/license/performance requirements fit.
 
@@ -182,12 +350,12 @@ Expected engine contract:
 - raycast/overlap queries,
 - fixed-step integration,
 - structured contacts/triggers/query results,
-- deterministic observable ordering where Trace2D owns the ordering,
+- deterministic observable ordering where Trace2D owns ordering,
 - explicit determinism boundary for third-party floating-point simulation.
 
 Do not claim cross-platform bit-identical physics unless separately proven.
 
-### #77 — E8: Audio
+### #77 — Audio
 
 Add a small practical 2D audio system.
 
@@ -196,43 +364,84 @@ Expected capabilities:
 - project-relative audio clip identity/cache,
 - source/playback state,
 - play/stop/pause as required,
-- volume, pitch, loop,
+- volume/pitch/loop,
 - small groups/buses if demonstrated,
 - optional simple 2D pan/attenuation only when justified,
-- semantic audio commands/events/state available in headless tests,
+- semantic audio commands/events/state in headless tests,
 - physical audio output treated as presentation.
 
-Tests should be able to prove that a clip/event was requested at the correct semantic point without recording speaker output.
+### #91 — Unified Agent-readable profiler and diagnostics
 
-### #78 — E9: Linux/compiler/toolchain hardening
+Unify existing renderer/particle metrics and future subsystem evidence.
+
+Keep categories separate:
+
+1. deterministic structural metrics,
+2. CPU machine timing with environment metadata,
+3. GPU timing when supported,
+4. known resource memory evidence.
+
+Intended surface is equivalent to:
+
+```text
+trace2d profile <project/workload> --frames N --json
+```
+
+Requirements:
+
+- compact pre-resolved scope IDs,
+- bounded/ring/capacity-reused history,
+- no normal-frame JSON/report building,
+- no global allocator interception requirement,
+- structural CI budgets allowed,
+- machine timing thresholds only on stable dedicated runners.
+
+### #78 — Linux/compiler/toolchain hardening
 
 Before stable external adoption, continuously validate more than one implementation environment.
 
 Expected direction:
 
 - Windows/MSVC remains supported,
-- add Linux with Clang or GCC based on current dependency/backend support,
-- headless engine and external consumer paths build/test in CI,
-- backend-independent renderer code compiles/tests even when hosted interactive GPU presentation is unavailable,
+- add Linux + Clang/GCC based on current dependency/backend support,
+- headless engine and external consumer build/test in CI,
 - compiler-appropriate warnings,
 - targeted ASan/UBSan where reliable,
-- evaluate clang-tidy/static analysis and enable only high-signal checks,
-- fix portability/UB rather than broadly suppressing diagnostics.
+- evaluate clang-tidy/static analysis only for high-signal checks,
+- fix portability/UB rather than suppressing diagnostics broadly.
 
-Do not add platforms as badges. Every supported platform needs ownership and validation.
+### #92 — Tiered real-GPU conformance/release validation
 
-### #79 — E10: save/persistence + authored schema migration
+Close the gap between CPU-side renderer correctness and actual GPU execution.
 
-Close two long-term external-user lifecycle gaps.
+#### Tier A — always-on hosted/headless
+
+- geometry/UV/order/culling/batch math,
+- camera/viewport/interpolation math,
+- material layout/shader validation where possible,
+- canonical CPU artifact paths,
+- particle compiler/layout semantics.
+
+#### Tier B — maintained real-GPU baseline
+
+Before a stable production-oriented rendering claim, maintain at least one real GPU environment for representative conformance. Record OS/GPU/vendor/driver/backend/build metadata.
+
+#### Tier C — support-claim matrix
+
+Claims spanning multiple vendors/backends require explicit release matrix evidence. Missing infrastructure narrows claims rather than being hidden.
+
+GPU comparisons use exact equality only where proven; otherwise committed tolerances. Screenshot comparison never replaces semantic gameplay assertions.
+
+Readback/fence/image comparison remains explicit validation work.
+
+### #79 — Save/persistence + authored schema migration
+
+Close the long-term external-user lifecycle gaps.
 
 #### Game persistence
 
-Provide versioned settings/checkpoint/save-slot persistence without requiring generic reflection.
-
-Required direction:
-
-- stable user/game schema,
-- semantic data rather than raw runtime handles/pointers,
+- stable semantic save schema,
+- no raw runtime pointers/handles as persisted truth,
 - safe writes,
 - structured corrupt/unsupported diagnostics,
 - explicit save-version migration,
@@ -241,79 +450,98 @@ Required direction:
 
 #### Authored schema migration
 
-Trace2D's alpha project/scene/component/UI/effect formats will evolve. External users need explicit migration rather than silent breakage.
-
-Expected direction:
-
 - declared migration policy,
-- tool workflow equivalent to `trace2d migrate <project>` where useful,
-- deterministic reviewable rewritten text,
+- deterministic reviewable rewrite tooling,
 - clear source/version/field diagnostics,
 - no silent data loss,
 - documented supported migration range.
 
-## Existing implementation hardening explicitly tracked by this program
+## Fixed-step presentation interpolation requirement from #85
 
-These observations are real but do **not** justify immediate speculative rewrites before the relevant stage:
+Although implemented as part of #59 Sprite/runtime presentation, all future world/camera systems must preserve the same authority split.
+
+Authoritative moving state conceptually retains:
+
+```text
+previous_fixed
+current_fixed
+```
+
+Interactive rendering may interpolate. Gameplay/Agent uses `current_fixed`. Reset/load/teleport synchronize history. Exact-frame capture renders authoritative current state unless an explicit sub-frame alpha is requested and recorded.
+
+For hierarchy, interpolate local transform state before world composition.
+
+No per-sprite selector lookup/transient heap list is required for interpolation.
+
+## Existing implementation hardening tracked by this program
 
 ### Renderer texture-handle tombstones
 
-Current destroyed texture handles leave tombstones and are not recycled. This is safe for the present workload. Introduce generation-safe resource-handle reuse only if realistic long-running resource churn demonstrates unbounded table growth as a practical problem.
+Current destroyed texture handles leave tombstones and are not recycled. #86 owns generation-safe resource-handle reuse when the unified resource model is implemented; do not bolt a conflicting renderer-only lifetime model onto the alpha table.
 
 ### Runtime shader compilation
 
-The current renderer performs shadercross compilation during renderer setup rather than inside `RenderFrame`. This is already outside the frame hot path. #70 owns the question of whether distributable builds require offline/reproducible shader artifacts.
+Current shadercross compilation occurs during renderer setup, not normal frames. #70/#89/#78 own reproducible distribution/build shader artifacts when the production material/package path requires them.
 
 ### ASCII UI raster path
 
-The current dependency-free 5x7 path remains valuable for deterministic tests and minimal fallback behavior. #74 adds the production text system rather than deleting a useful test fixture.
+The current dependency-free 5x7 path remains valuable for deterministic tests/fallback. #74 adds production text rather than deleting the fixture.
 
 ### Schema migration
 
-Current alpha formats may change incompatibly and have no migration tool. #79 must close this gap before Trace2D makes stronger external format compatibility promises.
+Alpha formats may change incompatibly. #79 closes that gap before stronger external compatibility promises.
 
-## Flagship proof after #67
+## Flagship proof after the production foundation
 
-When #69-#79 are complete, #12 builds one deliberately small real game through the exact public/external contracts established by this program.
+When every child above is complete, #12 builds one deliberately small real game through ordinary public/external Trace2D contracts.
 
 The game must not use sample-only engine shortcuts. It should prove a coherent subset of:
 
-- external C++ game module,
-- project manifest/consumer build,
-- scene hierarchy/components,
+- external game module,
+- external user-defined typed gameplay component,
+- project manifest/consumer build/package,
+- hierarchy/components,
+- reusable scene-template instancing/world lifetime,
+- shared resource lifecycle/memory inspection,
+- Camera2D/Viewport2D,
 - Input Actions,
 - TileMap,
-- real UTF-8 text/UI,
+- production UTF-8 text/UI,
+- Material2D effect,
+- deterministic tween,
 - Physics2D,
 - semantic audio,
+- profiler output,
+- Windows plus non-MSVC platform/toolchain,
+- applicable real-GPU conformance,
 - persistence/migration,
-- headless Agent QA,
-- exact-frame visual capture,
-- Windows plus the added non-MSVC platform/toolchain path.
+- headless Agent QA and exact-frame capture.
 
-Only after this proof should the fixed roadmap continue to Mesh2D #60 and Spine #61.
+Only after this proof does the fixed roadmap advance to #60 Mesh2D and #61 Spine.
+
+## Later genuine gaps (#93)
+
+The following are recognized but deliberately deferred from routine core progression:
+
+- 2D lighting/shadows,
+- navigation/pathfinding,
+- macOS/mobile/Web/other platform expansion,
+- networking,
+- safe hot reload.
+
+Each has entry prerequisites and must receive an explicit owner promotion before coding agents treat it as core work.
 
 ## Core continuation vs community contribution
 
-The strict owner-fixed order exists so `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, and equivalent continuation prompts are deterministic.
+The strict owner-fixed order governs `@GitHub Trace2D 다음 진행해줘`, `Trace2D next` and equivalent continuation prompts.
 
-That rule applies to the **core continuation lane**.
-
-Independent open-source contributions may proceed when they are narrowly scoped fixes, tests, documentation, portability improvements, or isolated enhancements that:
-
-- do not overlap/compete with an active core implementation,
-- do not preempt a future owner-fixed subsystem design,
-- do not add unreviewed dependencies/license obligations,
-- do not violate determinism/performance/ownership contracts,
-- do not silently alter product/architecture goals.
-
-Architecture, product-goal, dependency/license, Particle backend, and Spine SP0 decisions remain explicit human/owner gates.
+Independent open-source contributions may proceed only when narrowly scoped and non-conflicting with active/frozen architecture, dependency/license policy, determinism, ownership and performance rules.
 
 ## Completion condition
 
-#67 closes only when #69 through #79 are all merged green and repository docs/status agree on the resulting contracts.
+The production foundation is complete only when every fixed implementation child listed above is merged green and repository docs/status agree.
 
-The handoff after #67 is:
+The handoff is:
 
 ```text
 #12 flagship external game proof
