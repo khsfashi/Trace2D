@@ -408,6 +408,65 @@ void ParseArtifacts(
     }
 }
 
+void ParseFeedback(
+    const toml::table& revisionTable,
+    const std::size_t revisionIndex,
+    WorkRevision& revision,
+    std::vector<WorkSpecDiagnostic>& diagnostics)
+{
+    const toml::node* feedbackNode = revisionTable.get("feedback");
+    if (feedbackNode == nullptr)
+    {
+        return;
+    }
+
+    const toml::array* feedbackArray = feedbackNode->as_array();
+    if (feedbackArray == nullptr)
+    {
+        AddDiagnostic(
+            diagnostics,
+            "revisions[" + std::to_string(revisionIndex) + "].feedback",
+            "Expected an array of feedback tables.",
+            feedbackNode);
+        return;
+    }
+
+    std::unordered_set<std::string> feedbackIds{};
+    revision.feedback.reserve(feedbackArray->size());
+    for (std::size_t index = 0; index < feedbackArray->size(); ++index)
+    {
+        const toml::node* itemNode = feedbackArray->get(index);
+        const toml::table* item = itemNode == nullptr ? nullptr : itemNode->as_table();
+        const std::string path = "revisions[" + std::to_string(revisionIndex) + "].feedback[" +
+            std::to_string(index) + "]";
+        if (item == nullptr)
+        {
+            AddDiagnostic(diagnostics, path, "Expected a feedback table.", itemNode);
+            continue;
+        }
+
+        ValidateKnownKeys(*item, path, {"id", "target", "message"}, diagnostics);
+
+        WorkFeedback feedback{};
+        const std::optional<std::string> id =
+            ReadRequiredString(*item, "id", path + ".id", diagnostics);
+        const std::optional<std::string> target =
+            ReadOptionalString(*item, "target", path + ".target", diagnostics);
+        const std::optional<std::string> message =
+            ReadRequiredString(*item, "message", path + ".message", diagnostics);
+
+        if (id.has_value()) feedback.id = *id;
+        if (target.has_value()) feedback.target = *target;
+        if (message.has_value()) feedback.message = *message;
+
+        if (id.has_value() && !feedbackIds.insert(*id).second)
+        {
+            AddDiagnostic(diagnostics, path + ".id", "Duplicate feedback id in one revision.");
+        }
+        revision.feedback.push_back(std::move(feedback));
+    }
+}
+
 bool OutcomeCompletesCriterion(
     const AcceptanceCriterion& criterion,
     const VerificationOutcome outcome) noexcept
@@ -428,13 +487,10 @@ bool OutcomeNeedsReview(
     const AcceptanceCriterion& criterion,
     const VerificationOutcome outcome) noexcept
 {
-    if (outcome == VerificationOutcome::ReviewNeeded)
-    {
-        return true;
-    }
-    return (criterion.verification == VerificationClass::Multimodal ||
-            criterion.verification == VerificationClass::Human) &&
-        outcome == VerificationOutcome::Passed;
+    const bool subjective = criterion.verification == VerificationClass::Multimodal ||
+        criterion.verification == VerificationClass::Human;
+    return subjective &&
+        (outcome == VerificationOutcome::Passed || outcome == VerificationOutcome::ReviewNeeded);
 }
 } // namespace
 
@@ -527,7 +583,7 @@ WorkResultParseResult ParseWorkResultToml(
             ValidateKnownKeys(
                 *revisionTable,
                 path,
-                {"id", "parent", "changed_paths", "limitations", "verification", "artifacts"},
+                {"id", "parent", "changed_paths", "limitations", "verification", "artifacts", "feedback"},
                 parsed.diagnostics);
 
             WorkRevision revision{};
@@ -552,6 +608,7 @@ WorkResultParseResult ParseWorkResultToml(
                 parsed.diagnostics);
             ParseVerificationRecords(*revisionTable, index, revision, parsed.diagnostics);
             ParseArtifacts(*revisionTable, index, revision, parsed.diagnostics);
+            ParseFeedback(*revisionTable, index, revision, parsed.diagnostics);
 
             if (id.has_value() && !revisionIds.insert(*id).second)
             {
