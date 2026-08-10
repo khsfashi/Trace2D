@@ -3,6 +3,7 @@
 #include <toml++/toml.hpp>
 
 #include <algorithm>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -31,6 +32,37 @@ void AddDiagnostic(
         diagnostic.column = static_cast<std::size_t>(position.column);
     }
     diagnostics.push_back(std::move(diagnostic));
+}
+
+bool IsKnownKey(
+    const std::string_view key,
+    const std::initializer_list<std::string_view> knownKeys)
+{
+    return std::find(knownKeys.begin(), knownKeys.end(), key) != knownKeys.end();
+}
+
+void ValidateKnownKeys(
+    const toml::table& table,
+    const std::string_view path,
+    const std::initializer_list<std::string_view> knownKeys,
+    std::vector<WorkSpecDiagnostic>& diagnostics)
+{
+    for (const auto& [key, value] : table)
+    {
+        const std::string_view keyView = key.str();
+        if (IsKnownKey(keyView, knownKeys))
+        {
+            continue;
+        }
+
+        std::string fieldPath{path};
+        if (!fieldPath.empty())
+        {
+            fieldPath.push_back('.');
+        }
+        fieldPath.append(keyView);
+        AddDiagnostic(diagnostics, std::move(fieldPath), "Unknown field.", &value);
+    }
 }
 
 bool ParseToml(
@@ -78,15 +110,25 @@ std::optional<std::string> ReadRequiredString(
     return value;
 }
 
-std::string ReadOptionalString(const toml::table& table, const std::string_view key)
+std::optional<std::string> ReadOptionalString(
+    const toml::table& table,
+    const std::string_view key,
+    const std::string_view path,
+    std::vector<WorkSpecDiagnostic>& diagnostics)
 {
     const toml::node* node = table.get(key);
     if (node == nullptr)
     {
-        return {};
+        return std::nullopt;
     }
+
     const std::optional<std::string> value = node->value<std::string>();
-    return value.value_or(std::string{});
+    if (!value.has_value())
+    {
+        AddDiagnostic(diagnostics, std::string{path}, "Expected a string.", node);
+        return std::nullopt;
+    }
+    return value;
 }
 
 void ReadStringArray(
@@ -101,6 +143,7 @@ void ReadStringArray(
     {
         return;
     }
+
     const toml::array* array = node->as_array();
     if (array == nullptr)
     {
@@ -139,10 +182,12 @@ std::optional<VerificationClass> ParseVerificationClass(
         AddDiagnostic(diagnostics, path, "Expected a verification-class string.", node);
         return std::nullopt;
     }
+
     if (*value == "deterministic") return VerificationClass::Deterministic;
     if (*value == "presentation") return VerificationClass::Presentation;
     if (*value == "multimodal") return VerificationClass::Multimodal;
     if (*value == "human") return VerificationClass::Human;
+
     AddDiagnostic(
         diagnostics,
         path,
@@ -163,17 +208,27 @@ std::optional<VerificationOutcome> ParseOutcome(
         AddDiagnostic(diagnostics, path, "Expected a verification-outcome string.", node);
         return std::nullopt;
     }
+
     if (*value == "not_run") return VerificationOutcome::NotRun;
     if (*value == "passed") return VerificationOutcome::Passed;
     if (*value == "failed") return VerificationOutcome::Failed;
     if (*value == "review_needed") return VerificationOutcome::ReviewNeeded;
     if (*value == "approved") return VerificationOutcome::Approved;
+
     AddDiagnostic(
         diagnostics,
         path,
         "Supported outcomes are not_run, passed, failed, review_needed, and approved.",
         node);
     return std::nullopt;
+}
+
+bool HasFailureFields(const toml::table& table) noexcept
+{
+    return table.contains("failure_code") ||
+        table.contains("failure_target") ||
+        table.contains("failure_message") ||
+        table.contains("reproduction");
 }
 
 void ParseVerificationRecords(
@@ -187,6 +242,7 @@ void ParseVerificationRecords(
     {
         return;
     }
+
     const toml::array* verificationArray = verificationNode->as_array();
     if (verificationArray == nullptr)
     {
@@ -212,6 +268,22 @@ void ParseVerificationRecords(
             continue;
         }
 
+        ValidateKnownKeys(
+            *item,
+            path,
+            {
+                "acceptance",
+                "verification",
+                "outcome",
+                "summary",
+                "evidence",
+                "failure_code",
+                "failure_target",
+                "failure_message",
+                "reproduction",
+            },
+            diagnostics);
+
         VerificationRecord record{};
         const std::optional<std::string> acceptance =
             ReadRequiredString(*item, "acceptance", path + ".acceptance", diagnostics);
@@ -233,19 +305,17 @@ void ParseVerificationRecords(
             AddDiagnostic(diagnostics, path + ".acceptance", "Duplicate acceptance result in one revision.");
         }
 
-        if (record.outcome == VerificationOutcome::Passed ||
-            record.outcome == VerificationOutcome::Approved)
+        if (outcome.has_value() &&
+            (*outcome == VerificationOutcome::Passed || *outcome == VerificationOutcome::Approved) &&
+            record.evidence.empty())
         {
-            if (record.evidence.empty())
-            {
-                AddDiagnostic(
-                    diagnostics,
-                    path + ".evidence",
-                    "Passed or approved verification requires at least one evidence reference.");
-            }
+            AddDiagnostic(
+                diagnostics,
+                path + ".evidence",
+                "Passed or approved verification requires at least one evidence reference.");
         }
 
-        if (record.outcome == VerificationOutcome::Failed)
+        if (outcome.has_value() && *outcome == VerificationOutcome::Failed)
         {
             WorkFailure failure{};
             const std::optional<std::string> code =
@@ -263,6 +333,15 @@ void ParseVerificationRecords(
             failure.evidence = record.evidence;
             record.failure = std::move(failure);
         }
+        else if (outcome.has_value() && HasFailureFields(*item))
+        {
+            AddDiagnostic(
+                diagnostics,
+                path,
+                "Failure fields are valid only when outcome = 'failed'.",
+                itemNode);
+        }
+
         revision.verification.push_back(std::move(record));
     }
 }
@@ -278,6 +357,7 @@ void ParseArtifacts(
     {
         return;
     }
+
     const toml::array* artifactsArray = artifactsNode->as_array();
     if (artifactsArray == nullptr)
     {
@@ -303,6 +383,8 @@ void ParseArtifacts(
             continue;
         }
 
+        ValidateKnownKeys(*item, path, {"id", "kind", "path", "description"}, diagnostics);
+
         WorkArtifact artifact{};
         const std::optional<std::string> id =
             ReadRequiredString(*item, "id", path + ".id", diagnostics);
@@ -310,10 +392,14 @@ void ParseArtifacts(
             ReadRequiredString(*item, "kind", path + ".kind", diagnostics);
         const std::optional<std::string> artifactPath =
             ReadRequiredString(*item, "path", path + ".path", diagnostics);
-        artifact.description = ReadOptionalString(*item, "description");
+        const std::optional<std::string> description =
+            ReadOptionalString(*item, "description", path + ".description", diagnostics);
+
         if (id.has_value()) artifact.id = *id;
         if (kind.has_value()) artifact.kind = *kind;
         if (artifactPath.has_value()) artifact.path = *artifactPath;
+        if (description.has_value()) artifact.description = *description;
+
         if (id.has_value() && !artifactIds.insert(*id).second)
         {
             AddDiagnostic(diagnostics, path + ".id", "Duplicate artifact id in one revision.");
@@ -388,6 +474,8 @@ WorkResultParseResult ParseWorkResultToml(
         return parsed;
     }
 
+    ValidateKnownKeys(root, "", {"format_version", "result", "revisions"}, parsed.diagnostics);
+
     const toml::node* formatNode = root.get("format_version");
     const std::optional<std::int64_t> formatVersion =
         formatNode == nullptr ? std::nullopt : formatNode->value<std::int64_t>();
@@ -405,6 +493,7 @@ WorkResultParseResult ParseWorkResultToml(
     }
     else
     {
+        ValidateKnownKeys(*resultTable, "result", {"work_id"}, parsed.diagnostics);
         const std::optional<std::string> workId =
             ReadRequiredString(*resultTable, "work_id", "result.work_id", parsed.diagnostics);
         if (workId.has_value()) result.workId = *workId;
@@ -419,7 +508,9 @@ WorkResultParseResult ParseWorkResultToml(
     else
     {
         std::unordered_set<std::string> revisionIds{};
+        std::optional<std::string> previousRevisionId{};
         result.revisions.reserve(revisionsArray->size());
+
         for (std::size_t index = 0; index < revisionsArray->size(); ++index)
         {
             const toml::node* revisionNode = revisionsArray->get(index);
@@ -429,14 +520,24 @@ WorkResultParseResult ParseWorkResultToml(
             if (revisionTable == nullptr)
             {
                 AddDiagnostic(parsed.diagnostics, path, "Expected a revision table.", revisionNode);
+                previousRevisionId.reset();
                 continue;
             }
+
+            ValidateKnownKeys(
+                *revisionTable,
+                path,
+                {"id", "parent", "changed_paths", "limitations", "verification", "artifacts"},
+                parsed.diagnostics);
 
             WorkRevision revision{};
             const std::optional<std::string> id =
                 ReadRequiredString(*revisionTable, "id", path + ".id", parsed.diagnostics);
+            const std::optional<std::string> parent =
+                ReadOptionalString(*revisionTable, "parent", path + ".parent", parsed.diagnostics);
             if (id.has_value()) revision.id = *id;
-            revision.parentRevisionId = ReadOptionalString(*revisionTable, "parent");
+            if (parent.has_value()) revision.parentRevisionId = *parent;
+
             ReadStringArray(
                 *revisionTable,
                 "changed_paths",
@@ -456,23 +557,38 @@ WorkResultParseResult ParseWorkResultToml(
             {
                 AddDiagnostic(parsed.diagnostics, path + ".id", "Duplicate revision id.");
             }
-            if (index == 0U && !revision.parentRevisionId.empty())
+
+            if (index == 0U)
             {
-                AddDiagnostic(parsed.diagnostics, path + ".parent", "The first revision must not have a parent.");
-            }
-            if (index > 0U)
-            {
-                const std::string& expectedParent = result.revisions.back().id;
-                if (revision.parentRevisionId != expectedParent)
+                if (parent.has_value() && !parent->empty())
                 {
                     AddDiagnostic(
                         parsed.diagnostics,
                         path + ".parent",
-                        "Revision parent must reference the immediately preceding revision '" +
-                            expectedParent + "'.");
+                        "The first revision must not have a parent.",
+                        revisionTable->get("parent"));
                 }
             }
+            else if (!previousRevisionId.has_value())
+            {
+                AddDiagnostic(
+                    parsed.diagnostics,
+                    path + ".parent",
+                    "Cannot validate revision lineage because the preceding revision is invalid.",
+                    revisionTable->get("parent"));
+            }
+            else if (!parent.has_value() || *parent != *previousRevisionId)
+            {
+                AddDiagnostic(
+                    parsed.diagnostics,
+                    path + ".parent",
+                    "Revision parent must reference the immediately preceding revision '" +
+                        *previousRevisionId + "'.",
+                    revisionTable->get("parent"));
+            }
+
             result.revisions.push_back(std::move(revision));
+            previousRevisionId = id;
         }
     }
 
