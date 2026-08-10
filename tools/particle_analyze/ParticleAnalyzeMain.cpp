@@ -530,7 +530,7 @@ void WriteResult(
     if (gpuArtifact.Ok())
     {
         std::cout << ",\"artifact_fingerprint\":" << gpuArtifact.artifact.artifactFingerprint;
-        std::cout << ",\"runtime_status\":\"not_available_until_particle_stage_6\"";
+        std::cout << ",\"runtime_status\":\"available_for_explicit_gpu_selected_effects\"";
     }
     else
     {
