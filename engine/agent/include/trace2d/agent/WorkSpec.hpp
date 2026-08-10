@@ -77,6 +77,7 @@ struct WorkDeliverable final
     std::string id{};
     std::string description{};
     WorkItemState state{WorkItemState::Requested};
+    std::vector<std::string> dependsOn{};
 };
 
 struct CapabilityRequirement final
@@ -183,6 +184,7 @@ struct WorkEvaluation final
 {
     LocalReadiness localReadiness{LocalReadiness::Ready};
     std::vector<CapabilityEvaluation> capabilityRequirements{};
+    std::vector<std::string> blockedDeliverableIds{};
     std::vector<std::string> outstandingAcceptanceIds{};
     std::vector<std::string> reviewAcceptanceIds{};
     std::vector<ExternalTruthRequirement> externalTruth{};
