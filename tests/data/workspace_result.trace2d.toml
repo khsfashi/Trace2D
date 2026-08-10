@@ -1,0 +1,60 @@
+format_version = 1
+
+[result]
+work_id = "workspace-feedback-loop"
+
+[[revisions]]
+id = "revision-1"
+changed_paths = ["content/effects/hit.trace2d.toml"]
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-proof"
+verification = "deterministic"
+outcome = "passed"
+summary = "Gameplay semantics pass before subjective review."
+evidence = ["artifacts/workspace/revision-1/semantic.json"]
+
+[[revisions.verification]]
+acceptance = "feel-review"
+verification = "human"
+outcome = "review_needed"
+summary = "The first verified presentation is ready for human feel review."
+evidence = ["artifacts/workspace/revision-1/hit-preview.webm"]
+
+[[revisions.artifacts]]
+id = "hit-preview-v1"
+kind = "video"
+path = "artifacts/workspace/revision-1/hit-preview.webm"
+description = "First verified hit-effect preview."
+
+[[revisions.feedback]]
+id = "feedback-1"
+target = "effect/hit"
+message = "Make the impact feel heavier without changing gameplay damage."
+
+[[revisions]]
+id = "revision-2"
+parent = "revision-1"
+changed_paths = ["content/effects/hit.trace2d.toml"]
+limitations = []
+
+[[revisions.verification]]
+acceptance = "semantic-proof"
+verification = "deterministic"
+outcome = "passed"
+summary = "Gameplay semantics still pass after the subjective presentation revision."
+evidence = ["artifacts/workspace/revision-2/semantic.json"]
+
+[[revisions.verification]]
+acceptance = "feel-review"
+verification = "human"
+outcome = "review_needed"
+summary = "The heavier revised presentation is ready for another human review."
+evidence = ["artifacts/workspace/revision-2/hit-preview.webm"]
+
+[[revisions.artifacts]]
+id = "hit-preview-v2"
+kind = "video"
+path = "artifacts/workspace/revision-2/hit-preview.webm"
+description = "Revised verified hit-effect preview after human feedback."
