@@ -86,8 +86,20 @@ struct WorkspaceSnapshot final
 
 [[nodiscard]] WorkspaceSnapshot BuildWorkspaceSnapshot(
     const WorkSpec& spec,
+    const WorkResult& result);
+
+[[nodiscard]] inline WorkspaceSnapshot BuildWorkspaceSnapshot(
+    const WorkSpec& spec,
     const WorkResult& result,
-    const InspectionSnapshot* inspection = nullptr);
+    const InspectionSnapshot* inspection)
+{
+    WorkspaceSnapshot snapshot = BuildWorkspaceSnapshot(spec, result);
+    if (inspection != nullptr)
+    {
+        snapshot.inspection = *inspection;
+    }
+    return snapshot;
+}
 
 enum class WorkspaceActionKind : std::uint8_t
 {
