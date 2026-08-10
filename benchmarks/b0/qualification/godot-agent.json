@@ -31,55 +31,65 @@
     "runner_image_version": "20260720.247.2",
     "runner_version": "2.336.0",
     "node_version": "v22.18.0",
-    "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@1"
+    "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@2"
   },
   "fixture": {
     "task_id": "b0-semantic-scene-authoring",
     "source_tree_sha256": "3d8fc5ff4a3b03bd595c8ee5a48baa9a7653d89896dc62dc7108a6ca32e5cd88",
     "installed_tree_sha256_before_qualification": "1da3004d0d9b4061248bef52c1bee1c57edae7577e730588b0d19eee3a8ba4bc",
-    "installed_tree_sha256_after_qualification": "ca58616e453895a672b27c2bf94d885d4f41bf675e13a6cce5b3996e74281022",
+    "installed_tree_sha256_after_qualification": "a9343cc26cf927584311627e938ea067de62f58f94906244b1e05dc9f8c9ea56",
     "known_good_passed": true,
     "known_bad_failed": true,
     "known_bad_code": "position_mismatch"
   },
   "determinism_observation": {
-    "step_duration_ms_requested": 200,
-    "input": "raw D key held from 0ms through 180ms",
+    "boundary": {
+      "kind": "fixture_physics_ticks",
+      "target": 12,
+      "predicate": "tree.get_nodes_in_group(\"mcp_watch\")[0].physics_ticks >= 12",
+      "max_game_time_ms": 1000
+    },
+    "input": "raw D key held from 0ms beyond the stop boundary; bridge force-releases the hold when step_until ends",
     "first_run": {
-      "elapsed_ms": 201,
+      "elapsed_ms": 194,
+      "gameplay_ms": 194,
       "physics_ticks": 12,
-      "position_x": 1.83,
-      "position_y": 0
+      "position_x": 2,
+      "position_y": 0,
+      "render_frames": 267
     },
     "replay_run": {
-      "elapsed_ms": 201,
+      "elapsed_ms": 194,
+      "gameplay_ms": 194,
       "physics_ticks": 12,
-      "position_x": 1.83,
-      "position_y": 0
+      "position_x": 2,
+      "position_y": 0,
+      "render_frames": 271
     },
     "render_frames_intentionally_not_compared": {
-      "first_run": 204,
-      "replay_run": 261,
-      "reason": "uncapped hosted rendering is not the fixed game-time determinism domain"
+      "reason": "uncapped hosted rendering is not the fixed-physics determinism domain"
+    },
+    "fixed_milliseconds_intentionally_not_used_as_boundary": {
+      "reason": "a rejected 200ms qualification rerun exposed scheduler phase variance of 12 versus 13 physics ticks"
     },
     "wall_wait_preserved_frame_zero_state": true
   },
   "bridge_evidence": {
     "repository": "khsfashi/Trace2D",
     "pull_request": 118,
-    "source_head": "64badb26489445c38805017818775e4ebb32ac8f",
-    "workflow_run_id": 31415374188,
-    "job_id": 93543024897,
+    "source_head": "313c563bcfae025f03f8825f4b7252066dfe5c76",
+    "workflow_run_id": 31416517640,
+    "job_id": 93546725244,
     "job_name": "godot-agent-qualification",
-    "artifact_id": 9073221134,
+    "artifact_id": 9073647295,
     "artifact_name": "godot-agent-qualification-evidence",
-    "artifact_sha256": "fc9e985c15c0ecfed481ef0314e50843da1e2d0d6755d2774b538f1e2f930a70",
+    "artifact_sha256": "b2457a4ad06ee27df6a8417d7411efb3dce8c3a3cd7b2b9315b8ea9d1c91c873",
     "passed": true
   },
   "oracle_evidence": {
-    "source_head": "a631d7bcd94eebc260182bf84bc16fe0bf076c75",
-    "workflow_run_id": 31415748318,
-    "job_id": 93544223996,
+    "source_head": "313c563bcfae025f03f8825f4b7252066dfe5c76",
+    "workflow_run_id": 31416517680,
+    "job_id": 93546725112,
     "job_name": "godot-agent-fixture-oracle",
     "known_good_verifier": "godot-semantic-scene-v1",
     "known_good_passed": true,
@@ -88,5 +98,5 @@
     "official_sha512_verified": true,
     "passed": true
   },
-  "generated_at": "2026-08-10T17:47:07.839Z"
+  "generated_at": "2026-08-10T17:57:10.548597Z"
 }
