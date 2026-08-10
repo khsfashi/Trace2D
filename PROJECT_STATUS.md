@@ -46,7 +46,7 @@ Current committed B0 state:
 ### Environment/bridge qualification — complete
 
 - `godot.generic` — official Godot `4.7.1-stable` Linux x86_64 binary checksum/version verified; known-good accepted and wrong-position known-bad rejected.
-- `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted fixed 200 ms game-time replay produced 12 physics ticks and `Player.position_x == 1.83` in both clean runs. Its independent lane oracle also accepted known-good and rejected wrong-position known-bad.
+- `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted protocol uses public `step_until` to stop on the fixture's authoritative `physics_ticks >= 12` predicate. Both clean runs stopped at exactly tick 12 with `Player.position_x == 2`; uncapped render frames differed (`267` vs `271`) and are intentionally non-authoritative. Earlier fixed-render-frame and fixed-200ms boundaries were rejected after they exposed scheduler-dependent physics progress. The independent lane oracle also accepted known-good and rejected wrong-position known-bad.
 - `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; all 188 repository tests passed in the qualification run, then the independent known-good/known-bad task oracle passed.
 
 Primary B0 implementation/contracts:
