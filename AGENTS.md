@@ -2,76 +2,72 @@
 
 This file is the entry point for any coding agent working in Trace2D.
 
-The goal is that a fresh agent can open the repository, recover the project's current state, select the correct next task, implement it, validate it, and leave the repository in a state that another agent can continue from without relying on chat history.
+The goal is that a fresh agent can open the repository, recover live project state, select the correct next task, implement it, validate it, and leave a deterministic handoff without relying on previous chat history.
 
 ## Project identity
 
-Trace2D is a deterministic and observable C++20 2D engine designed for AI coding agents.
+Trace2D is a deterministic and observable C++20 2D engine designed so coding agents can work through structured engine contracts instead of editor-only state or pixel guessing.
 
-Its defining capability is not "AI generates game code." The engine itself must make development automatable:
+Core workflow:
 
 ```text
-edit -> build -> run -> step -> inspect -> input -> assert -> capture
+edit authored/source state
+ -> build/import
+ -> run headlessly when possible
+ -> inspect/query semantic state
+ -> inject virtual input/actions
+ -> step exact frames
+ -> assert authoritative behavior
+ -> capture pixels only when presentation matters
 ```
 
-Authoritative gameplay state should be available as structured data. Pixels are for visual QA, not the only source of truth.
-
-Long-term authored-asset work follows the same principle: generation may be nondeterministic, but imported canonical state, deterministic processing/QA, runtime animation state, assertions, and measured performance contracts must be machine-readable wherever practical.
+Generation or other external creative inputs may be nondeterministic. Imported canonical state, runtime semantics, assertions, migration, and measurement should be deterministic/machine-readable wherever practical.
 
 ## Required reading order
 
-Before changing code, read these files in order:
+Before changing code:
 
 1. `AGENTS.md`
 2. `PROJECT_STATUS.md`
-3. `docs/PUBLIC_RELEASE.md`
-4. `docs/ROADMAP.md`
-5. `docs/ARCHITECTURE.md`
-6. `docs/AGENT_FIRST_PRINCIPLES.md`
+3. exact active issue / PR
+4. active subsystem contract
+5. `docs/ROADMAP.md`
+6. `docs/ARCHITECTURE.md`
+7. `docs/AGENT_FIRST_PRINCIPLES.md`
 
-Then inspect the live GitHub state:
+Additional required subsystem reading:
 
-1. open pull requests
-2. CI/check status on the active PR
-3. open issues relevant to the current phase
-4. recent commits if repository state differs from `PROJECT_STATUS.md`
+- particles #46 / #47-#53: `docs/PARTICLES.md` plus the exact child contract,
+- Sprite #59: `docs/SPRITES.md`,
+- open-source game production #67 / #69-#79: `docs/GAME_PRODUCTION.md`,
+- Mesh2D #60: #60 plus relevant Sprite/Game Production handoff,
+- Spine #61: `docs/SPINE.md` before any work; SP0 is a human license gate.
 
-Additional required reading by active phase:
+Then inspect live GitHub state:
 
-- particle umbrella/children **#46-#53**: read `docs/PARTICLES.md` and the exact active child issue,
-- Sprite umbrella **#59**: read `docs/SPRITES.md` and the exact active child issue,
-- Mesh2D umbrella **#60**: read #60 plus the relevant Mesh2D handoff sections in `docs/SPRITES.md`,
-- Spine compatibility **#61**: read `docs/SPINE.md` before doing anything; SP0 is a human license gate.
-
-Live repository state wins over stale prose. If `PROJECT_STATUS.md` is stale, update it as part of the work.
+1. open PRs,
+2. CI/check status on any relevant PR,
+3. issue state for the first incomplete roadmap item,
+4. recent merged PRs/commits if prose appears stale.
 
 ## Source-of-truth hierarchy
 
-When documents disagree, use this order:
+When sources disagree, use this order:
 
-1. compiling code and automated tests
-2. active PR and CI results
-3. explicit owner-approved architecture/license decisions and hard constraints
-4. exact active issue acceptance criteria
-5. `PROJECT_STATUS.md`
-6. subsystem contract document (`docs/PARTICLES.md`, `docs/SPRITES.md`, `docs/SPINE.md`, etc.)
-7. `docs/PUBLIC_RELEASE.md`
-8. `docs/ROADMAP.md`
-9. older issue descriptions and discussion
+1. compiling code and automated tests,
+2. live PR/merge/CI state,
+3. explicit owner-approved architecture/product/license decisions and hard constraints,
+4. exact active issue acceptance criteria,
+5. `PROJECT_STATUS.md`,
+6. active subsystem contract document,
+7. `docs/ROADMAP.md`,
+8. older issue descriptions/discussion.
 
-For particle work, `docs/PARTICLES.md` plus the active #47-#53 issue records the owner-approved particle architecture.
+If live code/state has advanced beyond prose, reconcile the documentation in the same work rather than silently relying on stale text.
 
-For Sprite work, `docs/SPRITES.md` plus #59 and its current child record the owner-approved Sprite architecture and fixed internal execution order.
+## Explicit `next/continue` protocol
 
-For Spine work, `docs/SPINE.md` plus #61 records the license gate. No stale issue or implementation convenience may override an unapproved SP0 gate.
-
-If a contract document disagrees with live compiling code/tests because implementation has advanced, reconcile the documentation in the same PR rather than silently choosing one interpretation.
-
-Do not silently reinterpret a deliberate architecture constraint. If a constraint must change, document why in the same PR.
-
-## Explicit continuation-command protocol
-
-The repository owner intentionally wants routine progress to be possible with a short command such as:
+The repository owner intentionally wants routine progress to work from a short instruction such as:
 
 ```text
 @GitHub Trace2D 다음 진행해줘
@@ -80,122 +76,214 @@ Trace2D continue
 continue the next Trace2D task
 ```
 
-Treat equivalent requests as an instruction to execute the following algorithm without asking the owner to restate repository context.
+Equivalent requests mean: **execute the core continuation lane without asking the owner to restate repository context.**
 
 ### Continuation algorithm
 
 1. Read `AGENTS.md` and `PROJECT_STATUS.md`.
-2. Inspect current open PRs and relevant CI/check status.
-3. Reconcile live GitHub state with `PROJECT_STATUS.md` if it changed since the document was last updated.
-4. If an owner-directed roadmap/governance change is currently requested, update the contracts/status first without opportunistically implementing a later feature.
-5. If there is an active PR for the first incomplete task:
-   - inspect it,
-   - repair implementation/review/CI problems within scope,
+2. Inspect live open PRs and relevant CI/check state.
+3. Reconcile any recent merge that made `PROJECT_STATUS.md` stale.
+4. If the current request is an explicit owner roadmap/governance change, update contracts/status first; do not opportunistically implement a later feature.
+5. If there is an active core PR for the first incomplete item:
+   - inspect implementation/review/CI,
+   - repair only that scope,
    - validate it,
-   - update required docs/status,
-   - do **not** start a later issue while that PR remains the active work item.
-6. If the active PR is complete and green but repository policy/tool permissions leave merge to the owner, report the single required owner action: merge that PR. Do not create unrelated work merely to avoid the merge gate.
-7. If there is no active PR, select the **first incomplete and unblocked** item in the owner-fixed `PROJECT_STATUS.md` execution order.
-8. If the item is an umbrella with a fixed internal order (`#46`, `#59`, `#60`, `#61` after SP0 approval), select or create exactly the first incomplete child defined by its contract. Do not re-run an owner choice that the contract already fixed.
-9. Read the exact issue acceptance criteria and affected architecture documents.
-10. Implement only one coherent child/issue vertical slice.
-11. Add/update the relevant automated tests and machine-readable diagnostics/fixtures.
-12. Run the strongest practical local/CI validation available.
-13. Update subsystem contract documents when implementation finalizes or changes a contract.
-14. Update `PROJECT_STATUS.md` so completed/current/next state is obvious.
-15. Publish/update a draft PR using `agent/<short-description>` naming unless an existing branch/PR already owns the work.
-16. Do not begin the next child until the current PR is merged green.
-17. Stop only when work is complete for the current turn, a real external blocker exists, or an explicit human gate is reached.
+   - update docs/status,
+   - do not start a later core item while it remains active.
+6. If the active PR is complete and green but merge genuinely requires the owner, report the single merge action instead of jumping ahead.
+7. If there is no active core PR, select the first incomplete and unblocked item from `PROJECT_STATUS.md`.
+8. If the item is an umbrella with a fixed child order, select the first incomplete child already named by the contract. Do not create a substitute stage or re-open an owner choice.
+9. Read the exact issue and affected subsystem documents.
+10. Implement one coherent issue/child vertical slice.
+11. Add/update automated tests, deterministic fixtures, diagnostics, and measurement evidence appropriate to the behavior.
+12. Run the strongest practical validation available.
+13. Update subsystem contracts when behavior finalizes or changes.
+14. Update `PROJECT_STATUS.md` so completed/current/next is obvious.
+15. Publish/update one scoped PR using `agent/<short-description>` unless an existing branch/PR owns the work.
+16. Do not begin the next core child until the current core PR is merged green.
+17. Stop only when the turn's current work is complete, a real external blocker exists, or a recognized human gate is reached.
 
-### Do not ask unnecessary questions
+## Owner-fixed core order
 
-A continuation request is authorization to make normal implementation decisions that are already constrained by repository contracts. Do not ask the owner to choose among alternatives when:
-
-- the execution order already chooses the next task,
-- the active issue has sufficient acceptance criteria,
-- an implementation detail can be decided by existing architecture/performance/determinism rules,
-- a safe narrow vertical slice can be completed without changing project goals.
-
-If a decision is not owner-level and evidence is incomplete, prefer the simplest reversible design consistent with existing contracts, add tests/measurement, and document the tradeoff.
-
-Do not invent a human gate merely because a task is difficult.
-
-## Allowed human gates
-
-Human intervention should be reserved for decisions that cannot safely be delegated by existing contracts.
-
-Current recognized gates include:
-
-1. **Merge gate** — when repository policy/tool availability requires the owner to merge an otherwise complete green PR.
-2. **Explicit owner architecture/product-goal change** — a decision that changes the fixed roadmap or a hard invariant rather than merely implementing it.
-3. **Particle backend choice** — CPU/GPU backend selection where `docs/PARTICLES.md` explicitly requires a human decision.
-4. **Spine license gate (Issue #61 SP0)** — no Spine Runtime integration before explicit owner approval after license confirmation.
-5. **Credentials/paid external service authorization** — required secrets, billing, or third-party access that the repository does not already provide.
-6. **Legal/license decision** — adding/distributing a dependency when rights/obligations are unresolved.
-
-When a human gate is reached, state one concrete required owner action. Do not ask broad questions such as "what should we do next?" when the missing decision can be named precisely.
-
-Example:
+`PROJECT_STATUS.md` is operationally authoritative, but the long-term sequence is intentionally fixed as:
 
 ```text
-Human gate reached: Spine runtime-license integration approval is required.
-No Spine code/dependency has been added.
-Record the approved integration/distribution model before SP1 can begin.
+#50 -> #51 -> #52 -> #53
+ -> #59 Sprite
+ -> #67 open-source game-production foundation
+      #69 -> #70 -> #71 -> #72 -> #73 -> #74 -> #75 -> #76 -> #77 -> #78 -> #79
+ -> #12 flagship external sample game
+ -> #60 Mesh2D
+ -> #61 Spine SP0
 ```
 
-## How to choose the next task
+Earlier completed items #40/#42/#43/#39/#41/#47/#48/#49 remain historical predecessors.
 
-1. If `PROJECT_STATUS.md` lists an active PR, finish or repair that PR first.
-2. Never start a later feature while the active predecessor PR has failing CI unless the failure is proven unrelated and the status explicitly documents the exception.
-3. Otherwise select the first unblocked issue in the "Next execution order" section of `PROJECT_STATUS.md`.
-4. Work on one coherent issue/PR at a time unless two issues are inseparable by the active contract.
-5. Prefer the smallest vertical slice that satisfies one complete child contract and leaves the repository runnable/testable.
+Within particles, finish exactly one of #50 -> #51 -> #52 -> #53 at a time.
 
-Do not jump ahead to attractive later features such as an editor, advanced rendering, custom allocators, lock-free infrastructure, GPU particles, physics, animation, Sprite generation, Mesh2D, or Spine while earlier owner-fixed gates are incomplete.
+Within #59, follow `docs/SPRITES.md` exactly:
 
-Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
+```text
+S0 -> S1
+ -> SR0 -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
+ -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SE2E -> SPERF
+```
 
-After #53, the owner has already selected #59 Sprite as the next breadth program. Do **not** re-open the old physics-vs-animation-vs-hot-reload choice. Follow `docs/SPRITES.md` sequentially, then #60 Mesh2D, then #61 SP0.
+Within #67, follow the already-created child issues exactly:
+
+```text
+#69 E0 Game/Application boundary
+ -> #70 E1 Project manifest + external build/install/package
+ -> #71 E2 Scene hierarchy + typed components
+ -> #72 E3 Input Actions + gamepad/mouse/text/IME
+ -> #73 E4 TileSet/TileMap
+ -> #74 E5 production UTF-8 font/text/localization
+ -> #75 E6 practical deterministic UI layout/widgets
+ -> #76 E7 Physics2D
+ -> #77 E8 Audio
+ -> #78 E9 Linux/compiler/toolchain hardening
+ -> #79 E10 persistence + schema migration
+```
+
+After #67, complete #12 before Mesh2D. #60 then completes M0 -> M1. #61 stops at SP0 unless explicit owner license approval exists.
+
+## Core continuation lane vs independent community lane
+
+The strict order above governs the owner's automated/core progression and `Trace2D next/continue`.
+
+It does **not** mean all unrelated open-source contributions are forbidden until the core item finishes.
+
+### Core continuation lane
+
+- first incomplete/unblocked owner-fixed item only,
+- one coherent issue/PR at a time,
+- no skipping to attractive later systems,
+- active predecessor PR has precedence.
+
+### Independent community contribution lane
+
+A separate external/community PR may be reviewed when it is a narrow, isolated:
+
+- bug fix,
+- test improvement,
+- documentation improvement,
+- portability fix,
+- tooling quality fix,
+- small enhancement that does not preempt a later owner-fixed architecture.
+
+Independent work must not:
+
+- compete with/duplicate the active core implementation,
+- silently redefine a future subsystem contract,
+- add an unreviewed dependency/license obligation,
+- violate determinism/ownership/performance boundaries,
+- introduce broad speculative infrastructure,
+- change product goals or human-gated decisions.
+
+When overlap exists, prefer coordination/rebase over two competing implementations.
+
+Issue #80 tracks this policy explicitly.
+
+## Do not ask unnecessary owner questions
+
+A continuation request authorizes normal implementation decisions already constrained by repository contracts.
+
+Do not ask the owner to choose when:
+
+- execution order already chooses the next task,
+- the active issue has sufficient acceptance criteria,
+- architecture/performance/determinism rules determine a safe narrow solution,
+- an implementation detail is reversible and does not change product goals.
+
+When evidence is incomplete for a non-owner decision, prefer the simplest reversible design consistent with existing contracts, add tests/measurement, and document the tradeoff.
+
+Do not invent a human gate because a task is difficult.
+
+## Recognized human gates
+
+Human/owner intervention is reserved for real decisions that existing contracts intentionally do not delegate:
+
+1. merge gate when policy/tooling genuinely requires owner merge,
+2. explicit architecture/product-goal change,
+3. particle CPU/GPU backend choice where #51/#53 require human selection,
+4. Spine #61 SP0 license/integration decision,
+5. credentials/billing/paid external service authorization,
+6. unresolved dependency/distribution/legal decision.
+
+When a gate is reached, report one concrete required owner action.
 
 ## Development workflow
 
-Use this flow for normal changes:
+Normal core flow:
 
 ```text
 Issue
-  -> branch
-  -> implementation
-  -> tests
-  -> local/CI validation
-  -> documentation/status update
-  -> draft PR
-  -> green CI
-  -> merge gate / merge
+ -> branch
+ -> implementation
+ -> automated tests / fixtures
+ -> local or CI validation
+ -> docs/status
+ -> draft PR
+ -> green CI
+ -> merge gate / merge
 ```
 
-Branch naming for agent-created branches:
+Branch naming:
 
 ```text
 agent/<short-description>
 ```
 
-Main uses squash merges. Keep PR scope understandable from one squash commit.
+Main uses squash merges. Keep one PR understandable as one coherent change.
 
-## Before editing
+## C++ engineering rules
 
-For each task:
+- C++20 baseline.
+- RAII and explicit ownership.
+- Prefer `std::unique_ptr` for owning heap relationships; avoid unnecessary shared ownership.
+- Raw pointers/references are non-owning unless clearly documented otherwise.
+- Keep SDL/backend/protocol types behind their owning boundaries.
+- Do not add allocation to known per-frame hot paths without evidence and documentation.
+- Reuse persistent/capacity-managed state where steady-state work would otherwise recreate resources.
+- Do not create custom allocators, lock-free queues, generic ECS machinery, job systems, reflection, render graphs, material graphs, plugin ABIs, or bespoke containers before requirements/measurement justify them.
+- Stable observable identity never uses raw pointers or allocation order.
+- Deterministic observable output must not depend on unordered/unspecified iteration order.
+- Prefer direct simple O(N) scans over speculative indexing until real workloads justify the index.
+- No performance claim becomes fact without a reproducible workload and clear metric boundary.
 
-- read the issue acceptance criteria,
-- inspect the modules that will be affected,
-- confirm dependency direction in `docs/ARCHITECTURE.md`,
-- read the active subsystem contract,
-- identify the relevant automated test level,
-- identify hot-path/resource-lifetime implications,
-- avoid adding a dependency unless the current phase actually needs it and its license/distribution status is clear.
+## Agent-first rules
+
+- MCP is an adapter, not the engine API.
+- Engine/Agent APIs remain protocol-independent.
+- Headless and windowed execution share authoritative runtime/game logic.
+- Tests/agents explicitly control simulation time.
+- Authored project/scene/component/asset/UI/tile/input/persistence metadata stays text-first and diffable where practical.
+- Semantic identity/selectors beat coordinate targeting.
+- Structured runtime state beats pixel/audio inference for semantic correctness.
+- Machine-facing commands return stable structured diagnostics and predictable exit behavior.
+- Expensive snapshots/fingerprints/reports/capture/migration/generation remain request/setup work, not ordinary frame work.
+
+Target vocabulary remains intentionally small and composable:
+
+```text
+build
+run
+inspect
+query
+input/action
+step
+assert
+capture
+test
+analyze
+migrate
+```
 
 ## Validation requirements
 
-Every implementation must run the most relevant available checks.
+Every implementation runs the strongest relevant available checks.
 
 Current Windows baseline:
 
@@ -205,163 +293,8 @@ cmake --build --preset windows-debug --parallel
 ctest --preset windows-debug
 ```
 
-CI may use a separate preset appropriate for the current GitHub runner image.
+CI remains authoritative for hosted-toolchain dependency restore and repository-wide gates.
 
-New behavior should have automated tests when practical. A machine-facing feature without tests is considered incomplete unless the PR explains why it cannot be tested yet.
+New behavior should have automated tests whenever practical. Visual/audio/GPU behavior may require local presentation evidence, but semantic/math/order/import/serialization/query behavior should remain headless-CI testable whenever practical.
 
-Visual GPU behavior may require windowed/manual or dedicated workload evidence, but backend-independent semantic/math/order/import behavior should remain headless-CI testable whenever practical.
-
-## C++ engineering rules
-
-Prioritize predictable code over clever code.
-
-- C++20 is the project baseline.
-- Use RAII and explicit ownership.
-- Prefer `std::unique_ptr` for owning heap relationships.
-- Raw pointers/references are non-owning unless clearly documented otherwise.
-- Avoid unnecessary shared ownership.
-- Keep platform/library types behind module boundaries where practical.
-- Do not add allocation to known per-frame hot paths without a reason.
-- Reuse persistent/capacity-managed objects/resources where steady-state work would otherwise recreate them unnecessarily.
-- Do not build custom allocators, lock-free queues, ECS machinery, or bespoke containers before measurement/requirements justify them.
-- No benchmark claim may be documented as fact without measured data.
-- Stable entity identity exposed to automation must never be a raw pointer.
-- Deterministic observable behavior must not depend on unspecified container iteration order.
-- Prefer direct/simple O(N) scans over speculative indexing until workload measurement justifies extra structures.
-
-## Agent-first rules
-
-The following are hard architectural constraints unless deliberately revised with documentation:
-
-- MCP is an adapter, not the engine API.
-- The automation facade must remain protocol independent.
-- Headless execution shares authoritative runtime logic with windowed execution.
-- Simulation time must be explicitly controllable by tests/agents.
-- Authored project/scene/asset metadata should be text-first and diffable where practical.
-- Automation prefers semantic identity/selectors over screen coordinates.
-- Structured runtime state is preferred over visual inference.
-- Machine-facing commands use stable exit behavior and structured diagnostics.
-- CLI/JSON/MCP adapters should compose a small vocabulary of operations instead of mirroring every engine function.
-- Explicit expensive QA/snapshot/capture work must not become mandatory ordinary per-frame work.
-
-Target vocabulary remains close to:
-
-```text
-build
-run
-inspect
-query
-input
-step
-assert
-capture
-test
-```
-
-Subsystem tooling may add narrow operations such as asset import/generate/validate, but must preserve the same composable/structured philosophy.
-
-## Particle-specific hard rules
-
-When working on #46-#53:
-
-- CPU particle execution is the deterministic semantic reference and must be fully inspectable headlessly.
-- Rich supported CPU particle properties are allowed; per-particle heap objects, strings, maps, callbacks, renderer handles, and arbitrary script/module state are not.
-- Particle capacity is explicit and validated before simulation.
-- Ordinary stepping must not build JSON, detailed snapshots, screenshots, or fingerprints unless explicitly requested.
-- Keyed randomness must keep unrelated emitters and random channels isolated.
-- The CPU cost report separates deterministic structural metrics from machine-dependent timing evidence.
-- Never invent a portable "CPU percentage" from semantic operation counts.
-- A coding agent may recommend CPU or GPU using documented measurements, but **must never change the backend automatically**.
-- CPU -> GPU is a human decision represented by explicit reviewable authored/build configuration.
-- `backend=cpu` remains CPU even if analysis recommends considering GPU.
-- `backend=gpu` must fail clearly when unsupported; never silently fall back to CPU.
-- GPU compilation minimizes runtime attributes from the verified ParticleProgram rather than copying the complete rich CPU reference layout.
-- Normal GPU mode must not also run the full CPU reference simulation unless explicit conformance/debug mode requests dual execution.
-- CPU is the exact semantic oracle; do not claim universal bit-identical floating-point GPU behavior across vendors/drivers without a separately proven numeric contract.
-- Particle pixels are visual QA evidence, not the only correctness oracle.
-
-## Sprite-specific hard rules
-
-When working on #59, follow `docs/SPRITES.md`.
-
-Key invariants include:
-
-- external/generator formats are import inputs; canonical Trace2D SpriteAsset data is runtime truth,
-- generated image output is never automatically authoritative,
-- source geometry prefers exact integer pixel metadata; normalized UVs are derived renderer state,
-- trim/atlas packing must preserve source-space pivot/placement semantics,
-- the target Sprite Renderer is production-complete traditional 2D sprite presentation, not a minimal quad milestone,
-- semantic painter order must not be globally resorted for batching,
-- expensive generation/repair/QA is offline explicit work,
-- deterministic runtime animation is independent of renderer initialization,
-- Agent animation QA uses structured state/exact-frame assertions before visual capture,
-- live AI provider calls are not ordinary CI correctness gates,
-- recorded/synthetic fixtures prove deterministic processing/runtime behavior,
-- arbitrary deformable textured geometry belongs to #60 Mesh2D rather than bloating SpriteRenderer.
-
-## Spine-specific hard rules
-
-Issue #61 and `docs/SPINE.md` define the gate.
-
-Until SP0 is explicitly approved, agents MUST NOT vendor/copy/fetch/build/distribute the Spine Runtime as part of Trace2D, add Spine-derived implementation code, or claim shipped Spine compatibility.
-
-Generic native Sprite/Animation/Mesh2D work that contains no Spine code may proceed according to the owner-fixed sequence.
-
-## Scope control
-
-Trace2D grows through narrow measured vertical slices, not by attempting to become a full general-purpose engine at once.
-
-Do not make these implicit requirements unless `PROJECT_STATUS.md` and the active issue intentionally introduce them:
-
-- full editor,
-- scripting language,
-- networking,
-- audio engine,
-- advanced lighting/PBR,
-- full-featured ECS,
-- custom allocator framework,
-- work-stealing job system,
-- broad platform support beyond tested baselines,
-- generic particle graph/editor,
-- gameplay-authoritative particle collision,
-- particle trails/sub-emitter recursion,
-- generic material/shader graph,
-- render graph/bindless/GPU-driven scene architecture.
-
-## Documentation responsibilities
-
-Update `PROJECT_STATUS.md` in the same PR whenever work changes any of these:
-
-- current phase,
-- active PR,
-- completed release gate,
-- next execution order,
-- known blocker/human gate,
-- CI/build assumptions,
-- major architecture decision.
-
-Update `docs/PUBLIC_RELEASE.md` only when public release scope/gates change, not after every normal task.
-
-Update architecture/design documents when a change affects module boundaries, determinism guarantees, authored formats, licenses/dependencies, or the Agent contract.
-
-Particle child PRs must update `docs/PARTICLES.md` whenever they finalize or change particle semantic, cost-analysis, compiler, backend, or conformance contracts.
-
-Sprite child PRs must update `docs/SPRITES.md` whenever they finalize or change sprite asset, renderer, animation, processing, generation, QA, or performance contracts.
-
-Spine work must update `docs/SPINE.md` with the recorded license decision before SP1 and whenever the integration/distribution contract changes.
-
-## Finishing a task
-
-Before considering a PR complete:
-
-- acceptance criteria are satisfied or explicitly called out,
-- tests pass,
-- CI is green or an external blocker is documented,
-- no generated/build artifacts are accidentally committed,
-- no unresolved dependency/license obligation was silently introduced,
-- machine-readable output remains stable/deterministic where applicable,
-- subsystem contract docs reflect finalized behavior,
-- `PROJECT_STATUS.md` reflects the new state,
-- next work is obvious to a fresh agent.
-
-The handoff standard is simple: another agent should not need the previous chat to know what to do next.
+When #78 is complete, the added non-MSVC platform/toolchain becomes part of the normal required validation contract.

@@ -2,330 +2,132 @@
 
 Last repository-state update: **2026-08-10**
 
-This document is the operational handoff for the next contributor or coding agent. Live repository code, active PR state, and CI results win over stale prose.
+This is the operational handoff for the next contributor or coding agent. Live compiling code/tests, current PR/merge/CI state, and explicit owner decisions win over stale prose.
 
-## Current phase
+## Current state
 
-**Public Alpha is released. Particle deterministic contracts (#47) and the rich deterministic CPU reference backend (#48) are complete. Issue #49 text-authored particle effect assets + `ParticleEmitter2D` is now the active implementation through draft PR #66. Finish/repair/validate #66 before starting #50. After #66 merges green, #50 complete Agent verification over CPU particle reference state is the exact next task.**
+**Public Alpha `v0.1.0-alpha.1` is released. Particle children #47, #48, and #49 are complete. PR #66 merged #49 text-authored particle effects + `ParticleEmitter2D`. The exact next core implementation task is #50: complete Agent verification over the CPU particle reference state.**
 
-`v0.1.0-alpha.1` was published on 2026-08-08. The repository is Public under the MIT License. Post-alpha work extends the proven agent-first loop rather than replacing it.
+The current roadmap/governance synchronization is tracked by **#68**. It inserts the open-source game-production program #67 before Mesh2D/Spine and makes the future order executable through `@GitHub Trace2D 다음 진행해줘`.
 
-## Active PR
+Do not start #51 or any later feature while #50 is incomplete. If a roadmap synchronization PR for #68 is still open, finish/merge that governance work first, then begin #50.
 
-- **PR #66 — Add text-authored particle effects and `ParticleEmitter2D`**
-- branch: `agent/particle-effect-assets`
-- issue: **#49 / particle child 3 of 7**
-- scope: strict versioned `.trace2d.particle.toml`, deterministic project-relative identity, immutable shared effect cache, explicit CPU/reserved-GPU backend field, lifecycle semantics, small authored particle-scene references, resolved `ParticleEmitter2D`, and headless tests
-- effect definitions are shared as immutable cached state; each live emitter owns independent mutable `ParticleReferenceEmitter` state
-- `ParticleEmitter2D::Step()` contains no filesystem, TOML, path/string/map/cache discovery, hot reload, renderer, or GPU path
-- authored capacity and spawn-attempt limits are rejected before simulation allocation
-- `backend = "gpu"` is preserved but returns an explicit unavailable-backend error until #52; it never falls back to CPU
-- no Agent/MCP particle verification, backend analyzer/compiler, GPU runtime, CPU/GPU conformance, generic reflection/ECS module graph, or particle editor/importer architecture is introduced in this slice
-- if CI/review finds a problem, repair #66 in scope and rerun the repository gates
-- do not begin #50 while #66 remains open
+## Exact owner-fixed core execution order
 
-See [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md).
+Completed predecessors:
 
-## Next execution order — owner-fixed
+1. **#40** deterministic texture asset cache/import — complete via PR #45
+2. **#42** text rendering/basic UI — complete via PR #55
+3. **#43** semantic UI tree/Agent interaction — complete via PR #56
+4. **#39** MCP transport over Agent/Testing — complete via PR #58
+5. **#41** reproducible renderer workloads — complete via PR #63
+6. **#47** particle deterministic frame/keyed-random contracts — complete via PR #64
+7. **#48** rich deterministic CPU particle reference — complete via PR #65
+8. **#49** text-authored particle effects + `ParticleEmitter2D` — complete via PR #66
 
-The repository owner fixed the P6 sequence on **2026-08-08** and explicitly extended the post-particle direction on **2026-08-09**. Future coding agents must follow this order unless the repository owner explicitly changes it.
+Current and future core sequence:
 
-1. **#40 — deterministic texture asset cache/import slice** — complete via PR #45
-2. **#42 — text rendering and basic UI primitives** — complete via PR #55
-3. **#43 — semantic UI tree and agent interaction** — complete via PR #56
-4. **#39 — MCP transport over the completed protocol-independent agent/UI facade** — complete via PR #58
-5. **#41 — reproducible renderer performance workloads** — complete via PR #63
-6. **#47 — particle deterministic frame/keyed-random contracts** — complete via PR #64
-7. **#48 — rich deterministic CPU particle reference simulation** — complete via PR #65
-8. **#49 — text-authored particle effect assets + `ParticleEmitter2D`** — **active via draft PR #66**
-9. **#50 — complete Agent verification over CPU particle reference state** — exact next after #49 merges green
+9. **#50 — complete Agent verification over CPU particle reference state — EXACT NEXT CORE TASK**
 10. **#51 — CPU particle cost analysis + explicit human backend choice + deterministic particle compiler**
-11. **#52 — GPU runtime backend for explicitly GPU-selected effects**
-12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow, and human/LLM guidance**
-13. **#59 — Sprite pipeline: production rendering, deterministic animation, generation/import, processing QA, end-to-end motion QA and performance**
-14. **#60 — Mesh2D foundation: reusable textured indexed geometry and measured dynamic submission path**
-15. **#61 — Spine compatibility: SP0 explicit human license gate, then optional integration only if approved**
+11. **#52 — GPU runtime backend for explicitly GPU-selected particle effects**
+12. **#53 — CPU/GPU conformance, workloads, safe budgets, build flow and human/LLM guidance**
+13. **#59 — complete Sprite program: canonical assets, production renderer, deterministic animation, processing/generation QA, end-to-end motion QA and performance**
+14. **#67 — open-source game-production foundation**, fixed children:
+    - **#69 E0** Game/Application module boundary
+    - **#70 E1** project manifest + external consumer build/install/package
+    - **#71 E2** scene hierarchy + typed authored component composition
+    - **#72 E3** Input Actions + gamepad/mouse/text/IME
+    - **#73 E4** TileSet/TileMap
+    - **#74 E5** production UTF-8 font/text/localization foundation
+    - **#75 E6** practical deterministic UI hierarchy/layout/widgets
+    - **#76 E7** Physics2D
+    - **#77 E8** Audio
+    - **#78 E9** Linux/compiler/toolchain hardening
+    - **#79 E10** save/persistence + authored schema migration
+15. **#12 — flagship external Trace2D sample game proof**
+16. **#60 — generic Mesh2D foundation, M0 then M1**
+17. **#61 — Spine compatibility, stop first at SP0 human license gate**
 
-Particle umbrella: **#46**. Broad contract: [`docs/PARTICLES.md`](docs/PARTICLES.md). Determinism: [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md). CPU reference: [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md). Authored effects/runtime component: [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md).
+Core roadmap umbrella: **#13**.
+Particle umbrella: **#46**.
+Sprite umbrella: **#59**.
+Open-source game-production umbrella: **#67**.
+Community-lane policy tracker: **#80**.
 
-Sprite umbrella: **#59**. Detailed owner-approved contract: [`docs/SPRITES.md`](docs/SPRITES.md).
+## Continuation rule
 
-Mesh2D umbrella: **#60**. Its fixed M0/M1 boundary is recorded in #60 and the Sprite handoff contract.
+For `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, `Trace2D continue`, or an equivalent routine continuation request:
 
-Spine compatibility: **#61**. License/integration gate: [`docs/SPINE.md`](docs/SPINE.md).
+1. read `AGENTS.md` and this file,
+2. inspect live open PRs/CI and recent merges,
+3. reconcile stale status if live state advanced,
+4. finish the active core PR if one exists,
+5. otherwise select the first incomplete/unblocked item above,
+6. implement exactly one issue/child vertical slice,
+7. test/validate/document it,
+8. publish/update one scoped PR,
+9. do not begin the next core child until the current one merges green.
 
-## Continuation execution rule
+The owner does **not** need to re-select Physics vs Sprite vs hot reload, or decide whether game/project/tile/text/audio foundations should precede Mesh2D/Spine. Those choices are now fixed by #13/#67.
 
-The detailed short-command algorithm lives in `AGENTS.md`. Operationally:
+## Immediate #50 handoff
 
-- Work only on the first incomplete and unblocked item in the owner-fixed order.
-- If that work has an active PR, finish/repair/validate that PR before starting anything later.
-- While PR #66 is open, it is the active work item.
-- Merge only with green CI/repository gates; if merge becomes a genuine human-only action, report that one action instead of jumping ahead.
-- After #66 merges, start #50 directly. Do **not** skip ahead to backend analysis/compiler, GPU work, Sprite, Mesh2D, or Spine.
-- Within particles, complete exactly one of #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 at a time.
-- Within #59, follow the exact fixed stage order in `docs/SPRITES.md`, creating/implementing one child issue/PR at a time.
-- After #59, complete #60 M0 then M1 one child/PR at a time.
-- When #61 is reached, **stop at SP0 if no explicit owner license approval is recorded**. Do not vendor/add/fetch/distribute Spine Runtime code while the gate is blocked.
-- MCP is transport, not the engine API.
-- Structured semantic state beats pixel inference for gameplay/UI/particle/sprite animation assertions.
-- Visual capture remains first-class QA evidence when pixels genuinely matter.
+Issue #50 is particle child 4 of 7.
 
-## Active #49 authored particle effect contract
+It must make the already-complete CPU reference/runtime state fully usable by coding agents before any backend compiler/GPU work begins.
 
-PR #66 makes the #48 reference semantics text-authored and scene-resolved without inventing a second particle model.
+Required direction from #50:
 
-### Authored identity and cache
+- aggregate emitter/effect state without default full-particle dumps,
+- explicit bounded particle detail by stable spawn ordinal and/or offset+limit,
+- every supported authoritative V1 particle field inspectable,
+- typed assertions with exact expected/observed/frame/seed/emitter/effect context,
+- deterministic state fingerprint over canonical CPU reference state,
+- stable ordering/error behavior,
+- no renderer/GPU requirement,
+- no JSON/string/snapshot/fingerprint work in ordinary particle stepping,
+- aggregate scalar counters remain cheap,
+- bounded detail allocation scales with requested detail rather than total alive count.
 
-- dedicated V1 source suffix: `.trace2d.particle.toml`
-- project-relative path normalization matches the existing asset rules: slash normalization, `.` removal, absolute/drive-path rejection, `..` rejection, embedded-null rejection
-- canonical-equivalent references reuse one `shared_ptr<const ParticleEffectAsset>` cache entry
-- successful parsed definitions are immutable shared state
-- cache invalidation/clear is explicit setup work; there is no polling or per-frame stat/scan
-- source files are bounded to 1 MiB as an authoring safety limit
+#50 must preserve #47-#49 semantics rather than reinterpret them.
 
-### Rich V1 semantic surface
+Primary particle contracts:
 
-The authored format maps directly to #48 fields:
+- [`docs/PARTICLES.md`](docs/PARTICLES.md)
+- [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md)
+- [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md)
+- [`docs/PARTICLE_EFFECTS.md`](docs/PARTICLE_EFFECTS.md)
+- Issue #50 acceptance criteria
 
-- semantic effect ID,
-- explicit bounded `max_particles`,
-- `duration_frames`, `loop`, and `play_on_load`,
-- deterministic ordered bursts,
-- integer-frame periodic emission,
-- point / box / circle spawn,
-- lifetime frame range,
-- speed / angle / acceleration,
-- initial size + end multiplier,
-- initial rotation + angular velocity,
-- initial RGBA range + end RGBA,
-- project-relative sprite reference list used as bounded sprite-choice identity,
-- local/world simulation space,
-- small V1 blend mode (`alpha` / `additive`).
+## Particle phase invariant through #53
 
-The parser rejects unknown fields, unsupported enum values, non-finite numbers, unordered/invalid ranges, contradictory spawn parameters, unsafe capacities, excessive burst tables, and frame-local spawn-attempt budget violations with semantic field paths and source positions when available.
-
-`SaveParticleEffectToml()` writes canonical field order and locale-independent float text. Parse -> save -> parse is tested across the complete supported semantic surface.
-
-### Backend field
-
-```toml
-[effect]
-backend = "cpu"
-```
-
-- `cpu` is executable in #49.
-- reserved `gpu` is a valid authored value and is preserved by canonical serialization.
-- `ParticleEmitter2D::Prepare()` rejects `gpu` with `BackendUnavailable` until #52.
-- no automatic or heuristic backend rewriting exists.
-- #51 must consume this exact field for analysis/compiler work.
-
-### Lifecycle semantics
-
-`duration_frames` is the exact number of CPU-reference steps in one effect cycle.
-
-- non-looping: execute exactly that many steps, stop, keep the final state observable;
-- looping: keep the final state observable, reset immediately before the next requested step, then restart reference frame 0;
-- `play_on_load` only sets the initial prepared runtime playing state;
-- restart/reset reuse already prepared reference storage rather than reallocating it.
-
-### Scene reference and runtime ownership
-
-Particle-enabled scene loading accepts explicit small references:
-
-```toml
-[[particle_emitters]]
-entity = "fx_anchor"
-effect = "effects/hit_spark.trace2d.particle.toml"
-stable_id = 77
-```
-
-V1 stores only entity semantic ID, canonical effect reference, and explicit numeric stable emitter ID in the authored scene extension. It does not duplicate the effect definition into each entity.
-
-- one particle reference per entity in V1,
-- stable IDs must be unique within the scene,
-- referenced entity IDs must exist,
-- stable numeric identity never derives from pointer/allocation/container order,
-- `ParticleEmitter2D` holds the shared immutable effect but owns its own mutable `ParticleReferenceEmitter`.
-
-The particle-aware loader delegates ordinary scene semantics to the existing strict scene loader after removing the explicit particle extension. This keeps #49 narrow and avoids adding reflection, a generic component property bag, or a generic particle module stack.
-
-### Hot-path boundary
-
-Everything needed by simulation is resolved during cache load and emitter preparation. Ordinary `ParticleEmitter2D::Step()` performs no:
-
-- filesystem access,
-- TOML parse/format,
-- path normalization,
-- string lookup,
-- map/cache lookup,
-- asset discovery,
-- invalidation polling/hot reload,
-- renderer/GPU work,
-- JSON/snapshot/fingerprint work.
-
-The underlying reference emitter retains the #48 fixed-capacity, steady-state-allocation-free stepping contract.
-
-### Required #49 test coverage in PR #66
-
-- canonical-equivalent references -> one cached immutable definition,
-- malformed/unknown fields -> structured diagnostics,
-- invalid range/capacity -> deterministic failure before simulation,
-- complete rich V1 parse/canonical-save/parse normalization,
-- `gpu` backend preservation + explicit runtime unavailability,
-- repeated emitters share immutable effect pointers but not mutable simulation state,
-- deterministic lifecycle loop boundary,
-- particle scene reference load + canonical effect identity,
-- headless scene -> effect cache -> emitter prepare -> CPU simulation with no renderer initialization.
-
-After #66 merges green, #50 wraps this resolved CPU semantic state with bounded Agent inspection/assertions/fingerprints. It must not change particle semantics.
-
-## Completed #48 particle CPU reference contract — PR #65
-
-PR #65 implements the canonical CPU semantic/reference backend that #49-#53 must preserve rather than reinterpret.
-
-### Prepared storage and steady-state rules
-
-- 13 fixed-capacity SoA blocks are prepared once for spawn ordinal, position, velocity, acceleration, age, lifetime, sampled/current size, rotation/angular velocity, sampled/current color, and sprite index.
-- simulation space is immutable emitter definition state and is exposed in particle reads without duplicating it into each slot.
-- semantic per-particle payload is **92 bytes**.
-- a 4096-capacity representative workload prepares **376,832 bytes** of particle payload before allocator bookkeeping.
-- `Step()` has no storage growth, filesystem, parsing, string/map, JSON, snapshot, renderer, or GPU path.
-- default hard guards (`65,536` particles, `4,096` bursts, `65,536` spawn attempts/frame) are safety ceilings only; #53 must derive practical performance guidance from measurements.
-
-### Emission and identity
-
-For a frame that contains both emission types:
+The intended flow is:
 
 ```text
-ordered frame bursts
-  -> periodic emission
-```
-
-Every attempt consumes one `ParticleSpawnOrdinal`, including capacity-dropped attempts. Accepted particles store their ordinal. Expiration uses stable in-place compaction, preserving survivor order; new particles append to the free dense tail and never reuse old ordinals.
-
-### Rich V1 CPU state
-
-#48 supports deterministic CPU-reference semantics for:
-
-- point / axis-aligned box / uniform-area circle spawn shapes,
-- inclusive integer lifetime range,
-- speed + angle initialization,
-- fixed acceleration,
-- initial size range + size-over-life multiplier,
-- initial rotation + angular velocity,
-- per-channel RGBA initialization + color-over-life target,
-- bounded sprite choice,
-- local/world simulation-space identity.
-
-All random initialization continues to use the #47 key `(globalSeed, emitterStableId, spawnOrdinal, randomChannel)`.
-
-### Existing-particle update order
-
-```text
-velocity += acceleration
-position += velocity
-rotation += angularVelocity
-age += 1
-expire if age >= lifetime
-if surviving: evaluate size/color over life
-```
-
-New particles are observable at age 0 and do not update on their spawn frame. `Reset()` resets frame, ordinal, burst cursor, alive count, and counters without reallocating prepared storage, so replay with the same inputs reproduces complete rich state on the supported CPU toolchain.
-
-### Read and measurement surface
-
-The CPU reference exposes allocation-free reads by dense alive index and stable spawn ordinal, plus cheap counters for attempts/spawned/updated/expired/dropped/peak-alive and exact prepared payload accounting. #50 will wrap this surface with bounded Agent inspection/assertions/fingerprints; #51 will turn structural data into explicit cost reports without inventing fake portable CPU percentages.
-
-See [`docs/PARTICLE_REFERENCE.md`](docs/PARTICLE_REFERENCE.md).
-
-## Completed #47 particle determinism contract — PR #64
-
-#47 established the semantic source that #48-#53 must preserve.
-
-### Exact frame order
-
-```text
-frame N
-  -> ApplyCommands
-  -> UpdateExisting
-  -> ExpireExisting
-  -> Emit
-  -> Observe
-  -> ExtractBackend
-```
-
-Consequences:
-
-- only particles existing before frame N update during N,
-- particles emitted in frame N are observable at `ageFrames = 0` and do not update immediately,
-- after an existing particle updates, reaching `ageFrames == lifetimeFrames` expires it before observation,
-- backend extraction happens after authoritative CPU observation state is established.
-
-### Stable spawn ordinal
-
-`ParticleSpawnOrdinal` is a per-emitter 64-bit **spawn-attempt ordinal**. Emitters consume an ordinal for every deterministic spawn attempt, including attempts dropped because capacity is full. This prevents capacity pressure from shifting the keyed random values of later scheduled attempts.
-
-### Keyed randomness
-
-Random values are pure functions of:
-
-```text
-(globalSeed, emitterStableId, spawnOrdinal, randomChannel)
+text-authored effect
+ -> deterministic CPU reference simulation
+ -> complete Agent inspection/assertion (#50)
+ -> deterministic structural CPU cost + optional local timing (#51)
+ -> HUMAN backend decision cpu|gpu (#51)
+ -> deterministic minimized GPU program for gpu-selected effects (#51/#52)
+ -> GPU execution without simultaneous full CPU reference in normal mode (#52)
+ -> CPU/GPU conformance + workloads + safe guidance (#53)
 ```
 
 Hard rules:
 
-- no mutable per-emitter PRNG stream,
-- no allocation/string/hash/distribution lookup in random helpers,
-- emitter identity is stable numeric state, never pointer/allocation/vector/unordered-iteration identity,
-- random-channel IDs are explicit stable integers and existing IDs are never renumbered merely because new properties are inserted,
-- the exact 64-bit mixing algorithm and domain constants are documented and tested,
-- CPU `[0,1)` uses the top 24 random bits multiplied by exactly `2^-24`,
-- range mapping uses the documented CPU expression and fixed bit-vector test,
-- same key => exact same integer/CPU float bits on the supported deterministic toolchain,
-- querying another ordinal/emitter/channel has no side effect on existing values.
+- CPU remains the semantic reference/oracle.
+- Backend choice is explicit and human-controlled; an LLM may recommend but never silently rewrite it.
+- GPU-selected unsupported effects fail clearly rather than silently falling back.
+- Normal GPU mode does not also run the full CPU reference simulation.
+- Structural deterministic metrics and machine-dependent timing stay separate.
+- No universal cross-vendor bit-identical GPU floating-point claim without proof.
 
-Committed reference vector:
+## Sprite phase #59
 
-```text
-globalSeed      = 0x0123456789ABCDEF
-emitterStableId = 0xFEDCBA9876543210
-spawnOrdinal    = 42
-channel         = SpawnPositionX
+After #53, do **not** re-open the old physics-vs-animation-vs-hot-reload fork. #59 is already selected.
 
-bits            = 0xE2B5E492311156F8
-u32             = 0xE2B5E492
-unit-float bits = 0x3F62B5E4
-```
-
-See [`docs/PARTICLE_DETERMINISM.md`](docs/PARTICLE_DETERMINISM.md).
-
-## Completed #41 renderer workload foundation — PR #63
-
-Committed deterministic workloads:
-
-| workload | authored | visible | culled | contiguous visible texture runs |
-| --- | ---: | ---: | ---: | ---: |
-| `dense_single_texture` | 400 | 400 | 0 | 1 |
-| `alternating_two_textures` | 400 | 400 | 0 | 400 |
-| `interleaved_culling` | 600 | 400 | 200 | 1 |
-
-#41 established:
-
-- machine-readable headless deterministic workload structure,
-- actual successful `Renderer::Metrics()` deltas for local windowed runs,
-- optional CPU wall-clock `RenderFrame` submission timing with machine/GPU/driver/OS/compiler/build/backend metadata,
-- no benchmark-only allocation/JSON/clock work inside `Renderer::RenderFrame`,
-- no global texture sorting or culling-semantics change,
-- no hosted-CI wall-clock threshold,
-- an evidence requirement for future renderer optimization claims.
-
-See [`docs/RENDERER_WORKLOADS.md`](docs/RENDERER_WORKLOADS.md).
-
-## Fixed internal order for #59 Sprite
-
-When #59 becomes active, the order is:
+Follow `docs/SPRITES.md` exactly:
 
 ```text
 S0 -> S1
@@ -335,171 +137,102 @@ S0 -> S1
  -> SE2E -> SPERF
 ```
 
-Meaning:
+The Sprite target is intentionally broader than a minimal quad renderer. It includes canonical assets, production traditional SpriteRenderer semantics, deterministic animation/Agent QA, import/generation/repair interoperability, end-to-end visual/motion QA, and reproducible performance evidence.
 
-- **S0-S1:** architecture + canonical SpriteAsset model,
-- **SR0-SR8:** production-complete traditional Sprite Renderer, not a minimal quad renderer,
-- **SA0-SA4:** deterministic `SpriteAnimator2D`, events, Agent/MCP exact-frame QA and workloads,
-- **SPP0-SPP5:** deterministic processing/QA, repair, Aseprite/generic and sprite-gen/PerfectPixel-style interoperability, provider-neutral generation orchestration,
-- **SE2E:** generation/import -> deterministic cleanup/QA -> canonical asset -> animation -> headless assertions -> render/capture -> motion/visual QA proof,
-- **SPERF:** final reproducible CPU/upload/draw/memory/atlas/animation workload guidance.
+## Open-source game-production phase #67
 
-The complete criteria are in `docs/SPRITES.md`; future agents must not reduce SR0-SR8 to a minimal implementation merely to complete the umbrella quickly.
+After #59, the exact next program is **#67**, not Mesh2D or Spine.
 
-## Owner decision replacing the old post-#53 choice
+Detailed contract: [`docs/GAME_PRODUCTION.md`](docs/GAME_PRODUCTION.md).
 
-Older roadmap prose said that after #53 the owner would choose one of physics/Box2D, sprite animation, or safe hot reload. That choice has already been made and must not be re-opened by a future coding agent:
+Fixed child sequence:
 
 ```text
-#53
- -> #59 complete end-to-end Sprite program
- -> #60 generic Mesh2D foundation
- -> #61 Spine SP0 human license gate
+#69 Game/Application boundary
+ -> #70 project manifest + external build/install/package
+ -> #71 scene hierarchy + typed components
+ -> #72 Input Actions + device/text input
+ -> #73 TileSet/TileMap
+ -> #74 production UTF-8 font/text/localization
+ -> #75 practical deterministic UI layout/widgets
+ -> #76 Physics2D
+ -> #77 Audio
+ -> #78 Linux/compiler/toolchain hardening
+ -> #79 persistence + authored schema migration
 ```
 
-Physics/Box2D and safe hot reload remain valid future breadth candidates, but they are **not** the owner-fixed next tasks after #53.
+Why this precedes Mesh2D/Spine:
 
-## Spine boundary
+Trace2D must first answer the user-facing engine questions that are more fundamental to third-party adoption: where game code lives, how a project is consumed, how world/components are authored, how input/tile/text/UI/physics/audio work, how the engine is validated beyond one compiler, and how saves/formats survive version changes.
 
-Spine is a planned compatibility backend/integration, not Trace2D's native animation architecture.
+### Existing implementation hardening assigned to #67
 
-Before #61 SP0 owner approval:
+- Texture handles currently leave tombstones and are not recycled. Add generation-safe reuse only if realistic resource churn demonstrates a real issue; do not rewrite speculatively.
+- Renderer shadercross compilation happens during setup, not `RenderFrame`. #70 owns distributable offline/reproducible shader packaging if required.
+- Current 5x7 ASCII-oriented text remains a deterministic fixture; #74 supplies production UTF-8/font/CJK capability.
+- Alpha authored formats have no migration tooling; #79 closes that external-user lifecycle gap.
+
+## Flagship proof #12
+
+After #67, build one deliberately small real game as an **ordinary external Trace2D consumer**, not an engine test fixture or sample-only code path.
+
+It should exercise a coherent subset of the public game/project/scene/input/tile/text/UI/physics/audio/persistence contracts, headless semantic QA, exact-frame capture, the documented consumer build, and the additional platform/toolchain from #78.
+
+Only after #12 merges green does the core sequence advance to #60.
+
+## Mesh2D #60
+
+#60 is now blocked by #59, #67 and #12.
+
+Fixed internal order:
+
+```text
+M0 TexturedMesh2D contract/render path
+ -> M1 persistent/capacity-reused dynamic geometry + conformance/workloads
+```
+
+Mesh2D remains presentation state and must reuse the project/resource/distribution contracts already established by #67.
+
+## Spine #61
+
+#61 is blocked by #59, #67, #12 and #60.
+
+At SP0, stop unless explicit owner approval records the then-current allowed public MIT core / optional integration / source / binary / CI / notice / downstream-user licensing model.
+
+Before SP0 approval:
 
 - no `spine-cpp` vendoring/copy,
 - no package/submodule/download dependency,
-- no prebuilt Spine-containing binary,
+- no Spine-containing binary,
 - no Spine-derived implementation code,
 - no claim that Trace2D ships Spine support.
 
-`docs/SPINE.md` records the official licensing snapshot reviewed on 2026-08-09 and requires then-current official terms to be re-checked at SP0.
+If approved, continue SP1 -> SP2 -> SP3 -> SP4 as defined by #61 and `docs/SPINE.md`.
 
-If SP0 is approved after license confirmation, the fixed conceptual order is SP1 optional official runtime adapter -> SP2 Mesh2D render integration -> SP3 semantic animation state -> SP4 Agent/MCP QA/conformance/workloads.
+## Open-source contribution lanes
 
-## Completed post-alpha foundations
+The owner-fixed order above governs **core continuation**.
 
-### #40 texture assets — PR #45
+Independent community contributions may still be reviewed when they are narrow fixes/tests/docs/portability/improvements that do not overlap the active core implementation, preempt a future subsystem architecture, add unresolved dependencies/licenses, or violate hard contracts.
 
-- deterministic project-relative texture identity,
-- rejection of absolute paths and `..` traversal,
-- PNG/JPEG/BMP/TGA decode to immutable RGBA8 CPU assets,
-- successful-import caching with explicit invalidation/clear,
-- stable diagnostics/cache metrics,
-- no per-frame filesystem discovery or decode,
-- SDL-free `engine/assets` with no renderer/GPU ownership.
+See `AGENTS.md` and #80.
 
-See [`docs/ASSETS.md`](docs/ASSETS.md).
+## Current implemented foundation snapshot
 
-### #42 text/basic UI — PR #55
+Already present and preserved by future work:
 
-- SDL-free `engine/ui`,
-- strict versioned `*.trace2d.toml` UI authoring,
-- stable IDs and deterministic authored order,
-- panel/label/button/text-input primitives,
-- deterministic integer pixel bounds,
-- engine-owned focus/activation state,
-- dependency-free 5x7 ASCII-oriented text,
-- caller-owned/reused RGBA8 CPU raster storage,
-- headless and windowed preview paths over the same document.
+- C++20 / CMake / pinned vcpkg / Windows MSVC CI,
+- deterministic fixed-step runtime and reset/seed ownership,
+- text-authored TOML scene baseline with stable semantic entity identity,
+- protocol-independent Agent inspect/query facade,
+- deterministic physical/virtual input convergence,
+- exact-frame gameplay scenario/assertions,
+- SDL3 GPU renderer with order-preserving contiguous batching and persistent resources,
+- explicit exact-frame capture,
+- deterministic texture asset cache/import,
+- engine-owned semantic UI + headless actions/assertions,
+- MCP stdio adapter over Agent/Testing,
+- reproducible renderer workloads,
+- particle deterministic semantics, rich CPU reference, authored effect cache, and `ParticleEmitter2D`.
 
-See [`docs/UI.md`](docs/UI.md).
-
-### #43 semantic UI automation — PR #56
-
-- stable semantic ID/role/name/visibility,
-- protocol-independent Agent UI inspection/query/focus/activation/text/assertion,
-- deterministic authored-order results,
-- semantic UI -> authoritative scene-state verification without coordinate targeting,
-- no DOM/browser abstraction or renderer-owned UI truth.
-
-### #39 MCP transport — PR #58
-
-- modern MCP `2026-07-28` stdio transport,
-- thin adapter over existing Agent/Testing contracts,
-- deterministic runtime/scene/UI/input/step/assert protocol tests,
-- no JSON/MCP types in lower engine public contracts,
-- no renderer requirement for headless protocol tests.
-
-See [`docs/MCP.md`](docs/MCP.md).
-
-## Particle target
-
-Particle implementation is governed by #46 and the four particle contract documents linked above.
-
-The defining workflow remains:
-
-```text
-rich text effect
-  -> deterministic CPU reference simulation
-  -> full structured Agent verification
-  -> deterministic structural CPU cost report
-  -> optional machine-specific Release timing
-  -> human chooses backend=cpu or backend=gpu
-  -> GPU-selected effects compile to minimized GPU state
-  -> CPU/GPU conformance + visual QA
-```
-
-Hard rules:
-
-- CPU is the exact semantic reference,
-- capacity is explicit and bounded,
-- ordinary stepping creates no JSON/snapshot/fingerprint work unless requested,
-- structural cost metrics and machine-specific timing are separated,
-- an LLM may recommend a backend but never changes it automatically,
-- backend choice is explicit reviewable human-controlled text,
-- unsupported GPU effects fail clearly rather than silently falling back to CPU,
-- normal GPU mode does not also run the full CPU reference simulation,
-- GPU runtime state is minimized from compiler/static analysis,
-- V1 does not claim universal cross-vendor bit-identical GPU floating point,
-- visual particles never become gameplay authority.
-
-## Public Alpha release record
-
-- [x] P0-P5 technical milestones complete
-- [x] Public Alpha vertical sample — PR #32
-- [x] measured contiguous same-texture GPU instancing — PR #34
-- [x] repository quality gates — PR #35
-- [x] MIT license-required release gate — PR #36
-- [x] release-ready documentation — PR #37
-- [x] post-public documentation cleanup — PR #38
-- [x] repository visibility Public
-- [x] release/tag `v0.1.0-alpha.1`
-- [x] root MIT `LICENSE`
-- [x] Issue #14 closed completed
-
-## Validation policy
-
-Release-facing CI remains the baseline:
-
-- `release-audit` using `./scripts/release_audit.ps1 -RequireLicense`,
-- `windows-msvc` configure/build/full CTest,
-- `clean-clone-quick-start` using the README-pinned vcpkg baseline.
-
-New machine-facing capabilities require deterministic automated tests when practical. GPU presentation is not a hosted-runner requirement; backend-independent semantic/math/import/ordering/QA logic must remain headless-CI testable where practical.
-
-Wall-clock timing is environment-dependent evidence and must not become a deterministic correctness threshold.
-
-## Architecture invariants
-
-- `engine/core` has no SDL dependency.
-- SDL-specific ownership/types stay behind platform/render boundaries.
-- `engine/assets`, `engine/ui`, and `engine/particles` deterministic/CPU semantics are SDL-free.
-- renderer GPU state is presentation state, never authoritative gameplay/UI/animation/particle state.
-- runtime/scene/input/UI/particles/agent/testing semantic state does not depend on MCP transport.
-- MCP/JSON-RPC/CLI are adapters over protocol-independent engine/agent contracts.
-- authored project/scene/UI/particle/sprite metadata is text-first and deterministic where practical.
-- semantic selectors beat coordinate targeting where identity exists.
-- structured state beats pixel inference.
-- persistent renderer resources are reused rather than recreated in steady state.
-- capture frame selection uses simulation-frame identity, not wall-clock timing.
-- texture/material identity never participates in a global reorder that violates painter order.
-- particle CPU state is the semantic oracle; GPU is an explicitly selected compiled backend.
-- generated Sprite pixels are not canonical until explicit import/validation.
-- arbitrary textured geometry belongs to Mesh2D rather than forcing SpriteRenderer into a generic renderer.
-- Spine remains outside the MIT-native core unless/until #61 SP0 explicitly approves the integration model.
-- optimization complexity follows measurement.
-
-## Handoff rule
-
-Every PR that completes or materially changes an item in the owner-fixed execution order must update this file in the same PR.
-
-A fresh coding agent following `AGENTS.md` should be able to read this file, inspect live PR/CI state, identify the exact first incomplete task or human gate, and continue without previous chat history.
+Future breadth must preserve the same explicit ownership, headless semantic verification, bounded resource use, and measurement-driven optimization principles.

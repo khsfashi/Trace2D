@@ -4,7 +4,7 @@ Status: **planned compatibility target; intentionally not included**
 
 Operational issue: GitHub Issue #61.
 
-Trace2D intends to support Spine as an optional compatibility integration after the native Sprite pipeline (#59) and generic Mesh2D foundation (#60) are complete. Spine is not part of Trace2D's native animation architecture and no Spine Runtime code or dependency is currently authorized for inclusion.
+Trace2D intends to support Spine as an optional compatibility integration only after the native Sprite pipeline (#59), open-source game-production foundation (#67), flagship external-game proof (#12), and generic Mesh2D foundation (#60) are complete. Spine is not part of Trace2D's native animation or game/project architecture and no Spine Runtime code or dependency is currently authorized for inclusion.
 
 This document records the owner-approved technical direction and the mandatory license gate. It is not legal advice; the actual integration must follow the then-current official Esoteric Software license terms and an explicit repository-owner decision.
 
@@ -19,7 +19,7 @@ Until SP0 is explicitly approved:
 - do not claim shipped Spine support,
 - do not infer permission merely because the Spine Runtime source is publicly visible.
 
-Trace2D may continue building generic native infrastructure independently useful without Spine, including SpriteAsset, SpriteAnimator2D, TexturedMesh2D, blend modes, dynamic geometry buffers, semantic animation inspection, and renderer QA.
+Trace2D may continue building generic native infrastructure independently useful without Spine, including SpriteAsset, SpriteAnimator2D, external Game/Application/project contracts, authored scene/component systems, TexturedMesh2D, blend modes, dynamic geometry buffers, semantic animation inspection, and renderer QA.
 
 ## 2. Why Spine is separated from the MIT core
 
@@ -28,15 +28,15 @@ Trace2D is an MIT-licensed open-source engine. Spine Runtimes use their own lice
 Therefore the architectural goal is:
 
 ```text
-Trace2D native core / Sprite / Animation / Mesh2D
-                 MIT
-                  |
-                  v
-        optional compatibility boundary
-                  |
-                  v
-        official Spine Runtime, if authorized
-          separate license obligations
+Trace2D native core / Game / Project / Sprite / Animation / Mesh2D
+                              MIT
+                               |
+                               v
+                     optional compatibility boundary
+                               |
+                               v
+                     official Spine Runtime, if authorized
+                       separate license obligations
 ```
 
 The optional boundary must not make users believe the MIT license grants rights to Spine Runtime code.
@@ -191,7 +191,7 @@ If gameplay uses bones/sockets/bounding attachments, those engine-facing semanti
 
 ## 8. Native Trace2D animation remains independent
 
-Spine support must never become a prerequisite for ordinary Trace2D sprite animation.
+Spine support must never become a prerequisite for ordinary Trace2D sprite animation or external game/project operation.
 
 The native path remains:
 
@@ -228,6 +228,7 @@ No Quick Start should accidentally install or enable a separately licensed runti
 
 Trace2D may claim **shipped Spine compatibility** only when:
 
+- all owner-fixed predecessors (#59, #67, #12, #60) are complete,
 - SP0 has an explicit recorded owner approval,
 - required license notices/distribution rules are implemented,
 - SP1-SP4 are complete with tests/workloads,
