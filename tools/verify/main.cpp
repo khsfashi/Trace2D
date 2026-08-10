@@ -155,7 +155,8 @@ void PrintEvaluationJson(
         std::cout << ",\"limitations\":";
         PrintStringArray(revision.limitations);
         std::cout << ",\"verification_count\":" << revision.verification.size()
-                  << ",\"artifact_count\":" << revision.artifacts.size() << '}';
+                  << ",\"artifact_count\":" << revision.artifacts.size()
+                  << ",\"feedback_count\":" << revision.feedback.size() << '}';
     }
     std::cout << "],\"status\":\"ok\"}\n";
 }
