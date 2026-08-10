@@ -5,6 +5,7 @@ add_executable(trace2d_agent_tests
     UiAutomationTests.cpp
     UiAuthoredAutomationTests.cpp
     UiGameInteractionTests.cpp
+    WorkResultTests.cpp
     WorkSpecTests.cpp
 )
 
