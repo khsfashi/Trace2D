@@ -1,0 +1,49 @@
+name: B0 Godot Agent Oracle
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B0_GODOT_VERSION: 4.7.1-stable
+
+jobs:
+  godot-agent-fixture-oracle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B0_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_BENCH_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Verify pinned Godot version
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_BENCH_GODOT_BIN" --version | tee "$RUNNER_TEMP/godot-version.txt"
+          grep -E '^4\.7\.1\.stable' "$RUNNER_TEMP/godot-version.txt"
+
+      - name: Qualify Godot Agent gold and known-bad fixtures
+        run: python3 scripts/benchmark_b0.py qualify-fixtures --task b0-semantic-scene-authoring --lane godot.agent
