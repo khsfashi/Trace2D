@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "platforms": [
+    {
+      "id": "tistory",
+      "enabled": true,
+      "audience": "ko-technical-longform",
+      "default_language": "ko",
+      "format_class": "longform",
+      "publication_mode": "manual"
+    },
+    {
+      "id": "show-hn",
+      "enabled": true,
+      "audience": "en-technical-builders",
+      "default_language": "en",
+      "format_class": "project-showcase",
+      "publication_mode": "manual"
+    },
+    {
+      "id": "reddit",
+      "enabled": true,
+      "audience": "en-game-engineering-community",
+      "default_language": "en",
+      "format_class": "community-post",
+      "publication_mode": "manual"
+    },
+    {
+      "id": "x",
+      "enabled": true,
+      "audience": "mixed-shortform",
+      "default_language": "ko",
+      "format_class": "shortform",
+      "publication_mode": "manual"
+    },
+    {
+      "id": "geeknews-show-gn",
+      "enabled": true,
+      "audience": "ko-technical-builders",
+      "default_language": "ko",
+      "format_class": "project-showcase",
+      "publication_mode": "manual"
+    }
+  ]
+}
