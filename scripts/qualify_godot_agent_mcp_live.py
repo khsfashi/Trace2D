@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Hosted live qualification for the Benchmark B0 godot.agent lane.
 
-Protocol plumbing lives in qualify_godot_agent_mcp.py. This driver uses an
-explicit game-time duration for replay: counting render frames is intentionally
-not used as the determinism oracle because uncapped hosted rendering can finish
-several render frames between fixed physics ticks.
+Protocol plumbing lives in qualify_godot_agent_mcp.py. Deterministic replay is
+bounded by authoritative fixture physics ticks through the bridge's public
+step_until control. Render frames and fixed millisecond windows are retained as
+observations, but neither is used as the equality boundary for fixed-physics
+replay on an uncapped hosted runner.
 """
 
 from __future__ import annotations
@@ -21,8 +22,15 @@ from typing import Any
 import qualify_godot_agent_mcp as base
 
 
-STEP_DURATION_MS = 200
-STEP_INPUT = [{"key": "d", "start_ms": 0, "duration_ms": 180}]
+TARGET_PHYSICS_TICKS = 12
+STEP_UNTIL = f'tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= {TARGET_PHYSICS_TICKS}'
+STEP_REPORT = [
+    'tree.get_nodes_in_group("mcp_watch")[0].physics_ticks',
+    'tree.get_nodes_in_group("mcp_watch")[0].position.x',
+]
+# Keep D held beyond the safety window; step_until releases all holds when the
+# predicate ends, so input duration is not the stop condition.
+STEP_INPUT = [{"key": "d", "start_ms": 0, "duration_ms": 1000}]
 
 
 def wait_for_play_state(client: base.McpClient, expected: bool, timeout: float = 45.0) -> dict[str, Any]:
@@ -65,6 +73,33 @@ def start_frozen_run(client: base.McpClient) -> tuple[dict[str, Any], dict[str, 
 def stop_run(client: base.McpClient) -> None:
     client.call_tool("godot_editor_edit", {"action": "stop"}, timeout=15.0)
     wait_for_play_state(client, False)
+
+
+def exact_tick_step(client: base.McpClient) -> tuple[dict[str, Any], dict[str, Any]]:
+    step = client.call_tool(
+        "godot_game_time",
+        {
+            "action": "step_until",
+            "until": STEP_UNTIL,
+            "max_ms": 1000,
+            "report": STEP_REPORT,
+            "inputs": STEP_INPUT,
+        },
+        timeout=45.0,
+    )
+    state = base.player_snapshot(client)
+    base.require(isinstance(step, dict) and step.get("completed") is True, f"step_until did not complete: {step!r}")
+    base.require(step.get("predicate_met") is True, f"step_until missed physics tick predicate: {step!r}")
+    input_kinds = step.get("input_kinds", {})
+    base.require(
+        isinstance(input_kinds, dict) and base.as_number(input_kinds.get("key", 0), "step.input_kinds.key") >= 1,
+        "bridge did not report raw key injection",
+    )
+    base.require(
+        base.as_number(state.get("physics_ticks"), "state.physics_ticks") == float(TARGET_PHYSICS_TICKS),
+        f"bridge did not freeze on exact target physics tick {TARGET_PHYSICS_TICKS}: {state!r}; step={step!r}",
+    )
+    return step, state
 
 
 def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
@@ -123,21 +158,13 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
         base.require(after_wall_wait.get("physics_ticks") == initial.get("physics_ticks"), "Q2 wall time advanced physics ticks")
         base.require(after_wall_wait.get("position_x") == initial.get("position_x"), "Q2 wall time moved Player")
 
-        # Q3 — raw D key held inside a fixed 200 ms game-time step.
-        step_one = client.call_tool(
-            "godot_game_time",
-            {"action": "step", "duration_ms": STEP_DURATION_MS, "inputs": STEP_INPUT},
-            timeout=45.0,
-        )
-        first = base.player_snapshot(client)
-        base.require(isinstance(step_one, dict) and step_one.get("completed") is True, f"Q3 step did not complete: {step_one!r}")
-        input_kinds = step_one.get("input_kinds", {})
-        base.require(isinstance(input_kinds, dict) and base.as_number(input_kinds.get("key", 0), "step_one.input_kinds.key") >= 1, "Q3 bridge did not report raw key injection")
+        # Q3 — real raw D key while the bridge advances until the fixture's
+        # authoritative physics counter reaches exactly the frozen target.
+        step_one, first = exact_tick_step(client)
         base.require(base.as_number(first.get("position_x"), "first.position_x") > 0.0, f"Q3 D input did not move Player: {first!r}")
-        base.require(base.as_number(first.get("physics_ticks"), "first.physics_ticks") > 0.0, f"Q3 step did not advance physics: {first!r}")
 
         # Q4 — fully stop the first debug session, start a clean frozen run,
-        # wait in wall time, then execute the exact same game-time/input window.
+        # wait in wall time, then hit the same authoritative physics boundary.
         stop_run(client)
         time.sleep(0.25)
         _, replay_frozen_status = start_frozen_run(client)
@@ -146,14 +173,8 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
         time.sleep(0.75)
         replay_after_wait = base.player_snapshot(client)
         base.require(replay_after_wait.get("physics_ticks") == replay_initial.get("physics_ticks"), "Q4 replay wall wait advanced physics ticks")
-        step_two = client.call_tool(
-            "godot_game_time",
-            {"action": "step", "duration_ms": STEP_DURATION_MS, "inputs": STEP_INPUT},
-            timeout=45.0,
-        )
-        second = base.player_snapshot(client)
-        base.require(isinstance(step_two, dict) and step_two.get("completed") is True, f"Q4 replay step did not complete: {step_two!r}")
-        base.require(first.get("physics_ticks") == second.get("physics_ticks"), f"Q4 physics tick replay mismatch: {first!r} vs {second!r}; steps={step_one!r} / {step_two!r}")
+        step_two, second = exact_tick_step(client)
+        base.require(first.get("physics_ticks") == second.get("physics_ticks") == TARGET_PHYSICS_TICKS, f"Q4 physics tick replay mismatch: {first!r} vs {second!r}")
         base.require(abs(base.as_number(first.get("position_x"), "first.position_x") - base.as_number(second.get("position_x"), "second.position_x")) <= 1e-9, f"Q4 position replay mismatch: {first!r} vs {second!r}")
         base.require(step_one.get("physics_ticks") == step_two.get("physics_ticks"), f"Q4 bridge physics tick count mismatch: {step_one!r} vs {step_two!r}")
         stop_run(client)
@@ -180,11 +201,19 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
                 "timed_input": True,
                 "deterministic_step": True,
             },
+            "determinism_boundary": {
+                "kind": "fixture_physics_ticks",
+                "target": TARGET_PHYSICS_TICKS,
+                "predicate": STEP_UNTIL,
+                "max_game_time_ms": 1000,
+                "render_frames_authoritative": False,
+                "fixed_milliseconds_authoritative": False,
+            },
             "environment": {
                 "os": platform.platform(),
                 "architecture": platform.machine(),
                 "node_version": os.environ.get("TRACE2D_B0_NODE_VERSION", "unknown"),
-                "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@1",
+                "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@2",
                 "runner_image": os.environ.get("ImageOS", "unknown"),
             },
             "fixture": {
