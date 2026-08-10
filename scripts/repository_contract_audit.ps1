@@ -134,7 +134,7 @@ Require-Regex 'AGENTS.md' 'Main uses squash merges' 'squash-merge knowledge boun
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' 'Godot \+ generic coding tools' 'generic Godot benchmark lane'
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' 'Godot \+.*MCP' 'Godot Agent-bridge benchmark lane'
 Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)independent verifier' 'independent benchmark verifier'
-Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)deterministic replay' 'deterministic replay evidence'
+Require-Regex 'docs/AUTONOMOUS_BENCHMARK.md' '(?i)(Harness self-determinism / replay validation|replay.{0,80}determinism|determinism.{0,80}replay)' 'replay/self-determinism evidence'
 
 # Durable commit history must preserve real validation gaps/gates and allow
 # intentional replacement of an old decision.
