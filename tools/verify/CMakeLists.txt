@@ -20,6 +20,6 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_verify_fixture
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "\\\"state\\\":\\\"review_needed\\\".*\\\"current_revision\\\":\\\"revision-2\\\".*\\\"revision_count\\\":2.*\\\"historical_failure_count\\\":1.*\\\"requires_live_truth\\\":true"
+            PASS_REGULAR_EXPRESSION "\\\"state\\\":\\\"review_needed\\\".*\\\"current_revision\\\":\\\"revision-2\\\".*\\\"revision_count\\\":2.*\\\"historical_failure_count\\\":1.*\\\"requires_live_truth\\\":true.*\\\"feedback_count\\\":1"
     )
 endif()
