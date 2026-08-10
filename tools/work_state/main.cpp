@@ -104,10 +104,23 @@ void PrintEvaluationJson(
     std::cout << "{\"command\":\"work-state\",\"format_version\":1"
               << ",\"work_id\":\"" << EscapeJson(spec.id) << '"'
               << ",\"work_state\":\"" << trace2d::agent::ToString(spec.state) << '"'
+              << ",\"intent\":\"" << EscapeJson(spec.intent) << '"'
               << ",\"local_readiness\":\"" << trace2d::agent::ToString(evaluation.localReadiness) << '"'
               << ",\"requires_live_truth\":" << (evaluation.RequiresLiveTruth() ? "true" : "false")
-              << ",\"capability_requirements\":[";
+              << ",\"deliverables\":[";
 
+    for (std::size_t index = 0; index < spec.deliverables.size(); ++index)
+    {
+        if (index != 0U) std::cout << ',';
+        const auto& deliverable = spec.deliverables[index];
+        std::cout << "{\"id\":\"" << EscapeJson(deliverable.id)
+                  << "\",\"state\":\"" << trace2d::agent::ToString(deliverable.state)
+                  << "\",\"depends_on\":";
+        PrintStringArray(deliverable.dependsOn);
+        std::cout << '}';
+    }
+
+    std::cout << "],\"capability_requirements\":[";
     for (std::size_t index = 0; index < evaluation.capabilityRequirements.size(); ++index)
     {
         if (index != 0U) std::cout << ',';
@@ -127,11 +140,23 @@ void PrintEvaluationJson(
                   << ",\"reason\":\"" << EscapeJson(capability.reason) << "\"}";
     }
 
-    std::cout << "],\"outstanding_acceptance\":";
+    std::cout << "],\"blocked_deliverables\":";
+    PrintStringArray(evaluation.blockedDeliverableIds);
+    std::cout << ",\"outstanding_acceptance\":";
     PrintStringArray(evaluation.outstandingAcceptanceIds);
     std::cout << ",\"review_acceptance\":";
     PrintStringArray(evaluation.reviewAcceptanceIds);
-    std::cout << ",\"external_truth\":[";
+    std::cout << ",\"acceptance\":[";
+    for (std::size_t index = 0; index < spec.acceptance.size(); ++index)
+    {
+        if (index != 0U) std::cout << ',';
+        const auto& criterion = spec.acceptance[index];
+        std::cout << "{\"id\":\"" << EscapeJson(criterion.id)
+                  << "\",\"deliverable\":\"" << EscapeJson(criterion.deliverableId)
+                  << "\",\"verification\":\"" << trace2d::agent::ToString(criterion.verification)
+                  << "\",\"state\":\"" << trace2d::agent::ToString(criterion.state) << "\"}";
+    }
+    std::cout << "],\"external_truth\":[";
     for (std::size_t index = 0; index < evaluation.externalTruth.size(); ++index)
     {
         if (index != 0U) std::cout << ',';
