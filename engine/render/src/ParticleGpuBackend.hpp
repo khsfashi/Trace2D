@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <span>
 
 namespace trace2d::particles
 {
@@ -34,7 +33,7 @@ public:
     void DestroyEmitter(GpuParticleEmitterHandle emitter) noexcept;
 
     void ResetEmitter(SDL_GPUCommandBuffer* commandBuffer, GpuParticleEmitterHandle emitter);
-    void PlayEmitter(GpuParticleEmitterHandle emitter);
+    void PlayEmitter(SDL_GPUCommandBuffer* commandBuffer, GpuParticleEmitterHandle emitter);
     void RestartEmitter(SDL_GPUCommandBuffer* commandBuffer, GpuParticleEmitterHandle emitter);
     void StopEmitter(GpuParticleEmitterHandle emitter) noexcept;
     [[nodiscard]] bool StepEmitter(
