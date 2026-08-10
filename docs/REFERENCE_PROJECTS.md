@@ -114,6 +114,8 @@ Trace2D agent knowledge
 
 This stays outside the engine runtime. Engine correctness must never depend on one model's hidden memory.
 
+Trace2D records this as Issue **#106**, a deliberately later evidence-gated feature. Do not promote it merely because reusable skills sound attractive. #102/#103/#104 or later benchmark data should first show repeated setup/debug failure classes where a verified recipe layer measurably lowers failures, iterations or token/tool cost. Recipes must still use public contracts and re-run deterministic verification.
+
 ## 5. DreamGarden
 
 Reference: https://www.microsoft.com/en-us/research/publication/dreamgarden-a-designer-assistant-for-growing-games-from-a-single-prompt/
@@ -136,6 +138,8 @@ Read -> Review -> Request -> Approve
 ```
 
 not on redoing the AI's work manually.
+
+The visible hierarchy must come from explicit #97 project/task state. Exposing hidden model chain-of-thought is neither necessary nor desirable.
 
 ## 6. Bitmagic
 
@@ -235,8 +239,9 @@ Do not benchmark or design toward:
 - unfair benchmark tasks that count missing engine capability as an agent failure,
 - opaque aggregate AI quality scores that hide deterministic failures,
 - automatic human-taste approval by a multimodal model,
+- exposing hidden model chain-of-thought as required product state,
 - copying external dependencies without pinning/reviewing license/version/security implications.
 
 ## 11. Review cadence
 
-Re-check these references when implementing #100/#102/#103/#104 or when the external projects materially change. Benchmark adapters must pin exact versions/commits instead of following mutable latest behavior.
+Re-check these references when implementing #100/#102/#103/#104/#106 or when the external projects materially change. Benchmark adapters must pin exact versions/commits instead of following mutable latest behavior.
