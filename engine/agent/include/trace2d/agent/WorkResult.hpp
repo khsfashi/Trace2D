@@ -63,6 +63,7 @@ struct WorkRevision final
 {
     std::string id{};
     std::string parentRevisionId{};
+    std::string feedback{};
     std::vector<std::string> changedPaths{};
     std::vector<VerificationRecord> verification{};
     std::vector<WorkArtifact> artifacts{};
