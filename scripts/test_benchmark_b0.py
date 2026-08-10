@@ -74,12 +74,21 @@ class BenchmarkB0Tests(unittest.TestCase):
         with self.assertRaises(benchmark_b0.HarnessError):
             benchmark_b0.substitute_command(["agent", "{unknown}"], {})
 
-    def test_scored_qualification_is_missing_until_real_evidence_is_committed(self) -> None:
+    def test_all_committed_environment_qualifications_are_positive(self) -> None:
         suite = benchmark_b0.validate_suite(
             benchmark_b0.repository_root() / "benchmarks/b0/suite.json"
         )
-        with self.assertRaises(benchmark_b0.HarnessError):
-            benchmark_b0.validate_qualification(suite, "godot.agent")
+        for lane_id in benchmark_b0.EXPECTED_LANES:
+            evidence = benchmark_b0.validate_qualification(suite, lane_id)
+            self.assertTrue(evidence["qualified"])
+
+        godot_agent = benchmark_b0.validate_qualification(suite, "godot.agent")
+        self.assertEqual(godot_agent["bridge"]["id"], "satelliteoflove/godot-mcp")
+        self.assertEqual(godot_agent["bridge"]["version"], "4.1.0")
+        self.assertTrue(godot_agent["checks"]["authoring"])
+        self.assertTrue(godot_agent["checks"]["runtime_inspection"])
+        self.assertTrue(godot_agent["checks"]["timed_input"])
+        self.assertTrue(godot_agent["checks"]["deterministic_step"])
 
 
 if __name__ == "__main__":
