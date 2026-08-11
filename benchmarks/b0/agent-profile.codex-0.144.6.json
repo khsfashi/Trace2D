@@ -6,7 +6,10 @@
   "settings": {
     "reasoning_effort": "high",
     "approval_policy": "never",
-    "permission_profile": "qualification_pending_external_isolation_backend",
+    "permission_profile": ":workspace",
+    "isolation_backend": "windows_ntfs_acl_v1",
+    "protected_root_policy": "repository_root_deny_for_codex_sandbox_sid",
+    "network_access": "disabled",
     "session_persistence": "ephemeral",
     "web_search": "disabled",
     "auth_mode": "chatgpt-managed-local",
