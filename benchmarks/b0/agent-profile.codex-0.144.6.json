@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "agent_id": "openai-codex-cli@0.144.6",
+  "model_id": "gpt-5.5",
+  "model_revision": "gpt-5.5-2026-04-23",
+  "settings": {
+    "reasoning_effort": "high",
+    "approval_policy": "never",
+    "permission_profile": "trace2d_b0_isolated",
+    "session_persistence": "ephemeral",
+    "web_search": "disabled",
+    "auth_mode": "chatgpt-managed-local"
+  },
+  "budget": {
+    "wall_seconds": 300,
+    "max_tool_calls": 80,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 0
+  },
+  "command": [
+    "python",
+    "-m",
+    "benchmark_b0_codex_wrapper",
+    "run",
+    "--workspace",
+    "{workspace}",
+    "--prompt-file",
+    "{prompt}",
+    "--lane",
+    "{lane}",
+    "--result-file",
+    "{agent_result}"
+  ]
+}
