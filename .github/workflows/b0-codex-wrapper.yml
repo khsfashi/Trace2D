@@ -23,6 +23,20 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_wrapper.py
 
+      - name: Parse-check owner-local calibration PowerShell
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "scripts/run_benchmark_b0_codex_calibration.ps1").Path,
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+
       - name: Validate frozen Codex profile against B0 task budget
         shell: bash
         run: |
