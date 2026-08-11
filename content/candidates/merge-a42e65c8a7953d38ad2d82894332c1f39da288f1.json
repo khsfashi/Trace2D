@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-a42e65c8a7953d38ad2d82894332c1f39da288f1",
+  "source_event": "merge",
+  "event_id": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#127",
+        "url": "https://github.com/khsfashi/Trace2D/issues/127"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+        "authored_at": "2026-08-11T23:08:15+09:00",
+        "subject": "Implement Sprite SR2 atlas trim and UV geometry (#128)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "trim geometry is derived from canonical source-space trim metadata through the same SR1 point-transform context; packed rotation changes UV mapping only",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "canonical SR2 UVs use atlas top-left origin, +u right, +v down, normalized pixel edges with no half-texel offset",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "steady-state SR2 extraction is O(1), fixed-size and requires no heap container, semantic lookup, file/decode or GPU work",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "deriving logical geometry from packed_rect | atlas packing is storage truth and would shift/rotate logical Sprite placement",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ],
+        "alternative": "deriving logical geometry from packed_rect",
+        "reason": "atlas packing is storage truth and would shift/rotate logical Sprite placement"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "duplicating SR1 transform math inside SR2 | risks semantic drift and duplicate trigonometric work",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ],
+        "alternative": "duplicating SR1 transform math inside SR2",
+        "reason": "risks semantic drift and duplicate trigonometric work"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "backend texture-coordinate adaptation and sampler behavior must not rewrite canonical SR2 UV truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "GitHub Actions CI #546 windows-msvc configure/build/CTest/B0 qualification; clean-clone README configure/build/CTest; 234 tests with 0 failures and 2 existing explicit-GPU skips; repository/content/Sprite S0/B0 auxiliary workflows green",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "local agent-host toolchain execution is unavailable; SR2 is backend-independent and requires no real-GPU or multimodal gate",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "CodeAndWeb TexturePacker current atlas/trimming/rotation documentation | ADAPT | trimming preserves original placement while rotation remains packed storage optimization",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "a42e65c8a7953d38ad2d82894332c1f39da288f1",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/a42e65c8a7953d38ad2d82894332c1f39da288f1"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "#125"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
