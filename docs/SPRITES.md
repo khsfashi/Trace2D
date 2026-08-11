@@ -1,13 +1,14 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0 complete; SR1 transform/history/geometry active via #125/#126**
+Status: **S0/S1/SR0/SR1 complete; SR2 atlas/trim/pivot/UV geometry active via #127**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
 Machine-readable S0 invariants: [`contracts/sprite-s0.json`](contracts/sprite-s0.json).  
 Canonical S1 format: [`SPRITE_ASSET_FORMAT.md`](SPRITE_ASSET_FORMAT.md).  
 SR0 render seam: [`SPRITE_RENDER_CONTRACT.md`](SPRITE_RENDER_CONTRACT.md).  
-SR1 transform/presentation seam: [`SPRITE_TRANSFORM_PRESENTATION.md`](SPRITE_TRANSFORM_PRESENTATION.md).
+SR1 transform/presentation seam: [`SPRITE_TRANSFORM_PRESENTATION.md`](SPRITE_TRANSFORM_PRESENTATION.md).  
+SR2 atlas/trim/UV seam: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).
 
 This document owns the complete fixed Sprite stage order and capability target. Stage-local documents may refine implementation details but cannot silently change S0 authority or replace canonical authored/runtime truth with renderer/tool state.
 
@@ -63,16 +64,16 @@ Exactly one child issue/PR is active at a time:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [active] -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [active] -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Current stage: **SR1 / #125 / PR #126**.  
-Exact next stage after SR1 merges green: **SR2**.
+Current stage: **SR2 / #127**.  
+Exact next stage after SR2 merges green: **SR3 — color/alpha/blend/sampling**.
 
-Do not begin SR2 while #125/#126 is open.
+Do not begin SR3 while #127 is active.
 
 ## 4. Completed foundation
 
@@ -132,7 +133,9 @@ Rules:
 - existing `OrthographicView` is reused for future #88 view resolution,
 - only compatible contiguous work may later batch.
 
-## 5. SR1 — transform/geometry and presentation history — active
+### SR1 — transform/geometry and presentation history — complete
+
+Merged via #125/#126 (`7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`).
 
 SR1 reuses `scene::Transform2D` for authoritative transform semantics and adds only Sprite-specific flip/history state.
 
@@ -143,72 +146,87 @@ scene::Transform2D
  -> previousFixed / currentFixed
 ```
 
-### Fixed-step history
+Fixed-step rules:
 
 - creation/reset/load/teleport/snap: `previousFixed = currentFixed = new pose`,
 - successful fixed step: `previousFixed = old currentFixed; currentFixed = new pose`,
-- no begin-step mutation: aborted/uncommitted updates cannot advance history,
 - invalid snap/commit leaves history unchanged,
-- gameplay/Agent reads `currentFixed`.
-
-### Presentation
-
-Exact-frame:
-
-```text
-presentation = currentFixed
-```
-
-Interactive:
-
-- explicit finite alpha in `[0,1]`, otherwise fail,
-- position and non-uniform scale interpolate linearly,
+- exact-frame presentation copies `currentFixed`,
+- interactive alpha must be finite in `[0,1]`,
+- position/scale interpolate linearly,
 - rotation uses shortest signed float-radian arc,
-- exact +pi/-pi tie preserves wrapped sign,
-- alpha 0/1 preserve exact continuous endpoint samples,
-- `flipX`/`flipY` are discrete and always use `currentFixed`,
+- flip state is discrete and comes from `currentFixed`,
 - presentation never writes back to authoritative history.
 
-### Geometry
+Logical geometry uses untrimmed `source_size` plus exact rational pivot through one source-space Y-down -> local Y-up boundary, then semantic flip, non-uniform/negative scale, CCW rotation and translation. The implementation is O(1), fixed-size, allocation-free on the normal API, and computes at most one sin/cos pair per quad.
 
-Source metadata remains Y-down. SR1 creates one derived Y-up boundary:
+## 5. SR2 — atlas/trim/pivot/rotated packing — active
 
-```text
-local_x =  (source_x - pivot_x) / pixels_per_unit
-local_y = -(source_y - pivot_y) / pixels_per_unit
-```
+Concrete contract: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).
 
-Then:
+SR2 consumes:
 
 ```text
-semantic flip about pivot
- -> non-uniform/negative scale
- -> CCW rotation (radians)
- -> translation
- -> SpriteLogicalQuad
+ResolvedSpriteRegion
+ + SpritePose2D
+ + pixels_per_unit
+        -> SpriteDrawQuad
 ```
 
-SR1 uses **untrimmed `source_size`** for logical extent and exact rational pivot. It does not derive normalized UVs or use `packed_rect` as logical bounds; SR2 owns stored trim/rotation mapping.
+### Visible trim placement
 
-`pixels_per_unit` is finite and positive. It establishes source-pixel-to-world geometry scale but does not yet define SR6 pixel-perfect camera/target behavior.
+The visible quad uses the exact trim rectangle embedded in the original untrimmed source space:
 
-### Performance
+```text
+TL = (trim_offset.x,               trim_offset.y)
+TR = (trim_offset.x + trim_size.w, trim_offset.y)
+BR = (trim_offset.x + trim_size.w, trim_offset.y + trim_size.h)
+BL = (trim_offset.x,               trim_offset.y + trim_size.h)
+```
 
-- interpolation: O(1), fixed-size caller-owned output,
-- logical quad: O(1), one sin/cos pair + four fixed corners,
-- double intermediates and checked finite float output,
-- no per-call heap allocation/vector/list,
+Each corner passes through the same refactored SR1 source-point transform context. `packed_rect` never determines logical placement. Exact rational/out-of-source pivot, semantic flips, negative scale, PPU, runtime rotation and translation retain SR1 meaning.
+
+### Canonical UV truth
+
+Trace2D page-space normalized UVs use top-left origin, +u right, +v down and pixel edges:
+
+```text
+u0 = packed.x / page.width
+v0 = packed.y / page.height
+u1 = (packed.x + packed.width) / page.width
+v1 = (packed.y + packed.height) / page.height
+```
+
+No half-texel offset is added. SR3 owns sampler behavior; backend-native coordinate adaptation stays at the backend boundary.
+
+`none` maps logical corners directly to packed TL/TR/BR/BL. `cw90` undoes clockwise storage through:
+
+```text
+logical TL -> packed TR
+logical TR -> packed BR
+logical BR -> packed BL
+logical BL -> packed TL
+```
+
+Packed orientation therefore changes UV mapping/storage dimensions only, never logical positions.
+
+### Structured guardrails and hot path
+
+SR2 rejects unresolved/invalid pose/PPU/source/pivot state, zero/corrupted page/trim/packed extents, out-of-bounds trim/packed rectangles, rotation-specific extent mismatch, unsupported rotation values and non-finite/overflow output through stable allocation-free error/field categories.
+
+Normal derivation remains:
+
+- O(1),
+- fixed four vertices,
+- one shared geometry-context build and one sin/cos pair maximum,
+- reusable caller-owned output,
+- no vector/list allocation,
 - no semantic string lookup/hash,
 - no filesystem/TOML/image decode/path normalization,
-- no SDL/GPU initialization.
-
-Future #71 hierarchy must interpolate local transforms first and compose the interpolated hierarchy afterward; SR1 does not create a Sprite-only entity graph.
+- no GPU/SDL initialization,
+- no canonical-state mutation or background work.
 
 ## 6. Remaining production Sprite renderer stages
-
-### SR2 — atlas/trim/pivot/rotated packing
-
-Derive exact stored-content placement and normalized UV mapping from S1 trim/packed metadata while preserving the SR1 logical untrimmed geometry. Prove rotated/unrotated and trimmed/untrimmed sources are logically equivalent.
 
 ### SR3 — color/alpha/blend/sampling
 

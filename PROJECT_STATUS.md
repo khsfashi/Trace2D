@@ -25,14 +25,15 @@ Completed Sprite stages:
 
 - #119 / S0 Sprite architecture and authority contract — PR #120 / squash `00dc587153bc4b0d6f6ac350d5491eec481585f0`,
 - #121 / S1 canonical SpriteAsset/import representation — PR #122 / squash `27250bff8afd40f55edf2bfbed9be8b143f1ea1d`,
-- #123 / SR0 renderer contract / canonical asset-render separation — PR #124 / squash `aa30a8e4498fd5edd6df9d2be7bb9a91bcdea5db`.
+- #123 / SR0 renderer contract / canonical asset-render separation — PR #124 / squash `aa30a8e4498fd5edd6df9d2be7bb9a91bcdea5db`,
+- #125 / SR1 transform geometry and fixed-step presentation history — PR #126 / squash `7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`.
 
 **Active core program: #59 Complete Sprite program.**  
-**Active Sprite child: #125 / SR1 — transform geometry and fixed-step presentation history.**  
-**Active implementation PR: #126 (`agent/sprite-sr1-transform-history`).**  
-**Exact next child after #125/#126 merges green: SR2 — atlas/trim/pivot/rotated-packing correctness.**
+**Active Sprite child: #127 / SR2 — trim/pivot/atlas/rotated-storage geometry and UV derivation.**  
+**Active implementation PR: #128 (`agent/sprite-sr2-atlas-geometry`).**  
+**Exact next child after #127/#128 merges green: SR3 — color/alpha/blend/sampling semantics.**
 
-Do not begin SR2, #103, or later fixed-order work while #125/#126 is open.
+Do not begin SR3, #103, or later fixed-order work while #127/#128 is open.
 
 ## #59 Sprite program — active
 
@@ -40,13 +41,14 @@ Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 Frozen architecture: [`docs/SPRITE_ARCHITECTURE.md`](docs/SPRITE_ARCHITECTURE.md).  
 Canonical S1 format: [`docs/SPRITE_ASSET_FORMAT.md`](docs/SPRITE_ASSET_FORMAT.md).  
 SR0 render seam: [`docs/SPRITE_RENDER_CONTRACT.md`](docs/SPRITE_RENDER_CONTRACT.md).  
-SR1 transform/presentation seam: [`docs/SPRITE_TRANSFORM_PRESENTATION.md`](docs/SPRITE_TRANSFORM_PRESENTATION.md).
+SR1 transform/presentation seam: [`docs/SPRITE_TRANSFORM_PRESENTATION.md`](docs/SPRITE_TRANSFORM_PRESENTATION.md).  
+SR2 atlas/trim/UV seam: [`docs/SPRITE_ATLAS_GEOMETRY.md`](docs/SPRITE_ATLAS_GEOMETRY.md).
 
 Fixed internal order:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [active] -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [active] -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
@@ -115,9 +117,9 @@ Key rules:
 - `OrthographicView` is reused as the #88-ready resolved view seam,
 - dependency direction is one-way: Assets/Scene truth -> Render extraction.
 
-### #125 / SR1 — active
+### #125 / SR1 — complete
 
-SR1 implements authoritative transform/history in Scene and logical geometry derivation in Render.
+SR1 implemented authoritative transform/history in Scene and logical geometry derivation in Render.
 
 Authoritative state:
 
@@ -128,7 +130,7 @@ scene::Transform2D
  -> previousFixed / currentFixed
 ```
 
-Rules implemented by `SPRITE_TRANSFORM_PRESENTATION.md`:
+Rules:
 
 - reuses existing `scene::Transform2D`; no renderer-owned transform model,
 - finite position / float radians / non-uniform scale,
@@ -167,7 +169,40 @@ Performance/ownership:
 - caller-owned outputs are reusable,
 - SR1 consumes the pre-resolved SR0 region and does not re-resolve semantic names.
 
-SR1 does not derive normalized UVs or stored trimmed/rotated atlas mapping; SR2 owns that exact handoff.
+### #127 / SR2 — active via PR #128
+
+SR2 extends the same source-point math boundary to exact visible trim geometry and canonical page-space UV derivation.
+
+Current implementation contract:
+
+```text
+ResolvedSpriteRegion
+ + SpritePose2D
+ + pixels_per_unit
+ -> shared SR1 GeometryContext
+ -> four trim source-space corners
+ -> SpriteDrawQuad positions
+ + packed_rect/page_size
+ -> canonical pixel-edge UVs
+ -> rotation-specific UV permutation
+```
+
+Key rules:
+
+- `BuildSpriteLogicalQuad` and `BuildSpriteDrawQuad` reuse one source-point transform context rather than duplicating transform semantics,
+- trim geometry is derived from `trim_offset + trim_size` in original source space; `packed_rect` never controls logical placement,
+- exact rational pivot remains untrimmed source-space truth and may stay outside source bounds,
+- canonical UV origin is atlas top-left with +u right / +v down,
+- normalized UVs use packed pixel edges with no half-texel offset,
+- `none` uses direct TL/TR/BR/BL mapping,
+- `cw90` maps logical TL->packed TR, TR->BR, BR->BL, BL->TL so storage rotation changes UVs only,
+- manually corrupted page/trim/packed metadata is rejected structurally at the draw boundary,
+- widened integer bounds checks prevent 32-bit offset+extent wrap,
+- successful extraction remains O(1), fixed-size, caller-owned and free of semantic lookup/file/decode/GPU work.
+
+Backend-independent tests cover untrimmed equivalence, trim placement, exact/out-of-source pivot, transform/scale/flip/PPU behavior, exact UVs/no half-texel, `cw90` permutation and position equivalence, page-edge 0/1 mapping, corrupted bounds/extents/rotation, numeric failures and repeated extraction.
+
+PR #128 remains draft until repository CI validates the branch head; no local build result is claimed when the current agent runtime cannot execute the repository toolchain.
 
 ## Owner-fixed core execution order
 
@@ -185,8 +220,9 @@ Content production
       -> #119 S0 architecture                               [complete via #120]
       -> #121 S1 canonical asset/import                     [complete via #122]
       -> #123 SR0 asset/render contract                     [complete via #124]
-      -> #125 SR1 transform/history/geometry                [active via #126]
-      -> SR2..SR8 renderer
+      -> #125 SR1 transform/history/geometry                [complete via #126]
+      -> #127 SR2 atlas/trim/pivot/UV geometry              [active via #128]
+      -> SR3..SR8 renderer
       -> SA0..SA4 animation
       -> SPP0..SPP5 offline processing/generation
       -> SE2E -> SPERF
@@ -259,16 +295,17 @@ The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves th
 17. #119 Sprite S0 — PR #120
 18. #121 Sprite S1 — PR #122
 19. #123 Sprite SR0 — PR #124
+20. #125 Sprite SR1 — PR #126
 
 Production architecture freeze #85 remains complete via PR #94.
 
 ## Continuation rule
 
-While PR #126 is open, finish only #125/SR1 acceptance, tests, docs and CI. Do not create SR2 implementation in parallel.
+While PR #128 is open, finish only #127/SR2 acceptance, tests, docs and CI. Do not create or implement SR3 in parallel.
 
-After PR #126 merges green:
+After PR #128 merges green:
 
-1. close/confirm #125 through the PR,
-2. update this file to mark SR1 complete,
-3. create exactly one SR2 child issue,
-4. implement SR2 only.
+1. close/confirm #127 through the PR,
+2. update this file to mark SR2 complete,
+3. create exactly one SR3 child issue,
+4. implement SR3 only on a later continuation turn.
