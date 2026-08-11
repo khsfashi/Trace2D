@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1 complete; SR2 atlas/trim/pivot/UV geometry active via #127**
+Status: **S0/S1/SR0/SR1/SR2 complete; SR3 color/alpha/blend/sampling active via #130 / draft PR #131**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -8,7 +8,8 @@ Machine-readable S0 invariants: [`contracts/sprite-s0.json`](contracts/sprite-s0
 Canonical S1 format: [`SPRITE_ASSET_FORMAT.md`](SPRITE_ASSET_FORMAT.md).  
 SR0 render seam: [`SPRITE_RENDER_CONTRACT.md`](SPRITE_RENDER_CONTRACT.md).  
 SR1 transform/presentation seam: [`SPRITE_TRANSFORM_PRESENTATION.md`](SPRITE_TRANSFORM_PRESENTATION.md).  
-SR2 atlas/trim/UV seam: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).
+SR2 atlas/trim/UV seam: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).  
+SR3 color/alpha/blend/sampling seam: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).
 
 This document owns the complete fixed Sprite stage order and capability target. Stage-local documents may refine implementation details but cannot silently change S0 authority or replace canonical authored/runtime truth with renderer/tool state.
 
@@ -64,16 +65,16 @@ Exactly one child issue/PR is active at a time:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [complete] -> SR2 [active] -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [active] -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Current stage: **SR2 / #127**.  
-Exact next stage after SR2 merges green: **SR3 — color/alpha/blend/sampling**.
+Current stage: **SR3 / #130 / draft PR #131**.  
+Exact next stage after SR3 merges green: **SR4 — painter order, sorting groups and Sprite masking**.
 
-Do not begin SR3 while #127 is active.
+Do not begin SR4 while #130 / PR #131 is active.
 
 ## 4. Completed foundation
 
@@ -123,45 +124,19 @@ canonical SpriteAsset
  -> later presentation stages
 ```
 
-Rules:
-
-- semantic ID lookup/string relationship checks are setup-only,
-- successful steady-state extraction is O(1) and allocation-free,
-- CPU page resource key contains canonical identity/intent only,
-- finite built-in material/sampler/blend/mask/primitive compatibility seam,
-- no GPU/SDL handle or normalized UV enters canonical/render-contract state,
-- existing `OrthographicView` is reused for future #88 view resolution,
-- only compatible contiguous work may later batch.
+Semantic ID lookup and relationship checks are setup-only. Successful steady-state extraction is O(1), fixed-size and allocation-free. CPU page resource keys contain canonical identity/intent only. Material/sampler/blend/mask/primitive compatibility remains finite and typed. No GPU handle or normalized UV becomes canonical state.
 
 ### SR1 — transform/geometry and presentation history — complete
 
 Merged via #125/#126 (`7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`).
 
-SR1 reuses `scene::Transform2D` for authoritative transform semantics and adds only Sprite-specific flip/history state.
-
-```text
-scene::Transform2D
- + flipX / flipY
- -> SpritePose2D
- -> previousFixed / currentFixed
-```
-
-Fixed-step rules:
-
-- creation/reset/load/teleport/snap: `previousFixed = currentFixed = new pose`,
-- successful fixed step: `previousFixed = old currentFixed; currentFixed = new pose`,
-- invalid snap/commit leaves history unchanged,
-- exact-frame presentation copies `currentFixed`,
-- interactive alpha must be finite in `[0,1]`,
-- position/scale interpolate linearly,
-- rotation uses shortest signed float-radian arc,
-- flip state is discrete and comes from `currentFixed`,
-- presentation never writes back to authoritative history.
+SR1 reuses `scene::Transform2D` for authoritative transform semantics and adds only Sprite-specific flip/history state. Creation/reset/load/teleport synchronizes previous/current; successful fixed-step commit advances history; exact-frame uses current authority; interactive presentation interpolates position/scale and shortest-arc rotation while flip remains discrete current state.
 
 Logical geometry uses untrimmed `source_size` plus exact rational pivot through one source-space Y-down -> local Y-up boundary, then semantic flip, non-uniform/negative scale, CCW rotation and translation. The implementation is O(1), fixed-size, allocation-free on the normal API, and computes at most one sin/cos pair per quad.
 
-## 5. SR2 — atlas/trim/pivot/rotated packing — active
+### SR2 — atlas/trim/pivot/rotated packing — complete
 
+Merged via #127/#128 (`a42e65c8a7953d38ad2d82894332c1f39da288f1`).  
 Concrete contract: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).
 
 SR2 consumes:
@@ -170,25 +145,12 @@ SR2 consumes:
 ResolvedSpriteRegion
  + SpritePose2D
  + pixels_per_unit
-        -> SpriteDrawQuad
+ -> SpriteDrawQuad
 ```
 
-### Visible trim placement
+The visible quad uses the exact trim rectangle embedded in the original untrimmed source space. `packed_rect` never determines logical placement. Exact rational/out-of-source pivot, flips, negative/non-uniform scale, PPU, runtime rotation and translation retain SR1 meaning.
 
-The visible quad uses the exact trim rectangle embedded in the original untrimmed source space:
-
-```text
-TL = (trim_offset.x,               trim_offset.y)
-TR = (trim_offset.x + trim_size.w, trim_offset.y)
-BR = (trim_offset.x + trim_size.w, trim_offset.y + trim_size.h)
-BL = (trim_offset.x,               trim_offset.y + trim_size.h)
-```
-
-Each corner passes through the same refactored SR1 source-point transform context. `packed_rect` never determines logical placement. Exact rational/out-of-source pivot, semantic flips, negative scale, PPU, runtime rotation and translation retain SR1 meaning.
-
-### Canonical UV truth
-
-Trace2D page-space normalized UVs use top-left origin, +u right, +v down and pixel edges:
+Canonical page UV truth remains pixel-edge based:
 
 ```text
 u0 = packed.x / page.width
@@ -197,40 +159,150 @@ u1 = (packed.x + packed.width) / page.width
 v1 = (packed.y + packed.height) / page.height
 ```
 
-No half-texel offset is added. SR3 owns sampler behavior; backend-native coordinate adaptation stays at the backend boundary.
+No half-texel offset is added. `none` maps logical corners directly to packed TL/TR/BR/BL; `cw90` undoes clockwise storage by the frozen corner permutation. Packed orientation changes UV mapping/storage dimensions only, never logical positions.
 
-`none` maps logical corners directly to packed TL/TR/BR/BL. `cw90` undoes clockwise storage through:
+SR2 rejects unresolved/invalid pose/PPU/source/pivot state, zero/corrupted page/trim/packed extents, out-of-bounds trim/packed rectangles, rotation-specific extent mismatch, unsupported rotation values and numeric overflow through stable fixed-size error categories.
+
+## 5. SR3 — color/alpha/blend/sampling — active
+
+Concrete contract: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).  
+Implementation: **#130 / draft PR #131 / branch `agent/sprite-sr3-color-sampling`**.
+
+SR3 consumes exact SR2 geometry instead of introducing a parallel full-texture-quad semantic path:
 
 ```text
-logical TL -> packed TR
-logical TR -> packed BR
-logical BR -> packed BL
-logical BL -> packed TL
+ResolvedSpriteRegion
+ + SpritePose2D
+ + pixels_per_unit
+ + SpriteAppearance2D
+        -> SpritePresentation2D {
+             SpriteDrawQuad quad,
+             SpriteAppearanceContractData appearance
+           }
+        -> production Renderer SpritePresentationRenderData
+        -> cached SDL GPU state
 ```
 
-Packed orientation therefore changes UV mapping/storage dimensions only, never logical positions.
+### Runtime appearance authority
 
-### Structured guardrails and hot path
+Finite runtime intent is:
 
-SR2 rejects unresolved/invalid pose/PPU/source/pivot state, zero/corrupted page/trim/packed extents, out-of-bounds trim/packed rectangles, rotation-specific extent mismatch, unsupported rotation values and non-finite/overflow output through stable allocation-free error/field categories.
+```text
+SpriteAppearance2D {
+    tint     : linear RGBA, each finite in [0,1]
+    opacity  : finite [0,1]
+    sampling : inherit_asset | nearest | linear
+    blend    : normal | additive | multiply | screen
+}
+```
 
-Normal derivation remains:
+Invalid authoritative values fail structurally. They are never silently clamped.
 
-- O(1),
-- fixed four vertices,
-- one shared geometry-context build and one sin/cos pair maximum,
-- reusable caller-owned output,
-- no vector/list allocation,
-- no semantic string lookup/hash,
-- no filesystem/TOML/image decode/path normalization,
-- no GPU/SDL initialization,
-- no canonical-state mutation or background work.
+`inherit_asset` resolves from canonical `SpriteAsset::sampling` without mutating the asset or resolved region. Unsupported enum values fail instead of falling through to backend defaults.
+
+### Straight-alpha / linear-working-space boundary
+
+Canonical texture source truth remains **straight alpha**. Page color-space intent remains canonical and is represented by an sRGB-capable sampled format for sRGB pages or linear UNORM for linear pages.
+
+Once sampled RGB is in linear working space, the built-in fragment contract is exactly:
+
+```text
+A = sampledStraight.a * tint.a * opacity
+P = sampledLinear.rgb * tint.rgb * A
+fragment = (P, A)
+```
+
+The canonical source pixels are never rewritten to premultiplied authority. Premultiplication is derived immediately at the fragment boundary before fixed-function blending.
+
+The built-in premultiplied blend factors are frozen:
+
+```text
+normal   : color src=ONE,       dst=ONE_MINUS_SRC_ALPHA
+additive : color src=ONE,       dst=ONE
+multiply : color src=DST_COLOR, dst=ONE_MINUS_SRC_ALPHA
+screen   : color src=ONE,       dst=ONE_MINUS_SRC_COLOR
+
+all alpha: src=ONE, dst=ONE_MINUS_SRC_ALPHA, op=ADD
+```
+
+No arbitrary blend-factor property bag belongs to SR3. Generic programmable Material2D/Shader2D remains #89.
+
+### Atlas-safe sampling without changing SR2 UV truth
+
+SR2 pixel-edge UVs remain canonical derived geometry. SR3 adds a separate texel-center sampling guard:
+
+```text
+umin = (packed.x + 0.5) / page.width
+umax = (packed.x + packed.width  - 0.5) / page.width
+vmin = (packed.y + 0.5) / page.height
+vmax = (packed.y + packed.height - 0.5) / page.height
+```
+
+The interpolated fragment UV is clamped to those bounds before sampling. One-pixel extents collapse min/max to the same texel center. `cw90` keeps the same packed-region guard while SR2 alone owns UV corner permutation.
+
+This separation is intentional: filtering safety must never rewrite canonical SR2 pixel-edge UV geometry.
+
+### Production GPU state and reuse
+
+PR #131 implements a dedicated SR3 SDL GPU backend while retaining the legacy Sprite/particle sampler/pipeline resources unchanged.
+
+Renderer/device lifetime owns:
+
+- two persistent Sprite samplers: nearest and linear,
+- four persistent built-in blend pipelines for the renderer target format,
+- sRGB/linear-tagged sampled texture resources matching canonical page color-space intent,
+- reusable capacity-managed six-vertex-per-Sprite upload resources that consume exact SR2 quad positions/UVs,
+- small per-draw fragment uniform data for tint, opacity and sample bounds.
+
+Ordinary presentation performs no explicit GPU readback or fence wait. Explicit capture/conformance may synchronize because observation requires readback.
+
+SR3 deliberately preserves caller order and does not yet implement broad compatibility batching or mixed Sprite/particle painter semantics. SR4 owns painter-order/group/mask semantics; SR7 owns production batching/culling/reuse policy beyond the current fixed cache/capacity requirements.
+
+### Metrics and deterministic proof
+
+Renderer metrics expose:
+
+- SR3 Sprite draw/submission counts,
+- Sprite sampler creation count,
+- Sprite pipeline creation count,
+- retained Sprite vertex capacity,
+- explicit GPU readback count,
+- explicit GPU fence-wait count.
+
+Backend-independent tests prove validation, exact appearance extraction, sRGB/linear encoding identity, one-pixel and `cw90` sample bounds, premultiplication, all four blend equations, transactional SR2->SR3 composition, and repeated fixed-size extraction.
+
+### Real GPU completion gate
+
+SR3 does **not** complete from hosted CPU/unit CI alone. The committed opt-in test:
+
+```text
+SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract
+```
+
+must pass on a real Windows presentation GPU with `TRACE2D_RUN_GPU_SMOKE=1` and prove:
+
+- nearest/linear sampling,
+- atlas-edge linear filtering does not bleed the adjacent texel,
+- sRGB sampled texture behavior is decoded exactly once and differs correctly from linear-page behavior,
+- normal/additive/multiply/screen captured output matches the CPU oracle,
+- tint/opacity premultiplication,
+- exactly the fixed persistent sampler/pipeline set is reused,
+- retained vertex capacity is reused,
+- ordinary frames keep explicit readback/fence waits at zero.
+
+Recommended gate from the branch/PR checkout:
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset windows-debug --parallel
+
+$env:TRACE2D_RUN_GPU_SMOKE = "1"
+ctest --preset windows-debug -R "SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract" --output-on-failure
+```
+
+Attach the exact real-GPU result to PR #131 before marking it ready. Do not treat a skipped hosted smoke test as hardware proof.
 
 ## 6. Remaining production Sprite renderer stages
-
-### SR3 — color/alpha/blend/sampling
-
-Implement tint/opacity, explicit alpha conversion boundary, supported blend modes only with backend conformance, and cached nearest/linear sampler behavior.
 
 ### SR4 — painter order/sorting groups/masking
 
@@ -357,4 +429,6 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-After the complete #59 program, the exact next core item is **#103 Benchmark B1** before #69 game-production work.
+While #130 / PR #131 is open, routine continuation resumes that PR and may only fix SR3 code/tests/docs/evidence. If hosted CI is green but no real Windows presentation-GPU smoke evidence exists, stop at that genuine hardware gate rather than creating SR4.
+
+After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
