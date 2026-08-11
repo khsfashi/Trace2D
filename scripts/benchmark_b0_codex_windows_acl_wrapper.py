@@ -40,6 +40,10 @@ _ORIGINAL_RUN_TRIAL = core.run_trial
 _PREPARED_IDENTITIES: dict[str, tuple[tuple[str, Any], tuple[str, Any]]] = {}
 
 
+def _native_windows() -> bool:
+    return os.name == "nt"
+
+
 def write_external_acl_config(
     *,
     codex_home: Path,
@@ -91,7 +95,7 @@ def resolve_offline_sandbox_identity(workspace: Path):
     used by the frozen Codex turn, the deny ACE will not block the exact canary
     read and the isolation gate fails closed before any lane starts.
     """
-    if os.name != "nt":
+    if not _native_windows():
         raise acl.AclIsolationError("windows_ntfs_acl_v1 requires native Windows")
     windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
     powershell = windir / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
