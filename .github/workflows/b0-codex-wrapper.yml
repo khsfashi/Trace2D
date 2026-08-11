@@ -1,0 +1,47 @@
+name: B0 Codex Wrapper
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  codex-wrapper-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Test frozen Codex wrapper without model access
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py
+
+      - name: Validate frozen Codex profile against B0 task budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          import benchmark_b0
+
+          suite = benchmark_b0.validate_suite(Path('benchmarks/b0/suite.json').resolve())
+          task = benchmark_b0.find_task(suite, 'b0-semantic-scene-authoring')
+          profile = benchmark_b0.validate_agent_profile(
+              Path('benchmarks/b0/agent-profile.codex-0.144.6.json').resolve(),
+              task,
+          )
+          assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
+          assert profile['model_revision'] == 'gpt-5.5-2026-04-23'
+          print(json.dumps({'status': 'ok', 'agent_id': profile['agent_id'], 'model_revision': profile['model_revision']}))
+          PY
