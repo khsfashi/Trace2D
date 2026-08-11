@@ -111,7 +111,7 @@ class CodexWrapperTests(unittest.TestCase):
             wrapper.remove_injected_godot_mcp_plugin(project)
             self.assertEqual(project.read_text(encoding="utf-8"), original)
 
-    def test_frozen_identity_is_exact(self) -> None:
+    def test_frozen_model_identity_is_exact(self) -> None:
         self.assertEqual(wrapper.EXPECTED_CODEX_VERSION, "0.144.6")
         self.assertEqual(wrapper.AGENT_ID, "openai-codex-cli@0.144.6")
         self.assertEqual(wrapper.MODEL_ID, "gpt-5.5")
