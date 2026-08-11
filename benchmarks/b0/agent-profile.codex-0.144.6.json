@@ -6,7 +6,7 @@
   "settings": {
     "reasoning_effort": "high",
     "approval_policy": "never",
-    "permission_profile": "trace2d_b0_isolated",
+    "permission_profile": "qualification_pending_external_isolation_backend",
     "session_persistence": "ephemeral",
     "web_search": "disabled",
     "auth_mode": "chatgpt-managed-local",
