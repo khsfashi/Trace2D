@@ -205,5 +205,269 @@ TEST(SpriteGeometry2DTests, ReusesCallerOwnedOutputAcrossSteadyStateExtraction)
     }
     ExpectNear(quad.topLeft, -1.0F, 1.0F);
 }
+
+TEST(SpriteGeometry2DTests, FullUntrimmedDrawMatchesLogicalQuadExactly)
+{
+    assets::SpriteAsset asset = MakeGeometryAsset();
+    asset.regions[0].trimOffset = assets::SpritePixelOffset{0U, 0U};
+    asset.regions[0].trimSize = asset.regions[0].sourceSize;
+    asset.regions[0].packedRect = assets::SpritePixelRect{8U, 16U, 4U, 2U};
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+
+    SpriteLogicalQuad logical{};
+    SpriteDrawQuad draw{};
+    ASSERT_TRUE(BuildSpriteLogicalQuad(selection, DefaultPose(), 1.0F, logical).Succeeded());
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw).Succeeded());
+
+    EXPECT_EQ(draw.topLeft.position, logical.topLeft);
+    EXPECT_EQ(draw.topRight.position, logical.topRight);
+    EXPECT_EQ(draw.bottomRight.position, logical.bottomRight);
+    EXPECT_EQ(draw.bottomLeft.position, logical.bottomLeft);
+}
+
+TEST(SpriteGeometry2DTests, TrimmedDrawUsesExactTrimRectangleInUntrimmedSourceSpace)
+{
+    const assets::SpriteAsset asset = MakeGeometryAsset();
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    SpriteDrawQuad draw{};
+
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw).Succeeded());
+
+    // trim [1,0,2,2] stays embedded in source [0,0,4,2] around pivot (1,1).
+    ExpectNear(draw.topLeft.position, 0.0F, 1.0F);
+    ExpectNear(draw.topRight.position, 2.0F, 1.0F);
+    ExpectNear(draw.bottomRight.position, 2.0F, -1.0F);
+    ExpectNear(draw.bottomLeft.position, 0.0F, -1.0F);
+}
+
+TEST(SpriteGeometry2DTests, TrimmedDrawPreservesTransformScaleFlipRotationAndTranslationOrder)
+{
+    const assets::SpriteAsset asset = MakeGeometryAsset();
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    scene::SpritePose2D pose{};
+    pose.transform.position = scene::Vector2{10.0F, 20.0F};
+    pose.transform.rotationRadians = std::numbers::pi_v<float> * 0.5F;
+    pose.transform.scale = scene::Vector2{2.0F, -1.0F};
+    pose.flipX = true;
+
+    SpriteDrawQuad draw{};
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, pose, 2.0F, draw).Succeeded());
+
+    ExpectNear(draw.topLeft.position, 10.5F, 20.0F);
+    ExpectNear(draw.topRight.position, 10.5F, 18.0F);
+    ExpectNear(draw.bottomRight.position, 9.5F, 18.0F);
+    ExpectNear(draw.bottomLeft.position, 9.5F, 20.0F);
+}
+
+TEST(SpriteGeometry2DTests, DrawPreservesExactRationalAndOutOfSourcePivotWithoutClamping)
+{
+    assets::SpriteAsset asset = MakeGeometryAsset();
+    asset.regions[0].pivot = assets::SpriteRationalPivot{1, 3, 2};
+    ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    SpriteDrawQuad draw{};
+
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 2.0F, draw).Succeeded());
+    ExpectNear(draw.topLeft.position, 0.25F, 0.75F);
+    ExpectNear(draw.bottomRight.position, 1.25F, -0.25F);
+
+    asset.regions[0].pivot = assets::SpriteRationalPivot{10, -2, 1};
+    selection = ResolveOnlyRegion(asset);
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw).Succeeded());
+    ExpectNear(draw.topLeft.position, -9.0F, -2.0F);
+    ExpectNear(draw.bottomRight.position, -7.0F, -4.0F);
+}
+
+TEST(SpriteGeometry2DTests, NoneRotationUsesCanonicalTopLeftPixelEdgeUvsWithoutHalfTexelOffset)
+{
+    assets::SpriteAsset asset = MakeGeometryAsset();
+    asset.pages[0].size = assets::SpritePixelSize{100U, 80U};
+    asset.regions[0].packedRect = assets::SpritePixelRect{10U, 20U, 2U, 2U};
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    SpriteDrawQuad draw{};
+
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw).Succeeded());
+
+    ExpectNear(draw.topLeft.uv, 0.10F, 0.25F);
+    ExpectNear(draw.topRight.uv, 0.12F, 0.25F);
+    ExpectNear(draw.bottomRight.uv, 0.12F, 0.275F);
+    ExpectNear(draw.bottomLeft.uv, 0.10F, 0.275F);
+}
+
+TEST(SpriteGeometry2DTests, Cw90StorageOnlyPermutesUvsAndNeverChangesLogicalPlacement)
+{
+    assets::SpriteAsset unrotated = MakeGeometryAsset();
+    unrotated.regions[0].sourceSize = assets::SpritePixelSize{5U, 6U};
+    unrotated.regions[0].trimOffset = assets::SpritePixelOffset{1U, 2U};
+    unrotated.regions[0].trimSize = assets::SpritePixelSize{2U, 3U};
+    unrotated.regions[0].packedRect = assets::SpritePixelRect{10U, 20U, 2U, 3U};
+    unrotated.regions[0].pivot = assets::SpriteRationalPivot{2, 4, 1};
+
+    assets::SpriteAsset rotated = unrotated;
+    rotated.regions[0].packedRect = assets::SpritePixelRect{10U, 20U, 3U, 2U};
+    rotated.regions[0].packedRotation = assets::SpritePackedRotation::Cw90;
+
+    const ResolvedSpriteRegion unrotatedSelection = ResolveOnlyRegion(unrotated);
+    const ResolvedSpriteRegion rotatedSelection = ResolveOnlyRegion(rotated);
+    SpriteDrawQuad noneDraw{};
+    SpriteDrawQuad cwDraw{};
+    ASSERT_TRUE(BuildSpriteDrawQuad(unrotatedSelection, DefaultPose(), 1.0F, noneDraw).Succeeded());
+    ASSERT_TRUE(BuildSpriteDrawQuad(rotatedSelection, DefaultPose(), 1.0F, cwDraw).Succeeded());
+
+    EXPECT_EQ(noneDraw.topLeft.position, cwDraw.topLeft.position);
+    EXPECT_EQ(noneDraw.topRight.position, cwDraw.topRight.position);
+    EXPECT_EQ(noneDraw.bottomRight.position, cwDraw.bottomRight.position);
+    EXPECT_EQ(noneDraw.bottomLeft.position, cwDraw.bottomLeft.position);
+
+    // cw90 logical TL->packed TR, TR->BR, BR->BL, BL->TL.
+    ExpectNear(cwDraw.topLeft.uv, 13.0F / 64.0F, 20.0F / 64.0F);
+    ExpectNear(cwDraw.topRight.uv, 13.0F / 64.0F, 22.0F / 64.0F);
+    ExpectNear(cwDraw.bottomRight.uv, 10.0F / 64.0F, 22.0F / 64.0F);
+    ExpectNear(cwDraw.bottomLeft.uv, 10.0F / 64.0F, 20.0F / 64.0F);
+}
+
+TEST(SpriteGeometry2DTests, PackedRectAtPageBoundaryMapsExactlyToZeroAndOneEdges)
+{
+    assets::SpriteAsset asset = MakeGeometryAsset();
+    asset.pages[0].size = assets::SpritePixelSize{8U, 4U};
+    asset.regions[0].sourceSize = assets::SpritePixelSize{8U, 4U};
+    asset.regions[0].trimOffset = assets::SpritePixelOffset{0U, 0U};
+    asset.regions[0].trimSize = assets::SpritePixelSize{8U, 4U};
+    asset.regions[0].packedRect = assets::SpritePixelRect{0U, 0U, 8U, 4U};
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    SpriteDrawQuad draw{};
+
+    ASSERT_TRUE(BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw).Succeeded());
+    EXPECT_EQ(draw.topLeft.uv, (Float2{0.0F, 0.0F}));
+    EXPECT_EQ(draw.topRight.uv, (Float2{1.0F, 0.0F}));
+    EXPECT_EQ(draw.bottomRight.uv, (Float2{1.0F, 1.0F}));
+    EXPECT_EQ(draw.bottomLeft.uv, (Float2{0.0F, 1.0F}));
+}
+
+TEST(SpriteGeometry2DTests, RejectsCorruptedPageTrimAndPackedBoundsAtDrawBoundary)
+{
+    SpriteDrawQuad draw{};
+
+    assets::SpriteAsset pageAsset = MakeGeometryAsset();
+    const ResolvedSpriteRegion pageSelection = ResolveOnlyRegion(pageAsset);
+    pageAsset.pages[0].size.width = 0U;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(pageSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPageSize, SpriteGeometryField::PageSize}));
+
+    assets::SpriteAsset zeroTrimAsset = MakeGeometryAsset();
+    const ResolvedSpriteRegion zeroTrimSelection = ResolveOnlyRegion(zeroTrimAsset);
+    zeroTrimAsset.regions[0].trimSize.width = 0U;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(zeroTrimSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidTrimRect, SpriteGeometryField::TrimRect}));
+
+    assets::SpriteAsset outsideTrimAsset = MakeGeometryAsset();
+    const ResolvedSpriteRegion outsideTrimSelection = ResolveOnlyRegion(outsideTrimAsset);
+    outsideTrimAsset.regions[0].trimOffset.x = 4U;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(outsideTrimSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidTrimRect, SpriteGeometryField::TrimRect}));
+
+    assets::SpriteAsset zeroPackedAsset = MakeGeometryAsset();
+    const ResolvedSpriteRegion zeroPackedSelection = ResolveOnlyRegion(zeroPackedAsset);
+    zeroPackedAsset.regions[0].packedRect.height = 0U;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(zeroPackedSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPackedRect, SpriteGeometryField::PackedRect}));
+
+    assets::SpriteAsset outsidePackedAsset = MakeGeometryAsset();
+    const ResolvedSpriteRegion outsidePackedSelection = ResolveOnlyRegion(outsidePackedAsset);
+    outsidePackedAsset.regions[0].packedRect.x = 63U;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(outsidePackedSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPackedRect, SpriteGeometryField::PackedRect}));
+}
+
+TEST(SpriteGeometry2DTests, RejectsPackedExtentMismatchAndUnsupportedRotation)
+{
+    SpriteDrawQuad draw{};
+
+    assets::SpriteAsset noneMismatch = MakeGeometryAsset();
+    noneMismatch.regions[0].packedRect.width = 3U;
+    const ResolvedSpriteRegion noneSelection = ResolveOnlyRegion(noneMismatch);
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(noneSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::PackedExtentMismatch, SpriteGeometryField::PackedRect}));
+
+    assets::SpriteAsset cwMismatch = MakeGeometryAsset();
+    cwMismatch.regions[0].trimSize = assets::SpritePixelSize{2U, 3U};
+    cwMismatch.regions[0].sourceSize = assets::SpritePixelSize{4U, 4U};
+    cwMismatch.regions[0].packedRect = assets::SpritePixelRect{12U, 18U, 2U, 3U};
+    cwMismatch.regions[0].packedRotation = assets::SpritePackedRotation::Cw90;
+    const ResolvedSpriteRegion cwSelection = ResolveOnlyRegion(cwMismatch);
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(cwSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::PackedExtentMismatch, SpriteGeometryField::PackedRect}));
+
+    assets::SpriteAsset unsupported = MakeGeometryAsset();
+    const ResolvedSpriteRegion unsupportedSelection = ResolveOnlyRegion(unsupported);
+    unsupported.regions[0].packedRotation = static_cast<assets::SpritePackedRotation>(255U);
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(unsupportedSelection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{
+            SpriteGeometryError::UnsupportedPackedRotation,
+            SpriteGeometryField::PackedRotation}));
+}
+
+TEST(SpriteGeometry2DTests, DrawRejectsInvalidPosePixelsPerUnitPivotAndOverflowWithoutPartialOutput)
+{
+    assets::SpriteAsset asset = MakeGeometryAsset();
+    ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    SpriteDrawQuad draw{};
+    draw.topLeft.position = Float2{123.0F, 456.0F};
+
+    scene::SpritePose2D invalidPose{};
+    invalidPose.transform.position.x = std::numeric_limits<float>::infinity();
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(selection, invalidPose, 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPose, SpriteGeometryField::Pose}));
+    EXPECT_EQ(draw, SpriteDrawQuad{});
+
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(selection, DefaultPose(), 0.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPixelsPerUnit, SpriteGeometryField::PixelsPerUnit}));
+    EXPECT_EQ(draw, SpriteDrawQuad{});
+
+    asset.regions[0].pivot.denominator = 0;
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(selection, DefaultPose(), 1.0F, draw),
+        (SpriteGeometryStatus{SpriteGeometryError::InvalidPivot, SpriteGeometryField::Pivot}));
+    EXPECT_EQ(draw, SpriteDrawQuad{});
+
+    asset = MakeGeometryAsset();
+    asset.regions[0].pivot = assets::SpriteRationalPivot{
+        std::numeric_limits<std::int64_t>::min(),
+        std::numeric_limits<std::int64_t>::min(),
+        1};
+    selection = ResolveOnlyRegion(asset);
+    EXPECT_EQ(
+        BuildSpriteDrawQuad(
+            selection,
+            DefaultPose(),
+            std::numeric_limits<float>::denorm_min(),
+            draw),
+        (SpriteGeometryStatus{SpriteGeometryError::GeometryOverflow, SpriteGeometryField::LogicalQuad}));
+    EXPECT_EQ(draw, SpriteDrawQuad{});
+}
+
+TEST(SpriteGeometry2DTests, ReusesCallerOwnedDrawOutputAcrossSteadyStateExtraction)
+{
+    const assets::SpriteAsset asset = MakeGeometryAsset();
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    const scene::SpritePose2D pose = DefaultPose();
+    SpriteDrawQuad draw{};
+
+    for (std::size_t iteration = 0U; iteration < 10000U; ++iteration)
+    {
+        ASSERT_TRUE(BuildSpriteDrawQuad(selection, pose, 1.0F, draw).Succeeded());
+    }
+    ExpectNear(draw.topLeft.position, 0.0F, 1.0F);
+    ExpectNear(draw.topLeft.uv, 12.0F / 64.0F, 18.0F / 64.0F);
+}
 } // namespace
 } // namespace trace2d::render
