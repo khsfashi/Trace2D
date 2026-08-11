@@ -26,7 +26,7 @@ Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains 
 
 ## #102 active gate
 
-PR #118 now establishes the executable B0 harness, the first matched current-capability task, and real qualification evidence for all three engine/adapter lanes.
+PR #118 establishes the executable B0 harness, the first matched current-capability task, real qualification evidence for all three engine/adapter lanes, and a real owner-local coding-Agent wrapper/profile.
 
 Current committed B0 state:
 
@@ -49,32 +49,61 @@ Current committed B0 state:
 - `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted protocol uses public `step_until` to stop on the fixture's authoritative `physics_ticks >= 12` predicate. Both clean runs stopped at exactly tick 12 with `Player.position_x == 2`; uncapped render frames differed (`267` vs `271`) and are intentionally non-authoritative. Earlier fixed-render-frame and fixed-200ms boundaries were rejected after they exposed scheduler-dependent physics progress. The independent lane oracle also accepted known-good and rejected wrong-position known-bad.
 - `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; all 188 repository tests passed in the qualification run, then the independent known-good/known-bad task oracle passed.
 
+### Coding-Agent/profile freeze — complete; owner-local qualification still pending
+
+The real coding-Agent candidate is now frozen before any scored matched-lane result exists:
+
+- Agent: `openai-codex-cli@0.144.6`,
+- auth surface: owner-local ChatGPT sign-in,
+- model selector: `gpt-5.5`,
+- reasoning effort: `high`,
+- approval policy: `never`,
+- web search: disabled,
+- human interventions: zero,
+- task budget: exactly the committed B0 budget.
+
+Pre-scoring infrastructure attempts are deliberately preserved rather than rewritten as engine losses:
+
+1. dated API snapshot `gpt-5.5-2026-04-23` — rejected by ChatGPT-managed Codex before tool use,
+2. guessed `gpt-5.6-sol` — stopped before classifiable isolation evidence and exposed an observability gap that was then fixed,
+3. documented `gpt-5.6` CLI selector — real provider reached through stdin prompt transport, but HTTP 400 reported that the model was not supported for the owner's ChatGPT Codex account; zero tokens, zero lane trials, isolation not started.
+
+The current `gpt-5.5` profile is therefore the frozen pre-scoring fallback. Do not change it after scored eligibility without explicitly superseding the benchmark version.
+
+Owner-local qualification must now prove, in order:
+
+1. `gpt-5.5` model preflight succeeds through the real ChatGPT Codex session,
+2. the candidate workspace can be modified while a random canary beside the held-out verifier is actually attempted and denied without leakage,
+3. exactly one unscored calibration attempt is preserved in each of `godot.generic`, `godot.agent`, and `trace2d.agent`,
+4. all three records share one profile hash, provider trajectory/usage is preserved where exposed, and independent verifiers complete.
+
+Until those facts are real, the suite/task intentionally remain `qualification_required` / `qualification_candidate` and `--scored` stays blocked.
+
 Primary B0 implementation/contracts:
 
 - [`benchmarks/b0/README.md`](benchmarks/b0/README.md)
 - [`benchmarks/b0/suite.json`](benchmarks/b0/suite.json)
 - [`benchmarks/b0/BASELINES.md`](benchmarks/b0/BASELINES.md)
 - [`benchmarks/b0/AGENT_WRAPPER.md`](benchmarks/b0/AGENT_WRAPPER.md)
+- [`benchmarks/b0/CODEX_COHORT.md`](benchmarks/b0/CODEX_COHORT.md)
 - [`benchmarks/b0/qualification/README.md`](benchmarks/b0/qualification/README.md)
 - [`benchmarks/b0/qualification/godot-agent.json`](benchmarks/b0/qualification/godot-agent.json)
 - [`scripts/benchmark_b0.py`](scripts/benchmark_b0.py)
+- [`scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py`](scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py)
 - [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md)
 
-The suite/task intentionally remain `qualification_required` / `qualification_candidate`. The harness must continue rejecting `--scored` runs until the external coding-Agent/model gate below is real. Three qualified environments are readiness evidence, not a comparative result.
+Three qualified environments and a frozen Agent profile are readiness evidence, not a comparative result.
 
-### Remaining external gate before PR #118 may merge / #102 may close
+### Remaining gate before PR #118 may merge / #102 may close
 
-The Godot/Trace2D environment qualification gate is resolved. The remaining acceptance work is specifically the **real matched coding-Agent cohort**:
+1. complete the owner-local `gpt-5.5` model/isolation/three-lane **unscored** calibration,
+2. review that evidence and only then promote the suite/task to `eligible`,
+3. run the predefined repeated **scored** matched cohort with the same Agent/model/settings/budget,
+4. retain every raw attempt, including losses and infrastructure outcomes,
+5. independently re-verify/replay recorded result artifacts,
+6. publish raw sample counts and distributions without best-of-N cherry-picking.
 
-1. freeze one real coding-Agent/model wrapper/profile, including exact model revision/settings and the existing task budget,
-2. prove that wrapper's filesystem/tool boundary is isolated to the candidate workspace and cannot read the held-out verifier as a solution oracle,
-3. only then promote the suite/task to `eligible`,
-4. run the same Agent/model/settings/budget repeatedly across all three lanes,
-5. retain every raw attempt, including losses and infrastructure outcomes,
-6. independently re-verify/replay recorded result artifacts,
-7. publish raw sample counts and distributions without best-of-N cherry-picking.
-
-Do **not** manufacture a model identity, token counts, provider usage, or successful trials when no real coding-Agent execution surface is connected. A green repository CI run proves the harness/environment contracts, not the missing model-run facts.
+Do **not** manufacture model identity, token counts, provider usage, isolation evidence, or successful trials. A green repository CI run proves harness/environment contracts, not the missing owner-local model-run facts.
 
 ## Owner-fixed core execution order
 
