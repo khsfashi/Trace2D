@@ -27,28 +27,22 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_evidence_packager.py
 
-      - name: Parse-check owner-local calibration PowerShell
+      - name: Parse-check owner-local setup PowerShell
         shell: pwsh
         run: |
-          $allErrors = @()
-          foreach ($script in @(
-            "scripts/run_benchmark_b0_codex_calibration.ps1",
-            "scripts/run_benchmark_b0_codex_chatgpt_calibration.ps1"
-          )) {
-            $errors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile(
-              (Resolve-Path $script).Path,
-              [ref]$null,
-              [ref]$errors
-            ) | Out-Null
-            if ($errors.Count -ne 0) {
-              $allErrors += $errors
-            }
-          }
-          if ($allErrors.Count -ne 0) {
-            $allErrors | Format-List | Out-String | Write-Error
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "scripts/run_benchmark_b0_codex_calibration.ps1").Path,
+            [ref]$null,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -ne 0) {
+            $errors | Format-List | Out-String | Write-Error
             exit 1
           }
+
+      - name: Compile-check ChatGPT recovery calibration
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py
 
       - name: Validate frozen Codex profile against B0 task budget
         shell: bash
