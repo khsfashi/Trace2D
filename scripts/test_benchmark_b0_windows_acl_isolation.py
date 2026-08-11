@@ -21,7 +21,7 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
             "before <REDACTED_RANDOM_CANARY> after",
         )
 
-    def test_direct_sandbox_uses_explicit_profile_and_cd(self) -> None:
+    def test_direct_sandbox_uses_platform_native_surface_profile_and_cd(self) -> None:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
         with mock.patch.object(probe.core, "capture", return_value=completed) as capture:
             result = probe.run_codex_sandbox(
@@ -33,7 +33,8 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
             )
         self.assertIs(result, completed)
         args = capture.call_args.args[1]
-        self.assertEqual(args[:4], ["sandbox", "windows", "--permissions-profile", ":workspace"])
+        self.assertEqual(args[:3], ["sandbox", "--permission-profile", ":workspace"])
+        self.assertNotIn("windows", args)
         self.assertIn("--cd", args)
         self.assertIn("--", args)
         self.assertEqual(capture.call_args.kwargs["timeout"], 42.0)
