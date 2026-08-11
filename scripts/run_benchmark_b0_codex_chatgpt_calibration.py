@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Reuse the first owner-local B0 toolchain and rerun only ChatGPT Codex qualification.
+"""Reuse the first owner-local B0 toolchain and rerun ChatGPT Codex qualification.
 
-The original Windows calibration already built Trace2D and pinned/verified the
-Godot, Node and Godot-MCP toolchain before the provider rejected an unsupported
-dated API snapshot. This recovery path verifies that preserved toolchain, swaps
-only the provider-selectable ChatGPT Codex model identity, then runs the real
-isolation probe and one unscored attempt in each matched lane.
+This recovery path performs no scored work. It verifies the cached deterministic
+toolchain, proves the documented ChatGPT Codex CLI model selector separately,
+then runs filesystem isolation and one unscored matched attempt per lane.
+Every subprocess boundary that can block qualification is preserved in the
+scrubbed evidence ZIP so another owner-local retry is never a blind retry.
 """
 from __future__ import annotations
 
@@ -24,9 +24,9 @@ from typing import Any
 import benchmark_b0_codex_wrapper as core
 
 CODEX_VERSION = "0.144.6"
-MODEL_ID = "gpt-5.6-sol"
-MODEL_REVISION = "gpt-5.6-sol"
-PROVIDER_REVISION_POLICY = "chatgpt_managed_identifier_no_dated_snapshot"
+MODEL_ID = "gpt-5.6"
+MODEL_REVISION = "gpt-5.6"
+PROVIDER_REVISION_POLICY = "chatgpt_codex_cli_selector_no_dated_snapshot"
 GODOT_VERSION = "4.7.1-stable"
 NODE_VERSION = "22.18.0"
 TASK_ID = "b0-semantic-scene-authoring"
@@ -67,6 +67,15 @@ def require_dir(path: Path, label: str) -> Path:
     return resolved
 
 
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def run(
     argv: list[str],
     *,
@@ -104,33 +113,27 @@ def run_external(
     env: dict[str, str] | None = None,
     timeout: float = 30.0,
 ) -> subprocess.CompletedProcess[str]:
-    return core.capture(
-        str(executable),
-        args,
-        cwd=cwd,
-        env=env,
-        timeout=timeout,
+    return core.capture(str(executable), args, cwd=cwd, env=env, timeout=timeout)
+
+
+def preserve_process(root: Path, stem: str, completed: subprocess.CompletedProcess[str]) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / f"{stem}.stdout.txt").write_text(completed.stdout or "", encoding="utf-8")
+    (root / f"{stem}.stderr.txt").write_text(completed.stderr or "", encoding="utf-8")
+    write_json(
+        root / f"{stem}.process.json",
+        {"schema_version": 1, "return_code": completed.returncode},
     )
 
 
-def load_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8-sig"))
-
-
-def write_json(path: Path, value: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-
 def newest_previous_run(runs_root: Path) -> Path:
-    candidates: list[Path] = []
-    for path in runs_root.glob("codex-calibration-*"):
-        if path.is_dir() and (path / "toolchain.json").is_file():
-            candidates.append(path)
+    candidates = [
+        path
+        for path in runs_root.glob("codex-calibration-*")
+        if path.is_dir() and (path / "toolchain.json").is_file()
+    ]
     if not candidates:
-        raise CalibrationError(
-            f"no previous codex-calibration-* toolchain found under {runs_root}"
-        )
+        raise CalibrationError(f"no previous codex-calibration-* toolchain found under {runs_root}")
     return max(candidates, key=lambda path: (path / "toolchain.json").stat().st_mtime_ns)
 
 
@@ -148,6 +151,67 @@ def scrub_auth(root: Path) -> None:
             path.unlink()
         except FileNotFoundError:
             pass
+
+
+def model_preflight(
+    *,
+    codex: str,
+    auth_file: Path,
+    workspace: Path,
+    evidence_root: Path,
+) -> dict[str, Any]:
+    workspace.mkdir(parents=True, exist_ok=True)
+    codex_home = evidence_root / "codex-home"
+    codex_home.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(auth_file, codex_home / "auth.json")
+    env = os.environ.copy()
+    env["CODEX_HOME"] = str(codex_home)
+    env["CODEX_CI"] = "1"
+    completed = core.capture(
+        codex,
+        [
+            "exec",
+            "--json",
+            "--ephemeral",
+            "--skip-git-repo-check",
+            "-C",
+            str(workspace),
+            "-m",
+            MODEL_ID,
+            "Reply exactly MODEL_OK. Do not use tools.",
+        ],
+        cwd=workspace,
+        env=env,
+        timeout=90.0,
+    )
+    preserve_process(evidence_root, "model-preflight", completed)
+    events: list[dict[str, Any]] = []
+    parse_error = ""
+    try:
+        events = core.parse_jsonl(completed.stdout or "") if (completed.stdout or "").strip() else []
+    except Exception as exc:
+        parse_error = f"{type(exc).__name__}: {exc}"
+    usage = core.token_usage(events) if events else {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+    }
+    result = {
+        "schema_version": 1,
+        "kind": "codex_chatgpt_model_preflight",
+        "passed": completed.returncode == 0 and core.saw_turn_completed(events),
+        "agent_id": f"openai-codex-cli@{CODEX_VERSION}",
+        "model_selector": MODEL_ID,
+        "provider_revision_policy": PROVIDER_REVISION_POLICY,
+        "return_code": completed.returncode,
+        "turn_completed": core.saw_turn_completed(events),
+        "usage": usage,
+        "jsonl_parse_error": parse_error,
+    }
+    write_json(evidence_root / "model-preflight.json", result)
+    scrub_auth(evidence_root)
+    return result
 
 
 def main() -> int:
@@ -171,7 +235,6 @@ def main() -> int:
     login = run_external(codex, ["login", "status"], cwd=repo_root)
     if login.returncode != 0:
         raise CalibrationError(f"codex login status failed: {login.stdout}\n{login.stderr}")
-
     auth_file = require_file(Path.home() / ".codex" / "auth.json", "file-backed Codex auth")
 
     local_appdata = os.environ.get("LOCALAPPDATA")
@@ -181,7 +244,6 @@ def main() -> int:
     tools_root = local_base / "tools"
     runs_root = Path(args.runs_root).expanduser().resolve() if args.runs_root else local_base / "runs"
     runs_root.mkdir(parents=True, exist_ok=True)
-
     previous_root = (
         Path(args.previous_run_root).expanduser().resolve()
         if args.previous_run_root
@@ -260,9 +322,7 @@ def main() -> int:
 
     shim_root = tools_root / f"command-shims-{GODOT_VERSION}"
     shim_root.mkdir(parents=True, exist_ok=True)
-    (shim_root / "godot.cmd").write_text(
-        f'@echo off\r\n"{godot_bin}" %*\r\n', encoding="ascii"
-    )
+    (shim_root / "godot.cmd").write_text(f'@echo off\r\n"{godot_bin}" %*\r\n', encoding="ascii")
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(scripts_root)
@@ -279,6 +339,8 @@ def main() -> int:
     run_root = runs_root / f"codex-chatgpt-calibration-{stamp}-{uuid.uuid4().hex[:8]}"
     calibration_root = run_root / "calibration"
     probe_root = run_root / "isolation-probe"
+    preflight_root = run_root / "model-preflight"
+    orchestration_logs = run_root / "orchestration-logs"
     calibration_root.mkdir(parents=True)
     probe_root.mkdir(parents=True)
     zip_path = run_root.with_suffix(".zip")
@@ -286,6 +348,7 @@ def main() -> int:
 
     completed = False
     primary_error: Exception | None = None
+    stage = "toolchain_record"
     try:
         write_json(
             run_root / "toolchain.json",
@@ -319,11 +382,23 @@ def main() -> int:
             },
         )
 
+        stage = "model_preflight"
+        print(f"Running ChatGPT Codex model preflight with documented CLI selector {MODEL_ID}...")
+        preflight = model_preflight(
+            codex=codex,
+            auth_file=auth_file,
+            workspace=preflight_root / "workspace",
+            evidence_root=preflight_root,
+        )
+        if not preflight["passed"]:
+            raise CalibrationError("ChatGPT Codex model preflight failed; see model-preflight evidence")
+
+        stage = "isolation_probe"
         canary_path.write_text(f"TRACE2D-B0-DENY-{uuid.uuid4().hex}", encoding="utf-8")
         probe_workspace = probe_root / "workspace"
         probe_workspace.mkdir()
         probe_evidence = probe_root / "isolation.json"
-        print(f"Running ChatGPT Codex model/isolation probe with {MODEL_ID}...")
+        print("Running Codex filesystem-isolation probe...")
         probe = run(
             [
                 sys.executable,
@@ -340,11 +415,27 @@ def main() -> int:
             cwd=repo_root,
             env=env,
             check=False,
+            capture=True,
         )
+        preserve_process(probe_root, "isolation-wrapper", probe)
         if probe.returncode != 0:
-            raise CalibrationError(f"Codex ChatGPT isolation probe failed with exit code {probe.returncode}")
+            if not probe_evidence.exists():
+                write_json(
+                    probe_evidence,
+                    {
+                        "schema_version": 1,
+                        "kind": "codex_filesystem_isolation_probe",
+                        "passed": false if False else False,
+                        "stage": "wrapper_startup_or_transport",
+                        "wrapper_return_code": probe.returncode,
+                        "model_selector": MODEL_ID,
+                        "detail": "Wrapper exited before producing its normal isolation verdict; see preserved stdout/stderr.",
+                    },
+                )
+            raise CalibrationError(f"Codex isolation probe failed with exit code {probe.returncode}")
         scrub_auth(probe_root)
 
+        stage = "matched_unscored_trials"
         exit_codes: dict[str, int] = {}
         for lane in ("godot.generic", "godot.agent", "trace2d.agent"):
             lane_env = env.copy()
@@ -369,13 +460,16 @@ def main() -> int:
                 cwd=repo_root,
                 env=lane_env,
                 check=False,
+                capture=True,
             )
+            preserve_process(orchestration_logs, lane.replace(".", "-"), trial)
             exit_codes[lane] = trial.returncode
             scrub_auth(calibration_root)
             if trial.returncode != 0:
                 print(f"Calibration {lane} returned {trial.returncode}; preserving it and continuing.")
         write_json(run_root / "calibration-exit-codes.json", exit_codes)
 
+        stage = "aggregate_report"
         raw_records = require_file(calibration_root / "raw.jsonl", "calibration raw records")
         report = run(
             [
@@ -390,6 +484,7 @@ def main() -> int:
             env=env,
             capture=True,
         )
+        preserve_process(orchestration_logs, "report", report)
         (run_root / "calibration-report.json").write_text(report.stdout, encoding="utf-8")
         report_json = json.loads(report.stdout)
         if not report_json["integrity"]["same_agent_profile_per_task"]:
@@ -399,8 +494,21 @@ def main() -> int:
                 f"expected exactly three preserved lane records, got {report_json['record_count']}"
             )
         completed = True
-    except Exception as exc:  # preserve failed infrastructure evidence too
+    except Exception as exc:
         primary_error = exc
+        write_json(
+            run_root / "failure.json",
+            {
+                "schema_version": 1,
+                "kind": "trace2d_b0_codex_chatgpt_calibration_failure",
+                "stage": stage,
+                "exception_type": type(exc).__name__,
+                "message": str(exc),
+                "scored": False,
+                "model_selector": MODEL_ID,
+                "generated_at_unix": time.time(),
+            },
+        )
     finally:
         try:
             canary_path.unlink(missing_ok=True)
@@ -419,19 +527,21 @@ def main() -> int:
             cwd=repo_root,
             env=env,
             check=False,
+            capture=True,
         )
         if package.returncode != 0:
-            raise CalibrationError(f"evidence packager failed with exit code {package.returncode}")
+            raise CalibrationError(
+                f"evidence packager failed with exit code {package.returncode}: {package.stderr}"
+            )
 
     print(f"Evidence ZIP: {zip_path}")
     if primary_error is not None:
         raise CalibrationError(
             f"B0 ChatGPT Codex calibration did not complete: {primary_error}. "
-            "Upload the generated evidence ZIP for classification."
+            "Upload the generated evidence ZIP; it now contains the blocking subprocess evidence."
         ) from primary_error
     if not completed:
         raise CalibrationError("B0 ChatGPT Codex calibration did not complete")
-
     print("B0 ChatGPT Codex calibration completed.")
     print("Upload only the scrubbed evidence ZIP; do not run scored trials yet.")
     return 0
