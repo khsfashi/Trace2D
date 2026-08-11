@@ -17,6 +17,12 @@ Codex 0.144 selects the host sandbox implementation by platform. On native
 Windows, `codex sandbox` is already the WindowsCommand surface; adding a legacy
 `windows` positional token makes Codex try to execute a program literally named
 `windows`. Keep this invocation shape covered by unit tests.
+
+The direct sandbox wrapper also owns Windows argv quoting. Do not use cmd.exe
+`/s` here: after the wrapper has quoted the `/c` command string, `/s` changes
+cmd's quote stripping rules and can make the opening quote part of the command
+name (for example, `\"echo`). `/d /c <command>` preserves the intended child
+command while still disabling AutoRun.
 """
 from __future__ import annotations
 
@@ -109,6 +115,11 @@ def run_codex_sandbox(
     )
 
 
+def cmd_command(cmd: str, command: str) -> list[str]:
+    """Build the stable cmd.exe shape used through the Codex sandbox wrapper."""
+    return [cmd, "/d", "/c", command]
+
+
 def process_record(
     completed: subprocess.CompletedProcess[str],
     *,
@@ -188,6 +199,7 @@ def main() -> int:
         "engine_trial_started": False,
         "canary_sha256": sha256_text(secret),
         "sandbox_cli_shape": "codex sandbox --permission-profile <name> --cd <dir> -- <command>",
+        "cmd_cli_shape": "cmd.exe /d /c <command>",
     }
     sandbox_sid = ""
     acl_applied = False
@@ -240,13 +252,10 @@ def main() -> int:
             codex,
             profile=":workspace",
             cwd=workspace,
-            command=[
+            command=cmd_command(
                 cmd,
-                "/d",
-                "/s",
-                "/c",
                 "echo ACL_WORKSPACE_OK>ACL_WORKSPACE_RESULT.txt",
-            ],
+            ),
         )
         write_json(evidence_dir / "workspace-write.process.json", process_record(allowed))
         allowed_file = workspace / "ACL_WORKSPACE_RESULT.txt"
@@ -266,7 +275,7 @@ def main() -> int:
             codex,
             profile=":workspace",
             cwd=workspace,
-            command=[cmd, "/d", "/s", "/c", f'type "{canary}"'],
+            command=cmd_command(cmd, f'type "{canary}"'),
         )
         leaked = secret in (denied.stdout or "") or secret in (denied.stderr or "")
         write_json(
