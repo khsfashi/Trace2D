@@ -41,6 +41,6 @@
     "model_availability_proved": true,
     "filesystem_isolation_proved": false,
     "engine_result_exists": false,
-    "note": "The evidence does not prove whether the 90 second timeout came from model/tool latency or native Windows sandbox setup. The recovery path therefore aligns the unscored isolation process ceiling with the 285 second real Agent wrapper ceiling and preserves Codex sandbox diagnostics on subsequent attempts without weakening the canary-denial acceptance rule."
+    "note": "The evidence does not prove whether the 90 second timeout came from model/tool latency, native Windows sandbox setup, or another pre-verdict child-process condition. The recovery path therefore aligns the unscored isolation process ceiling with the 285 second real Agent wrapper ceiling and preserves packageable Codex sandbox diagnostics on subsequent attempts without weakening the canary-denial acceptance rule."
   }
 }
