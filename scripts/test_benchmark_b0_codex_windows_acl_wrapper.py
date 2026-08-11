@@ -23,6 +23,7 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
         self.assertEqual(wrapper.MODEL_REVISION, "gpt-5.5")
         self.assertEqual(wrapper.WINDOWS_SANDBOX_MODE, "elevated")
         self.assertEqual(wrapper.ISOLATION_BACKEND, "windows_ntfs_acl_v1_elevated")
+        self.assertEqual(wrapper.SANDBOX_ACCOUNT_NAME, "CodexSandboxOffline")
 
     def test_config_pins_elevated_windows_backend(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
@@ -58,7 +59,25 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
             [r"type D:\Trace2D-pr118\benchmarks\b0\verifiers\canary.txt"],
         )
 
-    def test_identity_is_discovered_during_codex_home_setup(self) -> None:
+    def test_offline_sandbox_identity_uses_host_account_translation_not_codex_sandbox(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="S-1-5-21-123-456-789-1001\n",
+            stderr="",
+        )
+        with mock.patch.object(wrapper.os, "name", "nt"), mock.patch.object(
+            base, "_host_capture", return_value=completed
+        ) as host_capture:
+            sid, process = wrapper.resolve_offline_sandbox_identity(Path.cwd())
+        self.assertEqual(sid, "S-1-5-21-123-456-789-1001")
+        self.assertIs(process, completed)
+        argv = host_capture.call_args.args[0]
+        self.assertTrue(str(argv[0]).lower().endswith("powershell.exe"))
+        self.assertIn("CodexSandboxOffline", argv[-1])
+        self.assertNotIn("codex", Path(str(argv[0])).name.lower())
+
+    def test_identity_is_prepared_during_codex_home_setup_without_sandbox_subprocess(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
             root = Path(root_text)
             workspace = root / "workspace"
@@ -79,7 +98,11 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
 
             with mock.patch.object(wrapper, "_ORIGINAL_SETUP_CODEX_HOME", side_effect=fake_setup), mock.patch.object(
                 base, "_host_sid", return_value=host
-            ), mock.patch.object(base, "_sandbox_sid", return_value=sandbox):
+            ), mock.patch.object(
+                wrapper, "resolve_offline_sandbox_identity", return_value=sandbox
+            ) as resolve_identity, mock.patch.object(
+                base, "_sandbox_sid", side_effect=AssertionError("must not launch codex sandbox for identity discovery")
+            ):
                 result = wrapper.setup_codex_home_with_identity(
                     codex="codex",
                     workspace=workspace,
@@ -91,6 +114,7 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
                 )
 
             self.assertEqual(result, home)
+            resolve_identity.assert_called_once_with(workspace)
             self.assertEqual(
                 wrapper._PREPARED_IDENTITIES[wrapper._identity_key(home)],
                 (host, sandbox),
@@ -124,6 +148,8 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
                     )[0],
                     sandbox[0],
                 )
+                evidence = codex_home.parent / "acl-isolation.json"
+                evidence.write_text(json.dumps({"passed": True}), encoding="utf-8")
                 return subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""), []
 
             with mock.patch.object(base, "guarded_run_codex", side_effect=fake_guard):
@@ -137,6 +163,10 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
                 )
 
             self.assertNotIn(wrapper._identity_key(codex_home), wrapper._PREPARED_IDENTITIES)
+            evidence = json.loads((codex_home.parent / "acl-isolation.json").read_text(encoding="utf-8"))
+            self.assertEqual(evidence["sandbox_identity_source"], wrapper.SANDBOX_IDENTITY_SOURCE)
+            self.assertEqual(evidence["sandbox_account_name"], "CodexSandboxOffline")
+            self.assertEqual(evidence["identity_effectiveness_gate"], "real_model_exact_canary_read_denial")
 
     def test_probe_acl_evidence_is_exported_outside_skipped_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
@@ -162,7 +192,9 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
 
             exported = workspace.parent / "acl-isolation.json"
             self.assertTrue(exported.is_file())
-            self.assertTrue(json.loads(exported.read_text(encoding="utf-8"))["passed"])
+            exported_json = json.loads(exported.read_text(encoding="utf-8"))
+            self.assertTrue(exported_json["passed"])
+            self.assertEqual(exported_json["sandbox_identity_source"], wrapper.SANDBOX_IDENTITY_SOURCE)
 
     def test_completed_provider_turn_over_budget_is_not_transport_failure(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
