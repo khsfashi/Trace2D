@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import json
 import tempfile
 import unittest
@@ -73,6 +74,18 @@ class WindowsAclScoredCohortRunnerTests(unittest.TestCase):
             expected = root / "codex-chatgpt-calibration-example"
             expected.mkdir()
             self.assertEqual(runner.accepted_local_run_root(root, acceptance), expected)
+
+    def test_runner_contains_no_json_style_boolean_or_null_identifiers(self) -> None:
+        source_path = Path(runner.__file__).resolve()
+        tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+        forbidden = sorted(
+            {
+                node.id
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Name) and node.id in {"true", "false", "null"}
+            }
+        )
+        self.assertEqual(forbidden, [])
 
 
 if __name__ == "__main__":
