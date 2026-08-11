@@ -22,117 +22,164 @@ Completed AI-operated foundation:
 
 **Active core work: #102 Benchmark B0 in draft PR #118.**
 
-Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active or blocked on its recognized external coding-Agent gate.
+Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active or blocked on its recognized owner-local coding-Agent gate.
 
 ## #102 active gate
 
-PR #118 establishes the executable B0 harness, the first matched current-capability task, real qualification evidence for all three engine/adapter lanes, and a real owner-local coding-Agent/model profile.
+PR #118 establishes the executable B0 harness, first matched current-capability task, real qualification evidence for all three engine/adapter lanes, and a real owner-local coding-Agent/model/isolation profile.
 
-Current committed B0 state:
+Current B0 contract:
 
-- three exact lanes: `godot.generic`, `godot.agent`, `trace2d.agent`,
+- exact lanes: `godot.generic`, `godot.agent`, `trace2d.agent`,
 - same prompt intent and task budget across lanes,
 - first task: semantic scene authoring with stable `player` identity, `Player` name and exact `(4, 1)` position,
 - public cross-engine semantic mapping is part of the common prompt rather than a hidden verifier convention,
 - independent engine-side verification decides the score,
-- committed known-good and meaningful known-bad fixtures validate the oracles,
+- known-good and meaningful known-bad fixtures validate the oracles,
 - candidate trials use fresh copied workspaces/processes,
-- raw trial records are append-only-at-harness SHA-256 hash-chained JSONL,
+- raw trial records are append-only SHA-256 hash-chained JSONL,
 - infrastructure, implementation, eligibility, human and integrity outcomes remain separate,
 - reports preserve raw counts/success rates/distributions and do not produce a weighted composite score,
-- independent re-verification can rerun after the original stochastic Agent is gone,
-- benchmark tooling is Python stdlib tooling outside engine runtime/frame hot paths.
+- independent re-verification can rerun after the stochastic Agent is gone,
+- no best-of-N selection.
 
 ### Environment/bridge qualification — complete
 
-- `godot.generic` — official Godot `4.7.1-stable` Linux x86_64 binary checksum/version verified; known-good accepted and wrong-position known-bad rejected.
-- `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted protocol uses public `step_until` to stop on the fixture's authoritative `physics_ticks >= 12` predicate. Both clean runs stopped at exactly tick 12 with `Player.position_x == 2`; uncapped render frames differed (`267` vs `271`) and are intentionally non-authoritative. Earlier fixed-render-frame and fixed-200ms boundaries were rejected after they exposed scheduler-dependent physics progress. The independent lane oracle also accepted known-good and rejected wrong-position known-bad.
-- `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; all 188 repository tests passed in the qualification run, then the independent known-good/known-bad task oracle passed.
+- `godot.generic` — pinned official Godot `4.7.1-stable`; independent known-good accepted and wrong-position known-bad rejected.
+- `godot.agent` — selected qualified baseline `@satelliteoflove/godot-mcp@4.1.0`; hosted editor/MCP qualification proves authoring, structured runtime inspection, raw input and deterministic physics-tick stepping. The accepted stop boundary is public `step_until` on authoritative `physics_ticks >= 12`, not render-frame count or fixed milliseconds.
+- `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; independent known-good/known-bad task oracle passed.
 
-### Coding-Agent/model freeze — complete; model availability — proven
+### Coding-Agent/model/isolation freeze — complete before lane zero
 
-The real coding-Agent candidate was frozen before any scored matched-lane result existed:
+The real coding-Agent candidate is frozen to:
 
-- Agent: `openai-codex-cli@0.144.6`,
-- auth surface: owner-local ChatGPT sign-in,
-- model selector: `gpt-5.5`,
-- provider revision policy: `chatgpt_codex_cli_selector_no_dated_snapshot`,
-- reasoning effort: `high`,
-- approval policy: `never`,
-- web search: disabled,
-- human interventions: zero,
-- task budget: exactly the committed B0 budget.
+```text
+Agent                    openai-codex-cli@0.144.6
+auth                     owner-local ChatGPT sign-in
+model                    gpt-5.5
+provider revision policy chatgpt_codex_cli_selector_no_dated_snapshot
+reasoning                high
+approval                 never
+permission profile       :workspace
+Windows sandbox backend  elevated
+isolation backend        windows_ntfs_acl_v1_elevated
+protected-root policy    repository-root deny for Codex sandbox SID
+shell network            disabled
+session persistence      ephemeral
+human intervention       0
+budget                   exact committed B0 task budget
+```
 
-Owner-local model preflight has proved `gpt-5.5` is callable: `MODEL_OK`, process code `0`, completed turn and provider token usage were all preserved. Do not change this model after scored eligibility without explicitly superseding the benchmark version.
+Canonical Agent profile SHA-256:
 
-The Agent profile now records `permission_profile = qualification_pending_external_isolation_backend`. This is intentional: the previous native-Windows Codex permission profile was rejected, so the final isolation setting/profile hash must be frozen only after the replacement mechanism is independently qualified, but still **before the first matched lane trial**.
+```text
+2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708
+```
 
-### Native-Windows Codex read-deny backend — rejected
+Freeze evidence: [`benchmarks/b0/qualification/codex-windows-acl-final-profile-freeze-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-final-profile-freeze-2026-08-11.json).
 
-The latest owner-local isolation attempt is decisive. With the frozen `gpt-5.5` Agent and the 285-second probe ceiling:
+Owner-local preflight proves `gpt-5.5` is callable: `MODEL_OK`, process code `0`, completed turn and provider usage were preserved. Do not change model/backend/budget based on later lane outcomes.
 
-- the model completed normally,
-- read/list operations inside the candidate workspace worked,
-- workspace write attempts were rejected by Codex policy,
-- Codex executed the exact read against the random canary beside the held-out verifier,
-- that external read **succeeded**,
-- the random canary value became model-visible,
-- no matched lane trial started and no engine result exists.
+### Rejected native-Windows Codex permission profile
 
-This is preserved as [`benchmarks/b0/qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](benchmarks/b0/qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json), classified as `integrity_isolation_breach_native_windows_profile`.
+The original custom Codex filesystem permission profile is permanently rejected. Real owner-local evidence showed:
 
-Therefore the attempted custom Codex native-Windows permission profile is **not a valid B0 isolation backend**. Do not tune the prompt, increase the timeout, weaken the canary rule, or rerun the old calibration path until it happens to pass. The integrity boundary must change first.
+- workspace reads worked,
+- workspace writes were blocked by policy,
+- the exact random held-out canary read executed,
+- that read succeeded,
+- the canary value became model-visible.
 
-The result is consistent with an upstream native-Windows deny-read report (`openai/codex#31265`), but Trace2D's decision rests on its own observed owner-local canary leak.
+Evidence: [`benchmarks/b0/qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](benchmarks/b0/qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json), classification `integrity_isolation_breach_native_windows_profile`.
 
-### Replacement isolation backend candidate — external Windows ACL
+The retired entrypoint `scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py` intentionally fails closed and must not be revived.
 
-The next candidate moves held-out protection outside Codex's model-facing read-deny profile. [`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](scripts/qualify_benchmark_b0_windows_acl_isolation.py) is a **model-free, engine-free** mechanism probe that operates only on throwaway local directories.
+### External Windows ACL mechanism — qualified
 
-It must prove:
+The replacement boundary moves held-out protection outside the model-facing permission policy. Model-free owner-local qualification proved:
 
-1. Codex's native Windows sandbox runs under a SID distinct from the host user,
-2. Codex's built-in `:workspace` profile can write inside the candidate workspace,
-3. a temporary NTFS deny ACE applied only to the sandbox SID prevents reading a random external canary,
-4. the canary value does not leak,
-5. the host/orchestrator retains access and the temporary ACE is cleaned up.
+1. Codex Windows sandbox SID differs from the host SID,
+2. built-in `:workspace` can write the candidate workspace,
+3. a temporary NTFS deny ACE for the sandbox SID prevents reading an external random canary,
+4. no canary content leaks,
+5. host access remains intact,
+6. ACL and canary cleanup succeed.
 
-A passing probe qualifies only the mechanism. The full calibration runner may adopt it only after the evidence is reviewed and a repo/harness quarantine lifecycle with cleanup/failure recovery is committed.
+Evidence: [`benchmarks/b0/qualification/codex-windows-acl-backend-qualified-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-backend-qualified-2026-08-11.json).
 
-Until then:
+The first integrated runner attempt used a clean `CODEX_HOME` without explicitly pinning the Windows sandbox backend. SID discovery returned the host SID, so the wrapper failed closed before ACL application, real model isolation or any matched lane. This is preserved as [`benchmarks/b0/qualification/codex-windows-acl-integrated-backend-unspecified-attempt-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-integrated-backend-unspecified-attempt-2026-08-11.json).
 
-- do **not** run `run_benchmark_b0_codex_chatgpt_calibration_safe.py`; that entrypoint now fails closed,
-- do **not** start any matched lane trial,
-- suite/task remain `qualification_required` / `qualification_candidate`,
-- `--scored` remains blocked.
+Because matched lane count was still zero, `[windows] sandbox = "elevated"` was frozen before any lane result existed.
 
-Primary B0 implementation/contracts:
+### Latest real-model isolation — boundary succeeded; matcher false negative fixed
 
-- [`benchmarks/b0/README.md`](benchmarks/b0/README.md)
-- [`benchmarks/b0/suite.json`](benchmarks/b0/suite.json)
-- [`benchmarks/b0/BASELINES.md`](benchmarks/b0/BASELINES.md)
-- [`benchmarks/b0/AGENT_WRAPPER.md`](benchmarks/b0/AGENT_WRAPPER.md)
+Owner archive `codex-chatgpt-calibration-20260811-141748-a87da13f.zip` reached the final elevated-Windows ACL model isolation turn.
+
+Observed facts:
+
+- `gpt-5.5` model preflight passed,
+- elevated sandbox identity was distinct from host identity,
+- workspace write succeeded,
+- the exact held-out canary read was actually attempted,
+- Windows rejected it with `UnauthorizedAccessException` / access denied,
+- Agent wrote `DENIED`,
+- canary secret leakage was false,
+- Codex completed normally with provider usage,
+- matched lane trials started: `0`,
+- scored results: `0`.
+
+The run nevertheless failed closed because the old attempt matcher searched for the normal single-backslash Windows path while Codex's command display retained doubled backslashes. This is an infrastructure evidence-matcher false negative, not an isolation failure or engine result.
+
+Evidence: [`benchmarks/b0/qualification/codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json), classification `infrastructure_isolation_evidence_matcher_windows_escape_false_negative`.
+
+The final wrapper now:
+
+- canonicalizes doubled Windows backslashes **only for the isolation command-path matcher**,
+- preserves the raw Codex JSONL trajectory unchanged,
+- exports scrubbed `acl-isolation.json` outside package-excluded `.probe-artifacts`,
+- retains the same frozen model, prompt, task, budget, permission profile, elevated Windows backend and ACL policy.
+
+Relevant implementation:
+
+- [`scripts/benchmark_b0_codex_windows_acl_wrapper.py`](scripts/benchmark_b0_codex_windows_acl_wrapper.py)
+- [`scripts/run_benchmark_b0_codex_windows_acl_calibration.py`](scripts/run_benchmark_b0_codex_windows_acl_calibration.py)
 - [`benchmarks/b0/CODEX_COHORT.md`](benchmarks/b0/CODEX_COHORT.md)
 - [`benchmarks/b0/qualification/README.md`](benchmarks/b0/qualification/README.md)
-- [`benchmarks/b0/qualification/godot-agent.json`](benchmarks/b0/qualification/godot-agent.json)
-- [`scripts/benchmark_b0.py`](scripts/benchmark_b0.py)
-- [`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](scripts/qualify_benchmark_b0_windows_acl_isolation.py)
-- [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md)
 
-Three qualified environments and a proven real model are readiness evidence, not a comparative result.
+### Current owner-local gate
+
+From an updated PR #118 checkout on native Windows, run only:
+
+```powershell
+python .\scripts\run_benchmark_b0_codex_windows_acl_calibration.py
+```
+
+The runner performs:
+
+```text
+gpt-5.5 model preflight
+ -> real elevated-Windows ACL isolation canary
+ -> only on positive isolation verdict:
+    godot.generic   exactly one unscored attempt
+    godot.agent     exactly one unscored attempt
+    trace2d.agent   exactly one unscored attempt
+ -> aggregate report + scrubbed evidence ZIP
+```
+
+A lane failure is preserved and does not prevent later lanes from running. Do not run a scored benchmark yet.
 
 ### Remaining gate before PR #118 may merge / #102 may close
 
-1. qualify a replacement hard isolation backend; current native Codex read-deny backend is rejected,
-2. integrate the qualified boundary into the owner-local runner with safe cleanup/recovery and freeze its exact profile hash,
-3. preserve exactly one three-lane **unscored** calibration with the frozen Agent/model/settings/budget,
-4. review canary denial/no leakage, provider trajectory/usage, common profile identity and independent verifiers,
-5. only then promote suite/task to `eligible`,
-6. run the predefined repeated **scored** matched cohort,
-7. retain every attempt including losses and infrastructure outcomes,
-8. independently re-verify/replay artifacts and publish raw sample counts/distributions without best-of-N cherry-picking.
+1. preserve one corrected archive with positive real-model isolation and exactly three unscored lane records,
+2. review canary denial/no leakage, packageable per-turn ACL cleanup, common frozen profile identity, provider trajectory/usage and independent verifiers,
+3. promote suite/task to `eligible`,
+4. run the predefined repeated **scored** matched cohort with the exact same setup,
+5. retain every attempt including losses and infrastructure outcomes,
+6. independently re-verify/replay artifacts,
+7. publish raw sample counts/distributions without cherry-picking,
+8. only then make PR #118 ready/merge and close #102.
 
-Do **not** manufacture model identity, token counts, provider usage, isolation evidence, or successful trials. A green repository CI run proves harness/environment contracts, not the missing owner-local isolation/lane-run facts.
+Do **not** manufacture model identity, token counts, provider usage, isolation evidence, or successful trials. Hosted CI has no owner model credential; green CI proves harness/contracts, not missing owner-local model/lane facts.
 
 ## Owner-fixed core execution order
 
@@ -143,7 +190,7 @@ AI-operated foundation
  -> #97 machine-readable intent / Definition of Done         [complete via PR #115]
  -> #98 unified verify / diagnose / repair / WorkResult      [complete via PR #116]
  -> #99 result-review Workspace / feedback loop              [complete via PR #117]
- -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118; coding-Agent cohort gate]
+ -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118; owner-local unscored cohort gate]
 
 Content production
  -> #59 complete Sprite program
