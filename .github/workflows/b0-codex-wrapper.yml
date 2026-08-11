@@ -23,7 +23,7 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py
 
-      - name: Test race-safe ChatGPT recovery cleanup
+      - name: Test rejected calibration entrypoint fails closed
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_chatgpt_safe_runner.py
 
@@ -49,10 +49,10 @@ jobs:
             exit 1
           }
 
-      - name: Compile-check ChatGPT recovery and ACL qualification tooling
+      - name: Compile-check retired calibration and ACL qualification tooling
         run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
 
-      - name: Validate frozen Codex profile against B0 task budget
+      - name: Validate frozen Codex model/budget profile
         shell: bash
         run: |
           set -euo pipefail
