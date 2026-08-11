@@ -7,7 +7,8 @@
     "reasoning_effort": "high",
     "approval_policy": "never",
     "permission_profile": ":workspace",
-    "isolation_backend": "windows_ntfs_acl_v1",
+    "windows_sandbox_backend": "elevated",
+    "isolation_backend": "windows_ntfs_acl_v1_elevated",
     "protected_root_policy": "repository_root_deny_for_codex_sandbox_sid",
     "network_access": "disabled",
     "session_persistence": "ephemeral",
@@ -25,7 +26,7 @@
   "command": [
     "python",
     "-m",
-    "benchmark_b0_codex_chatgpt_wrapper",
+    "benchmark_b0_codex_windows_acl_wrapper",
     "run",
     "--workspace",
     "{workspace}",
