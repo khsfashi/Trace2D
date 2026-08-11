@@ -451,7 +451,7 @@ TEST(SpriteGeometry2DTests, DrawRejectsInvalidPosePixelsPerUnitPivotAndOverflowW
             DefaultPose(),
             std::numeric_limits<float>::denorm_min(),
             draw),
-        (SpriteGeometryStatus{SpriteGeometryError::GeometryOverflow, SpriteGeometryField::LogicalQuad}));
+        (SpriteGeometryStatus{SpriteGeometryError::GeometryOverflow, SpriteGeometryField::DrawQuad}));
     EXPECT_EQ(draw, SpriteDrawQuad{});
 }
 
