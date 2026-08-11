@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Hosted live qualification for the Benchmark B0 godot.agent lane.
 
-Protocol plumbing lives in qualify_godot_agent_mcp.py. Deterministic replay is
-bounded by authoritative fixture physics ticks through the bridge's public
-step_until control. Render frames and fixed millisecond windows are retained as
-observations, but neither is used as the equality boundary for fixed-physics
-replay on an uncapped hosted runner.
+Protocol plumbing lives in qualify_godot_agent_mcp.py. The bridge's raw-key
+injection is asynchronous relative to the first resumed Godot physics tick, so
+an absolute process physics-tick count is not a deterministic equality boundary
+for movement under newly injected input. The qualification therefore keeps the
+absolute physics counter as an observation and bounds replay by an authoritative
+fixture counter that advances only on physics ticks where the raw D key is
+actually observed. Render frames, absolute process ticks, and fixed-millisecond
+windows are retained as observations but are not movement equality boundaries.
 """
 
 from __future__ import annotations
@@ -22,14 +25,15 @@ from typing import Any
 import qualify_godot_agent_mcp as base
 
 
-TARGET_PHYSICS_TICKS = 12
-STEP_UNTIL = f'tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= {TARGET_PHYSICS_TICKS}'
+TARGET_INPUT_TICKS = 12
+STEP_UNTIL = f'tree.get_nodes_in_group("mcp_watch")[0].input_ticks >= {TARGET_INPUT_TICKS}'
 STEP_REPORT = [
+    'tree.get_nodes_in_group("mcp_watch")[0].input_ticks',
     'tree.get_nodes_in_group("mcp_watch")[0].physics_ticks',
     'tree.get_nodes_in_group("mcp_watch")[0].position.x',
 ]
 # Keep D held beyond the safety window; step_until releases all holds when the
-# predicate ends, so input duration is not the stop condition.
+# predicate ends, so wall-clock input duration is not the stop condition.
 STEP_INPUT = [{"key": "d", "start_ms": 0, "duration_ms": 1000}]
 
 
@@ -75,7 +79,7 @@ def stop_run(client: base.McpClient) -> None:
     wait_for_play_state(client, False)
 
 
-def exact_tick_step(client: base.McpClient) -> tuple[dict[str, Any], dict[str, Any]]:
+def exact_input_tick_step(client: base.McpClient) -> tuple[dict[str, Any], dict[str, Any]]:
     step = client.call_tool(
         "godot_game_time",
         {
@@ -89,15 +93,19 @@ def exact_tick_step(client: base.McpClient) -> tuple[dict[str, Any], dict[str, A
     )
     state = base.player_snapshot(client)
     base.require(isinstance(step, dict) and step.get("completed") is True, f"step_until did not complete: {step!r}")
-    base.require(step.get("predicate_met") is True, f"step_until missed physics tick predicate: {step!r}")
+    base.require(step.get("predicate_met") is True, f"step_until missed input-tick predicate: {step!r}")
     input_kinds = step.get("input_kinds", {})
     base.require(
         isinstance(input_kinds, dict) and base.as_number(input_kinds.get("key", 0), "step.input_kinds.key") >= 1,
         "bridge did not report raw key injection",
     )
     base.require(
-        base.as_number(state.get("physics_ticks"), "state.physics_ticks") == float(TARGET_PHYSICS_TICKS),
-        f"bridge did not freeze on exact target physics tick {TARGET_PHYSICS_TICKS}: {state!r}; step={step!r}",
+        base.as_number(state.get("input_ticks"), "state.input_ticks") == float(TARGET_INPUT_TICKS),
+        f"bridge did not freeze on exact target input-active tick {TARGET_INPUT_TICKS}: {state!r}; step={step!r}",
+    )
+    base.require(
+        base.as_number(state.get("physics_ticks"), "state.physics_ticks") >= float(TARGET_INPUT_TICKS),
+        f"absolute physics counter cannot be below active-input counter: {state!r}",
     )
     return step, state
 
@@ -153,30 +161,38 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
         base.require(abs(base.as_number(initial.get("position_x"), "initial.position_x")) <= 1e-9, f"Q2 initial x moved: {initial!r}")
         base.require(abs(base.as_number(initial.get("position_y"), "initial.position_y")) <= 1e-9, f"Q2 initial y moved: {initial!r}")
         base.require(base.as_number(initial.get("physics_ticks"), "initial.physics_ticks") == 0.0, f"Q2 frame-zero freeze failed: {initial!r}")
+        base.require(base.as_number(initial.get("input_ticks"), "initial.input_ticks") == 0.0, f"Q2 input counter was not reset: {initial!r}")
         time.sleep(0.5)
         after_wall_wait = base.player_snapshot(client)
         base.require(after_wall_wait.get("physics_ticks") == initial.get("physics_ticks"), "Q2 wall time advanced physics ticks")
+        base.require(after_wall_wait.get("input_ticks") == initial.get("input_ticks"), "Q2 wall time advanced input ticks")
         base.require(after_wall_wait.get("position_x") == initial.get("position_x"), "Q2 wall time moved Player")
 
-        # Q3 — real raw D key while the bridge advances until the fixture's
-        # authoritative physics counter reaches exactly the frozen target.
-        step_one, first = exact_tick_step(client)
+        # Q3 — raw D key plus deterministic step_until boundary. The raw key can
+        # become visible on the first or a later resumed process tick depending on
+        # host scheduling, so the equality boundary counts only authoritative
+        # physics ticks where the fixture actually observes that input.
+        step_one, first = exact_input_tick_step(client)
         base.require(base.as_number(first.get("position_x"), "first.position_x") > 0.0, f"Q3 D input did not move Player: {first!r}")
 
-        # Q4 — fully stop the first debug session, start a clean frozen run,
-        # wait in wall time, then hit the same authoritative physics boundary.
+        # Q4 — fully stop, start a clean frozen run, wait in wall time, then hit
+        # the same input-active deterministic boundary. Absolute process physics
+        # ticks are preserved as observations and may differ by the raw-input
+        # activation phase; movement under 12 observed D ticks must be identical.
         stop_run(client)
         time.sleep(0.25)
         _, replay_frozen_status = start_frozen_run(client)
         replay_initial = base.player_snapshot(client)
         base.require(base.as_number(replay_initial.get("physics_ticks"), "replay_initial.physics_ticks") == 0.0, f"Q4 replay did not restart at frame zero: {replay_initial!r}")
+        base.require(base.as_number(replay_initial.get("input_ticks"), "replay_initial.input_ticks") == 0.0, f"Q4 replay input counter did not restart at zero: {replay_initial!r}")
         time.sleep(0.75)
         replay_after_wait = base.player_snapshot(client)
         base.require(replay_after_wait.get("physics_ticks") == replay_initial.get("physics_ticks"), "Q4 replay wall wait advanced physics ticks")
-        step_two, second = exact_tick_step(client)
-        base.require(first.get("physics_ticks") == second.get("physics_ticks") == TARGET_PHYSICS_TICKS, f"Q4 physics tick replay mismatch: {first!r} vs {second!r}")
-        base.require(abs(base.as_number(first.get("position_x"), "first.position_x") - base.as_number(second.get("position_x"), "second.position_x")) <= 1e-9, f"Q4 position replay mismatch: {first!r} vs {second!r}")
-        base.require(step_one.get("physics_ticks") == step_two.get("physics_ticks"), f"Q4 bridge physics tick count mismatch: {step_one!r} vs {step_two!r}")
+        base.require(replay_after_wait.get("input_ticks") == replay_initial.get("input_ticks"), "Q4 replay wall wait advanced input ticks")
+        step_two, second = exact_input_tick_step(client)
+        base.require(first.get("input_ticks") == second.get("input_ticks") == TARGET_INPUT_TICKS, f"Q4 input-tick replay mismatch: {first!r} vs {second!r}")
+        base.require(abs(base.as_number(first.get("position_x"), "first.position_x") - base.as_number(second.get("position_x"), "second.position_x")) <= 1e-9, f"Q4 movement replay mismatch: {first!r} vs {second!r}")
+        base.require(step_one.get("input_ticks") == step_two.get("input_ticks"), f"Q4 bridge input-tick report mismatch: {step_one!r} vs {step_two!r}")
         stop_run(client)
 
         return {
@@ -202,18 +218,20 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
                 "deterministic_step": True,
             },
             "determinism_boundary": {
-                "kind": "fixture_physics_ticks",
-                "target": TARGET_PHYSICS_TICKS,
+                "kind": "fixture_input_active_physics_ticks",
+                "target": TARGET_INPUT_TICKS,
                 "predicate": STEP_UNTIL,
                 "max_game_time_ms": 1000,
+                "absolute_physics_ticks_authoritative_for_movement_equality": False,
                 "render_frames_authoritative": False,
                 "fixed_milliseconds_authoritative": False,
+                "reason": "Raw key injection activation is asynchronous relative to the first resumed physics tick; counting only ticks where the fixture observes D makes the movement boundary semantic and replay-stable while retaining absolute ticks as evidence.",
             },
             "environment": {
                 "os": platform.platform(),
                 "architecture": platform.machine(),
                 "node_version": os.environ.get("TRACE2D_B0_NODE_VERSION", "unknown"),
-                "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@2",
+                "mcp_client": "scripts/qualify_godot_agent_mcp_live.py@3",
                 "runner_image": os.environ.get("ImageOS", "unknown"),
             },
             "fixture": {
