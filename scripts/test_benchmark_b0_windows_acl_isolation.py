@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -28,7 +29,7 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
                 "codex.cmd",
                 profile=":workspace",
                 cwd=Path("candidate"),
-                command=["cmd.exe", "/c", "echo ok"],
+                command=["cmd.exe", "/d", "/c", "workspace-write.cmd"],
                 timeout=42.0,
             )
         self.assertIs(result, completed)
@@ -37,15 +38,34 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
         self.assertNotIn("windows", args)
         self.assertIn("--cd", args)
         self.assertIn("--", args)
+        self.assertEqual(args[-4:], ["cmd.exe", "/d", "/c", "workspace-write.cmd"])
+        self.assertNotIn("/s", args)
         self.assertEqual(capture.call_args.kwargs["timeout"], 42.0)
 
-    def test_cmd_transport_disables_autorun_without_s_quote_rewrite(self) -> None:
-        args = probe.cmd_command("cmd.exe", "echo ACL_WORKSPACE_OK>result.txt")
-        self.assertEqual(
-            args,
-            ["cmd.exe", "/d", "/c", "echo ACL_WORKSPACE_OK>result.txt"],
-        )
-        self.assertNotIn("/s", [value.casefold() for value in args])
+    def test_probe_commands_are_workspace_files_not_freeform_c_strings(self) -> None:
+        with tempfile.TemporaryDirectory() as root_text:
+            root = Path(root_text)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            canary = root / "held-out" / "CANARY.txt"
+            canary.parent.mkdir()
+            canary.write_text("secret", encoding="utf-8")
+
+            write_script, read_script = probe.write_probe_command_files(workspace, canary)
+
+            self.assertEqual(write_script.name, "workspace-write.cmd")
+            self.assertEqual(read_script.name, "held-out-read.cmd")
+            self.assertIn("ACL_WORKSPACE_OK", write_script.read_text(encoding="utf-8"))
+            self.assertIn(str(canary), read_script.read_text(encoding="utf-8"))
+            self.assertIn("type", read_script.read_text(encoding="utf-8").lower())
+
+            cmd = "cmd.exe"
+            write_argv = [cmd, "/d", "/c", write_script.name]
+            read_argv = [cmd, "/d", "/c", read_script.name]
+            self.assertEqual(len(write_argv), 4)
+            self.assertEqual(len(read_argv), 4)
+            self.assertNotIn("echo ACL_WORKSPACE_OK", " ".join(write_argv))
+            self.assertNotIn(str(canary), " ".join(read_argv))
 
     def test_process_record_redacts_canary(self) -> None:
         secret = "TRACE2D-B0-ACL-DENY-secret"
