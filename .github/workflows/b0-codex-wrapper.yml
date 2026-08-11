@@ -21,7 +21,7 @@ jobs:
 
       - name: Test frozen Codex wrapper without model access
         working-directory: scripts
-        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py
+        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py test_benchmark_b0_codex_windows_acl_wrapper.py
 
       - name: Test rejected calibration entrypoint fails closed
         working-directory: scripts
@@ -54,7 +54,7 @@ jobs:
           }
 
       - name: Compile-check B0 Codex qualification tooling
-        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/benchmark_b0_codex_windows_acl_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
 
       - name: Validate frozen Codex model/isolation/budget profile
         shell: bash
@@ -78,16 +78,19 @@ jobs:
           assert profile['model_id'] == 'gpt-5.5'
           assert profile['model_revision'] == 'gpt-5.5'
           assert profile['settings']['permission_profile'] == ':workspace'
-          assert profile['settings']['isolation_backend'] == 'windows_ntfs_acl_v1'
+          assert profile['settings']['windows_sandbox_backend'] == 'elevated'
+          assert profile['settings']['isolation_backend'] == 'windows_ntfs_acl_v1_elevated'
           assert profile['settings']['protected_root_policy'] == 'repository_root_deny_for_codex_sandbox_sid'
           assert profile['settings']['network_access'] == 'disabled'
           assert profile['settings']['provider_revision_policy'] == 'chatgpt_codex_cli_selector_no_dated_snapshot'
+          assert profile['command'][2] == 'benchmark_b0_codex_windows_acl_wrapper'
           print(json.dumps({
               'status': 'ok',
               'agent_id': profile['agent_id'],
               'model_id': profile['model_id'],
               'model_revision': profile['model_revision'],
               'permission_profile': profile['settings']['permission_profile'],
+              'windows_sandbox_backend': profile['settings']['windows_sandbox_backend'],
               'isolation_backend': profile['settings']['isolation_backend'],
           }))
           PY
