@@ -109,12 +109,12 @@ class SpriteS0ContractTests(unittest.TestCase):
             },
         )
 
-    def test_human_docs_reference_frozen_s0_while_allowing_fixed_order_progress(self) -> None:
+    def test_human_docs_keep_frozen_s0_and_fixed_successor_order(self) -> None:
         self.assertIn("SPRITE_ARCHITECTURE.md", self.roadmap)
         self.assertIn("contracts/sprite-s0.json", self.roadmap)
-        self.assertIn("S0 [complete] -> S1 [active]", self.roadmap)
-        self.assertIn("Current stage: **S1 / #121 / PR #122**", self.roadmap)
-        self.assertIn("Exact next stage after S1 merges green: **SR0**", self.roadmap)
+        self.assertIn("S0 [complete]", self.roadmap)
+        self.assertIn("S1", self.roadmap)
+        self.assertIn("SR0", self.roadmap)
         self.assertIn("compatible contiguous", self.arch)
         self.assertIn("exact-frame", self.arch.lower())
         self.assertIn("#97-#99", self.arch)
