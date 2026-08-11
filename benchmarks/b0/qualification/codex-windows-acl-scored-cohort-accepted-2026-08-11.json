@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_scored_cohort_acceptance",
+  "date": "2026-08-11",
+  "accepted": true,
+  "scored": true,
+  "cohort_id": "trace2d-b0-semantic-scene-authoring-scored-v1",
+  "repository_head_at_run": "72175c1a0c5e99bf4383bfc9e725885c48ad59b8",
+  "archive": {
+    "name": "codex-chatgpt-scored-20260811-180458-214dfeb0.zip",
+    "sha256": "0625e084b6704258a537de7005a3f9a427d66147663abc7878d5880b2860ea52",
+    "size_bytes": 167213,
+    "entry_count": 158
+  },
+  "frozen_agent": {
+    "agent_id": "openai-codex-cli@0.144.6",
+    "model_selector": "gpt-5.5",
+    "reasoning_effort": "high",
+    "permission_profile": ":workspace+windows_ntfs_acl_v1_elevated",
+    "canonical_profile_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+    "budget": {
+      "wall_seconds": 300,
+      "max_tool_calls": 80,
+      "max_input_tokens": 100000,
+      "max_output_tokens": 20000,
+      "max_human_interventions": 0
+    }
+  },
+  "preflight": {
+    "passed": true,
+    "turn_completed": true,
+    "input_tokens": 12592,
+    "cached_input_tokens": 1408,
+    "output_tokens": 6
+  },
+  "isolation": {
+    "passed": true,
+    "workspace_write_proved": true,
+    "external_read_attempt_observed": true,
+    "external_read_denied": true,
+    "canary_secret_leaked": false,
+    "sandbox_sid_differs_from_host": true,
+    "acl_records_checked": 10,
+    "acl_apply_succeeded": 10,
+    "acl_cleanup_succeeded": 10
+  },
+  "schedule": [
+    {"slot": 1, "repetition": 1, "lane_id": "godot.generic"},
+    {"slot": 2, "repetition": 1, "lane_id": "godot.agent"},
+    {"slot": 3, "repetition": 1, "lane_id": "trace2d.agent"},
+    {"slot": 4, "repetition": 2, "lane_id": "godot.agent"},
+    {"slot": 5, "repetition": 2, "lane_id": "trace2d.agent"},
+    {"slot": 6, "repetition": 2, "lane_id": "godot.generic"},
+    {"slot": 7, "repetition": 3, "lane_id": "trace2d.agent"},
+    {"slot": 8, "repetition": 3, "lane_id": "godot.generic"},
+    {"slot": 9, "repetition": 3, "lane_id": "godot.agent"}
+  ],
+  "cohort_integrity": {
+    "raw_record_count": 9,
+    "replay_record_count": 9,
+    "same_agent_profile_per_task": true,
+    "raw_sha_chain_independently_recomputed": true,
+    "replay_sha_chain_independently_recomputed": true,
+    "independent_reverify_return_code_zero": 9,
+    "workspace_matches_original": 9,
+    "verdict_matches_original": 9,
+    "human_intervention_zero": 9,
+    "automatic_retries": 0,
+    "replacement_retries": 0,
+    "best_of_n": false,
+    "failure_file_present": false
+  },
+  "lane_results": [
+    {
+      "lane_id": "godot.generic",
+      "sample_count": 3,
+      "benchmark_status": {"budget_exceeded": 3},
+      "benchmark_success_count": 0,
+      "independent_verifier_pass_count": 1,
+      "independent_verifier_fail_count": 2,
+      "verifier_failures": {"player_missing": 2},
+      "medians": {
+        "revisions": 2.0,
+        "tool_calls": 16.0,
+        "input_tokens": 201304.0,
+        "output_tokens": 3669.0,
+        "wall_ms": 138061.4702,
+        "verifier_ms": 181.8135
+      },
+      "ranges": {
+        "input_tokens": {"min": 137882, "max": 363990},
+        "tool_calls": {"min": 14, "max": 32},
+        "wall_ms": {"min": 127068.6005, "max": 255324.985}
+      }
+    },
+    {
+      "lane_id": "godot.agent",
+      "sample_count": 3,
+      "benchmark_status": {"budget_exceeded": 3},
+      "benchmark_success_count": 0,
+      "independent_verifier_pass_count": 3,
+      "independent_verifier_fail_count": 0,
+      "medians": {
+        "revisions": 3.0,
+        "tool_calls": 27.0,
+        "input_tokens": 420560.0,
+        "output_tokens": 5747.0,
+        "wall_ms": 212326.9981,
+        "verifier_ms": 191.7915
+      },
+      "ranges": {
+        "input_tokens": {"min": 316070, "max": 505697},
+        "tool_calls": {"min": 21, "max": 32},
+        "wall_ms": {"min": 116341.9208, "max": 232068.8628}
+      }
+    },
+    {
+      "lane_id": "trace2d.agent",
+      "sample_count": 3,
+      "benchmark_status": {"budget_exceeded": 3},
+      "benchmark_success_count": 0,
+      "independent_verifier_pass_count": 3,
+      "independent_verifier_fail_count": 0,
+      "medians": {
+        "revisions": 4.0,
+        "tool_calls": 23.0,
+        "input_tokens": 273128.0,
+        "output_tokens": 4373.0,
+        "wall_ms": 153198.9646,
+        "verifier_ms": 29.6041
+      },
+      "ranges": {
+        "input_tokens": {"min": 245642, "max": 279966},
+        "tool_calls": {"min": 19, "max": 26},
+        "wall_ms": {"min": 150773.0754, "max": 177832.7208}
+      }
+    }
+  ],
+  "observed_engine_events": {
+    "godot_signal_11_crash_event_count": 6,
+    "godot_trials_with_signal_11": 5,
+    "affected_trials": [
+      "godot.generic scored r1",
+      "godot.generic scored r2",
+      "godot.generic scored r3",
+      "godot.agent scored r2",
+      "godot.agent scored r3"
+    ],
+    "interpretation": "These crashes occurred inside Agent tool trajectories and are retained as observed evidence. They did not abort the cohort: all nine trial records were appended, all final independent verifiers executed, and all nine preserved workspaces/verdicts independently reverified. They are not removed or replaced."
+  },
+  "package_scrub_review": {
+    "auth_json_present": false,
+    "obvious_openai_api_key_present": false,
+    "plaintext_random_canary_present": false,
+    "raw_windows_sid_present": false,
+    "bearer_authorization_present": false
+  },
+  "interpretation": "The preregistered B0 scored cohort is accepted as the single final cohort. All nine scheduled attempts completed without replacement retry and are independently replayable. Every attempt exceeded the frozen 100000 input-token ceiling, so benchmark success_count is zero in all lanes even where the independent semantic verifier passed. The raw verifier outcomes and resource distributions are published separately from benchmark status. This narrow B0 result proves the matched harness/evidence methodology; it does not support a broad Trace2D-over-Godot superiority claim.",
+  "b0_acceptance_decision": {
+    "repeated_matched_cohort_completed": true,
+    "comparable_machine_readable_records": true,
+    "independent_reverification_completed": true,
+    "raw_distributions_published": true,
+    "issue_102_acceptance_satisfied": true,
+    "next_fixed_order_issue": 59
+  }
+}

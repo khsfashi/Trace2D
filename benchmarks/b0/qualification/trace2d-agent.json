@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "suite_id": "trace2d-b0",
+  "lane_id": "trace2d.agent",
+  "qualified": true,
+  "scope": "b0-semantic-scene-authoring independent oracle and frozen Trace2D engine environment",
+  "engine": {
+    "id": "trace2d",
+    "source_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+    "benchmark_candidate_head": "74ab0b39ffeeaa9f031690f087dcded263c28b32",
+    "executable": "build/ci-windows-msvc/tools/trace2d/Debug/trace2d.exe"
+  },
+  "environment": {
+    "provider": "GitHub Actions hosted runner",
+    "runs_on": "windows-latest",
+    "architecture": "x64"
+  },
+  "fixture": {
+    "task_id": "b0-semantic-scene-authoring",
+    "known_good_passed": true,
+    "known_bad_failed": true,
+    "known_bad_code": "observable_mismatch"
+  },
+  "test_suite": {
+    "passed": 188,
+    "failed": 0
+  },
+  "evidence": {
+    "repository": "khsfashi/Trace2D",
+    "pull_request": 118,
+    "source_head": "74ab0b39ffeeaa9f031690f087dcded263c28b32",
+    "workflow_run_id": 31411471491,
+    "job_id": 93530305956,
+    "job_name": "windows-msvc"
+  },
+  "recorded_on": "2026-08-11"
+}

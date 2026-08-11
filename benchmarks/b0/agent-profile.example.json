@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "agent_id": "replace-with-one-frozen-agent-wrapper",
+  "model_id": "replace-with-one-frozen-model-id",
+  "model_revision": "replace-with-exact-model-revision-or-provider-snapshot",
+  "settings": {
+    "reasoning": "replace-with-frozen-setting",
+    "temperature": 0
+  },
+  "budget": {
+    "wall_seconds": 300,
+    "max_tool_calls": 80,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 0
+  },
+  "command": [
+    "replace-with-agent-wrapper",
+    "--workspace",
+    "{workspace}",
+    "--prompt-file",
+    "{prompt}",
+    "--lane",
+    "{lane}",
+    "--result-file",
+    "{agent_result}"
+  ]
+}

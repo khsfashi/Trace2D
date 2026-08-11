@@ -13,6 +13,9 @@ permissions:
 
 env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+  TRACE2D_B0_GODOT_VERSION: 4.7.1-stable
+  TRACE2D_B0_GODOT_MCP_PACKAGE: "@satelliteoflove/godot-mcp@4.1.0"
+  TRACE2D_B0_NODE_VERSION: 22.18.0
 
 jobs:
   repository-contract-audit:
@@ -25,6 +28,169 @@ jobs:
       - name: Audit repository contracts
         shell: pwsh
         run: ./scripts/repository_contract_audit.ps1
+
+  benchmark-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate B0 suite schema and fixtures
+        run: python3 scripts/benchmark_b0.py validate-suite
+
+      - name: Test B0 append-only and fairness contracts
+        run: python3 -m unittest discover -s scripts -p 'test_benchmark_b0.py'
+
+  godot-benchmark-oracle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B0_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_BENCH_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Verify pinned Godot version
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_BENCH_GODOT_BIN" --version | tee "$RUNNER_TEMP/godot-version.txt"
+          grep -E '^4\.7\.1\.stable' "$RUNNER_TEMP/godot-version.txt"
+
+      - name: Qualify Godot B0 gold and known-bad fixtures
+        run: python3 scripts/benchmark_b0.py qualify-fixtures --task b0-semantic-scene-authoring --lane godot.generic
+
+  godot-agent-qualification:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.TRACE2D_B0_NODE_VERSION }}
+
+      - name: Verify pinned Node.js
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node --version)" = "v${TRACE2D_B0_NODE_VERSION}"
+
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B0_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_BENCH_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B0_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Ensure virtual X display is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Install exact Godot MCP package and addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/godot-mcp"
+          fixture="$RUNNER_TEMP/godot-agent-fixture"
+          rm -rf "$prefix" "$fixture"
+          cp -a benchmarks/b0/qualification/godot_agent_fixture "$fixture"
+          npm install --prefix "$prefix" --no-audit --no-fund "$TRACE2D_B0_GODOT_MCP_PACKAGE"
+          server="$prefix/node_modules/.bin/godot-mcp"
+          test -x "$server"
+          test "$("$server" --version)" = "4.1.0"
+          integrity="$(npm view "$TRACE2D_B0_GODOT_MCP_PACKAGE" dist.integrity)"
+          test -n "$integrity"
+          "$server" --install-addon "$fixture"
+          echo "TRACE2D_B0_GODOT_MCP_SERVER=$server" >> "$GITHUB_ENV"
+          echo "TRACE2D_B0_GODOT_MCP_INTEGRITY=$integrity" >> "$GITHUB_ENV"
+          echo "TRACE2D_B0_GODOT_AGENT_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B0_NODE_VERSION=$(node --version)" >> "$GITHUB_ENV"
+
+      - name: Launch Godot editor with MCP addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot-agent-evidence"
+          xvfb-run -a "$TRACE2D_BENCH_GODOT_BIN" \
+            --editor \
+            --path "$TRACE2D_B0_GODOT_AGENT_FIXTURE" \
+            --rendering-method gl_compatibility \
+            >"$RUNNER_TEMP/godot-agent-evidence/godot-editor.log" 2>&1 &
+          editor_pid=$!
+          echo "$editor_pid" > "$RUNNER_TEMP/godot-agent-evidence/editor.pid"
+          sleep 3
+          if ! kill -0 "$editor_pid" 2>/dev/null; then
+            cat "$RUNNER_TEMP/godot-agent-evidence/godot-editor.log"
+            exit 1
+          fi
+
+      - name: Prove Godot Agent authoring, state, input and exact stepping
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/qualify_godot_agent_mcp_live.py \
+            --server "$TRACE2D_B0_GODOT_MCP_SERVER" \
+            --project "$TRACE2D_B0_GODOT_AGENT_FIXTURE" \
+            --source-fixture benchmarks/b0/qualification/godot_agent_fixture \
+            --evidence "$RUNNER_TEMP/godot-agent-evidence/godot-agent.json" \
+            --mcp-stderr "$RUNNER_TEMP/godot-agent-evidence/godot-mcp.stderr.log"
+
+      - name: Stop qualification editor
+        if: always()
+        shell: bash
+        run: |
+          pid_file="$RUNNER_TEMP/godot-agent-evidence/editor.pid"
+          if [[ -f "$pid_file" ]]; then
+            editor_pid="$(cat "$pid_file")"
+            kill "$editor_pid" 2>/dev/null || true
+          fi
+
+      - name: Upload Godot Agent qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot-agent-qualification-evidence
+          path: ${{ runner.temp }}/godot-agent-evidence
+          if-no-files-found: warn
+          retention-days: 30
 
   release-audit:
     runs-on: ubuntu-latest
@@ -66,6 +232,12 @@ jobs:
 
       - name: Test
         run: ctest --preset ci-windows-debug
+
+      - name: Qualify Trace2D B0 gold and known-bad fixtures
+        shell: pwsh
+        run: |
+          $env:TRACE2D_BENCH_TRACE2D_BIN = (Resolve-Path "build/ci-windows-msvc/tools/trace2d/Debug/trace2d.exe").Path
+          python scripts/benchmark_b0.py qualify-fixtures --task b0-semantic-scene-authoring --lane trace2d.agent
 
   clean-clone-quick-start:
     runs-on: windows-2022

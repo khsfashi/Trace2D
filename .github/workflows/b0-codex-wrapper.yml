@@ -1,0 +1,122 @@
+name: B0 Codex Wrapper
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  codex-wrapper-contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Test frozen Codex wrapper without model access
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py test_benchmark_b0_codex_windows_acl_wrapper.py test_benchmark_b0_stable_harness.py
+
+      - name: Test rejected calibration entrypoint fails closed
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_chatgpt_safe_runner.py
+
+      - name: Test qualified Windows ACL calibration runner
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_windows_acl_runner.py
+
+      - name: Test preregistered scored cohort runner
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_windows_acl_scored_runner.py
+
+      - name: Test Windows ACL isolation probe helpers
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_windows_acl_isolation.py
+
+      - name: Test scrubbed evidence packaging
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_evidence_packager.py
+
+      - name: Parse-check owner-local PowerShell entrypoints
+        shell: pwsh
+        run: |
+          $paths = @(
+            "scripts/run_benchmark_b0_codex_calibration.ps1",
+            "scripts/run_benchmark_b0_codex_windows_acl_scored_cohort_admin.ps1"
+          )
+          foreach ($path in $paths) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,
+              [ref]$null,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -ne 0) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
+          }
+
+      - name: Compile-check B0 Codex qualification tooling
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/run_benchmark_b0_codex_windows_acl_scored_cohort.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/benchmark_b0_codex_windows_acl_wrapper.py scripts/benchmark_b0_stable_harness.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
+
+      - name: Validate frozen Codex model/isolation/budget profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path('scripts').resolve()))
+          import benchmark_b0
+
+          suite = benchmark_b0.validate_suite(Path('benchmarks/b0/suite.json').resolve())
+          task = benchmark_b0.find_task(suite, 'b0-semantic-scene-authoring')
+          profile = benchmark_b0.validate_agent_profile(
+              Path('benchmarks/b0/agent-profile.codex-0.144.6.json').resolve(),
+              task,
+          )
+          policy = json.loads(Path('benchmarks/b0/scored-cohort-v1.json').read_text(encoding='utf-8'))
+          acceptance = json.loads(Path('benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json').read_text(encoding='utf-8'))
+          assert suite['state'] == 'eligible'
+          assert task['state'] == 'eligible'
+          assert acceptance['accepted'] is True
+          assert acceptance['promotion_decision']['suite_task_eligible'] is True
+          assert policy['state'] == 'ready'
+          assert policy['total_planned_trials'] == 9
+          assert policy['retry_policy']['automatic_retries_per_trial'] == 0
+          assert policy['retry_policy']['replacement_trials_for_infrastructure_failure'] == 0
+          assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
+          assert profile['model_id'] == 'gpt-5.5'
+          assert profile['model_revision'] == 'gpt-5.5'
+          assert profile['settings']['permission_profile'] == ':workspace'
+          assert profile['settings']['windows_sandbox_backend'] == 'elevated'
+          assert profile['settings']['isolation_backend'] == 'windows_ntfs_acl_v1_elevated'
+          assert profile['settings']['protected_root_policy'] == 'repository_root_deny_for_codex_sandbox_sid'
+          assert profile['settings']['network_access'] == 'disabled'
+          assert profile['settings']['provider_revision_policy'] == 'chatgpt_codex_cli_selector_no_dated_snapshot'
+          assert profile['command'][2] == 'benchmark_b0_codex_windows_acl_wrapper'
+          assert profile['budget']['max_input_tokens'] == 100000
+          assert benchmark_b0.sha256_json(profile) == policy['agent_profile_canonical_sha256']
+          print(json.dumps({
+              'status': 'ok',
+              'suite_state': suite['state'],
+              'task_state': task['state'],
+              'agent_id': profile['agent_id'],
+              'model_id': profile['model_id'],
+              'model_revision': profile['model_revision'],
+              'permission_profile': profile['settings']['permission_profile'],
+              'windows_sandbox_backend': profile['settings']['windows_sandbox_backend'],
+              'isolation_backend': profile['settings']['isolation_backend'],
+              'max_input_tokens': profile['budget']['max_input_tokens'],
+              'scored_trials': policy['total_planned_trials'],
+          }))
+          PY

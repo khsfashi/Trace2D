@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_codex_owner_local_attempt",
+  "classification": "infrastructure_cli_argument_transport",
+  "scored": false,
+  "matched_lane_trials_started": 0,
+  "source_head": "826c856f566391162c9a521409916809c1ed812a",
+  "evidence_zip": {
+    "file_name": "codex-chatgpt-calibration-20260811-110708-302626eb.zip",
+    "sha256": "a0680ac0c47233725f9ee09ad794a2c5fa226ed54e882685f692817fc3fb217d",
+    "size_bytes": 2288,
+    "packaged_file_count": 6,
+    "credential_files_present": false
+  },
+  "agent": {
+    "id": "openai-codex-cli@0.144.6",
+    "model_selector": "gpt-5.6",
+    "auth_mode": "chatgpt-managed-local"
+  },
+  "failure": {
+    "stage": "model_preflight",
+    "process_return_code": 2,
+    "turn_completed": false,
+    "provider_tokens": {
+      "input_tokens": 0,
+      "cached_input_tokens": 0,
+      "output_tokens": 0,
+      "reasoning_output_tokens": 0
+    },
+    "stderr": "error: unexpected argument 'exactly' found",
+    "cause": "The Windows npm codex.cmd launcher received the free-form preflight prompt as a positional argument through cmd.exe. The prompt words were split into multiple clap arguments before any model/provider turn started."
+  },
+  "remediation": {
+    "decision": "Use codex exec '-' and provide the prompt through stdin, matching the already-frozen three-lane wrapper transport.",
+    "benchmark_contract_changed": false,
+    "engine_or_lane_result_changed": false
+  }
+}

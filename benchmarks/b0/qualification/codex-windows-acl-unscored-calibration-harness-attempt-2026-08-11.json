@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_pre_scoring_unscored_calibration_attempt",
+  "date": "2026-08-11",
+  "classification": "infrastructure_unscored_calibration_harness_integration_defects",
+  "scored": false,
+  "repository_head": "d4be84ec923c2eadee7f28751476c5b42deeb86d",
+  "frozen_trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+  "agent_profile_canonical_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+  "archive": {
+    "name": "codex-chatgpt-calibration-20260811-150451-625123c9.zip",
+    "sha256": "ce226537d9e08bb5e927fb5a1744b9d9f473f19896d391dcc5ea6be8f5c1f769",
+    "size_bytes": 38631,
+    "package_entries": 54,
+    "credential_scan": "no auth.json, OPENAI_API_KEY, sk-proj-, api_key, or Bearer marker found"
+  },
+  "model_preflight": {
+    "passed": true,
+    "model_selector": "gpt-5.5",
+    "return_code": 0,
+    "turn_completed": true,
+    "usage": {
+      "input_tokens": 12592,
+      "cached_input_tokens": 9600,
+      "output_tokens": 6,
+      "reasoning_output_tokens": 0
+    }
+  },
+  "real_model_isolation": {
+    "passed": true,
+    "permission_profile": ":workspace+windows_ntfs_acl_v1_elevated",
+    "sandbox_sid_differs_from_host": true,
+    "workspace_write_proved": true,
+    "external_read_attempt_observed": true,
+    "external_read_denied": true,
+    "canary_secret_leaked": false,
+    "acl_apply_succeeded": true,
+    "acl_cleanup_succeeded": true,
+    "codex_return_code": 0,
+    "turn_completed": true,
+    "usage": {
+      "input_tokens": 22134,
+      "cached_input_tokens": 9728,
+      "output_tokens": 1235,
+      "reasoning_output_tokens": 621
+    }
+  },
+  "lane_attempts": {
+    "godot.generic": {
+      "raw_record_preserved": true,
+      "independent_verifier": "pass",
+      "observed": {
+        "entity_id": "player",
+        "name": "Player",
+        "position_x": 4.0,
+        "position_y": 1.0
+      },
+      "tool_calls": 11,
+      "input_tokens": 149255,
+      "output_tokens": 2716,
+      "old_agent_status": "tool_transport_failure",
+      "correct_interpretation": "budget_exceeded",
+      "budget_note": "The provider turn completed and the independent verifier passed, but the frozen 100000 input-token budget was exceeded. The old wrapper incorrectly mapped any budget failure to tool_transport_failure. The budget is not raised."
+    },
+    "godot.agent": {
+      "raw_record_preserved": false,
+      "agent_wrapper_failure": "Codex sandbox SID discovery timed out after 60 seconds while the Godot editor/MCP stack was already live.",
+      "recording_failure": "After the agent wrapper returned, the independent Godot verifier recreated project .godot shader cache while the harness recursively hashed the workspace; a disappearing shader-cache directory raised FileNotFoundError before the raw record could be appended.",
+      "engine_result": "not_classifiable",
+      "correct_interpretation": "infrastructure_harness_integration_failure"
+    },
+    "trace2d.agent": {
+      "raw_record_preserved": true,
+      "independent_verifier": "pass",
+      "observed": {
+        "entity_id": "player",
+        "name": "Player",
+        "position_x": 4,
+        "position_y": 1
+      },
+      "tool_calls": 26,
+      "input_tokens": 279614,
+      "output_tokens": 5135,
+      "old_agent_status": "tool_transport_failure",
+      "correct_interpretation": "budget_exceeded",
+      "budget_note": "The provider turn completed and the independent verifier passed, but the frozen 100000 input-token budget was exceeded. The budget remains unchanged."
+    }
+  },
+  "aggregate": {
+    "expected_lane_records": 3,
+    "preserved_lane_records": 2,
+    "same_agent_profile_per_task": true,
+    "failure_stage": "aggregate_report",
+    "failure_message": "expected exactly three preserved lane records, got 2"
+  },
+  "recovery": {
+    "budget_policy": "Keep the frozen 100000 input-token budget. Classify a completed provider turn that exceeds it as budget_exceeded/implementation instead of tool_transport_failure/infrastructure.",
+    "sandbox_identity": "Discover and cache the effective elevated sandbox identity in-process during CODEX_HOME setup, before the Godot editor starts, then reuse that exact identity for the ACL-guarded turn.",
+    "workspace_hash": "Use authored_files_excluding_godot_cache_v1 for owner-local B0 artifact identity; .godot is engine-owned volatile cache and is not an authored candidate artifact.",
+    "retry_rule": "Preserve this attempt as pre-scoring infrastructure evidence, fix the harness before eligibility, and run exactly one new complete three-lane unscored calibration. Do not reuse or cherry-pick the two favorable verifier passes as the final calibration cohort."
+  }
+}

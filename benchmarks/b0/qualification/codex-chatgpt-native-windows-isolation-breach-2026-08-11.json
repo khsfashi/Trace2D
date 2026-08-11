@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_pre_scoring_attempt",
+  "date": "2026-08-11",
+  "classification": "integrity_isolation_breach_native_windows_profile",
+  "scored": false,
+  "matched_lane_trials_started": 0,
+  "repository_head": "cc678f80c7b681ac559b4ad498108ff914bb30e9",
+  "uploaded_evidence_zip": {
+    "name": "codex-chatgpt-calibration-20260811-123100-6007fd48.zip",
+    "sha256": "e2aad98fbe16cff8309f2dfa0eacf9d3c4ec681e637abf446f7926126667e10b",
+    "size_bytes": 10407
+  },
+  "agent": {
+    "id": "openai-codex-cli@0.144.6",
+    "model_selector": "gpt-5.5",
+    "auth": "chatgpt-managed-local",
+    "reasoning_effort": "high"
+  },
+  "model_preflight": {
+    "passed": true,
+    "return_code": 0,
+    "turn_completed": true,
+    "agent_message": "MODEL_OK",
+    "usage": {
+      "input_tokens": 12582,
+      "cached_input_tokens": 1408,
+      "output_tokens": 6,
+      "reasoning_output_tokens": 0
+    }
+  },
+  "isolation_probe": {
+    "passed": false,
+    "codex_return_code": 0,
+    "turn_completed": true,
+    "workspace_write_proved": false,
+    "external_read_attempt_observed": true,
+    "external_read_denied": false,
+    "canary_secret_leaked": true,
+    "observed_external_read_command": "Get-Content -Raw -LiteralPath <repo>/benchmarks/b0/verifiers/.codex-isolation-canary-*.txt",
+    "observed_external_read_result": "the held-out canary contents were returned to the model",
+    "workspace_write_behavior": "multiple workspace write attempts were rejected by Codex policy before execution",
+    "usage": {
+      "input_tokens": 258438,
+      "cached_input_tokens": 217600,
+      "output_tokens": 7262,
+      "reasoning_output_tokens": 4190
+    }
+  },
+  "interpretation": {
+    "model_availability_proved": true,
+    "native_windows_custom_permission_profile_rejected": true,
+    "filesystem_isolation_proved": false,
+    "engine_result_exists": false,
+    "note": "This is a benchmark-integrity failure of the attempted native-Windows isolation backend, not a Godot or Trace2D result. The candidate read the exact held-out canary successfully, so the current Codex-internal read-deny profile must not be used for B0 trials. No matched lane trial was started."
+  },
+  "upstream_context": {
+    "codex_tag_inspected": "rust-v0.144.6",
+    "matching_open_issue": "openai/codex#31265",
+    "note": "Upstream reports native-Windows deny-read ACL state can be ineffective. The B0 decision is based on this owner-local evidence, not on the upstream report alone."
+  }
+}

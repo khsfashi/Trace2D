@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_pre_scoring_attempt",
+  "date": "2026-08-11",
+  "classification": "infrastructure_integrated_acl_windows_backend_unspecified",
+  "scored": false,
+  "matched_lane_trials_started": 0,
+  "uploaded_evidence_zip": {
+    "name": "codex-chatgpt-calibration-20260811-140725-b2c52e7c.zip",
+    "sha256": "6c216cb5a9b9245c1bf3dfb41eb328a754a5cb1cebbfe82821b9ce3cfa41d6e7",
+    "size_bytes": 3529
+  },
+  "toolchain": {
+    "repository_head": "01e130e99fbb1e8f283b2f2850f0486213576bf4",
+    "frozen_trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+    "profile_sha256": "c21169cfbc0adf2d5f648e6c024346fc41945fa6aa110fbd618c8991da4a9889",
+    "codex_version": "0.144.6",
+    "model_id": "gpt-5.5",
+    "godot_version": "4.7.1-stable",
+    "node_version": "22.18.0",
+    "godot_mcp_version": "4.1.0"
+  },
+  "model_preflight": {
+    "passed": true,
+    "prompt_transport": "stdin_dash",
+    "return_code": 0,
+    "turn_completed": true,
+    "usage": {
+      "input_tokens": 12606,
+      "cached_input_tokens": 4480,
+      "output_tokens": 6,
+      "reasoning_output_tokens": 0
+    }
+  },
+  "isolation": {
+    "passed": false,
+    "wrapper_return_code": 2,
+    "blocking_stage": "sid_discovery_before_acl_apply_or_model_turn",
+    "stderr": "B0 Codex wrapper error: Codex sandbox SID unexpectedly equals host SID",
+    "acl_apply_started": false,
+    "model_isolation_turn_started": false,
+    "matched_lane_trials_started": 0
+  },
+  "credential_scan": {
+    "auth_json_present": false,
+    "obvious_openai_api_key_present": false,
+    "random_acl_canary_plaintext_present": false
+  },
+  "interpretation": {
+    "acl_mechanism_rejected": false,
+    "engine_result_exists": false,
+    "note": "The previously qualified model-free ACL mechanism required a sandbox SID distinct from the host. The first integrated runner created an isolated CODEX_HOME but did not pin the Windows sandbox backend, and SID discovery returned the host SID, so it failed closed before applying an ACL or starting a model isolation turn. The final profile/backend must pin the dedicated-account Windows sandbox mode before the first lane trial."
+  }
+}

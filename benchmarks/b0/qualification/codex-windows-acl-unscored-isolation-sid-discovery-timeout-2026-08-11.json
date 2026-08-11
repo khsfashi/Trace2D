@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_prescoring_attempt",
+  "date": "2026-08-11",
+  "source_archive": "codex-chatgpt-calibration-20260811-154315-31558452.zip",
+  "source_archive_sha256": "c56a8ac2291156f5d69a9976574f448321bbbf9c36f54a7a4464392a99be2a39",
+  "source_archive_size_bytes": 3745,
+  "repository_head": "f9ac36bf20a6af75fb04a11fb8f115a638ea0405",
+  "agent": "openai-codex-cli@0.144.6",
+  "model_selector": "gpt-5.5",
+  "provider_revision_policy": "chatgpt_codex_cli_selector_no_dated_snapshot",
+  "scored": false,
+  "stage": "isolation_probe",
+  "model_preflight": {
+    "passed": true,
+    "return_code": 0,
+    "turn_completed": true,
+    "input_tokens": 12585,
+    "cached_input_tokens": 1408,
+    "output_tokens": 6
+  },
+  "isolation_wrapper": {
+    "return_code": 2,
+    "verdict": "not_produced",
+    "failure_boundary": "sandbox_identity_discovery",
+    "timeout_seconds": 60.0,
+    "command_shape": "codex sandbox --permission-profile :read-only --cd <probe-workspace> -- whoami /user /fo csv /nh"
+  },
+  "matched_lane_trials_started": 0,
+  "matched_lane_records": 0,
+  "engine_result_exists": false,
+  "acl_applied": false,
+  "canary_read_attempted": false,
+  "classification": "infrastructure_sandbox_identity_discovery_timeout",
+  "interpretation": "The owner-local model preflight passed, but the auxiliary codex-sandbox subprocess used only to rediscover the elevated sandbox SID timed out before ACL application or the real-model isolation turn. This is not an engine loss and is not evidence that the previously qualified ACL boundary failed.",
+  "correction": "The final wrapper resolves the already-qualified CodexSandboxOffline local-account SID directly from the host Windows account database. The real-model exact-canary denial remains the fail-closed proof that the resolved SID is the effective identity for the frozen elevated/network-disabled turn; no matched lane can start unless that canary passes."
+}

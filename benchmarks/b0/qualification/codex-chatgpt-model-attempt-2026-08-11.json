@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "kind": "b0_coding_agent_model_availability_attempt",
+  "generated_at": "2026-08-11T00:53:33.1007102Z",
+  "classification": "infrastructure_model_availability",
+  "scored": false,
+  "agent_id": "openai-codex-cli@0.144.6",
+  "auth_mode": "chatgpt-managed-local",
+  "requested_model_id": "gpt-5.5",
+  "requested_model_revision": "gpt-5.5-2026-04-23",
+  "provider_status": 400,
+  "provider_error_type": "invalid_request_error",
+  "provider_error_message": "The 'gpt-5.5-2026-04-23' model is not supported when using Codex with a ChatGPT account.",
+  "turn_completed": false,
+  "provider_usage": {
+    "input_tokens": 0,
+    "cached_input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_output_tokens": 0
+  },
+  "isolation_probe": {
+    "started": true,
+    "workspace_write_proved": false,
+    "external_read_attempt_observed": false,
+    "external_read_denied": false,
+    "canary_secret_leaked": false,
+    "note": "The provider rejected the requested model before Codex could execute any shell command, so this run provides no isolation result."
+  },
+  "matched_lane_trials_started": 0,
+  "source_evidence_zip_sha256": "4666989cb94f9c48c941d35ce7ad39532d35ba4076019d28ea474ce790f643b2",
+  "decision": "reject_dated_api_snapshot_for_chatgpt_managed_codex",
+  "follow_up": "Use a model identifier explicitly supported by ChatGPT-signed-in Codex, freeze that provider-selectable identifier and all other Agent settings, and rerun unscored isolation/calibration before eligibility."
+}
