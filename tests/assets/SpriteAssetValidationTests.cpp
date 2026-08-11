@@ -246,7 +246,7 @@ TEST(SpriteAssetValidationTests, CacheReportsMissingUnreadableAndMissingTextureS
     const SpriteAssetCacheMetrics metrics = cache.Metrics();
     EXPECT_EQ(metrics.requests, 3U);
     EXPECT_EQ(metrics.cacheHits, 0U);
-    EXPECT_EQ(metrics.cacheMisses, 1U);
+    EXPECT_EQ(metrics.cacheMisses, 3U);
     EXPECT_EQ(metrics.successfulImports, 0U);
     EXPECT_EQ(metrics.failedImports, 3U);
     EXPECT_EQ(metrics.cachedAssets, 0U);
