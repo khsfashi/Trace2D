@@ -13,10 +13,11 @@ import run_benchmark_b0_codex_windows_acl_calibration as runner
 class WindowsAclCalibrationRunnerTests(unittest.TestCase):
     def test_frozen_contract(self) -> None:
         self.assertEqual(runner.FROZEN_MODEL_ID, "gpt-5.5")
-        self.assertEqual(runner.ISOLATION_BACKEND, "windows_ntfs_acl_v1")
+        self.assertEqual(runner.ISOLATION_BACKEND, "windows_ntfs_acl_v1_elevated")
+        self.assertEqual(runner.WRAPPER_MODULE, "benchmark_b0_codex_windows_acl_wrapper")
         self.assertEqual(runner.ISOLATION_TIMEOUT_SECONDS, 285.0)
 
-    def test_isolation_timeout_matches_real_wrapper_ceiling(self) -> None:
+    def test_isolation_timeout_and_wrapper_match_final_backend(self) -> None:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
         with mock.patch.object(runner, "_BASE_RUN", return_value=completed) as base_run:
             runner.run_with_matched_isolation_timeout(
@@ -25,7 +26,10 @@ class WindowsAclCalibrationRunnerTests(unittest.TestCase):
                 check=False,
                 capture=True,
             )
-        self.assertEqual(base_run.call_args.args[0][-2:], ["--timeout", "285.0"])
+        argv = base_run.call_args.args[0]
+        self.assertIn("benchmark_b0_codex_windows_acl_wrapper", argv)
+        self.assertNotIn("benchmark_b0_codex_chatgpt_wrapper", argv)
+        self.assertEqual(argv[-2:], ["--timeout", "285.0"])
 
     def test_model_preflight_uses_stdin_dash(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
