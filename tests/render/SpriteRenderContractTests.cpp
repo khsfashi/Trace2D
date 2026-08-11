@@ -116,12 +116,15 @@ TEST(SpriteRenderContractTests, BuiltInCompatibilityDefaultsAreFiniteAndStable)
     ASSERT_TRUE(ExtractSpriteRenderContract(selection, data).Succeeded());
     EXPECT_EQ(data.materialPipeline, SpriteMaterialPipeline::BuiltInSprite);
     EXPECT_EQ(data.sampler, SpriteSamplerCompatibility::Linear);
-    EXPECT_EQ(data.blend, SpriteBlendCompatibility::StraightAlpha);
+    EXPECT_EQ(data.blend, SpriteBlendCompatibility::Normal);
     EXPECT_EQ(data.mask, SpriteMaskCompatibility::None);
     EXPECT_EQ(data.primitive, SpritePrimitiveKind::Quad);
     EXPECT_EQ(ToString(data.materialPipeline), "built_in_sprite");
     EXPECT_EQ(ToString(data.sampler), "linear");
-    EXPECT_EQ(ToString(data.blend), "straight_alpha");
+    EXPECT_EQ(ToString(data.blend), "normal");
+    EXPECT_EQ(ToString(SpriteBlendCompatibility::Additive), "additive");
+    EXPECT_EQ(ToString(SpriteBlendCompatibility::Multiply), "multiply");
+    EXPECT_EQ(ToString(SpriteBlendCompatibility::Screen), "screen");
     EXPECT_EQ(ToString(data.mask), "none");
     EXPECT_EQ(ToString(data.primitive), "quad");
 }
