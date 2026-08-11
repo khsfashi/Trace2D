@@ -1,8 +1,8 @@
 # Benchmark B0 frozen Codex cohort
 
-Status: **real elevated-Windows ACL isolation passed; one complete corrected three-lane unscored calibration remains before eligibility**.
+Status: **real elevated-Windows ACL isolation behavior proven; one complete corrected unscored calibration rerun required before eligibility**.
 
-This document freezes the real coding-Agent/model/isolation candidate for #102. It does not make B0 scored-eligible and does not claim a comparative result.
+This document freezes the real coding-Agent/model/isolation candidate for #102. It does not make B0 scored-eligible and contains no comparative benchmark result.
 
 ## Frozen Agent/model/isolation selection
 
@@ -19,69 +19,86 @@ The committed profile is [`agent-profile.codex-0.144.6.json`](agent-profile.code
 - protected-root policy: repository-root NTFS deny for the effective Codex sandbox SID,
 - shell network access: disabled,
 - session persistence: ephemeral,
-- task budget: exactly the committed B0 task budget,
+- task budget: exactly the B0 task budget,
 - human interventions: zero.
 
-Canonical Agent profile SHA-256:
+Owner-local preflight proves `gpt-5.5` is callable through the owner's ChatGPT Codex session. The canonical Agent profile SHA-256 remains:
 
 ```text
 2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708
 ```
 
-Freeze evidence is [`qualification/codex-windows-acl-final-profile-freeze-2026-08-11.json`](qualification/codex-windows-acl-final-profile-freeze-2026-08-11.json). The same model/backend/task/budget remains frozen; the 100000 input-token budget is **not** raised after observing unscored results.
+The model, backend and budget are not changed based on calibration outcomes. The frozen `100000` input-token limit remains in force.
 
-## Isolation history
+## Isolation qualification
 
-The original native-Windows Codex custom permission profile is permanently rejected after a real canary leak. See [`qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json).
+The original native-Windows custom Codex permission profile is permanently rejected after a real held-out canary leak.
 
-The replacement external NTFS ACL mechanism is qualified. It proved a distinct sandbox SID, writable candidate workspace, denied external canary read, no leak, preserved host access and successful ACL cleanup. See [`qualification/codex-windows-acl-backend-qualified-2026-08-11.json`](qualification/codex-windows-acl-backend-qualified-2026-08-11.json).
+The replacement external NTFS ACL mechanism was then qualified with a distinct Codex sandbox SID, writable candidate workspace, denied held-out canary read, no leak, preserved host access, and successful ACL cleanup. The final profile pins `[windows] sandbox = "elevated"` before any matched lane result.
 
-A first integrated attempt then exposed an unspecified Windows backend and failed before any lane. The final profile was therefore frozen to `[windows] sandbox = "elevated"` while matched lane count was still zero. See [`qualification/codex-windows-acl-integrated-backend-unspecified-attempt-2026-08-11.json`](qualification/codex-windows-acl-integrated-backend-unspecified-attempt-2026-08-11.json).
+A later real `gpt-5.5` isolation turn independently proved the final elevated boundary: workspace write passed, the exact held-out read was attempted and denied by Windows, the Agent wrote `DENIED`, no secret leaked, ACL cleanup passed and the provider turn completed.
 
-The next real-model isolation turn behaved correctly but the attempt matcher produced a doubled-backslash Windows-path false negative. Raw JSONL proved the held-out read was attempted and denied without leakage. See [`qualification/codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json`](qualification/codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json).
+## Pre-scoring matched calibration history
 
-The matcher now canonicalizes only the display form used for path matching; raw trajectory remains unchanged. Packageable `acl-isolation.json` is also exported outside `.probe-artifacts`.
+Archive `codex-chatgpt-calibration-20260811-150451-625123c9.zip` passed real-model isolation and reached the three-lane phase.
 
-## First real three-lane calibration attempt
+- `godot.generic` independently verified the required semantic artifact but used `149255` input tokens, exceeding the frozen `100000` budget.
+- `trace2d.agent` independently verified the required semantic artifact but used `279614` input tokens, also exceeding budget.
+- `godot.agent` exposed a sandbox-SID discovery timing defect and then a volatile `.godot/shader_cache` hashing race before a raw record could be appended.
 
-Archive `codex-chatgpt-calibration-20260811-150451-625123c9.zip` is preserved as [`qualification/codex-windows-acl-unscored-calibration-harness-attempt-2026-08-11.json`](qualification/codex-windows-acl-unscored-calibration-harness-attempt-2026-08-11.json).
+The favorable verifier-pass artifacts are historical pre-scoring evidence only and are not selected into the final cohort.
 
-The important result is that the final real-model isolation gate itself **passed**:
+Corrections were made without changing model, prompt, task, backend, verifier or budget:
 
-- elevated sandbox SID differed from host SID,
-- workspace write passed,
-- held-out canary read attempt was observed,
-- Windows denied it,
-- secret leakage was false,
-- ACL apply/cleanup both succeeded,
-- Codex completed normally.
+- engine-owned `.godot` cache is excluded from authored artifact identity via `authored_files_excluding_godot_cache_v1`,
+- completed provider turns over budget are classified `budget_exceeded`, not infrastructure transport failures.
 
-The lane attempt then exposed three pre-scoring harness details:
+A following owner archive, `codex-chatgpt-calibration-20260811-154315-31558452.zip`, passed model preflight but stopped before ACL application because the auxiliary `codex sandbox ... whoami` process used only to rediscover the sandbox SID timed out after 60 seconds. No matched lane started and no scored result exists. This is preserved as [`qualification/codex-windows-acl-unscored-isolation-sid-discovery-timeout-2026-08-11.json`](qualification/codex-windows-acl-unscored-isolation-sid-discovery-timeout-2026-08-11.json).
 
-- `godot.generic`: independent verifier **passed** at `player / Player / (4, 1)`, but provider input usage was `149255`, above the frozen `100000` input-token budget. The old wrapper incorrectly called this `tool_transport_failure`.
-- `trace2d.agent`: independent verifier **passed** at the same semantic result, but provider input usage was `279614`, again above the same frozen budget and again misclassified as transport failure.
-- `godot.agent`: the per-turn sandbox SID command timed out after 60 seconds while the Godot editor/MCP stack was already running. The outer harness then hit a `FileNotFoundError` while recursively hashing a disappearing `.godot/shader_cache` directory, so no raw lane record was appended.
+## Final sandbox identity path
 
-These two verifier passes are **not** promoted or cherry-picked into the final calibration cohort. The attempt remains pre-scoring infrastructure evidence.
+The redundant sandbox subprocess has been removed from the final wrapper.
 
-## Corrections before the final unscored rerun
+For the frozen elevated + network-disabled Windows backend, the already-qualified local account is `CodexSandboxOffline`. The wrapper now resolves that local account SID directly from the host Windows account database before editor/model startup and keeps the raw SID only in-process.
 
-The frozen model/task/backend/budget are unchanged. Only harness semantics were corrected:
+This does **not** weaken the isolation decision to trusting an account name. The first real-model isolation canary remains mandatory and authoritative:
 
-1. sandbox identity discovery now occurs during `CODEX_HOME` setup, before the Godot editor is launched, and the exact in-process identity is reused for that guarded turn;
-2. the owner-local stable harness hashes authored workspace files but excludes engine-owned `.godot` cache (`authored_files_excluding_godot_cache_v1`);
-3. a completed provider turn over the frozen budget is `budget_exceeded` in the implementation domain, not `tool_transport_failure` in infrastructure;
-4. the 100000 input-token limit remains frozen and visible in every record.
+```text
+host resolves CodexSandboxOffline SID
+ -> apply repository deny ACE for that SID
+ -> real frozen gpt-5.5 turn attempts exact held-out canary read
+ -> read must be denied
+ -> canary must not leak
+ -> ACL cleanup must succeed
+ -> only then may matched lanes begin
+```
 
-These changes are test-covered by hosted `B0 Codex Wrapper` CI and do not alter prompt, verifier, lane selection, model, backend or budget.
+If the resolved account is not the effective identity for the actual Codex turn, the deny cannot protect the canary and the runner fails closed before any lane. This removes a flaky redundant identity subprocess while preserving an end-to-end real-model proof.
 
 ## Lane exposure
 
-The benchmark task and adapter lanes remain unchanged:
+The benchmark lanes remain unchanged:
 
 - `godot.generic`: pinned Godot 4.7.1 through ordinary shell/project files, no Godot MCP.
-- `godot.agent`: same Godot plus qualified `@satelliteoflove/godot-mcp@4.1.0`.
-- `trace2d.agent`: frozen public `trace2d` CLI + `trace2d_mcp`, no benchmark-only engine API.
+- `godot.agent`: same Godot plus qualified `@satelliteoflove/godot-mcp@4.1.0`; injected addon is environment scaffolding and removed before independent verification.
+- `trace2d.agent`: frozen public `trace2d` CLI + `trace2d_mcp`, ordinary Trace2D scene file, no benchmark-only engine API.
+
+Exactly one new three-lane **unscored** calibration must be preserved before eligibility. A legitimate `budget_exceeded` record is still a valid preserved lane outcome; infrastructure failures remain separate.
+
+## Preregistered scored cohort
+
+Before eligibility and before any scored result, [`scored-cohort-v1.json`](scored-cohort-v1.json) freezes:
+
+```text
+repetitions_per_lane  3
+total_trials          9
+automatic_retries     0
+replacement_retries   0
+early_stop            false
+best_of_n             false
+```
+
+The order rotates deterministically across the three repetitions. Every slot gets at most one attempt; infrastructure outcomes remain visible.
 
 ## Current owner-local action
 
@@ -91,28 +108,20 @@ From an updated PR #118 checkout on native Windows, run only:
 python .\scripts\run_benchmark_b0_codex_windows_acl_calibration.py
 ```
 
-The retired `run_benchmark_b0_codex_chatgpt_calibration_safe.py` must not be used.
+Do **not** run the retired `run_benchmark_b0_codex_chatgpt_calibration_safe.py`.
 
-The runner first re-proves real-model isolation, then preserves exactly one new unscored attempt in each lane. A lane result may legitimately be `budget_exceeded`; that is a valid benchmark outcome as long as the record, provider usage, verifier and common frozen profile are preserved. Infrastructure failures remain distinct and are not converted into engine losses.
+The runner must first pass the real-model ACL canary. Only then may it produce exactly one fresh unscored record in each lane.
 
 ## Promotion rule
 
-Already proven:
-
-- all three engine/adapter environments have independent qualification evidence,
-- Codex `0.144.6` and `gpt-5.5` are callable through the owner ChatGPT session,
-- external Windows ACL isolation is qualified and has passed a real model canary turn,
-- final elevated backend/profile was frozen before lane zero,
-- the first real lane attempt exposed and preserved harness defects rather than hiding them.
-
 Still required before `eligible`:
 
-- one corrected archive containing exactly three unscored lane records,
-- positive real-model isolation and packageable per-turn ACL cleanup evidence,
-- one common frozen Agent/profile/budget identity across all lanes,
+- one positive real-model isolation verdict with packageable ACL evidence,
+- exactly three structurally valid fresh unscored lane records,
+- common frozen Agent/profile/budget identity,
 - provider trajectory/usage where exposed,
 - zero human intervention,
-- independent verifier result for every preserved lane,
+- independent verifier result for every lane,
 - no silent retry or best-of-N selection.
 
-After review, suite/task may become `eligible` and the predefined repeated scored cohort can begin. Every scored attempt, including budget losses and infrastructure outcomes, remains part of the cohort.
+Only after that review may `suite.json` and the task become `eligible` and the preregistered nine-trial scored cohort begin.
