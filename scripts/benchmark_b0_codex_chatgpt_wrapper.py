@@ -240,6 +240,8 @@ def guarded_run_codex(
         raise AclIsolationError("Codex sandbox SID unexpectedly equals host SID")
 
     _, icacls = _windows_tools()
+    roots = protected_roots()
+    stale_cleanup_records: list[dict[str, Any]] = []
     applied: list[Path] = []
     apply_records: list[dict[str, Any]] = []
     cleanup_records: list[dict[str, Any]] = []
@@ -247,7 +249,6 @@ def guarded_run_codex(
     primary_error: BaseException | None = None
     cleanup_ok = True
 
-    roots = protected_roots()
     evidence: dict[str, Any] = {
         "schema_version": 1,
         "kind": "trace2d_b0_codex_external_acl_turn",
@@ -261,6 +262,7 @@ def guarded_run_codex(
         "protected_roots": [
             {"path_sha256": _sha256_text(os.path.normcase(str(root)))} for root in roots
         ],
+        "stale_acl_cleanup": stale_cleanup_records,
         "acl_apply": apply_records,
         "acl_cleanup": cleanup_records,
         "acl_apply_succeeded": False,
@@ -269,6 +271,17 @@ def guarded_run_codex(
     }
 
     try:
+        # A previous wrapper can be terminated by the outer 300-second harness
+        # timeout before its finally block runs. Clear any deny ACE for this
+        # sandbox SID before installing the fresh guard. This is best-effort:
+        # /remove:d can report no matching ACE on a clean checkout.
+        for root in roots:
+            stale = _host_capture(
+                [icacls, str(root), "/remove:d", f"*{sandbox_sid}"],
+                workspace,
+            )
+            stale_cleanup_records.append(_process_record(stale))
+
         for root in roots:
             completed = _host_capture(
                 [icacls, str(root), "/deny", f"*{sandbox_sid}:(OI)(CI)(F)"],
