@@ -1,6 +1,6 @@
 # Benchmark B0 frozen Codex cohort
 
-Status: **owner-local isolation/three-lane qualification required before scored eligibility**.
+Status: **owner-local external isolation backend qualification required before three-lane calibration**.
 
 This document freezes the real coding-Agent candidate for #102. It does not make B0 scored-eligible and contains no comparative benchmark result.
 
@@ -18,144 +18,98 @@ The committed profile is [`agent-profile.codex-0.144.6.json`](agent-profile.code
 - task budget: exactly the B0 task budget,
 - human interventions: zero.
 
-This cohort uses **ChatGPT sign-in**, not an owner-supplied API key. The benchmark freezes the provider-selectable CLI model identifier exposed by that surface and does not claim knowledge of a hidden dated provider snapshot. `gpt-5.5` was selected before any scored matched-lane outcome existed, after owner-local preflight proved that the attempted `gpt-5.6` selector was unavailable to this account.
+Owner-local model preflight has already proved that `gpt-5.5` is actually callable through the owner's ChatGPT Codex session. The model identity is not the current blocker.
 
-A later owner-local preflight then **proved `gpt-5.5` is actually callable through this ChatGPT Codex session**: Codex returned `MODEL_OK`, completed the turn, and reported provider usage. The model-availability part of qualification is therefore complete; filesystem isolation and the matched unscored lane run remain pending.
-
-The same Codex version, model selector, reasoning setting, permission profile, prompt, budget and wrapper must remain constant across all matched lanes and repeated scored trials.
+The same Codex version, model selector, reasoning setting, task prompt and budget must remain constant across all matched lanes and repeated scored trials. The **isolation backend is not yet frozen** because the first native-Windows backend failed its integrity probe before any lane trial existed.
 
 Primary references:
 
 - <https://developers.openai.com/codex/models>
 - <https://developers.openai.com/codex/non-interactive-mode>
 - <https://developers.openai.com/codex/permissions>
-- <https://developers.openai.com/codex/extend/mcp>
+- <https://github.com/openai/codex/tree/rust-v0.144.6>
 
 ## Preserved pre-scoring qualification attempts
 
-No attempt below contains a scored engine result. All stopped before the matched three-lane cohort began and remain visible as infrastructure evidence.
+No attempt below contains a scored engine result. No matched lane trial has started.
 
-### 1. Dated API snapshot rejected
+1. `gpt-5.5-2026-04-23` dated API snapshot — rejected by ChatGPT-managed Codex before tool use. Preserved as [`qualification/codex-chatgpt-model-attempt-2026-08-11.json`](qualification/codex-chatgpt-model-attempt-2026-08-11.json).
+2. guessed `gpt-5.6-sol` identifier — stopped before classifiable isolation evidence and exposed an observability gap. Preserved as [`qualification/codex-chatgpt-recovery-attempt-2026-08-11.json`](qualification/codex-chatgpt-recovery-attempt-2026-08-11.json).
+3. documented `gpt-5.6` selector — reached the provider but was unavailable to this ChatGPT account. Preserved as [`qualification/codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json`](qualification/codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json).
+4. `gpt-5.5` model preflight — passed; the first isolation child hit the old 90-second process ceiling before a verdict. Preserved as [`qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json).
+5. `gpt-5.5` with the 285-second isolation ceiling — **model passed, but the attempted native-Windows Codex read-deny boundary failed integrity**. The Agent successfully read the exact random canary beside the held-out verifier and the canary value became model-visible. Workspace writes were simultaneously blocked by policy. Preserved as [`qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](qualification/codex-chatgpt-native-windows-isolation-breach-2026-08-11.json), classified as `integrity_isolation_breach_native_windows_profile`.
 
-The first owner-local attempt requested `gpt-5.5-2026-04-23`. ChatGPT-managed Codex rejected that dated API snapshot before any shell/tool action.
+Attempt 5 is decisive: the attempted custom Codex permission profile is **rejected as a B0 isolation backend**. It is not an engine loss and it must not be tuned until it happens to pass. The three-lane calibration remains blocked.
 
-The sanitized attempt is preserved as [`qualification/codex-chatgpt-model-attempt-2026-08-11.json`](qualification/codex-chatgpt-model-attempt-2026-08-11.json), classified as `infrastructure_model_availability`.
+The owner-local result is also consistent with upstream native-Windows read-deny reports such as `openai/codex#31265`, but B0's decision is based on its own observed canary leak.
 
-### 2. Guessed `gpt-5.6-sol` identifier lacked reconstructable child evidence
+## Rejected native-Windows Codex profile
 
-A recovery attempt requested `gpt-5.6-sol`. Its scrubbed ZIP proved toolchain reuse and isolation-workspace initialization, but the child wrapper exited before a normal isolation verdict and the first orchestrator version had not persisted its child stdout/stderr.
+The rejected backend attempted to rely on Codex's named permission profile for both candidate-workspace writes and held-out read denial. The real owner-local run established the opposite effective behavior:
 
-The sanitized attempt is preserved as [`qualification/codex-chatgpt-recovery-attempt-2026-08-11.json`](qualification/codex-chatgpt-recovery-attempt-2026-08-11.json), classified as `infrastructure_observability_gap_before_isolation_evidence`.
+- read/list inside the workspace worked,
+- workspace file writes were rejected by policy,
+- the exact held-out canary read command executed,
+- the external file contents were returned to the model,
+- the canary secret therefore leaked.
 
-That observability defect was fixed: model preflight, isolation wrapper, orchestration failures and per-lane harness processes now preserve machine-readable status plus stdout/stderr where applicable.
+The backend is not eligible for retry as a scored or unscored lane environment. Increasing timeouts, changing prompt wording, or accepting a weaker canary condition would hide an integrity failure rather than fix it.
 
-### 3. Documented `gpt-5.6` selector reached the provider but was unavailable
+## External Windows ACL backend candidate
 
-After Windows `.cmd` positional-prompt quoting was replaced by Codex stdin `-` transport, owner-local preflight reached the real provider with `gpt-5.6`. The provider returned HTTP 400 stating that `gpt-5.6` was not supported for this ChatGPT-signed-in Codex account. No provider tokens were consumed, isolation did not start, and no lane trial started.
+The next candidate boundary moves the held-out protection **outside the model-facing Codex permission profile**.
 
-The sanitized attempt is preserved as [`qualification/codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json`](qualification/codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json), classified as `infrastructure_model_rollout_unavailable`.
+The repository now contains [`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](../../scripts/qualify_benchmark_b0_windows_acl_isolation.py). It performs no model call and no engine trial. In a throwaway local directory it:
 
-Because there was still no scored result to bias the benchmark, B0 then froze the fallback CLI selector `gpt-5.5`. Do not switch models again after scored eligibility unless the benchmark version itself is deliberately superseded.
+1. invokes the Codex native-Windows sandbox directly and records the effective sandbox SID,
+2. rejects the backend if the sandbox SID equals the host user SID,
+3. applies a temporary NTFS deny ACE for only that sandbox SID to a random canary directory,
+4. uses Codex's built-in `:workspace` profile to prove a normal workspace write succeeds,
+5. uses that same sandbox identity to attempt the protected external read,
+6. requires the external read to fail with no canary leak,
+7. removes the temporary deny ACE and emits a scrubbed evidence ZIP.
 
-### 4. `gpt-5.5` model preflight passed; original isolation process ceiling expired before a verdict
-
-The next owner-local run proved the frozen model itself is real and available. The model-only preflight returned `MODEL_OK`, process code `0` and a completed turn. Provider-reported usage was:
-
-- input tokens: `12589`,
-- cached input tokens: `1408`,
-- output tokens: `6`,
-- reasoning output tokens: `0`.
-
-The subsequent filesystem-isolation child process exceeded the original `90` second probe timeout before it could emit a normal isolation verdict. No matched lane trial started and no scored engine result exists. The evidence does **not** prove whether the delay came from model/tool latency, native Windows sandbox setup, or another pre-verdict child-process condition, so it is not classified as an isolation breach.
-
-The sanitized attempt is preserved as [`qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json), classified as `infrastructure_isolation_probe_timeout_before_verdict`.
-
-The recovery path now aligns the unscored isolation process ceiling with the real Agent wrapper ceiling of `285` seconds. The actual acceptance rule is unchanged: the candidate workspace must still be writable, the held-out random canary must actually be read-attempted and denied, and the secret must not leak. The safe cleanup path also copies Codex's public sandbox diagnostic log, when present, into packageable `codex-sandbox-logs/` evidence before deleting the credential-bearing transient Codex home.
-
-## Isolation boundary
-
-Candidate workspaces live outside the Trace2D repository. Codex `0.144.6` receives a fresh native-Windows named permission profile per run:
-
-```toml
-default_permissions = "trace2d_b0_isolated"
-approval_policy = "never"
-web_search = "disabled"
-
-[permissions.trace2d_b0_isolated.filesystem]
-":minimal" = "read"
-# exact frozen tool/runtime roots are added read-only
-
-[permissions.trace2d_b0_isolated.filesystem.":workspace_roots"]
-"." = "write"
-
-[permissions.trace2d_b0_isolated.network]
-enabled = false
-```
-
-Before any task trial, a random canary probe must prove:
-
-1. normal read/write works inside the candidate workspace,
-2. Codex actually attempts an exact shell read of a random canary beside the held-out verifier,
-3. the read is denied,
-4. the canary value does not leak into model-visible output.
-
-The public Codex JSONL trajectory is preserved as evidence. Failed or ambiguous isolation blocks all candidate trials. Increasing the process ceiling from 90 to 285 seconds does not relax any filesystem acceptance condition.
+This probe intentionally uses a throwaway canary directory rather than modifying the Trace2D checkout. A passing probe qualifies only the **mechanism**. The full B0 runner may adopt it only after the evidence is reviewed and the repo/harness quarantine lifecycle is implemented with cleanup and failure recovery.
 
 ## Lane exposure
 
-The task prompt, Codex profile and budget are identical across lanes. Only the normal environment adapter changes.
+The benchmark task and adapter lanes remain unchanged:
 
 - `godot.generic`: pinned Godot 4.7.1 through ordinary shell/project files, no Godot MCP.
 - `godot.agent`: same Godot plus qualified `@satelliteoflove/godot-mcp@4.1.0`; injected addon is environment scaffolding and removed before independent verification.
 - `trace2d.agent`: frozen public `trace2d` CLI + `trace2d_mcp`, ordinary Trace2D scene file, no benchmark-only engine API.
 
-## Owner-local qualification
+No lane trial may start until a hard held-out boundary is proven.
 
-The expensive deterministic toolchain setup is already cached and independently checked on every recovery run. From an updated PR #118 checkout on Windows:
+## Current owner-local action
+
+From an updated PR #118 checkout on native Windows, run only the external-isolation backend probe:
 
 ```powershell
-python .\scripts\run_benchmark_b0_codex_chatgpt_calibration_safe.py
+python .\scripts\qualify_benchmark_b0_windows_acl_isolation.py
 ```
 
-The race-safe recovery calibration:
-
-1. verifies exact Codex `0.144.6` and file-backed ChatGPT login,
-2. verifies the preserved Trace2D/Godot/Node/Godot-MCP toolchain identities and archive hashes,
-3. reruns the already-proven **model-only preflight** with `gpt-5.5` using stdin `-` prompt transport and preserves JSONL/stdout/stderr,
-4. runs the real filesystem-isolation canary with the same `285` second process ceiling used by the real Agent wrapper,
-5. preserves Codex sandbox diagnostics when available before transient credential cleanup,
-6. preserves exactly one **unscored** attempt in each B0 lane,
-7. continues after Agent/verifier failures so losses remain evidence,
-8. writes hash-chained raw records and an aggregate report,
-9. writes `failure.json` with the exact blocking stage on orchestration failure,
-10. scrubs credentials/transient Codex homes and creates a reviewable ZIP.
-
-The recovery path deliberately does **not** set the suite/task to `eligible` and never invokes `--scored`.
-
-## Credential and packaging contract
-
-`~/.codex/auth.json` is password-equivalent. It is copied only into isolated per-run `CODEX_HOME` directories and is never committed or uploaded.
-
-Evidence packaging uses `package_benchmark_b0_evidence.py`, which excludes transient Codex/plugin/cache trees and refuses unexpected `auth.json` files. The safe recovery entrypoint avoids recursively descending into volatile `codex-home` trees during cleanup. If Codex emitted `.sandbox/sandbox.log`, only that public diagnostic log is copied into `codex-sandbox-logs/`; transient homes and secret-bearing sandbox state remain excluded.
+Do **not** rerun `run_benchmark_b0_codex_chatgpt_calibration_safe.py` yet. The old calibration path still represents the rejected Codex-internal read-deny backend and must remain blocked until the replacement boundary is qualified and integrated.
 
 ## Promotion rule
 
-The following are already proven by owner-local evidence:
+Already proven:
 
 - Codex `0.144.6` accepted,
 - `gpt-5.5` accepted through ChatGPT sign-in,
-- provider usage emitted for a completed model turn.
+- provider usage emitted for a completed model turn,
+- all three engine/adapter environments have independent qualification evidence.
 
-Do not change `qualification_required` / `qualification_candidate` to `eligible` until the remaining owner-local evidence also proves:
+Still required before `eligible`:
 
-- model/auth/provider-revision policy remains the frozen profile,
-- workspace write probe passed,
-- held-out canary read was actually attempted and denied,
-- canary content did not leak,
-- all three unscored lanes produced parseable Agent records,
-- one profile hash is shared across the three records,
-- provider usage/trajectory is preserved where Codex exposes it,
-- no human intervention occurred,
-- independent verifiers completed.
+- a replacement external isolation backend is independently proven,
+- the candidate workspace is writable,
+- the held-out repository/verifier boundary is unreadable to the effective Agent sandbox identity,
+- a random canary is explicitly read-attempted and denied without leakage,
+- exactly one unscored attempt is preserved in all three lanes,
+- all three records share one frozen Agent/profile/budget identity,
+- provider trajectory/usage is preserved where exposed,
+- zero human intervention occurs during trials,
+- independent verifiers complete after the stochastic Agent exits.
 
-After promotion, every repeated scored attempt—including losses and predefined infrastructure outcomes—remains part of the cohort evidence. No best-of-N selection is allowed.
+Only after those facts are real may the suite/task become `eligible` and the predefined repeated scored cohort begin. Every scored attempt, including losses and infrastructure outcomes, remains part of the cohort. No best-of-N selection is allowed.
