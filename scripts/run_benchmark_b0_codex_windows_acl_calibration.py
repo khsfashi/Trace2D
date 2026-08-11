@@ -3,8 +3,8 @@
 
 This runner reuses the existing deterministic toolchain setup from the earlier
 recovery orchestrator but replaces the rejected Codex custom permission profile
-with the committed built-in :workspace + external NTFS ACL wrapper. It remains
-strictly unscored.
+with the committed built-in :workspace + elevated Windows sandbox + external
+NTFS ACL wrapper. It remains strictly unscored.
 """
 from __future__ import annotations
 
@@ -18,7 +18,8 @@ import run_benchmark_b0_codex_chatgpt_calibration as calibration
 FROZEN_MODEL_ID = "gpt-5.5"
 FROZEN_PROVIDER_REVISION_POLICY = "chatgpt_codex_cli_selector_no_dated_snapshot"
 ISOLATION_TIMEOUT_SECONDS = 285.0
-ISOLATION_BACKEND = "windows_ntfs_acl_v1"
+ISOLATION_BACKEND = "windows_ntfs_acl_v1_elevated"
+WRAPPER_MODULE = "benchmark_b0_codex_windows_acl_wrapper"
 _BASE_RUN = calibration.run
 
 
@@ -80,7 +81,10 @@ def run_with_matched_isolation_timeout(
     check: bool = True,
     capture: bool = False,
 ):
-    adjusted = list(argv)
+    adjusted = [
+        WRAPPER_MODULE if item == "benchmark_b0_codex_chatgpt_wrapper" else item
+        for item in argv
+    ]
     if "probe-isolation" in adjusted and "--timeout" not in adjusted:
         adjusted.extend(["--timeout", str(ISOLATION_TIMEOUT_SECONDS)])
     return _BASE_RUN(
