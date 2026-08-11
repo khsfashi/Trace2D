@@ -8,6 +8,7 @@ add_executable(trace2d_render_tests
     RendererWorkloadTests.cpp
     SpriteAppearance2DTests.cpp
     SpriteGeometry2DTests.cpp
+    SpritePresentation2DTests.cpp
     SpriteRenderContractTests.cpp
 )
 
