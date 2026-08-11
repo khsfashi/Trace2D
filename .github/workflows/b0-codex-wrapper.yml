@@ -21,7 +21,7 @@ jobs:
 
       - name: Test frozen Codex wrapper without model access
         working-directory: scripts
-        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py
+        run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py
 
       - name: Test scrubbed evidence packaging
         working-directory: scripts
@@ -60,6 +60,13 @@ jobs:
               task,
           )
           assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
-          assert profile['model_revision'] == 'gpt-5.5-2026-04-23'
-          print(json.dumps({'status': 'ok', 'agent_id': profile['agent_id'], 'model_revision': profile['model_revision']}))
+          assert profile['model_id'] == 'gpt-5.6-sol'
+          assert profile['model_revision'] == 'gpt-5.6-sol'
+          assert profile['settings']['provider_revision_policy'] == 'chatgpt_managed_identifier_no_dated_snapshot'
+          print(json.dumps({
+              'status': 'ok',
+              'agent_id': profile['agent_id'],
+              'model_id': profile['model_id'],
+              'model_revision': profile['model_revision'],
+          }))
           PY
