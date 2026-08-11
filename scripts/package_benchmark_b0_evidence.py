@@ -15,6 +15,8 @@ SKIP_DIR_NAMES = {
     "__pycache__",
 }
 FORBIDDEN_FILE_NAMES = {"auth.json"}
+SCORED_RUN_PREFIX = "codex-chatgpt-scored-"
+EMPTY_SCORED_DIAGNOSTIC = "packaging-empty-scored-run.txt"
 
 
 class PackagingError(RuntimeError):
@@ -45,6 +47,19 @@ def iter_evidence_files(root: Path):
             yield path
 
 
+def _allow_empty_scored_startup_diagnostic(root: Path) -> bool:
+    """Allow a synthetic diagnostic only for an owner-local scored run root.
+
+    The scored orchestrator promises to package genuine startup/orchestration
+    failures. If its very first evidence write fails, there can be nothing for
+    the generic packager to collect and the old behavior replaced the original
+    exception with a misleading "no packageable evidence" error. A synthetic
+    marker lets the original exception propagate without pretending that a
+    scored record exists. Other empty evidence roots remain hard errors.
+    """
+    return root.name.casefold().startswith(SCORED_RUN_PREFIX.casefold())
+
+
 def package(root: Path, output: Path) -> int:
     root = root.resolve()
     output = output.resolve()
@@ -69,8 +84,20 @@ def package(root: Path, output: Path) -> int:
             for path in iter_evidence_files(root):
                 archive.write(path, path.relative_to(root).as_posix())
                 count += 1
-        if count == 0:
-            raise PackagingError("run root contained no packageable evidence files")
+            if count == 0:
+                if not _allow_empty_scored_startup_diagnostic(root):
+                    raise PackagingError("run root contained no packageable evidence files")
+                archive.writestr(
+                    EMPTY_SCORED_DIAGNOSTIC,
+                    (
+                        "Trace2D B0 scored orchestration created the run directory but no "
+                        "packageable evidence file survived to packaging. No scored raw "
+                        "record is implied by this marker. Inspect the runner's original "
+                        "startup exception; this ZIP exists only so that exception is not "
+                        "masked by the generic evidence packager.\n"
+                    ),
+                )
+                count = 1
         os.replace(temporary, output)
     finally:
         if temporary.exists():
