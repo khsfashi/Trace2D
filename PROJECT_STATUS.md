@@ -21,30 +21,32 @@ Completed AI-operated foundation:
 - #99 Workspace / human feedback loop — PR #117,
 - #102 Benchmark B0 — PR #118 / squash `13a28d7baf8bd72d9f3233a57b2a048450825bee`.
 
-Completed Sprite foundation:
+Completed Sprite stages:
 
 - #119 / S0 Sprite architecture and authority contract — PR #120 / squash `00dc587153bc4b0d6f6ac350d5491eec481585f0`,
-- #121 / S1 canonical SpriteAsset/import representation — PR #122 / squash `27250bff8afd40f55edf2bfbed9be8b143f1ea1d`.
+- #121 / S1 canonical SpriteAsset/import representation — PR #122 / squash `27250bff8afd40f55edf2bfbed9be8b143f1ea1d`,
+- #123 / SR0 renderer contract / canonical asset-render separation — PR #124 / squash `aa30a8e4498fd5edd6df9d2be7bb9a91bcdea5db`.
 
 **Active core program: #59 Complete Sprite program.**  
-**Active Sprite child: #123 / SR0 — renderer contract and canonical asset/render separation.**  
-**Active implementation PR: #124 (`agent/sprite-sr0-render-contract`).**  
-**Exact next child after #123/#124 merges green: SR1 — complete transform/geometry semantics plus fixed-step presentation history.**
+**Active Sprite child: #125 / SR1 — transform geometry and fixed-step presentation history.**  
+**Active implementation PR: #126 (`agent/sprite-sr1-transform-history`).**  
+**Exact next child after #125/#126 merges green: SR2 — atlas/trim/pivot/rotated-packing correctness.**
 
-Do not begin SR1, #103, or later fixed-order work while #123/#124 is open.
+Do not begin SR2, #103, or later fixed-order work while #125/#126 is open.
 
 ## #59 Sprite program — active
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
 Frozen architecture: [`docs/SPRITE_ARCHITECTURE.md`](docs/SPRITE_ARCHITECTURE.md).  
 Canonical S1 format: [`docs/SPRITE_ASSET_FORMAT.md`](docs/SPRITE_ASSET_FORMAT.md).  
-SR0 render seam: [`docs/SPRITE_RENDER_CONTRACT.md`](docs/SPRITE_RENDER_CONTRACT.md).
+SR0 render seam: [`docs/SPRITE_RENDER_CONTRACT.md`](docs/SPRITE_RENDER_CONTRACT.md).  
+SR1 transform/presentation seam: [`docs/SPRITE_TRANSFORM_PRESENTATION.md`](docs/SPRITE_TRANSFORM_PRESENTATION.md).
 
 Fixed internal order:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [active] -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [active] -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
@@ -54,88 +56,118 @@ Only one child is active at a time.
 
 ### #119 / S0 — complete
 
-S0 froze the authority direction:
+S0 froze:
 
 ```text
-external source/generation
- -> deterministic import
- -> canonical SpriteAsset CPU truth
- -> authoritative SpriteRenderer2D / SpriteAnimator2D semantics
+canonical authored Sprite truth
+ + authoritative typed runtime state
  -> backend-independent extraction
- -> derived presentation state
- -> renderer/backend resources
+ -> derived presentation
+ -> backend resources
 ```
 
 Durable S0 invariants remain enforced by `docs/contracts/sprite-s0.json` and `scripts/test_sprite_s0_contract.py`:
 
 - canonical Sprite/runtime truth remains usable without renderer initialization,
 - source-space pixel metadata is canonical; normalized UV/GPU/batch state is derived,
-- trim/packed rotation are storage semantics only,
-- `current_fixed` is authoritative and `previous_fixed` is presentation history,
+- source coordinates are top-left / +x right / +y down / half-open integer rectangles,
+- trim and packed rotation are storage semantics only,
+- `current_fixed` is authoritative; `previous_fixed` is presentation history,
 - exact-frame capture defaults to authoritative current state,
-- future #71/#86/#88/#89 attach through typed seams without replacing Sprite authored semantics,
+- future #71/#86/#88/#89 attach through typed seams without replacing Sprite semantics,
 - semantic painter order cannot be globally reordered for batching,
 - explicit tooling/report/capture work remains outside ordinary frame hot paths.
 
 ### #121 / S1 — complete
 
-S1 implemented deterministic canonical `.sprite.toml` CPU truth:
+S1 implemented deterministic versioned `.sprite.toml` canonical CPU truth with:
 
-```toml
-schema = "trace2d.sprite"
-version = 1
-sampling = "nearest"
-```
+- normalized project-relative Sprite/texture identity,
+- ordered pages/regions,
+- exact source/trim/packed pixel metadata,
+- exact reduced rational pivot,
+- `none`/`cw90` storage rotation,
+- explicit color-space/straight-alpha/sampling intent,
+- strict structured diagnostics,
+- deterministic serialization and immutable cache reuse,
+- decoded CPU texture dimension validation,
+- no renderer/GPU dependency.
 
-with ordered pages/regions, exact source/trim/packed pixel metadata, exact reduced rational pivot, `none`/`cw90` storage rotation, explicit color/alpha/sampling intent, strict diagnostics, deterministic serialization, decoded texture-dimension validation, and immutable cache reuse.
+### #123 / SR0 — complete
 
-Canonical assets contain no SDL/GPU handles, normalized UVs, upload offsets, package compression/mip state, or renderer residency.
-
-Implementation/reference:
-
-- `engine/assets/include/trace2d/assets/SpriteAssets.hpp`,
-- `engine/assets/src/SpriteAssets.cpp`,
-- `docs/SPRITE_ASSET_FORMAT.md`,
-- `tests/assets/SpriteAssetsTests.cpp`,
-- `tests/assets/SpriteAssetValidationTests.cpp`.
-
-### #123 / SR0 — active
-
-SR0 adds the first backend-independent renderer seam without implementing later renderer behavior.
-
-Authority/runtime path:
+SR0 implemented:
 
 ```text
 immutable canonical SpriteAsset
- -> setup-time ResolveSpriteRegionByIndices / ResolveSpriteRegionById
+ -> setup-time region resolution
  -> ResolvedSpriteRegion
  -> O(1) ExtractSpriteRenderContract
- -> later SR1/SR2 presentation derivation
- -> renderer/backend resources
+ -> later presentation stages
 ```
 
-Current SR0 decisions:
+Key rules:
 
-- successful steady-state extraction is O(1),
-- semantic ID lookup/string relationship checks happen only during setup resolution,
-- steady-state extraction performs no filesystem/TOML/image decode/path normalization/string lookup,
-- no required heap allocation or formatted diagnostic construction on success,
-- canonical asset ownership remains external; resolved selections are non-owning and trivially copyable,
-- `SpritePageResourceKey` uses canonical project-relative texture identity + page size/color/alpha intent only,
-- no GPU/SDL handle or backend enum enters the canonical/render-contract boundary,
-- built-in compatibility seam is finite: built-in Sprite pipeline, nearest/linear sampler, straight-alpha compatibility, no mask, quad primitive,
-- existing backend-independent `OrthographicView` is reused as `SpriteResolvedView`; #88 later supplies Camera2D/Viewport2D resolution,
-- invalid manual CPU states/selections fail through allocation-free `SpriteResolveError` + `SpriteResolveField`,
-- Assets now precedes Render in CMake and Render publicly depends on Assets; dependency direction is one-way.
+- semantic ID lookup/string relationship checks are setup-only,
+- successful extraction is O(1) and allocation-free,
+- `SpritePageResourceKey` contains CPU identity/intent only,
+- canonical/render-contract state contains no SDL/GPU handle or normalized UV,
+- finite built-in material/sampler/blend/mask/primitive compatibility seam,
+- `OrthographicView` is reused as the #88-ready resolved view seam,
+- dependency direction is one-way: Assets/Scene truth -> Render extraction.
 
-Implementation/reference:
+### #125 / SR1 — active
 
-- `engine/render/include/trace2d/render/SpriteRenderContract.hpp`,
-- `engine/render/src/SpriteRenderContract.cpp`,
-- `tests/render/SpriteRenderContractTests.cpp`,
-- `docs/SPRITE_RENDER_CONTRACT.md`.
+SR1 implements authoritative transform/history in Scene and logical geometry derivation in Render.
 
-SR0 must merge green before SR1 starts.
+Authoritative state:
+
+```text
+scene::Transform2D
+ + flipX / flipY
+ -> scene::SpritePose2D
+ -> previousFixed / currentFixed
+```
+
+Rules implemented by `SPRITE_TRANSFORM_PRESENTATION.md`:
+
+- reuses existing `scene::Transform2D`; no renderer-owned transform model,
+- finite position / float radians / non-uniform scale,
+- zero and negative scale are valid,
+- semantic flip X/Y remains independent from scale sign,
+- `SnapSpritePoseHistory` synchronizes previous/current for discontinuities,
+- `CommitSpriteFixedPose` advances history only on explicit successful commit,
+- invalid commit/snap leaves history unchanged,
+- exact-frame presentation copies `currentFixed` exactly,
+- interactive alpha must be finite in `[0,1]`; no clamp/extrapolation,
+- position/scale interpolate linearly,
+- rotation uses shortest signed float-radian arc with deterministic +pi/-pi tie,
+- flip X/Y is discrete and always comes from `currentFixed`,
+- interpolated presentation is never written back to authority.
+
+Logical geometry:
+
+```text
+S1 untrimmed source_size + exact rational pivot
+ -> Y-down source offsets
+ -> one Y-down -> Y-up derivation boundary
+ -> / pixels_per_unit
+ -> semantic flip
+ -> non-uniform/negative scale
+ -> CCW rotation
+ -> translation
+ -> SpriteLogicalQuad
+```
+
+Performance/ownership:
+
+- interpolation O(1), fixed-size output,
+- logical quad O(1), one sin/cos pair + four fixed corners,
+- double intermediates with checked finite float output,
+- no vector/list/string lookup/filesystem/TOML/image decode/GPU work,
+- caller-owned outputs are reusable,
+- SR1 consumes the pre-resolved SR0 region and does not re-resolve semantic names.
+
+SR1 does not derive normalized UVs or stored trimmed/rotated atlas mapping; SR2 owns that exact handoff.
 
 ## Owner-fixed core execution order
 
@@ -146,14 +178,15 @@ AI-operated foundation
  -> #97 WorkSpec                                            [complete]
  -> #98 WorkResult verify/diagnose/repair                   [complete]
  -> #99 Workspace/review loop                               [complete]
- -> #102 Benchmark B0                                      [complete]
+ -> #102 Benchmark B0                                       [complete]
 
 Content production
- -> #59 complete Sprite program                            [active]
-      -> #119 S0 architecture                              [complete via #120]
-      -> #121 S1 canonical asset/import                    [complete via #122]
-      -> #123 SR0 asset/render contract                    [active via #124]
-      -> SR1..SR8 renderer
+ -> #59 complete Sprite program                             [active]
+      -> #119 S0 architecture                               [complete via #120]
+      -> #121 S1 canonical asset/import                     [complete via #122]
+      -> #123 SR0 asset/render contract                     [complete via #124]
+      -> #125 SR1 transform/history/geometry                [active via #126]
+      -> SR2..SR8 renderer
       -> SA0..SA4 animation
       -> SPP0..SPP5 offline processing/generation
       -> SE2E -> SPERF
@@ -190,27 +223,9 @@ Umbrellas/registers #13/#96/#100/#67/#85/#93/#101/#106 do not authorize bypassin
 
 ## Durable authority boundaries
 
-### WorkSpec / WorkResult / Workspace
+WorkSpec/WorkResult/Workspace continue to enforce deterministic verification before perceptual review. Agent self-report is never independent truth.
 
-Repository evidence establishes capability. Agent self-report is never independent truth. WorkResult remains:
-
-```text
-WorkSpec acceptance
- -> verification record
- -> structured failure + reproduction context
- -> Agent/user repair
- -> new revision
- -> deterministic re-verification
- -> subjective review only where required
-```
-
-Workspace remains derived from WorkSpec/WorkResult/optional Agent inspection and does not own project/world truth.
-
-### Benchmark
-
-The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`. B0 proved the matched methodology/evidence loop; its frozen scored cohort did not establish broad engine superiority.
-
-### Sprite authority
+Sprite authority remains:
 
 ```text
 canonical authored Sprite metadata
@@ -220,6 +235,8 @@ canonical authored Sprite metadata
 ```
 
 GPU resources, pixels, Agent snapshots and review artifacts never become canonical Sprite/gameplay truth.
+
+The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves the matched methodology/evidence loop, not broad engine superiority.
 
 ## Completed foundation sequence
 
@@ -241,16 +258,17 @@ GPU resources, pixels, Agent snapshots and review artifacts never become canonic
 16. #102 Benchmark B0 — PR #118
 17. #119 Sprite S0 — PR #120
 18. #121 Sprite S1 — PR #122
+19. #123 Sprite SR0 — PR #124
 
 Production architecture freeze #85 remains complete via PR #94.
 
 ## Continuation rule
 
-While PR #124 is open, finish only #123/SR0 acceptance, tests, docs and CI. Do not create SR1 implementation in parallel.
+While PR #126 is open, finish only #125/SR1 acceptance, tests, docs and CI. Do not create SR2 implementation in parallel.
 
-After PR #124 merges green:
+After PR #126 merges green:
 
-1. close/confirm #123 through the PR,
-2. update this file to mark SR0 complete,
-3. create exactly one SR1 child issue,
-4. implement SR1 only.
+1. close/confirm #125 through the PR,
+2. update this file to mark SR1 complete,
+3. create exactly one SR2 child issue,
+4. implement SR2 only.
