@@ -9,8 +9,8 @@ Do not commit placeholder `qualified: true` files.
 - `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json).
 - `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json), exact bridge `@satelliteoflove/godot-mcp@4.1.0`.
 - `trace2d.agent` — **oracle-qualified** with committed Windows evidence in [`trace2d-agent.json`](trace2d-agent.json).
-- coding Agent — frozen to `openai-codex-cli@0.144.6` + ChatGPT-managed `gpt-5.5`; owner-local model preflight is **proven callable**.
-- isolation backend — **not qualified**. The attempted native-Windows Codex custom permission profile is rejected after a real owner-local canary leak.
+- coding Agent/model — frozen to `openai-codex-cli@0.144.6` + ChatGPT-managed `gpt-5.5`; owner-local model preflight is **proven callable**.
+- isolation backend — **not qualified**. The attempted native-Windows Codex custom permission profile is rejected after a real owner-local canary leak. The committed Agent profile explicitly says `qualification_pending_external_isolation_backend` until a replacement boundary is proven and frozen before the first lane trial.
 
 All three engine/adapter environments and the real coding model are ready. No matched lane trial has started because the held-out integrity boundary is still unresolved.
 
@@ -22,7 +22,7 @@ Every file below is pre-scoring evidence and is retained rather than rewritten a
 - [`codex-chatgpt-recovery-attempt-2026-08-11.json`](codex-chatgpt-recovery-attempt-2026-08-11.json) — early recovery observability gap.
 - [`codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json`](codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json) — `gpt-5.6` reached the provider but was unavailable to the owner account.
 - [`codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json) — frozen `gpt-5.5` model preflight passed; the old 90-second isolation process ceiling expired before verdict.
-- [`codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](codex-chatgpt-native-windows-isolation-breach-2026-08-11.json) — **decisive integrity evidence** from repository head `cc678f80c7b681ac559b4ad498108ff914bb30e9`: `gpt-5.5` completed, workspace writes were blocked by Codex policy, and the exact random canary beside the held-out verifier was successfully read and exposed to the model. Classification: `integrity_isolation_breach_native_windows_profile`.
+- [`codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](codex-chatgpt-native-windows-isolation-breach-2026-08-11.json) — **decisive integrity evidence**: `gpt-5.5` completed, workspace writes were blocked by Codex policy, and the exact random canary beside the held-out verifier was successfully read and exposed to the model. Classification: `integrity_isolation_breach_native_windows_profile`.
 
 The last record rejects the attempted Codex-internal native-Windows read-deny backend. It is not an engine loss, and the old three-lane calibration must not be rerun until a replacement hard boundary is qualified and integrated.
 
@@ -36,7 +36,7 @@ The last record rejects the attempted Codex-internal native-Windows read-deny ba
 4. no canary content leaks,
 5. host access remains intact and the temporary deny ACE is removed.
 
-A passing result qualifies only the external ACL mechanism. The full B0 runner still needs a reviewed repo/harness quarantine lifecycle before any lane trial may start.
+A passing result qualifies only the external ACL mechanism. The full B0 runner still needs a reviewed repo/harness quarantine lifecycle before any lane trial may start. That integration must then replace `qualification_pending_external_isolation_backend` with an exact frozen isolation setting and produce the profile hash shared across all three lanes.
 
 ## Determinism note for the Godot Agent lane
 
