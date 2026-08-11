@@ -60,7 +60,7 @@ None of these records is a scored engine result. The latest attempt started zero
 
 ## Current corrected isolation contract
 
-The final wrapper is [`scripts/benchmark_b0_codex_windows_acl_wrapper.py`](../../scripts/benchmark_b0_codex_windows_acl_wrapper.py). It:
+The final wrapper is [`scripts/benchmark_b0_codex_windows_acl_wrapper.py`](../../../scripts/benchmark_b0_codex_windows_acl_wrapper.py). It:
 
 1. pins Codex built-in `:workspace`,
 2. pins `[windows] sandbox = "elevated"`,
