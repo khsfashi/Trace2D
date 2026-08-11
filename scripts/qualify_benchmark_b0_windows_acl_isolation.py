@@ -14,15 +14,10 @@ Every post-setup failure is packaged as scrubbed evidence so qualification never
 depends on copying terminal output back into the repository by hand.
 
 Codex 0.144 selects the host sandbox implementation by platform. On native
-Windows, `codex sandbox` is already the WindowsCommand surface; adding a legacy
-`windows` positional token makes Codex try to execute a program literally named
-`windows`. Keep this invocation shape covered by unit tests.
-
-The direct sandbox wrapper also owns Windows argv quoting. Do not use cmd.exe
-`/s` here: after the wrapper has quoted the `/c` command string, `/s` changes
-cmd's quote stripping rules and can make the opening quote part of the command
-name (for example, `\"echo`). `/d /c <command>` preserves the intended child
-command while still disabling AutoRun.
+Windows, `codex sandbox` is already the WindowsCommand surface. Probe shell
+operations are stored in tiny workspace-local `.cmd` files and invoked by file
+name so the sandbox transport never has to preserve a free-form `cmd /c` command
+string across nested Windows quoting layers.
 """
 from __future__ import annotations
 
@@ -74,8 +69,7 @@ def redact(text: str, secret: str = "") -> str:
     value = text
     if secret:
         value = value.replace(secret, "<REDACTED_RANDOM_CANARY>")
-    value = SID_PATTERN.sub("<REDACTED_WINDOWS_SID>", value)
-    return value
+    return SID_PATTERN.sub("<REDACTED_WINDOWS_SID>", value)
 
 
 def run_host(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -115,9 +109,19 @@ def run_codex_sandbox(
     )
 
 
-def cmd_command(cmd: str, command: str) -> list[str]:
-    """Build the stable cmd.exe shape used through the Codex sandbox wrapper."""
-    return [cmd, "/d", "/c", command]
+def write_probe_command_files(workspace: Path, canary: Path) -> tuple[Path, Path]:
+    """Create ASCII-only command files to avoid nested `cmd /c` quoting."""
+    workspace_write = workspace / "workspace-write.cmd"
+    held_out_read = workspace / "held-out-read.cmd"
+    write_text(
+        workspace_write,
+        "@echo off\r\n>ACL_WORKSPACE_RESULT.txt echo ACL_WORKSPACE_OK\r\n",
+    )
+    write_text(
+        held_out_read,
+        f'@echo off\r\ntype "{canary}"\r\n',
+    )
+    return workspace_write, held_out_read
 
 
 def process_record(
@@ -187,6 +191,7 @@ def main() -> int:
     secret = f"TRACE2D-B0-ACL-DENY-{uuid.uuid4().hex}"
     canary = forbidden / "CANARY.txt"
     canary.write_text(secret, encoding="utf-8")
+    workspace_write_script, held_out_read_script = write_probe_command_files(workspace, canary)
 
     result: dict[str, Any] = {
         "schema_version": 1,
@@ -199,7 +204,7 @@ def main() -> int:
         "engine_trial_started": False,
         "canary_sha256": sha256_text(secret),
         "sandbox_cli_shape": "codex sandbox --permission-profile <name> --cd <dir> -- <command>",
-        "cmd_cli_shape": "cmd.exe /d /c <command>",
+        "command_transport": "workspace_local_cmd_files",
     }
     sandbox_sid = ""
     acl_applied = False
@@ -252,10 +257,7 @@ def main() -> int:
             codex,
             profile=":workspace",
             cwd=workspace,
-            command=cmd_command(
-                cmd,
-                "echo ACL_WORKSPACE_OK>ACL_WORKSPACE_RESULT.txt",
-            ),
+            command=[cmd, "/d", "/c", workspace_write_script.name],
         )
         write_json(evidence_dir / "workspace-write.process.json", process_record(allowed))
         allowed_file = workspace / "ACL_WORKSPACE_RESULT.txt"
@@ -275,7 +277,7 @@ def main() -> int:
             codex,
             profile=":workspace",
             cwd=workspace,
-            command=cmd_command(cmd, f'type "{canary}"'),
+            command=[cmd, "/d", "/c", held_out_read_script.name],
         )
         leaked = secret in (denied.stdout or "") or secret in (denied.stderr or "")
         write_json(
