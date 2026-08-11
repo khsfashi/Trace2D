@@ -105,17 +105,36 @@ R3  trace2d.agent -> godot.generic -> godot.agent
 
 Every scheduled slot gets at most one attempt. Infrastructure, budget, implementation, timeout, human and integrity outcomes remain in the cohort; there is no reroll to replace an unfavorable result.
 
+## Owner-local elevation contract
+
+The host orchestration shell is now required to be an **Administrator PowerShell** for the scored cohort. This is an infrastructure execution requirement only: it does not change the frozen Codex Agent, sandbox identity, model, prompt, verifier, budget, lane order or retry policy.
+
+The elevated host removes repeated UAC prompts while applying/removing the external NTFS ACL. The Codex Agent still runs through the frozen `elevated` Windows sandbox backend, and the real-model held-out canary still runs before slot 1; therefore host elevation cannot silently weaken the benchmark boundary.
+
+Use [`../../scripts/run_benchmark_b0_codex_windows_acl_scored_cohort_admin.ps1`](../../scripts/run_benchmark_b0_codex_windows_acl_scored_cohort_admin.ps1). The launcher:
+
+1. refuses to run unless the PowerShell host is already elevated,
+2. proves the owner-local evidence root can create/read/remove a file before any model call,
+3. scans previous `codex-chatgpt-scored-*` run roots and refuses to start if **any** `scored/raw.jsonl` already contains a scored record,
+4. invokes the unchanged preregistered Python cohort runner only after those host checks pass.
+
+That prior-record guard is important: an orchestration failure before slot 1 may be rerun after repair, but once any scheduled scored record exists the cohort must be preserved for review rather than replaced.
+
 ## Current owner-local action
 
-From an updated PR #118 checkout on native Windows, use only:
+First close the current non-elevated shell. Open **PowerShell -> Run as administrator** once, then from an updated PR #118 checkout run only:
 
 ```powershell
-python .\scripts\run_benchmark_b0_codex_windows_acl_scored_cohort.py
+cd D:\Trace2D-pr118
+git pull
+.\scripts\run_benchmark_b0_codex_windows_acl_scored_cohort_admin.ps1
 ```
 
-The runner performs one model preflight and one real-model ACL canary before any scored slot, then executes exactly the nine preregistered attempts, independently reverifies every preserved workspace, writes the aggregate report, scrubs transient credentials and produces one evidence ZIP.
+Do not call the Python scored runner directly. The launcher will fail closed if the previous failed start actually created any scored raw record. If it finds none, it starts the single preregistered cohort from slot 1.
 
-Do not manually run individual `--scored` slots and do not rerun a failed scheduled slot. If the cohort runner stops because of a genuine orchestration/integrity defect, upload the generated ZIP for diagnosis rather than creating an unofficial replacement sample.
+The Python runner then performs one model preflight and one real-model ACL canary before any scored slot, executes exactly the nine preregistered attempts, independently reverifies every preserved workspace, writes the aggregate report, scrubs transient credentials and produces one evidence ZIP.
+
+Do not manually run individual `--scored` slots and do not rerun a failed scheduled slot. If the cohort runner stops after any scored record exists, preserve/upload that run for diagnosis rather than creating an unofficial replacement sample.
 
 ## Remaining #102 gate
 
