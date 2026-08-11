@@ -27,6 +27,10 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_chatgpt_safe_runner.py
 
+      - name: Test Windows ACL isolation probe helpers
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_windows_acl_isolation.py
+
       - name: Test scrubbed evidence packaging
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_evidence_packager.py
@@ -45,8 +49,8 @@ jobs:
             exit 1
           }
 
-      - name: Compile-check ChatGPT recovery calibration
-        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/benchmark_b0_codex_chatgpt_wrapper.py
+      - name: Compile-check ChatGPT recovery and ACL qualification tooling
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
 
       - name: Validate frozen Codex profile against B0 task budget
         shell: bash
