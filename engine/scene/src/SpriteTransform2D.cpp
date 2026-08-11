@@ -62,6 +62,12 @@ namespace
     constexpr double Pi = static_cast<double>(std::numbers::pi_v<float>);
     constexpr double Tau = Pi * 2.0;
 
+    // Common fixed-step deltas already fit the shortest-arc interval. Avoid fmod there.
+    if (radians >= -Pi && radians <= Pi)
+    {
+        return radians;
+    }
+
     double wrapped = std::fmod(radians, Tau);
     if (wrapped > Pi)
     {
