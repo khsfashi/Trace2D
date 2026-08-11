@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_agent_profile_freeze",
+  "date": "2026-08-11",
+  "scored": false,
+  "matched_lane_trials_started": 0,
+  "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
+  "agent_profile_file_sha256": "ddf15821eefc038119dd1c1325c37bcf0ac29d0857c84790e405628753ed17ac",
+  "agent_profile_canonical_sha256": "8f8a495befee0bead0977d3cd6b8aec4a85e5afb024a1c0bc8303c7dc603f197",
+  "agent_id": "openai-codex-cli@0.144.6",
+  "model_id": "gpt-5.5",
+  "model_revision": "gpt-5.5",
+  "reasoning_effort": "high",
+  "permission_profile": ":workspace",
+  "isolation_backend": "windows_ntfs_acl_v1",
+  "protected_root_policy": "repository_root_deny_for_codex_sandbox_sid",
+  "network_access": "disabled",
+  "provider_revision_policy": "chatgpt_codex_cli_selector_no_dated_snapshot",
+  "mechanism_qualification": "benchmarks/b0/qualification/codex-windows-acl-backend-qualified-2026-08-11.json",
+  "promotion_state": "final_profile_frozen_before_real_model_isolation_and_unscored_lanes"
+}
