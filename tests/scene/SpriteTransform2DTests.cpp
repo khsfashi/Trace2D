@@ -159,6 +159,24 @@ TEST(SpriteTransform2DTests, RejectsInvalidAlphaInsteadOfClamping)
         (SpritePoseStatus{SpritePoseError::NonFiniteAlpha, SpritePoseField::Alpha}));
 }
 
+TEST(SpriteTransform2DTests, PresentationReusesCallerOutputWithoutMutatingHistory)
+{
+    SpritePoseHistory2D history{};
+    history.previousFixed = MakePose(-3.0F, 5.0F, -0.75F, 2.0F, -1.0F, false, true);
+    history.currentFixed = MakePose(9.0F, -7.0F, 0.5F, -4.0F, 3.0F, true, false);
+    const SpritePoseHistory2D authoritativeBefore = history;
+    SpritePose2D output{};
+
+    for (std::size_t iteration = 0U; iteration < 10000U; ++iteration)
+    {
+        ASSERT_TRUE(InterpolateSpritePose(history, 0.5F, output).Succeeded());
+    }
+
+    EXPECT_EQ(history, authoritativeBefore);
+    EXPECT_TRUE(output.flipX);
+    EXPECT_FALSE(output.flipY);
+}
+
 TEST(SpriteTransform2DTests, ZeroAndNegativeScaleAreValidAuthoritativeSemantics)
 {
     EXPECT_TRUE(ValidateSpritePose(MakePose(0.0F, 0.0F, 0.0F, 0.0F, -2.0F, true, false)).Succeeded());
