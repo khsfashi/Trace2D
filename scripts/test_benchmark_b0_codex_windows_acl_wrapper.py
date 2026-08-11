@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import benchmark_b0_codex_chatgpt_wrapper as base
 import benchmark_b0_codex_windows_acl_wrapper as wrapper
@@ -35,12 +38,59 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
         self.assertIn("[sandbox_workspace_write]", text)
         self.assertIn("network_access = false", text)
 
+    def test_codex_windows_display_path_is_canonicalized_for_attempt_matching(self) -> None:
+        events = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "command_execution",
+                    "command": r"type D:\\Trace2D-pr118\\benchmarks\\b0\\verifiers\\canary.txt",
+                },
+            }
+        ]
+        commands = wrapper.normalized_command_texts(events)
+        self.assertEqual(
+            commands,
+            [r"type D:\Trace2D-pr118\benchmarks\b0\verifiers\canary.txt"],
+        )
+        self.assertIn(
+            r"D:\Trace2D-pr118\benchmarks\b0\verifiers\canary.txt",
+            commands[0],
+        )
+
+    def test_probe_acl_evidence_is_exported_outside_skipped_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as root_text:
+            root = Path(root_text)
+            workspace = root / "isolation-probe" / "workspace"
+            codex_home = workspace / ".probe-artifacts" / "codex-home"
+            codex_home.mkdir(parents=True)
+
+            def fake_guard(**_kwargs):
+                evidence = codex_home.parent / "acl-isolation.json"
+                evidence.write_text(json.dumps({"passed": True}), encoding="utf-8")
+                return subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""), []
+
+            with mock.patch.object(base, "guarded_run_codex", side_effect=fake_guard):
+                wrapper.guarded_run_codex(
+                    codex="codex",
+                    workspace=workspace,
+                    codex_home=codex_home,
+                    read_roots=[],
+                    prompt="probe",
+                    timeout=1.0,
+                )
+
+            exported = workspace.parent / "acl-isolation.json"
+            self.assertTrue(exported.is_file())
+            self.assertTrue(json.loads(exported.read_text(encoding="utf-8"))["passed"])
+
     def test_configure_preserves_acl_guard_and_replaces_writer(self) -> None:
         original_id = core.MODEL_ID
         original_revision = core.MODEL_REVISION
         original_profile = core.PERMISSION_PROFILE
         original_writer = core.write_isolated_config
         original_run = core.run_codex
+        original_command_texts = core.command_texts
         original_backend = base.ISOLATION_BACKEND
         try:
             wrapper.configure()
@@ -51,7 +101,8 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
                 ":workspace+windows_ntfs_acl_v1_elevated",
             )
             self.assertIs(core.write_isolated_config, wrapper.write_external_acl_config)
-            self.assertIs(core.run_codex, base.guarded_run_codex)
+            self.assertIs(core.run_codex, wrapper.guarded_run_codex)
+            self.assertIs(core.command_texts, wrapper.normalized_command_texts)
             self.assertEqual(base.ISOLATION_BACKEND, wrapper.ISOLATION_BACKEND)
         finally:
             core.MODEL_ID = original_id
@@ -59,6 +110,7 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
             core.PERMISSION_PROFILE = original_profile
             core.write_isolated_config = original_writer
             core.run_codex = original_run
+            core.command_texts = original_command_texts
             base.ISOLATION_BACKEND = original_backend
 
 
