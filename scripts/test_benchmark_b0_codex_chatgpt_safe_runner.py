@@ -18,37 +18,46 @@ class SafeCalibrationCleanupTests(unittest.TestCase):
             "chatgpt_codex_cli_selector_no_dated_snapshot",
         )
 
-    def test_scrub_removes_codex_home_without_walking_volatile_cache(self) -> None:
+    def test_isolation_timeout_matches_real_wrapper_ceiling(self) -> None:
+        self.assertEqual(safe_runner.ISOLATION_TIMEOUT_SECONDS, 285.0)
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with mock.patch.object(safe_runner, "_BASE_RUN", return_value=completed) as base_run:
+            safe_runner.run_with_matched_isolation_timeout(
+                ["python", "-m", "benchmark_b0_codex_chatgpt_wrapper", "probe-isolation"],
+                cwd=Path.cwd(),
+                check=False,
+                capture=True,
+            )
+        argv = base_run.call_args.args[0]
+        self.assertEqual(argv[-2:], ["--timeout", "285.0"])
+
+    def test_explicit_isolation_timeout_is_not_overridden(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with mock.patch.object(safe_runner, "_BASE_RUN", return_value=completed) as base_run:
+            safe_runner.run_with_matched_isolation_timeout(
+                ["python", "wrapper", "probe-isolation", "--timeout", "123"],
+                cwd=Path.cwd(),
+            )
+        argv = base_run.call_args.args[0]
+        self.assertEqual(argv[-2:], ["--timeout", "123"])
+
+    def test_scrub_preserves_public_sandbox_log_and_removes_codex_home(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
             root = Path(root_text)
-            volatile = (
-                root
-                / "isolation-probe"
-                / "workspace"
-                / ".probe-artifacts"
-                / "codex-home"
-                / "plugins"
-                / "cache"
-                / "openai-curated-remote"
-                / "openai-templates"
-                / "0.1.1"
-                / "skills"
-                / "artifact-template-analytics-dashboard"
-            )
+            codex_home = root / "isolation-probe" / "workspace" / ".probe-artifacts" / "codex-home"
+            sandbox = codex_home / ".sandbox"
+            volatile = codex_home / "plugins" / "cache" / "volatile"
+            sandbox.mkdir(parents=True)
             volatile.mkdir(parents=True)
+            (sandbox / "sandbox.log").write_text("sandbox diagnostic", encoding="utf-8")
             (volatile / "auth.json").write_text("secret", encoding="utf-8")
 
             safe_runner.scrub_transient_codex_state(root)
 
-            self.assertFalse(
-                (
-                    root
-                    / "isolation-probe"
-                    / "workspace"
-                    / ".probe-artifacts"
-                    / "codex-home"
-                ).exists()
-            )
+            self.assertFalse(codex_home.exists())
+            diagnostic = codex_home.parent / "codex-sandbox.log"
+            self.assertTrue(diagnostic.is_file())
+            self.assertEqual(diagnostic.read_text(encoding="utf-8"), "sandbox diagnostic")
 
     def test_scrub_removes_unexpected_auth_outside_codex_home(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
