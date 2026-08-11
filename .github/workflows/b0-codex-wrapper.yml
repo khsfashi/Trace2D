@@ -43,18 +43,24 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_evidence_packager.py
 
-      - name: Parse-check owner-local setup PowerShell
+      - name: Parse-check owner-local PowerShell entrypoints
         shell: pwsh
         run: |
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path "scripts/run_benchmark_b0_codex_calibration.ps1").Path,
-            [ref]$null,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -ne 0) {
-            $errors | Format-List | Out-String | Write-Error
-            exit 1
+          $paths = @(
+            "scripts/run_benchmark_b0_codex_calibration.ps1",
+            "scripts/run_benchmark_b0_codex_windows_acl_scored_cohort_admin.ps1"
+          )
+          foreach ($path in $paths) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path).Path,
+              [ref]$null,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -ne 0) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
           }
 
       - name: Compile-check B0 Codex qualification tooling
