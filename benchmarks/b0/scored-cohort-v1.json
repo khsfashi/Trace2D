@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "trace2d_b0_scored_cohort_policy",
   "cohort_id": "trace2d-b0-semantic-scene-authoring-scored-v1",
-  "state": "blocked_until_suite_and_task_eligible",
+  "state": "ready",
   "task_id": "b0-semantic-scene-authoring",
   "task_version": 1,
   "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
