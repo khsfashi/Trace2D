@@ -8,6 +8,7 @@ add_library(trace2d_render STATIC
     src/RenderData.cpp
     src/Renderer.cpp
     src/RendererWorkload.cpp
+    src/SpriteGeometry2D.cpp
     src/SpriteRenderContract.cpp
 )
 
@@ -22,6 +23,7 @@ target_link_libraries(trace2d_render
     PUBLIC
         Trace2D::Assets
         Trace2D::Platform
+        Trace2D::Scene
     PRIVATE
         Trace2D::Particles
         SDL3::SDL3
