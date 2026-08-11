@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_unscored_calibration_acceptance",
+  "accepted": true,
+  "scored": false,
+  "source_archive": "codex-chatgpt-calibration-20260811-163459-3812f9f7.zip",
+  "source_archive_sha256": "31d1e70938a3e98716559073518bf1e1de5465316f85bafffab4d58880e097fd",
+  "source_archive_size_bytes": 61926,
+  "repository_head": "1737ec8aad85415238b2f70701e7e8ab044e409c",
+  "frozen_trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+  "agent": {
+    "agent_id": "openai-codex-cli@0.144.6",
+    "model_id": "gpt-5.5",
+    "model_revision": "gpt-5.5",
+    "canonical_profile_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+    "windows_crlf_profile_file_sha256": "39aa01f1e1e12ac9f17889fc49fe868643a034780a6b7aff3eb824d5f401ab04",
+    "reasoning_effort": "high",
+    "permission_profile": ":workspace",
+    "windows_sandbox_backend": "elevated",
+    "isolation_backend": "windows_ntfs_acl_v1_elevated"
+  },
+  "model_preflight": {
+    "passed": true,
+    "turn_completed": true,
+    "input_tokens": 12606,
+    "output_tokens": 6
+  },
+  "isolation_probe": {
+    "passed": true,
+    "workspace_write_proved": true,
+    "external_read_attempt_observed": true,
+    "external_read_denied": true,
+    "canary_secret_leaked": false,
+    "turn_completed": true,
+    "sandbox_sid_differs_from_host": true,
+    "acl_apply_succeeded": true,
+    "acl_cleanup_succeeded": true,
+    "sandbox_identity_source": "host_local_account_translation_v1",
+    "sandbox_account_name": "CodexSandboxOffline"
+  },
+  "raw_record_chain": {
+    "record_count": 3,
+    "canonical_record_hashes_verified": true,
+    "previous_hash_chain_verified": true,
+    "same_agent_profile_per_task": true,
+    "records": [
+      "d42ec86d3929b45f0967d766be68105a6a0f3d2d9c60149008804e8663e5dddd",
+      "f2b6589802fe25fc1758aa16258333b464d209e2e10f3d13d801164f2b948acd",
+      "18becef89e8a5efba29c54b703aeeed1a7fc775a3e0c944bb4d352121250b19f"
+    ]
+  },
+  "lanes": [
+    {
+      "lane_id": "godot.generic",
+      "trial_id": "b0-semantic-scene-authoring-godot.generic-8126a1f1fb4d",
+      "status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "verifier_status": "pass",
+      "input_tokens": 187515,
+      "output_tokens": 3296,
+      "tool_calls": 17,
+      "human_interventions": 0,
+      "acl_apply_succeeded": true,
+      "acl_cleanup_succeeded": true
+    },
+    {
+      "lane_id": "godot.agent",
+      "trial_id": "b0-semantic-scene-authoring-godot.agent-384c6b92cab0",
+      "status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "verifier_status": "fail",
+      "verifier_code": "player_missing",
+      "input_tokens": 508388,
+      "output_tokens": 6004,
+      "tool_calls": 32,
+      "human_interventions": 0,
+      "acl_apply_succeeded": true,
+      "acl_cleanup_succeeded": true
+    },
+    {
+      "lane_id": "trace2d.agent",
+      "trial_id": "b0-semantic-scene-authoring-trace2d.agent-8620c895e336",
+      "status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "verifier_status": "pass",
+      "input_tokens": 195453,
+      "output_tokens": 3552,
+      "tool_calls": 17,
+      "human_interventions": 0,
+      "acl_apply_succeeded": true,
+      "acl_cleanup_succeeded": true
+    }
+  ],
+  "budget_review": {
+    "frozen_max_input_tokens": 100000,
+    "all_three_lanes_exceeded_input_budget": true,
+    "budget_was_not_changed_after_observation": true,
+    "budget_exceeded_is_a_valid_preserved_implementation_outcome": true
+  },
+  "package_review": {
+    "auth_json_present": false,
+    "raw_windows_sid_present": false,
+    "canary_file_present": false,
+    "obvious_api_key_pattern_present": false
+  },
+  "promotion_decision": {
+    "suite_task_eligible": true,
+    "reason": "The final owner-local calibration proves the frozen model/isolation/profile can produce exactly one structurally valid immutable record in every qualified lane, with independent verifier evidence, zero human intervention, correct ACL cleanup and no hidden retry. Calibration success is not required for eligibility; implementation and budget losses remain first-class benchmark outcomes."
+  }
+}
