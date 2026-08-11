@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-48c328b82b1c3242866d1b0585ef5cf4661243a6",
+  "source_event": "merge",
+  "event_id": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#130",
+        "url": "https://github.com/khsfashi/Trace2D/issues/130"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 131,
+        "url": "https://github.com/khsfashi/Trace2D/pull/131"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+        "authored_at": "2026-08-12T08:55:50+09:00",
+        "subject": "Implement Sprite SR3 color, blend, and sampling semantics (#130)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite",
+    "renderer"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "Canonical Sprite source alpha remains straight; built-in fragment output premultiplies immediately before fixed-function blending.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "SR2 pixel-edge UVs remain derived geometry truth; SR3 derives texel-center sample bounds separately for filtering safety.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Ordinary Sprite presentation performs no explicit GPU readback or fence wait.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "Built-in SR3 GPU state is finite and persistent: two samplers plus four target-format-aware blend pipelines.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "manual second sRGB decode | sRGB sampled texture formats already provide the required decode into linear working space.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ],
+        "alternative": "manual second sRGB decode",
+        "reason": "sRGB sampled texture formats already provide the required decode into linear working space."
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "per-frame or per-Sprite sampler/pipeline/shader creation | violates the finite cache and resource-reuse contract.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ],
+        "alternative": "per-frame or per-Sprite sampler/pipeline/shader creation",
+        "reason": "violates the finite cache and resource-reuse contract."
+      },
+      {
+        "id": "rejected-alternatives-003",
+        "text": "rewriting SR2 canonical UVs for filter safety | filtering safety belongs to SR3 derived sample bounds, not geometry truth.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Rejected",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ],
+        "alternative": "rewriting SR2 canonical UVs for filter safety",
+        "reason": "filtering safety belongs to SR3 derived sample bounds, not geometry truth."
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Preserve caller painter order; SR4 owns sorting groups/masks and SR7 owns broader compatibility batching/culling.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "Hosted Windows MSVC configure/build/ctest and clean-clone README quick start passed on PR #131 final head.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "Repository/release/content/Sprite contract audits plus B0 and Godot qualification workflows passed on PR #131 final head.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract passed 1/1 in 3.07 sec on the owner Windows presentation GPU with TRACE2D_RUN_GPU_SMOKE=1.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "Broader multi-vendor and multi-driver GPU matrix for SR3 beyond the required owner presentation-GPU gate.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "local-real-gpu-sprite-sr3 | passed 2026-08-12 on owner Windows presentation GPU; test #94, 1/1 passed, 3.07 sec.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+          }
+        ],
+        "gate": "local-real-gpu-sprite-sr3",
+        "status": "passed 2026-08-12 on owner Windows presentation GPU; test #94, 1/1 passed, 3.07 sec."
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "official SDL3 GPU documentation reviewed 2026-08 | ADOPT | persistent samplers, sRGB/linear sampled formats, format support query, fragment uniforms, and fixed blend factors.",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "48c328b82b1c3242866d1b0585ef5cf4661243a6",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/48c328b82b1c3242866d1b0585ef5cf4661243a6"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "PR #131"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
