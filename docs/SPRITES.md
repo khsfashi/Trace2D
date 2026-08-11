@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1/SR2 complete; SR3 color/alpha/blend/sampling active via #130 / draft PR #131**
+Status: **S0/S1/SR0/SR1/SR2/SR3 complete; SR4 painter-order/sorting-group/masking is the next child, but must be created only after PR #131 is merged/closed**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -65,16 +65,16 @@ Exactly one child issue/PR is active at a time:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [active] -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete] -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Current stage: **SR3 / #130 / draft PR #131**.  
-Exact next stage after SR3 merges green: **SR4 — painter order, sorting groups and Sprite masking**.
+Completed stage: **SR3 / #130 / PR #131**.  
+Exact next stage after PR #131 merges green: **SR4 — painter order, sorting groups and Sprite masking**.
 
-Do not begin SR4 while #130 / PR #131 is active.
+Do not create or begin SR4 in the same continuation that finalizes PR #131.
 
 ## 4. Completed foundation
 
@@ -163,10 +163,10 @@ No half-texel offset is added. `none` maps logical corners directly to packed TL
 
 SR2 rejects unresolved/invalid pose/PPU/source/pivot state, zero/corrupted page/trim/packed extents, out-of-bounds trim/packed rectangles, rotation-specific extent mismatch, unsupported rotation values and numeric overflow through stable fixed-size error categories.
 
-## 5. SR3 — color/alpha/blend/sampling — active
+## 5. SR3 — color/alpha/blend/sampling — complete
 
 Concrete contract: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).  
-Implementation: **#130 / draft PR #131 / branch `agent/sprite-sr3-color-sampling`**.
+Completion vehicle: **#130 / PR #131 / branch `agent/sprite-sr3-color-sampling`**.
 
 SR3 consumes exact SR2 geometry instead of introducing a parallel full-texture-quad semantic path:
 
@@ -271,15 +271,33 @@ Renderer metrics expose:
 
 Backend-independent tests prove validation, exact appearance extraction, sRGB/linear encoding identity, one-pixel and `cw90` sample bounds, premultiplication, all four blend equations, transactional SR2->SR3 composition, and repeated fixed-size extraction.
 
-### Real GPU completion gate
+### Real GPU completion evidence
 
-SR3 does **not** complete from hosted CPU/unit CI alone. The committed opt-in test:
+The committed opt-in test:
 
 ```text
 SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract
 ```
 
-must pass on a real Windows presentation GPU with `TRACE2D_RUN_GPU_SMOKE=1` and prove:
+passed on a real Windows presentation GPU on **2026-08-12** with `TRACE2D_RUN_GPU_SMOKE=1`.
+
+Command used after successful configure/build:
+
+```powershell
+ctest --test-dir .\build\windows-msvc -C Debug -R "SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract" --output-on-failure
+```
+
+Observed result:
+
+```text
+Test project D:/Trace2D-pr131/build/windows-msvc
+    Start 94: SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract
+1/1 Test #94: SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract ... Passed
+100% tests passed out of 1
+Total Test time (real) = 3.07 sec
+```
+
+That real-GPU fixture proves:
 
 - nearest/linear sampling,
 - atlas-edge linear filtering does not bleed the adjacent texel,
@@ -290,17 +308,7 @@ must pass on a real Windows presentation GPU with `TRACE2D_RUN_GPU_SMOKE=1` and 
 - retained vertex capacity is reused,
 - ordinary frames keep explicit readback/fence waits at zero.
 
-Recommended gate from the branch/PR checkout:
-
-```powershell
-cmake --preset windows-msvc
-cmake --build --preset windows-debug --parallel
-
-$env:TRACE2D_RUN_GPU_SMOKE = "1"
-ctest --preset windows-debug -R "SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract" --output-on-failure
-```
-
-Attach the exact real-GPU result to PR #131 before marking it ready. Do not treat a skipped hosted smoke test as hardware proof.
+No renderer/driver string was captured, so the completion record intentionally does not invent one.
 
 ## 6. Remaining production Sprite renderer stages
 
@@ -429,6 +437,6 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-While #130 / PR #131 is open, routine continuation resumes that PR and may only fix SR3 code/tests/docs/evidence. If hosted CI is green but no real Windows presentation-GPU smoke evidence exists, stop at that genuine hardware gate rather than creating SR4.
+PR #131 is the SR3 completion vehicle. While it remains open, routine continuation may only finalize its evidence/status/merge state. After it merges and #130 closes, stop that continuation. On the next continuation only, create exactly one SR4 child issue and begin SR4 from the frozen order above.
 
 After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
