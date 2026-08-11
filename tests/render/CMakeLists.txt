@@ -6,6 +6,7 @@ add_executable(trace2d_render_tests
     RenderDataTests.cpp
     RendererTests.cpp
     RendererWorkloadTests.cpp
+    SpriteRenderContractTests.cpp
 )
 
 target_link_libraries(trace2d_render_tests

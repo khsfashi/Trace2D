@@ -1,11 +1,12 @@
 # Sprite Pipeline Contract
 
-Status: **S0 complete via #119/#120; S1 canonical asset/import active via #121/#122**
+Status: **S0 complete; S1 canonical asset/import complete via #121/#122; SR0 renderer contract active via #123/#124**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
 Machine-readable S0 invariants: [`contracts/sprite-s0.json`](contracts/sprite-s0.json).  
-Concrete S1 format: [`SPRITE_ASSET_FORMAT.md`](SPRITE_ASSET_FORMAT.md).
+Concrete S1 format: [`SPRITE_ASSET_FORMAT.md`](SPRITE_ASSET_FORMAT.md).  
+Concrete SR0 seam: [`SPRITE_RENDER_CONTRACT.md`](SPRITE_RENDER_CONTRACT.md).
 
 This document owns the complete fixed Sprite stage order and capability target. Later Sprite children may refine their own stage-local contracts but must not silently violate S0 or replace canonical authored truth with renderer/tool state.
 
@@ -74,7 +75,7 @@ Trimming and atlas rotation must never silently change logical placement, pivot,
 
 ## 4. S1 canonical `SpriteAsset`
 
-S1 implements the first concrete authored/imported CPU representation as versioned `.sprite.toml`.
+S1 implemented the first concrete authored/imported CPU representation as versioned `.sprite.toml`.
 
 Header:
 
@@ -141,7 +142,7 @@ Canonical page dimensions are validated against the existing decoded CPU `Textur
 
 ### Deterministic import/serialization
 
-S1 requires:
+S1 provides:
 
 - normalized project-relative Sprite and texture references,
 - strict unknown/missing-field diagnostics,
@@ -184,17 +185,17 @@ GPU pixels follow documented presentation tolerances/contracts; do not claim uni
 Exactly one child issue/PR is active at a time:
 
 ```text
-S0 [complete] -> S1 [active]
- -> SR0 -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+S0 [complete] -> S1 [complete]
+ -> SR0 [active] -> SR1 -> SR2 -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Current stage: **S1 / #121 / PR #122**.  
-Exact next stage after S1 merges green: **SR0**.
+Current stage: **SR0 / #123 / PR #124**.  
+Exact next stage after SR0 merges green: **SR1**.
 
-Do not begin SR0 while #121/#122 is open.
+Do not begin SR1 while #123/#124 is open.
 
 ## 7. Foundation
 
@@ -215,9 +216,9 @@ Frozen by `SPRITE_ARCHITECTURE.md`:
 - versioning/diagnostic/importer boundaries,
 - explicit future issue handoffs.
 
-### S1 — Canonical Sprite asset/import — active
+### S1 — Canonical Sprite asset/import — complete
 
-Acceptance:
+Merged via #121/#122 with:
 
 - strict explicit schema version,
 - stable normalized project-relative asset identity,
@@ -234,22 +235,54 @@ Acceptance:
 - no SDL/GPU handles or renderer dependency,
 - malformed/boundary/round-trip/cache fixtures.
 
-After merge, advance exactly to SR0.
+S1 squash merge: `27250bff8afd40f55edf2bfbed9be8b143f1ea1d`.
 
 ## 8. Production-complete Sprite Renderer
 
 The renderer target includes standalone textures, atlas regions, trim/source-size/pivot preservation, complete 2D transform semantics, semantic flip, tint/opacity, sampling, alpha/blend, deterministic painter order/sorting groups/masking, 9-slice, tiled presentation, pixel-perfect runtime presentation, fixed-step interpolation, order-preserving batching, persistent resource reuse, capture/conformance and workloads.
 
-### SR0 — Renderer contract and asset/render separation
+### SR0 — Renderer contract and asset/render separation — active
 
-Freeze/implement derived render-data vocabulary:
+SR0 implements the narrow backend-independent seam before any later presentation behavior.
 
-- authored pixel metadata separate from normalized UV/GPU data,
-- semantic vs derived transform state,
-- built-in material/pipeline compatibility identity,
-- sampler/blend/mask/primitive ownership,
-- backend-independent extraction and headless tests,
-- renderer output remains presentation evidence, never authoritative state.
+Current path:
+
+```text
+canonical SpriteAsset
+ -> setup-time region resolution
+ -> ResolvedSpriteRegion
+ -> O(1) SpriteRenderContractData extraction
+ -> later SR1/SR2 presentation derivation
+ -> backend resources
+```
+
+Rules implemented by `SPRITE_RENDER_CONTRACT.md`:
+
+- authored pixel metadata remains separate from normalized UV/GPU data,
+- semantic ID lookup and page/region relationship checking are setup-only,
+- successful steady-state extraction performs O(1) pointer/index/small-value copies,
+- the success path requires no filesystem, TOML, image decode, string lookup, formatted diagnostics, GPU initialization or heap allocation,
+- canonical assets remain externally owned; selections do not copy full assets,
+- CPU page resource identity contains canonical texture reference + page size/color/alpha intent, never a GPU handle,
+- built-in material/pipeline compatibility identity is a finite typed value,
+- sampler compatibility carries only current nearest/linear authored intent,
+- current blend/mask/primitive compatibility is deliberately narrow: straight-alpha / none / quad,
+- existing `OrthographicView` is reused as the resolved Sprite view seam for future #88,
+- invalid setup selections/manual CPU corruption fail through stable allocation-free `SpriteResolveError` + `SpriteResolveField`,
+- renderer output remains presentation evidence, never authoritative Sprite/gameplay state.
+
+Handoffs:
+
+- SR1 owns transforms/geometry/presentation history,
+- SR2 owns trim/pivot/rotated atlas UV/geometry derivation,
+- SR3 owns final color/alpha/blend/sampling behavior,
+- SR4 owns painter order/groups/masks,
+- SR7 owns order-preserving batching/resource reuse using resolved compatibility,
+- #86 owns common resource lifetime,
+- #88 owns Camera2D/Viewport2D selection/resolution,
+- #89 extends material/pipeline resolution without changing S1 assets.
+
+After SR0 merges green, advance exactly to SR1.
 
 ### SR1 — Transform/geometry and presentation history
 

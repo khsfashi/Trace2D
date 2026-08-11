@@ -8,6 +8,7 @@ add_library(trace2d_render STATIC
     src/RenderData.cpp
     src/Renderer.cpp
     src/RendererWorkload.cpp
+    src/SpriteRenderContract.cpp
 )
 
 add_library(Trace2D::Render ALIAS trace2d_render)
@@ -19,6 +20,7 @@ target_include_directories(trace2d_render
 
 target_link_libraries(trace2d_render
     PUBLIC
+        Trace2D::Assets
         Trace2D::Platform
     PRIVATE
         Trace2D::Particles
