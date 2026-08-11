@@ -2,7 +2,7 @@
 
 Status: **owner-local external isolation backend qualification required before three-lane calibration**.
 
-This document freezes the real coding-Agent candidate for #102. It does not make B0 scored-eligible and contains no comparative benchmark result.
+This document freezes the real coding-Agent/model candidate for #102. It does not make B0 scored-eligible and contains no comparative benchmark result.
 
 ## Frozen Agent/model selection
 
@@ -18,9 +18,11 @@ The committed profile is [`agent-profile.codex-0.144.6.json`](agent-profile.code
 - task budget: exactly the B0 task budget,
 - human interventions: zero.
 
-Owner-local model preflight has already proved that `gpt-5.5` is actually callable through the owner's ChatGPT Codex session. The model identity is not the current blocker.
+Owner-local model preflight has proved that `gpt-5.5` is actually callable through the owner's ChatGPT Codex session. The model identity is not the current blocker.
 
-The same Codex version, model selector, reasoning setting, task prompt and budget must remain constant across all matched lanes and repeated scored trials. The **isolation backend is not yet frozen** because the first native-Windows backend failed its integrity probe before any lane trial existed.
+The profile deliberately records `permission_profile = qualification_pending_external_isolation_backend`. This prevents the rejected native-Windows custom permission profile from remaining disguised as a valid frozen cohort setting. The final isolation setting/profile hash will be frozen **before the first matched lane trial** after a replacement backend is independently qualified.
+
+The same Codex version, model selector, reasoning setting, task prompt and budget must remain constant across all matched lanes and repeated scored trials.
 
 Primary references:
 
@@ -59,7 +61,7 @@ The backend is not eligible for retry as a scored or unscored lane environment. 
 
 The next candidate boundary moves the held-out protection **outside the model-facing Codex permission profile**.
 
-The repository now contains [`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](../../scripts/qualify_benchmark_b0_windows_acl_isolation.py). It performs no model call and no engine trial. In a throwaway local directory it:
+The repository contains [`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](../../scripts/qualify_benchmark_b0_windows_acl_isolation.py). It performs no model call and no engine trial. In a throwaway local directory it:
 
 1. invokes the Codex native-Windows sandbox directly and records the effective sandbox SID,
 2. rejects the backend if the sandbox SID equals the host user SID,
@@ -89,7 +91,7 @@ From an updated PR #118 checkout on native Windows, run only the external-isolat
 python .\scripts\qualify_benchmark_b0_windows_acl_isolation.py
 ```
 
-Do **not** rerun `run_benchmark_b0_codex_chatgpt_calibration_safe.py` yet. The old calibration path still represents the rejected Codex-internal read-deny backend and must remain blocked until the replacement boundary is qualified and integrated.
+Do **not** rerun `run_benchmark_b0_codex_chatgpt_calibration_safe.py`. That entrypoint now fails closed because its native-Windows isolation backend was rejected.
 
 ## Promotion rule
 
@@ -103,6 +105,7 @@ Already proven:
 Still required before `eligible`:
 
 - a replacement external isolation backend is independently proven,
+- its exact setting is frozen into the Agent profile before any matched lane run,
 - the candidate workspace is writable,
 - the held-out repository/verifier boundary is unreadable to the effective Agent sandbox identity,
 - a random canary is explicitly read-attempted and denied without leakage,
