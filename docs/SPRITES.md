@@ -1,200 +1,119 @@
 # Sprite Pipeline Contract
 
-Status: **owner-approved future contract; not implemented yet**
+Status: **S0 architecture frozen in #119; implementation starts at S1 after S0 merges**
 
-This document defines the post-particle Sprite program for Trace2D. It is intentionally broader than a minimal `SpriteRenderer` or frame sequencer. The target is an agent-verifiable pipeline where a coding agent can move from source pixels or generated images to a canonical Trace2D sprite asset, deterministic animation, production-grade rendering, structured QA, performance evidence, and final motion/visual validation.
+Operational umbrella: GitHub Issue #59.  
+S0 implementation contract: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
+Machine-readable S0 invariants: [`contracts/sprite-s0.json`](contracts/sprite-s0.json).
 
-Operational umbrella: GitHub Issue #59.
-
-The owner-fixed predecessor order remains:
-
-```text
-#41 renderer workloads
-  -> #47 -> #48 -> #49 -> #50 -> #51 -> #52 -> #53 particles
-  -> #59 Sprite pipeline
-  -> #60 Mesh2D foundation
-  -> #61 Spine license gate / optional integration
-```
-
-Do not begin this program while an earlier owner-fixed item is incomplete.
+This document owns the complete fixed Sprite stage order and capability target. `SPRITE_ARCHITECTURE.md` owns the exact S0 authority/coordinate/presentation seams. Later Sprite children may refine their own stage-local details but must not silently violate S0.
 
 ## 1. Product goal
 
-Trace2D should eventually support this complete loop:
+Trace2D targets an Agent-verifiable Sprite pipeline rather than a minimal quad renderer:
 
 ```text
 sprite request / source image / external sheet
-        |
-        v
-optional provider generation
-        |
-        v
-raw source pixels
-        |
-        v
-deterministic import / cleanup / normalization
-        |
-        v
-machine-readable sprite QA
-        |
-        v
-canonical Trace2D SpriteAsset
-        |
-        v
-deterministic SpriteAnimator2D
-        |
-        +---- headless inspect / query / step / assert
-        |
-        v
-production sprite renderer
-        |
-        v
-capture / motion QA / visual QA
-        |
-        v
-reproducible performance evidence
+        -> optional provider generation
+        -> raw source pixels
+        -> deterministic import / cleanup / normalization
+        -> machine-readable Sprite QA
+        -> canonical Trace2D SpriteAsset
+        -> deterministic SpriteAnimator2D
+        -> headless inspect / query / step / assert
+        -> production Sprite renderer
+        -> capture / motion QA / visual QA
+        -> reproducible performance evidence
 ```
 
-An image model's output is never authoritative engine state. Generated pixels become usable only after explicit import and validation.
+Generated pixels and external tool formats are inputs. They become runtime-usable only after canonical import/validation.
 
-## 2. Core ownership model
+## 2. Frozen S0 architecture
 
-The pipeline is split into four layers with deliberately different responsibilities.
+S0 is complete only as an architecture contract; it does not implement broad renderer functionality.
 
-### 2.1 Source and generation layer
-
-Inputs may include:
-
-- one PNG/JPEG/BMP/TGA image,
-- loose transparent frame PNGs,
-- a regular sprite sheet,
-- an atlas plus metadata,
-- Aseprite-exported metadata,
-- sprite-gen-style manifests,
-- PerfectPixel-style manifests,
-- output from an external image-generation provider,
-- output from a custom user command/script.
-
-These formats are inputs only. None becomes a permanent runtime API.
-
-### 2.2 Offline deterministic processing layer
-
-This layer may perform expensive setup-time work such as:
-
-- background/alpha cleanup,
-- frame segmentation,
-- trim analysis,
-- pivot/centroid analysis,
-- pixel-grid detection and optional repair,
-- palette analysis/quantization,
-- identity/motion quality measurement,
-- atlas packing,
-- manifest conversion,
-- deterministic QA report generation.
-
-This work must not leak into the ordinary frame loop.
-
-### 2.3 Canonical authored/runtime layer
-
-Trace2D owns one canonical sprite representation independent of the source tool. Authored/source-of-truth geometry should use exact integer pixel metadata where possible.
-
-Conceptual types include:
+The frozen authority direction is:
 
 ```text
-SpriteAsset
-SpriteRegion
-SpriteAtlas / SpriteAtlasPage
-SpriteAnimationSet
-SpriteClip
-SpriteFrame
-SpriteEvent
-SpriteRenderer2D state
-SpriteAnimator2D state
+external source/generation
+        -> deterministic import
+        -> canonical SpriteAsset CPU truth
+        -> authoritative SpriteRenderer2D / SpriteAnimator2D semantics
+        -> backend-independent render extraction
+        -> derived presentation data
+        -> renderer/backend resources
 ```
 
-Names are not frozen until S0/S1 implementation issues finalize public C++/TOML schemas, but the semantic responsibilities in this document are owner-approved.
+Hard invariants:
 
-### 2.4 Renderer presentation layer
+1. canonical Sprite data and authoritative animation/gameplay state do not depend on renderer/GPU initialization;
+2. exact source-space pixel metadata is canonical; normalized UVs, GPU handles, upload offsets and batch IDs are derived;
+3. future `SpriteRenderer2D` and `SpriteAnimator2D` are typed component semantics compatible with #71, never a Sprite-only entity graph;
+4. fixed simulation keeps `previous_fixed` and authoritative `current_fixed`; interactive interpolation is presentation only;
+5. reset/load/teleport/snap synchronize transform history to avoid smear;
+6. exact-frame capture renders authoritative current state unless a sub-frame alpha is explicitly requested and recorded;
+7. future #86 resources, #88 camera/viewport and #89 material/shader systems extend fixed seams without changing Sprite authored truth;
+8. semantic painter order is preserved; only compatible contiguous work may batch;
+9. import/generation/repair/full inspection/capture/reporting are explicit tooling work, not normal per-frame work;
+10. deterministic/structured facts are verified before multimodal review; human approval remains the final authority for taste.
 
-The renderer consumes derived presentation data only. Normalized UVs, GPU handles, packed instance records, batch runs, and backend resources are derived renderer state and are never the authored truth.
+The exact coordinate, pivot, trim, packed-rotation, presentation-history, texture, authority, diagnostics, and future-handoff rules are frozen in `SPRITE_ARCHITECTURE.md` and machine-checked through `contracts/sprite-s0.json`.
 
-The renderer must not own authoritative animation/gameplay state.
+## 3. Canonical coordinate and asset requirements
 
-## 3. Determinism boundary
+S1 implements a strict versioned text/diff-friendly canonical asset representation under these S0 rules:
 
-Trace2D distinguishes nondeterministic creation from deterministic processing and runtime behavior.
+```text
+source-space origin = top-left
++x                  = right
++y                  = down
+pixel rectangles    = integer half-open [x, x+w) x [y, y+h)
+pivot               = untrimmed source space
+trim                 = storage optimization only
+packed rotation      = storage orientation only
+```
 
-### Allowed nondeterminism
-
-- remote/local image generation models,
-- human curation choices,
-- optional human art edits.
-
-### Required deterministic behavior for identical committed inputs/configuration
-
-- canonical import metadata,
-- trim and region conversion,
-- atlas layout when using Trace2D's deterministic packer,
-- deterministic repair algorithms where the contract claims determinism,
-- QA metric calculation,
-- animation time/frame/event progression,
-- semantic Agent inspection and assertions,
-- headless test fixtures,
-- backend-independent sprite geometry extraction,
-- ordered batch-run derivation.
-
-Visual GPU output is validated according to the renderer's documented numeric/presentation contract. Do not claim cross-vendor bit-identical pixels unless a specific path actually proves that property.
-
-## 4. Canonical SpriteAsset requirements
-
-S0 and S1 must establish a strict, versioned, text/diff-friendly authored contract.
-
-A canonical region must be able to represent at least:
+A canonical region must represent at least:
 
 - stable semantic region ID/name,
-- atlas page or source texture identity,
+- project-relative source texture or atlas-page identity,
 - packed integer pixel rectangle,
 - original untrimmed source size,
-- trimmed content size,
-- trim offset within original source space,
-- pivot in a precisely defined source-space coordinate convention,
-- whether an atlas packer stored the source rotated by 90 degrees,
-- default sampling/pixel-art intent where appropriate.
+- trim size and trim offset in original source space,
+- explicit pivot,
+- supported packed rotation,
+- default sampling/pixel-art and production texture intent where applicable.
 
-A canonical animation frame must be able to reference a region and define deterministic display duration. Clip semantics must support at least:
+A canonical animation frame references a canonical region and an exact deterministic duration representation. Clip data supports stable ID/name, deterministic ordered frames, loop semantics and ordered semantic events.
 
-- stable clip ID/name,
-- ordered frames,
-- per-frame duration or an equally exact canonical timing representation,
-- loop mode,
-- ordered semantic events.
+Trimming and atlas rotation must never silently change visible logical placement, pivot, animation alignment, or gameplay semantics.
 
-### Exact metadata rule
+## 4. Determinism boundary
 
-Prefer integer source-pixel data for authored geometry. Do not persist normalized floating UVs as the only truth.
+Allowed nondeterminism:
 
-For example:
+- image-generation providers,
+- human curation,
+- optional human art edits.
 
-```text
-source_size = [64, 64]
-packed_rect = [128, 64, 20, 44]
-trim_offset = [22, 14]
-pivot        = [32, 58]
-```
+For identical committed inputs/configuration, deterministic contracts are required for:
 
-The renderer derives normalized UVs from the loaded texture size.
+- canonical import metadata,
+- trim/region conversion,
+- Trace2D-owned deterministic atlas packing,
+- deterministic repair algorithms where claimed,
+- QA measurements,
+- animation time/frame/event progression,
+- Agent semantic inspection/assertion,
+- backend-independent Sprite geometry/UV/order extraction,
+- ordered contiguous batch-run derivation,
+- headless fixtures/replay within the documented domain.
 
-### Trim invariant
-
-Trimming is an atlas/storage optimization. It must not silently change the sprite's original coordinate space, visible placement, pivot, animation alignment, or gameplay-authored semantics.
-
-### Rotated-packing invariant
-
-If the atlas packs a region rotated, rendering must reconstruct the intended source orientation. Packed orientation is storage metadata, not gameplay transform.
+GPU pixels are checked under documented presentation tolerances/contracts; do not claim universal cross-vendor bit identity without proof.
 
 ## 5. Fixed implementation order inside #59
 
-When #59 becomes active, agents create and complete exactly one child issue/PR at a time in the following order. No phase may be skipped because a later feature appears more attractive.
+Exactly one child issue/PR is active at a time:
 
 ```text
 S0 -> S1
@@ -204,591 +123,269 @@ S0 -> S1
  -> SE2E -> SPERF
 ```
 
-The child issue should copy the relevant section's acceptance criteria and narrow them to one testable PR. `PROJECT_STATUS.md` must record the currently active child once the umbrella begins.
+Current stage: **S0 / #119**.  
+Exact next stage after S0 merges: **S1**.
 
-# 6. S0 — Sprite architecture and contract
+## 6. Foundation
 
-S0 freezes module boundaries and the initial authored/runtime vocabulary before implementation grows.
+### S0 — Sprite architecture and contract
 
-Acceptance criteria:
+Frozen by `SPRITE_ARCHITECTURE.md`:
 
-- define the canonical asset/runtime/render separation,
-- define integer source-space coordinate conventions,
-- define pivot origin/axis rules,
-- define trim and rotated-atlas semantics,
-- define animation timing/event semantics at contract level,
-- define what is authoritative and what is renderer-derived,
-- define headless observability requirements,
-- define which expensive operations are offline-only,
-- define schema/versioning/diagnostic strategy,
-- define compatibility/importer boundaries,
-- update architecture documents before broad renderer changes.
+- authority/ownership matrix,
+- exact source-space coordinate conventions,
+- pivot/trim/rotated-storage semantics,
+- fixed-step authoritative vs interactive presentation state,
+- exact-frame capture mode,
+- resource/view/material compatibility seams,
+- painter-order batching invariant,
+- production texture ownership/handoffs,
+- #97-#99 deterministic -> multimodal -> human review authority,
+- offline tooling/hot-path boundary,
+- versioning/diagnostic/importer boundaries,
+- explicit non-goals/future issue handoffs.
 
-S0 is a contract PR; it must not opportunistically implement the entire renderer.
+S0 must not opportunistically implement renderer breadth.
 
-# 7. S1 — Canonical sprite asset model
+### S1 — Canonical Sprite asset model and deterministic import representation
 
-S1 implements the smallest complete canonical data model needed by all later stages, but it is not a minimal rendering milestone.
+Acceptance:
 
-Acceptance criteria:
-
-- strict versioned authored representation,
-- stable project-relative asset identity compatible with the existing asset cache rules,
-- immutable/explicitly owned imported sprite metadata,
-- exact validation for rectangles, sizes, pivots, frame references and durations,
-- deterministic ordering and canonical serialization where supported,
+- strict explicit schema version,
+- stable project-relative typed asset identity,
+- immutable/explicitly owned canonical Sprite metadata,
+- exact validation for sizes/rectangles/trim/pivots/page/frame/clip references/durations,
+- deterministic ordering and canonical serialization where published,
 - stable machine-readable diagnostics,
-- no GPU handles/SDL types in the asset model,
-- automated malformed/boundary/round-trip tests.
+- no SDL/GPU handles in the asset model,
+- malformed/boundary/round-trip/import fixtures.
 
-# 8. Production-complete Sprite Renderer
+## 7. Production-complete Sprite Renderer
 
-The SR0-SR8 sequence is intentionally **not** a minimal renderer. It targets the traditional sprite-presentation functionality expected by practical 2D games while preserving Trace2D's measured, deterministic, agent-observable architecture.
+The renderer target includes standalone textures, atlas regions, trim/source-size/pivot preservation, complete 2D transform semantics, semantic flip, tint/opacity, sampling, alpha/blend, deterministic painter order/sorting groups/masking, 9-slice, tiled presentation, pixel-perfect runtime presentation, fixed-step interpolation, order-preserving batching, persistent resource reuse, capture/conformance and workloads.
 
-The complete target includes:
+### SR0 — Renderer contract and asset/render separation
 
-- standalone textures and atlas regions,
-- trim/source-size/offset preservation,
-- pivot,
-- position/rotation/non-uniform scale,
-- semantic flip X/Y,
-- tint and opacity,
-- nearest and linear sampling,
-- explicit alpha convention,
-- normal/additive/multiply/screen blend modes when proven on the backend contract,
-- layer/stable order,
-- sorting groups,
-- sprite masking/clipping suitable for conventional 2D presentation,
-- 9-slice,
-- tiled/repeated sprite presentation,
-- runtime pixel-perfect presentation,
-- painter-order-preserving batching,
-- persistent resource reuse,
-- explicit renderer metrics and reproducible workloads.
+Freeze/implement the derived render-data vocabulary:
 
-## 8.1 SR0 — Renderer contract and asset/render separation
+- authored pixel data separate from normalized UV/GPU data,
+- semantic vs derived transform state,
+- built-in material/pipeline compatibility identity,
+- sampler/blend/mask/primitive ownership,
+- backend-independent extraction and headless tests,
+- renderer output remains presentation evidence, never authoritative state.
 
-Acceptance criteria:
+### SR1 — Transform/geometry and presentation history
 
-- define the complete derived `SpriteRenderData` requirements for the staged renderer,
-- keep authored pixel metadata separate from normalized UV/GPU data,
-- define semantic vs derived transform state,
-- define batch compatibility keys without allowing them to reorder painter order,
-- define alpha/sampler/blend/mask state ownership,
-- define which calculations are backend-independent and headless-testable,
-- preserve the rule that renderer output is presentation/visual-QA state.
+Implement/test:
 
-## 8.2 SR1 — Complete transform and geometry semantics
+- position, rotation, independent X/Y scale,
+- pivot and explicit `flip_x`/`flip_y`,
+- trim/source-space reconstruction,
+- rotation + non-uniform scale + pivot combinations,
+- trim + pivot + flip combinations,
+- defined negative-scale behavior,
+- `previous_fixed` / `current_fixed` history,
+- shortest-arc 2D interpolation,
+- discontinuity synchronization,
+- authoritative-current exact-frame selection,
+- future hierarchy seam: interpolate local then compose.
 
-Support and test:
+Geometry/presentation math is backend-independent and GPU-free testable.
 
-- position,
-- rotation,
-- independent X/Y scale,
-- pivot,
-- semantic `flip_x` / `flip_y`,
-- authored sprite size/source-space reconstruction,
-- combinations of rotation + non-uniform scale + pivot,
-- combinations of trim + pivot + flip,
-- negative-scale behavior if accepted by the contract,
-- parent/local transform interaction when the scene model reaches that requirement.
+### SR2 — Atlas/trim/pivot/rotated packing
 
-Prefer explicit semantic flip state over forcing authored users/agents to encode flip only as negative scale. Internal optimization may collapse equivalent math after semantics are resolved.
+Implement/test arbitrary sub-rect derivation, exact trim reconstruction, original source-size placement, pivot preservation, atlas page selection, supported 90-degree packed storage, bounds validation, and equivalent geometry for logically identical rotated/unrotated or trimmed/untrimmed sources.
 
-Backend-independent geometry math must be tested without initializing a GPU.
+### SR3 — Color/alpha/blend/sampling
 
-## 8.3 SR2 — Atlas region, trim, pivot and rotated packing
+- explicit tint/opacity semantics,
+- one documented canonical alpha/conversion boundary,
+- conventional normal/additive/multiply/screen modes only when backend conformance proves them,
+- nearest/linear sampling through renderer-owned cached sampler states,
+- explicit color-space intent and conversion behavior.
 
-Acceptance criteria:
+Do not create per-sprite sampler objects or guess source alpha/color space at render time.
 
-- arbitrary atlas sub-rect UV derivation,
-- exact trim reconstruction,
-- original source-size placement preservation,
-- pivot preservation in original source space,
-- 90-degree packed-region support if the atlas contract enables it,
-- atlas page selection,
-- validation against out-of-bounds/overlapping-invalid metadata as appropriate,
-- conformance fixtures proving trimmed/untrimmed and rotated/unrotated equivalents render/resolve to the same intended geometry.
+### SR4 — Painter order/sorting groups/masking
 
-## 8.4 SR3 — Color, alpha, blend and sampling
+- explicit layer plus deterministic stable order,
+- precisely defined sorting groups for multi-Sprite objects,
+- bounded conventional Sprite mask/clip semantics,
+- deterministic order/group/mask fixtures,
+- no global texture/material sort that changes visual order.
 
-### Color
+### SR5 — 9-slice and tiled/repeated primitives
 
-Support explicit RGBA tint and opacity semantics. The implementation may combine them internally, but public authored/Agent semantics must remain unambiguous.
+- explicit left/right/top/bottom 9-slice borders,
+- well-defined stretch/repeat behavior,
+- tiled Sprite geometry that cannot bleed into adjacent atlas regions,
+- same canonical asset/resource/render path rather than a second unrelated quad system.
 
-### Alpha
+### SR6 — Pixel-perfect runtime presentation
 
-The project must document whether canonical runtime pixels are straight alpha, premultiplied alpha, or converted at a specific boundary. Importers may accept multiple source conventions only when conversion is explicit and tested.
+Freeze/test mapping among source pixels, world scale/pixels-per-unit, resolved camera/view, logical viewport, target resolution and final scaling.
 
-### Blend modes
+Document guarantees/non-guarantees for integer upscale, non-divisible windows, letterbox/pillarbox, movement, camera movement, rotation and non-integer scale. Pixel-perfect presentation is not an unexplained `round(position)` heuristic and is separate from offline pixel-art repair.
 
-Target conventional sprite modes:
+### SR7 — Production batching/resource reuse
 
-- normal,
-- additive,
-- multiply,
-- screen.
+Preserve:
 
-Do not advertise a mode until the SDL3 GPU backend path and conformance fixture validate it.
-
-### Sampling
-
-Support nearest and linear sampling using a small renderer-owned cache/set of sampler states. Do not create one GPU sampler object per sprite instance.
-
-## 8.5 SR4 — Painter order, sorting groups and sprite masking
-
-Trace2D keeps semantic painter order authoritative. Texture/material/batch identity never becomes a global sorting key.
-
-### Order
-
-Retain explicit layer plus deterministic stable order. Add a sorting-group concept only with precise semantics so multi-sprite objects such as characters can remain internally ordered without interleaving unexpectedly with neighboring objects.
-
-### Masking
-
-Provide a deliberately bounded conventional sprite mask/clip contract, suitable for cases such as portraits, body/weapon masking, gauges and effects. Stencil or equivalent renderer implementation is acceptable if hidden behind Trace2D-owned semantics.
-
-Do not turn this stage into an arbitrary compositing graph.
-
-Acceptance tests must cover order/group/mask interactions and deterministic failure behavior.
-
-## 8.6 SR5 — 9-slice and tiled sprite primitives
-
-### 9-slice
-
-Represent explicit left/right/top/bottom border metadata. Resizing must preserve corner/border intent while stretching/repeating only contracted regions.
-
-### Tiled/repeated sprites
-
-Support repeated presentation without accidentally sampling neighboring atlas regions. An atlas-region tile contract may require generated geometry or explicit UV handling instead of naïvely enabling whole-texture repeat wrap.
-
-Use the same texture/asset identity and renderer resource lifetime system; do not create a second unrelated quad renderer for these primitives.
-
-## 8.7 SR6 — Pixel-perfect runtime presentation
-
-This stage handles **runtime presentation**, not fake-pixel-art repair.
-
-Define a precise mapping among:
-
-- source sprite pixels,
-- pixels-per-unit or equivalent world scale,
-- orthographic camera,
-- render-target resolution,
-- camera/sprite translation,
-- final presentation scale.
-
-The contract must specify guaranteed and non-guaranteed cases for:
-
-- integer upscale,
-- window sizes that do not divide evenly,
-- letterbox/pillarbox policy,
-- camera movement,
-- sprite movement,
-- rotation,
-- non-integer scale.
-
-Do not implement pixel-perfect rendering as an unexplained `round(position)` heuristic.
-
-Provide reproducible fixtures for camera and sprite movement so agents can detect one-pixel jitter or unintended interpolation.
-
-## 8.8 SR7 — Production batching and resource lifetime
-
-Preserve the strengths of the existing renderer:
-
-- caller/semantic order is never globally texture-sorted,
-- compatible contiguous runs may batch,
+- semantic order,
+- compatible contiguous-run batching,
 - persistent/capacity-reused GPU/upload resources,
-- resource growth is measured and geometric where appropriate,
-- ordinary steady-capacity frames avoid frame-list heap churn,
-- texture/handle lookup remains direct and predictable.
+- measured geometric growth,
+- no ordinary steady-state frame-list heap churn,
+- resolved compatibility identity that may include texture/resources, material/pipeline, sampler, blend, mask and primitive mode.
 
-The future batch key may include fields such as:
+Measure CPU extraction, upload bytes, instances, draws, GPU time where available, retained capacities and memory before adding packed/half/bindless/GPU-driven complexity.
 
-```text
-texture
-pipeline/blend mode
-sampler
-mask state
-```
+### SR8 — Renderer conformance/workloads
 
-but the renderer may merge only compatible **contiguous** work unless a separately proven order-preserving scheme is intentionally adopted.
+Committed fixtures cover pivot, trim, source reconstruction, flip, transforms, rotated atlas storage, tint/opacity, shipped blend/sampling modes, order/groups, masking, 9-slice, tiled Sprite, pixel-perfect presentation and contiguous batch derivation.
 
-Do not prematurely compress instance structures because they grew beyond the Public Alpha 16-byte transform record. First measure:
+Prefer structural headless assertions; use pixel capture only where pixels are the actual fact. Publish raw workload metrics.
 
-- CPU extraction/packing time,
-- upload bytes/frame,
-- instance count,
-- draw count,
-- GPU time where available,
-- retained capacities,
-- memory footprint.
-
-Only measured evidence may justify packed colors, half precision, static/dynamic split, alternative buffer layouts, bindless approaches, or other added complexity.
-
-## 8.9 SR8 — Renderer conformance and workloads
-
-The renderer is not complete merely because screenshots look plausible.
-
-Maintain committed fixtures for at least:
-
-- pivot,
-- trim,
-- source-size reconstruction,
-- flip,
-- rotation/non-uniform scale,
-- rotated atlas region,
-- tint/opacity,
-- each shipped blend mode,
-- nearest/linear sampling behavior where testable,
-- sorting/sorting-group behavior,
-- masking,
-- 9-slice,
-- tiled sprite,
-- pixel-perfect presentation,
-- painter-order-preserving batch-run derivation.
-
-Prefer backend-independent assertions on derived geometry/UV/order/batch state. Use explicit windowed capture only for behavior that genuinely depends on rendered pixels.
-
-Workloads must report raw metrics rather than vague claims such as "fast" or "low CPU".
-
-# 9. Deterministic Sprite Animation
+## 8. Deterministic Sprite Animation
 
 Animation is authoritative runtime state independent of renderer initialization.
 
-## 9.1 SA0 — Deterministic timing/frame/event contract
+### SA0 — Timing/frame/event contract
 
-Before implementing `SpriteAnimator2D`, specify:
+Freeze exact time representation, fixed-step advancement, frame-boundary behavior, loop/reset/seek rules, invalid-duration handling, speed semantics and deterministic same-boundary event ordering. Do not use wall-clock render playback as authoritative time.
 
-- animation time representation,
-- fixed-step integration,
-- exact boundary behavior when duration is not an integer multiple of simulation step,
-- frame selection,
-- loop/reset semantics,
-- zero/invalid duration rejection,
-- speed multiplier semantics,
-- event ordering and whether events fire on wrap/seek/reset,
-- deterministic handling of multiple events at one boundary.
+### SA1 — `SpriteAnimator2D` state
 
-Prefer an exact integer/rational/fixed-point representation where it simplifies cross-build deterministic behavior. Do not rely on wall-clock playback for authoritative tests.
+Renderer-independent typed state includes animation set, active clip, canonical time/ticks, frame index, playing state, loop/completion state and speed. Headless and windowed execution consume the same authoritative state.
 
-## 9.2 SA1 — SpriteAnimator2D runtime
+### SA2 — Playback/events/transitions
 
-Expose renderer-independent state such as:
+Explicit play/restart/pause/resume/stop/reset, loop/non-loop completion, deterministic speed change, emitted semantic events and clip transitions. No generic animation graph is required unless later evidence justifies one.
 
-```text
-animation set
-active clip
-frame index
-animation time/ticks
-playing
-loop state
-speed
-```
+### SA3 — Agent/MCP verification
 
-Headless stepping must advance the exact same authoritative state consumed by windowed rendering.
+Expose protocol-independent inspect/action/assert semantics for clip, frame, time, playing/loop/speed, selected region and recent/emitted events. MCP remains an adapter; snapshots allocate only on explicit requests.
 
-## 9.3 SA2 — Playback, loops, speed, events and transitions
+### SA4 — Conformance/workloads
 
-Provide explicit APIs/state transitions for at least:
+Prove exact frame/event sequences through fixed steps, reset/replay, loops, completion, speed changes and clip transitions. Measure authoritative animation update separately from render extraction/GPU submission.
 
-- play,
-- restart,
-- pause/resume,
-- stop/reset contract,
-- loop/non-loop completion,
-- deterministic speed adjustment,
-- queued/emitted semantic events,
-- clip changes.
+## 9. Offline Sprite Processing and QA
 
-Do not introduce a generic graph/state-machine framework unless a later requirement justifies it. Keep the first animation surface composable and inspectable.
+Rich processing is allowed because it runs on explicit import/authoring/QA commands.
 
-## 9.4 SA3 — Agent/MCP animation verification
+### SPP0 — Processing/QA report
 
-A coding agent must be able to inspect and assert animation state without looking at pixels.
+Stable machine-readable raw measurements may include dimensions, expected/actual frame count, alpha residue/edge bleed, trim bounds, pivot/centroid/jitter, pixel-grid confidence, palette size/violations, identity/motion heuristic signals, empty-frame warnings and atlas utilization. Heuristic scores retain underlying raw measurements and are labeled heuristic.
 
-Intended semantic observations include:
+### SPP1 — Alpha/background/frame extraction
+
+Explicit deterministic modes may cover matte cleanup, alpha normalization, connected components, projection separation and justified optimal cuts. Expected-frame mismatch fails explicitly rather than manufacturing plausible frames. Source files remain preserved.
+
+### SPP2 — Pixel-grid/palette/pivot/identity/motion QA and repair
+
+- grid detection reports confidence/failure and tests idempotence when claimed,
+- palette analysis/quantization is explicit offline work,
+- pivot/baseline suggestions remain reviewable source-space data,
+- identity/motion image metrics are QA heuristics, not gameplay truth.
+
+### SPP3 — Aseprite/generic importers
+
+Support documented subsets of loose frames, regular sheets, explicit region manifests and Aseprite-exported sheet/JSON. Convert all to canonical Sprite assets; runtime never branches on source tool.
+
+### SPP4 — sprite-gen / PerfectPixel-style interoperability
+
+Consume useful explicit manifests through conversion/validation boundaries without runtime dependencies on those applications.
+
+### SPP5 — Provider-neutral generation orchestration
 
 ```text
-clip
-frame
-frame count
-playing
-loop
-animation time/ticks
-speed
-recent/emitted event identity
-region currently selected by animation
+sprite request
+ -> GenerationProvider / external command
+ -> raw output
+ -> deterministic Trace2D processing + QA
+ -> canonical asset only after validation
 ```
 
-Intended operations include semantic equivalents of:
+Credentials are never project data; no core vendor dependency; live generation is not deterministic CI; stable recorded/synthetic fixtures own processing regression tests.
 
-```text
-play
-pause/resume
-stop/reset
-step
-inspect
-assert clip
-assert frame
-assert event
-```
+## 10. End-to-end proof
 
-MCP remains an adapter over the protocol-independent Agent surface. Do not put JSON/MCP types into the animation core.
+### SE2E
 
-Snapshot/report allocation is explicit-request work, never mandatory per-frame work.
+Prove request/import -> raw/generated pixels -> deterministic cleanup/QA -> canonical Sprite asset -> deterministic animation -> headless exact-frame state/events -> renderer -> capture -> motion/visual review. The committed proof uses stable fixtures and does not require network/provider credentials.
 
-## 9.5 SA4 — Animation conformance and workloads
+### SPERF
 
-Test exact frame/event sequences across:
+Publish reproducible workloads for visible/animated counts, atlas pages, batch-key transitions, draws, culling, animation CPU time, extraction/packing time, upload bytes, retained capacities, texture/page memory/utilization and capture cost. Timings remain environment-labelled evidence, never invented portable percentages.
 
-- fixed-step runs,
-- reset/replay,
-- loops,
-- non-loop completion,
-- speed changes,
-- clip transitions,
-- identical seeds/state where relevant.
+## 11. Agent observability target
 
-Measure realistic populations of animated sprites and separate:
-
-- authoritative animation update cost,
-- render extraction cost,
-- GPU submission/draw cost.
-
-# 10. Offline Sprite Processing and QA
-
-The processing pipeline is allowed to be rich because it runs on explicit authoring/import/validation commands, not ordinary gameplay frames.
-
-Reference projects inform design; they are not automatically embedded dependencies:
-
-- `Hugo-Dz/spritefusion-pixel-snapper` — pixel lattice repair and palette-constrained cleanup ideas,
-- `handsupmin/mono-pix` and `handsupmin/fast-pixelizer` — grid detection, regularization, idempotence and quality-fixture ideas,
-- `aldegad/sprite-gen` — request/manifest/atlas/curation/runtime metadata and agent-oriented workflow ideas,
-- `Canine89/perfectpixel-studio` — frame segmentation, alpha cleanup, centroid alignment and machine-readable quality scoring ideas.
-
-Any copied/adapted code requires a separate dependency/license review. Prefer implementing Trace2D's own narrow contracts or interoperating through files/commands rather than pulling large authoring applications into the engine.
-
-## 10.1 SPP0 — Deterministic processing/QA report contract
-
-Define a stable machine-readable report so agents do not need to infer asset defects visually.
-
-Potential metrics include, when applicable:
-
-```text
-source dimensions
-expected/actual frame count
-alpha/background residue
-edge bleed
-trim bounds
-pivot / centroid position
-pivot jitter across a clip
-pixel-grid detected resolution
-pixel-grid confidence
-palette size / palette violations
-identity similarity signals
-motion-presence signal
-per-frame sparse/empty warnings
-atlas/page utilization
-```
-
-Metrics must clearly distinguish objective measurement from heuristic score/recommendation. A score must retain the raw measurements that produced it.
-
-## 10.2 SPP1 — Alpha/background/frame extraction and segmentation
-
-Support deterministic cleanup/import tasks needed for generated or poorly prepared art, with explicit modes instead of one opaque magic pipeline.
-
-Candidates include:
-
-- corner/key-informed matte cleanup for controlled backgrounds,
-- safe alpha normalization,
-- connected-component extraction,
-- projection-profile based frame separation,
-- globally optimal/dynamic-programming cuts for fused filmstrip poses when justified,
-- expected-frame-count validation,
-- explicit failure rather than silently manufacturing plausible frames.
-
-Preserve source files; publish derived artifacts atomically where practical.
-
-## 10.3 SPP2 — Pixel-grid, palette, pivot, identity and motion QA/repair
-
-Separate independent concerns:
-
-### Pixel-grid repair
-
-Detect whether a supposed pixel-art source represents a recoverable square/rectangular lattice. Report confidence and failure rather than claiming impossible reconstruction. Optional repair may regularize cell boundaries and palette use.
-
-Repeated repair of already-clean fixtures should be tested for deterministic/idempotent behavior when the algorithm claims it.
-
-### Palette
-
-Analyze a shared palette across animation frames when flicker avoidance requires it. Quantization is explicit offline processing, not a runtime shader feature.
-
-### Pivot/alignment
-
-Measure alpha-weighted or otherwise documented subject centers/feet/baselines as QA evidence. Automatic pivot suggestions may exist, but source-space pivot values remain explicit reviewable data.
-
-### Identity and motion
-
-Heuristic image metrics may flag likely identity drift or insufficient motion. They must be labeled as QA heuristics, not gameplay correctness truth. Retain raw metric values and fixtures.
-
-## 10.4 SPP3 — Aseprite and generic importers
-
-Prioritize common interoperable inputs:
-
-- loose frame files,
-- regular grid sheets,
-- explicit region manifests,
-- Aseprite-exported JSON/sheet metadata where the supported subset is documented.
-
-Convert every input into the canonical Trace2D asset representation. Runtime code never branches on "this came from Aseprite".
-
-## 10.5 SPP4 — sprite-gen / PerfectPixel-style interoperability
-
-Support useful external manifests through importer/conversion boundaries rather than embedding their complete applications.
-
-The importer should consume explicit frame rectangles, frame ordering, FPS/durations, loop flags, pivots/anchors/trim metadata when available, validate them, and publish canonical Trace2D assets plus diagnostics.
-
-Do not depend on the generator's internal Python/Go/UI implementation at runtime.
-
-## 10.6 SPP5 — Provider-neutral sprite generation orchestration
-
-Trace2D may orchestrate generation, but provider APIs are not the engine architecture.
-
-Conceptual flow:
-
-```text
-sprite-request.toml
-      |
-trace2d sprite generate
-      |
-GenerationProvider / external command adapter
-      |
-raw outputs
-      |
-deterministic Trace2D processing + QA
-```
-
-Provider implementations may include external commands, user scripts, local models, or hosted image-generation services.
-
-Hard rules:
-
-- provider credentials never become committed project data,
-- no core/runtime dependency on one model/vendor,
-- live generation is not a required deterministic CI gate,
-- generation output is never accepted as canonical merely because a provider succeeded,
-- deterministic processing/QA runs after generation,
-- recorded/synthetic fixtures are the CI source for processing regression tests,
-- live provider smoke tests are optional integration tests and must be isolated from ordinary CI.
-
-# 11. SE2E — Generation/import to motion QA proof
-
-The program's flagship proof is an end-to-end sample demonstrating:
-
-```text
-request or source asset
- -> raw/generated frames
- -> deterministic cleanup/normalization
- -> QA report
- -> canonical Trace2D SpriteAsset
- -> deterministic animation
- -> headless exact-frame inspection/assertions/events
- -> renderer submission
- -> capture
- -> motion/visual QA artifacts
-```
-
-The sample must intentionally include enough complexity to prove real contracts such as trim/pivot/atlas/animation events rather than only a single untrimmed square image.
-
-A live AI provider may be demonstrated separately, but the committed regression test must run from stable fixtures without requiring network/API credentials.
-
-# 12. SPERF — Final performance and guidance
-
-Publish reproducible workloads covering dimensions such as:
-
-- visible sprite count,
-- animated sprite count,
-- atlas pages,
-- batch-key transitions,
-- draw calls,
-- culled count,
-- CPU animation-update time,
-- render extraction/packing time,
-- instance/upload bytes per frame,
-- retained GPU/upload capacities,
-- texture memory / atlas utilization,
-- capture cost separated from ordinary rendering.
-
-Do not convert structural metrics into invented portable CPU/GPU percentages. Machine-specific timing is evidence labeled with environment/build information.
-
-Guidance should help both humans and agents choose practical budgets using raw measurements and explain which optimizations are already justified.
-
-# 13. Agent observability target
-
-Once implemented, semantic inspection should make states conceptually similar to this possible without requiring pixels:
+Semantic inspection should eventually expose authoritative facts similar to:
 
 ```text
 #player SpriteRenderer2D
-  asset      = "hero"
-  region     = "attack_03"
-  pivot      = [16, 28]
-  flip_x     = false
-  flip_y     = false
-  tint       = [1, 1, 1, 1]
-  blend      = "normal"
-  sampling   = "nearest"
-  layer      = 10
-  order      = 125
-  visible    = true
+  asset    = "hero"
+  region   = "attack_03"
+  pivot    = [16, 28]
+  flip_x   = false
+  flip_y   = false
+  tint     = [1, 1, 1, 1]
+  blend    = "normal"
+  sampling = "nearest"
+  layer    = 10
+  order    = 125
+  visible  = true
 
 #player SpriteAnimator2D
-  clip       = "attack"
-  frame      = 3
-  playing    = true
-  loop       = false
-  time/ticks = ...
+  clip     = "attack"
+  frame    = 3
+  playing  = true
+  loop     = false
+  time     = ...
 ```
 
-Explicit renderer-debug inspection may additionally derive:
+Explicit renderer-debug requests may additionally derive atlas page/rect, normalized UV, presentation/world bounds, visibility, compatibility/batch run and draw index. These derived facts are not built every frame for Agent convenience.
+
+## 12. Verification/review boundary
+
+Reuse #97-#99:
 
 ```text
-atlas page
-pixel rect
-normalized UV
-world bounds
-visibility result
-batch/run identity
-draw index
+deterministic Sprite fact
+ -> verify
+ -> diagnose
+ -> Agent/user repair
+ -> re-verify
+ -> multimodal review only if genuinely perceptual
+ -> human creative approval
 ```
 
-but this derived data must be built only on explicit debug/inspection requests.
+Deterministic failure cannot be overridden by a screenshot or subjective grader. Sprite does not create a second review database.
 
-# 14. Explicit non-goals of the Sprite umbrella
+## 13. Explicit non-goals / handoffs
 
-The phrase "production-complete Sprite Renderer" does not mean an unbounded general renderer.
+Not part of #59 unless separately promoted:
 
-Excluded unless separately justified later:
-
-- generic user material/shader graph,
-- PBR,
-- 2D deferred renderer,
-- general lighting framework,
-- render graph,
+- generic material/shader graph or programmable user shaders (#89 owns programmable Material2D/Shader2D),
+- PBR/deferred/general lighting/render graph,
 - bindless/GPU-driven scene architecture,
-- arbitrary deformable polygon mesh animation,
-- skeletal mesh runtime,
-- custom allocator framework,
-- work-stealing job system.
+- arbitrary textured/deformable polygon geometry (#60 Mesh2D),
+- skeletal runtime/Spine integration before #61/#101 license/product decision,
+- generic ECS/reflection/property bag,
+- custom allocator/job system,
+- general camera/resource/world systems (#88/#86/#71 own them; #59 only preserves their seams).
 
-Arbitrary textured indexed geometry belongs to Issue #60 Mesh2D. Spine-specific runtime behavior belongs to Issue #61 and is blocked by its license gate.
-
-# 15. Handoff rule
+## 14. Handoff rule
 
 Every Sprite child PR must:
 
-1. implement only the first incomplete stage from this document,
-2. include relevant automated tests/fixtures,
-3. update this document when the implementation finalizes or intentionally changes its contract,
-4. update `PROJECT_STATUS.md` with the completed/current/next child,
-5. preserve enough structured evidence that the next agent does not need previous chat history,
-6. avoid beginning the next child until the current PR is merged green.
+1. implement only the first incomplete stage,
+2. include relevant tests/fixtures/evidence,
+3. update this roadmap and the frozen architecture only when a stage genuinely finalizes/supersedes a contract,
+4. update `PROJECT_STATUS.md`,
+5. leave enough structured evidence for continuation without chat history,
+6. avoid beginning the next child until the current PR merges green.
 
-When asked simply to continue Trace2D, `AGENTS.md` defines the execution algorithm. This document supplies the Sprite-specific stage contract.
+After the complete #59 program, the fixed core order advances to #103 Benchmark B1 before game-production issue #69.

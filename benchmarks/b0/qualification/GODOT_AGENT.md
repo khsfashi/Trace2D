@@ -3,146 +3,136 @@
 Target lane: `godot.agent`  
 Pinned engine: **Godot 4.7.1-stable**  
 Selected bridge: **`@satelliteoflove/godot-mcp@4.1.0`**  
-Status: **QUALIFIED — hosted Q1–Q4 + independent fixture oracle passed on 2026-08-11**
+Status: **QUALIFIED; hosted CI maintenance protocol tightened after a raw-input activation-phase flake**
 
-This is a qualification protocol, not a scored benchmark task. Its purpose is to prove that the selected public Godot Agent/MCP baseline is genuinely strong enough before Trace2D compares itself against it.
+This is a qualification/maintenance protocol, not a scored benchmark task. It proves that the selected public Godot Agent/MCP baseline can author, inspect, inject real input and step a live Godot project under a reproducible semantic boundary.
 
-The immutable result summary is committed in [`godot-agent.json`](godot-agent.json). The accepted live bridge run is GitHub Actions run `31416517640`, job `93546725244`; the corresponding explicit `godot.agent` fixture oracle is run `31416517680`, job `93546725112`.
+The immutable B0 qualification result used for #102 remains committed in [`godot-agent.json`](godot-agent.json). That historical accepted run used the fixture's absolute `physics_ticks >= 12` predicate and happened to observe `position_x == 2` in both clean runs.
+
+After #102 completed, a later unrelated PR CI run exposed a remaining scheduler phase assumption: both clean runs stopped at absolute `physics_ticks == 12`, but the newly injected raw `D` key became visible one physics tick later in one run, producing `position_x == 1.83` instead of `2.0`. This is not a rewrite of the scored B0 cohort. It is a maintenance correction to the always-on bridge qualification so future PRs do not depend on raw-input activation racing the first resumed physics tick.
 
 ## Fixture
 
 Use a fresh copy of [`godot_agent_fixture`](godot_agent_fixture/).
 
-The fixture intentionally contains one ordinary `Player` Node2D in groups `player` and `mcp_watch`. `player.gd` exposes `_mcp_state()` and moves right while the real `D` key is held. No scored B0 solution is embedded in this project.
+The fixture contains one ordinary `Player` `Node2D` in groups `player` and `mcp_watch`. `player.gd` consumes the real Godot input path:
 
-Expected initial semantic state:
-
-```text
-semantic_id = player
-position_x = 0
-position_y = 0
-physics_ticks = 0 while game time remains frozen
+```gdscript
+if Input.is_key_pressed(KEY_D):
+    input_ticks += 1
+    position.x += SPEED * delta
 ```
 
-## Frozen environment
-
-The accepted hosted qualification pinned and recorded:
-
-- Godot `4.7.1-stable`, official Linux x86_64 binary verified with the release `SHA512-SUMS.txt`,
-- Ubuntu 24.04.4 LTS x86_64 GitHub-hosted runner,
-- Node.js `v22.18.0`,
-- exact package `@satelliteoflove/godot-mcp@4.1.0`,
-- npm integrity `sha512-uq3Gh5n7fos8vIoXpr32/K7r9tL9eYLbERr+Tolksg3Y+FC5coYEkRkbJ1JktMMhoH/BnGWsWhE5E+XJ/nMEPg==`,
-- MCP client `scripts/qualify_godot_agent_mcp_live.py@2`,
-- source and installed fixture tree hashes before/after qualification.
-
-The exact bridge addon is installed into a copied fixture with the bridge's public installer and enabled through the normal Godot editor plugin contract. No Trace2D benchmark verifier is copied into the runtime-control fixture.
-
-## Required checks and observed result
-
-All four checks passed in the same hosted frozen environment.
-
-### Q1 — authoring — PASS
-
-Using the normal MCP editor authoring surface, the qualifier changed `Player.z_index` from `0` to `7`, saved the scene, read the persisted value back, restored it to `0`, saved again and verified the restore.
-
-This is deliberately a reversible non-solution edit: it proves real project authoring without encoding the scored task answer.
-
-### Q2 — structured runtime inspection — PASS
-
-The bridge launched the game with time frozen from frame zero and read structured runtime state from the `mcp_watch` player.
-
-Observed both initially and after deliberate wall-clock waiting:
+It exposes both:
 
 ```text
-semantic_id = player
-position_x = 0
-position_y = 0
+physics_ticks = every physics callback since launch
+input_ticks   = physics callbacks in which raw D was actually observed
+```
+
+No benchmark answer is embedded in the fixture.
+
+## Why two counters exist
+
+`godot-mcp` schedules the raw input and resumes controlled game time through separate host/engine phases. `start_ms = 0` means the input belongs to the stepped window, but it does not prove that the OS/Godot raw-key state is visible before the very first resumed `_physics_process` callback on every hosted runner.
+
+Therefore:
+
+- `physics_ticks` remains useful evidence of absolute fixed-step progress;
+- `input_ticks` is the authoritative movement equality boundary because it advances only when the fixture actually sees `KEY_D`;
+- render frames, wall-clock milliseconds, and absolute process physics ticks are not used to compare movement under newly injected input.
+
+This distinction tests what the bridge really controls instead of assuming a scheduler phase it does not expose.
+
+## Required checks
+
+### Q1 — real editor authoring
+
+Using normal MCP editor tools:
+
+1. read `Player.z_index`,
+2. change it to a reversible probe value,
+3. save and read back,
+4. restore the original value,
+5. save and verify restoration.
+
+This proves public project authoring without encoding the benchmark solution.
+
+### Q2 — launch-frozen structured runtime state
+
+Launch the game frozen from frame zero and verify structured `mcp_watch` state:
+
+```text
+semantic_id  = player
+position_x   = 0
+position_y   = 0
 physics_ticks = 0
-frozen = true
+input_ticks   = 0
+frozen        = true
 launched_frozen = true
 ```
 
-A screenshot is not used as the acceptance oracle.
+Deliberate wall-clock waiting while frozen must not change either counter or position.
 
-### Q3 — real timed input — PASS
+### Q3 — real raw D input + semantic controlled stepping
 
-The qualifier injects the raw `D` key through the public MCP input path while controlled game time advances. The fixture consumes the ordinary `Input.is_key_pressed(KEY_D)` path; no script or setup command writes `Player.position` directly.
-
-The input hold is intentionally longer than the stop boundary. `step_until` ends the window and force-releases the input when the authoritative fixture predicate becomes true, so the hold duration cannot secretly define the result.
-
-Observed after the first accepted step:
+The qualifier calls the public `godot_game_time step_until` tool with real raw key injection and the predicate:
 
 ```text
-input_kinds.key = 1
-physics_ticks = 12
-position_x = 2
-position_y = 0
+tree.get_nodes_in_group("mcp_watch")[0].input_ticks >= 12
 ```
 
-### Q4 — frozen/exact deterministic stepping — PASS
+The hold duration is intentionally longer than the target boundary. `step_until` ends the window and force-releases holds, so duration is only a safety ceiling.
 
-The first debug session was fully stopped, a clean second session launched frozen from frame zero, a different wall-clock delay was introduced, and both runs used the bridge's public `step_until` operation with the same predicate:
+Required terminal facts:
 
 ```text
-tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= 12
+input_kinds.key >= 1
+input_ticks = 12
+physics_ticks >= 12
+position_x > 0
+predicate_met = true
 ```
 
-Both runs stopped at the same authoritative boundary:
+### Q4 — clean replay
+
+Fully stop the first debug session, launch a fresh frozen session, introduce a different wall-clock wait, then repeat the same raw-key + `input_ticks >= 12` predicate.
+
+Required equality:
 
 ```text
-physics_ticks = 12
-position_x = 2
-position_y = 0
+first.input_ticks  = 12
+second.input_ticks = 12
+first.position_x   = second.position_x
 ```
 
-The bridge also reported `predicate_met = true` and 12 physics ticks in both calls. The two runs took 194 ms of gameplay time in this successful execution, but milliseconds are not the equality boundary.
+Absolute `physics_ticks` is retained in evidence but may differ by the number of fixed callbacks that occurred before raw `D` became observable. That difference is not movement nondeterminism; it is the explicitly unowned input-activation phase.
 
-## Rejected measurement boundaries preserved as evidence
+## Preserved rejected/retired boundaries
 
-Two earlier criteria were rejected rather than silently relaxed:
+The protocol learned from and preserves four progressively sharper distinctions:
 
-1. **Fixed render frames** were rejected because hosted rendering is uncapped and render frames can advance independently of fixed physics ticks.
-2. **Fixed 200 ms game time** passed one run, but a later clean rerun ended at 12 versus 13 physics ticks because the fixed-step scheduler phase can straddle the duration boundary. That criterion was therefore also rejected.
+1. **fixed render frames** — rejected because uncapped render frames are not fixed-physics progress;
+2. **fixed game milliseconds** — rejected after clean runs ended on different fixed ticks;
+3. **absolute `physics_ticks >= 12` as movement equality under newly scheduled raw input** — historical #102 qualification passed, but a later CI replay exposed one-tick input-visibility phase variance (`2.00` vs `1.83` at tick 12); retained as historical evidence, no longer used by always-on CI for movement equality;
+4. **input-active physics ticks** — current maintenance boundary; counts only authoritative physics callbacks in which the fixture observes the raw key and therefore compares equal semantic input exposure.
 
-The accepted criterion stops on the fixture's own fixed-physics counter. In the successful accepted run the render-frame counts were 267 and 271; that difference is preserved and intentionally not compared.
+None of these changes weakens the requirements that the game launch frozen, raw key injection be used, state be read structurally, and predicate-based controlled stepping complete successfully.
 
-## Independent task oracle — PASS
+## Independent B0 task oracle
 
-After Q1–Q4, the pinned official Godot binary ran the independent B0 verifier for the actual `godot.agent` lane:
+The actual `godot.agent` task verifier remains independent from this runtime-control fixture. Known-good and wrong-position fixtures are checked with the pinned official Godot binary. The bridge qualification does not self-bless the task oracle, and the task oracle alone does not prove MCP authoring/input/step capabilities.
 
-```powershell
-python scripts/benchmark_b0.py qualify-fixtures `
-  --task b0-semantic-scene-authoring `
-  --lane godot.agent
-```
+## Historical B0 evidence vs current CI
 
-Result:
+[`godot-agent.json`](godot-agent.json) is immutable historical evidence for the #102 qualification that preceded the scored cohort. The current live workflow may emit a newer maintenance evidence shape (`fixture_input_active_physics_ticks`) without retroactively editing the historical record or scored results.
 
-- known-good fixture: **pass**, observed `player / Player / (4, 1)`,
-- wrong-position fixture: **fail** with `position_mismatch`, observed `(3, 1)`.
+This matters because #102's final scored cohort is already preserved and accepted. Maintenance hardening discovered later must improve future confidence, not rewrite what happened.
 
-The bridge qualification and task oracle remain separate pieces of evidence: the static task oracle alone cannot prove Q1–Q4, and Q1–Q4 alone cannot bless the task verifier.
-
-## Qualification result contract
-
-The committed [`godot-agent.json`](godot-agent.json) records:
-
-- exact engine and bridge identity,
-- exact npm package integrity,
-- positive Q1–Q4 booleans,
-- environment identity,
-- fixture hashes,
-- accepted deterministic boundary and rejected earlier boundaries,
-- GitHub Actions run/job/artifact IDs and artifact SHA-256,
-- independent known-good/known-bad oracle evidence.
-
-This promotes the strongest reviewed Godot candidate from `primary_candidate_pending_qualification` to `selected_qualified`. It does **not** make the overall B0 suite eligible by itself; the same real coding-Agent/model profile still has to be frozen and run repeatedly across all three lanes.
-
-## Source references reviewed for this protocol
+## Source references
 
 - Godot official releases: <https://github.com/godotengine/godot/releases>
 - selected bridge package: <https://www.npmjs.com/package/@satelliteoflove/godot-mcp>
 - selected bridge source/docs: <https://github.com/satelliteoflove/godot-mcp>
 
-The selected bridge's documented runtime model includes frozen game-time control, structured live state, real input and predicate-based stepping; the hosted qualification above proves those capabilities in the pinned environment instead of trusting documentation alone.
+The repository relies on its own hosted observations rather than documentation alone for bridge qualification.

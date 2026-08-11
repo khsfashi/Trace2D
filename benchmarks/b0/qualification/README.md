@@ -1,6 +1,6 @@
 # B0 qualification evidence
 
-Status: **complete for #102**.
+Status: **complete for #102; live bridge qualification remains maintained in CI**.
 
 A B0 result is trusted only when the environment/bridge oracle, coding-Agent profile, hard held-out isolation boundary, append-only trial evidence, and independent verifier/replay checks are preserved separately.
 
@@ -10,7 +10,7 @@ A B0 result is trusted only when the environment/bridge oracle, coding-Agent pro
 - `godot.agent` — bridge/oracle-qualified in [`godot-agent.json`](godot-agent.json), exact bridge `@satelliteoflove/godot-mcp@4.1.0`.
 - `trace2d.agent` — oracle-qualified in [`trace2d-agent.json`](trace2d-agent.json).
 
-The Godot Agent qualification uses the accepted deterministic `step_until physics_ticks >= 12` boundary; earlier fixed-render-frame and fixed-duration variants remain rejected qualification history.
+The immutable `godot-agent.json` records the historical #102 accepted run, which used `step_until physics_ticks >= 12` and observed identical movement in both clean sessions. After #102 completed, always-on CI exposed a one-tick raw-key activation-phase variance: absolute tick 12 could contain 12 or 11 ticks in which Godot had actually observed newly injected `D` input. The maintained live qualifier now preserves absolute `physics_ticks` as evidence but uses `input_ticks >= 12`—a fixture counter incremented only on fixed callbacks where `Input.is_key_pressed(KEY_D)` is true—as the movement equality boundary. See [`GODOT_AGENT.md`](GODOT_AGENT.md). Historical scored evidence is not rewritten.
 
 ## Frozen coding Agent
 
@@ -98,4 +98,6 @@ Six Godot `signal 11` crash events across five scored Godot trials are also pres
 
 #102's benchmark-harness acceptance is satisfied. The cohort proves repeatable matched execution, immutable evidence, independent objective verification, explicit failure domains, no favorable retry selection, and independent replay without manually reconstructing core metrics.
 
-This one-task three-sample B0 result is not a broad engine-superiority claim. The next fixed-order project item after PR #118 merges is #59 Complete Sprite program.
+The later live-qualification maintenance correction changes no scored record, frozen Agent profile, task, budget or accepted cohort interpretation.
+
+This one-task three-sample B0 result is not a broad engine-superiority claim. The active fixed-order project item is #59 Complete Sprite program, currently S0/#119.
