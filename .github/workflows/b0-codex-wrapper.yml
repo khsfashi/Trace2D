@@ -23,6 +23,10 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_wrapper.py test_benchmark_b0_codex_chatgpt_wrapper.py
 
+      - name: Test race-safe ChatGPT recovery cleanup
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_chatgpt_safe_runner.py
+
       - name: Test scrubbed evidence packaging
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_evidence_packager.py
@@ -42,7 +46,7 @@ jobs:
           }
 
       - name: Compile-check ChatGPT recovery calibration
-        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/benchmark_b0_codex_chatgpt_wrapper.py
 
       - name: Validate frozen Codex profile against B0 task budget
         shell: bash
