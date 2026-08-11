@@ -2,15 +2,15 @@
 
 Status: **owner-local qualification required before scored eligibility**.
 
-This document freezes the first real coding-Agent candidate for #102. It does not make B0 scored-eligible by itself and contains no benchmark result.
+This document freezes the first real coding-Agent candidate for #102. It does not make B0 scored-eligible by itself and contains no comparative benchmark result.
 
-## Frozen Agent/model
+## Frozen Agent/model selection
 
 The committed profile is [`agent-profile.codex-0.144.6.json`](agent-profile.codex-0.144.6.json):
 
 - Agent: OpenAI Codex CLI `0.144.6`,
-- model family: `gpt-5.5`,
-- exact requested model snapshot: `gpt-5.5-2026-04-23`,
+- provider-selectable model identifier: `gpt-5.6-sol`,
+- provider revision policy: `chatgpt_managed_identifier_no_dated_snapshot`,
 - reasoning effort: `high`,
 - approval policy: `never`,
 - session persistence: `ephemeral`,
@@ -18,21 +18,39 @@ The committed profile is [`agent-profile.codex-0.144.6.json`](agent-profile.code
 - task budget: exactly the B0 task budget,
 - human interventions: zero.
 
+The important distinction is that this cohort uses **ChatGPT sign-in**, not an owner-supplied OpenAI API key. The ChatGPT Codex surface exposes provider-selectable model identifiers, but does not expose the dated API snapshot used by the first attempted profile. B0 therefore records the exact selectable identifier and auth mode without pretending that a hidden dated provider revision is known.
+
+This still satisfies #102's required model/Agent/configuration identity: the same Codex version, model selection string, reasoning setting, permission profile, budget, prompt and lane-independent Agent wrapper are held constant across the matched cohort. The limitation is disclosed as part of the run identity.
+
 Primary references:
 
-- <https://developers.openai.com/api/docs/models/gpt-5.5>
+- <https://developers.openai.com/codex/models>
 - <https://developers.openai.com/codex/non-interactive-mode>
 - <https://developers.openai.com/codex/permissions>
 - <https://developers.openai.com/codex/extend/mcp>
 
-Why this model is frozen instead of using a moving Codex-default alias:
+## Rejected first model profile
 
-- B0 requires an exact model revision/snapshot rather than a product default that may move over time,
-- GPT-5.5 documents the dated `gpt-5.5-2026-04-23` snapshot and supports `high` reasoning,
-- the same exact profile is used in all three engine lanes,
-- this choice is made before any scored three-lane outcome exists.
+The first owner-local attempt requested API snapshot `gpt-5.5-2026-04-23` through ChatGPT-managed Codex. The provider rejected it with HTTP 400 before any shell/tool action:
 
-A successful local probe must still prove that the owner's ChatGPT-managed Codex entitlement accepts that exact snapshot. If it does not, B0 stays blocked and the profile must be revised before any scored result exists; the failure must not be relabeled as an engine loss.
+> The `gpt-5.5-2026-04-23` model is not supported when using Codex with a ChatGPT account.
+
+That run is preserved as [`qualification/codex-chatgpt-model-attempt-2026-08-11.json`](qualification/codex-chatgpt-model-attempt-2026-08-11.json).
+
+It is classified as `infrastructure_model_availability`, not an engine loss:
+
+- zero matched lane trials started,
+- zero provider tokens were reported,
+- the isolation canary was never attempted,
+- no scored result existed when the profile was corrected.
+
+The dated API snapshot path is therefore explicitly **REJECTED** for this ChatGPT-managed cohort rather than silently retried with a different model.
+
+## Why `gpt-5.6-sol`
+
+At the profile correction date, OpenAI's Codex model documentation lists GPT-5.6 Sol as the flagship recommended Codex model and documents `codex -m gpt-5.6-sol` / `codex exec -m gpt-5.6` as supported selection paths. The benchmark freezes `gpt-5.6-sol` explicitly rather than relying on whatever model a future Codex default may choose.
+
+Changing this model after a scored result exists is forbidden for the B0 cohort. If provider availability changes before the first scored attempt, that change must be recorded as infrastructure evidence and a new cohort/profile identity must be created before scoring.
 
 ## Isolation boundary
 
@@ -56,22 +74,20 @@ web_search = "disabled"
 enabled = false
 ```
 
-No `sandbox_mode`/`--sandbox` is combined with this profile. Codex documentation explicitly treats the new permission-profile system and legacy sandbox settings as mutually exclusive configuration paths.
-
-The actual candidate workspace is created **outside the Trace2D repository**. Before any calibration trial, an empirical canary probe must prove both directions:
+The actual candidate workspace is outside the Trace2D repository. Before any calibration task, a random canary probe must prove both directions:
 
 1. Codex can read and write a random value inside its candidate workspace.
-2. Codex is instructed to attempt an exact shell read of a random canary placed beside the held-out verifier, and that read is denied without leaking the canary value.
+2. Codex actually attempts an exact shell read of a random canary placed beside the held-out verifier, and that read is denied without leaking the canary value.
 
-The probe preserves the model's JSONL tool trajectory so the denial is evidence rather than an assumption. A failed or ambiguous isolation probe blocks all candidate trials.
+The probe preserves the public JSONL tool trajectory. A failed or ambiguous isolation probe blocks all candidate trials.
 
 ## Lane exposure
 
-The model prompt and profile are identical across lanes. Only the normal environment adapter changes.
+The task prompt, Codex CLI, model selection, reasoning level, budget and isolation policy are identical across lanes. Only the normal environment adapter changes.
 
 ### `godot.generic`
 
-- pinned official Godot 4.7.1 executable available through the shell/PATH,
+- pinned official Godot 4.7.1 executable through the shell/PATH,
 - ordinary candidate project files,
 - no Godot-specific MCP server.
 
@@ -80,9 +96,9 @@ The model prompt and profile are identical across lanes. Only the normal environ
 - the same pinned Godot executable,
 - selected qualified `@satelliteoflove/godot-mcp@4.1.0`,
 - addon/plugin installation is environment setup, not task solution logic,
-- Codex receives the public MCP tools only.
+- Codex receives only the bridge's public MCP tools.
 
-The addon/plugin is removed from the preserved candidate artifact before the independent verifier runs so environment scaffolding does not become part of the scored authored result.
+The injected addon is removed from the preserved candidate artifact before independent verification.
 
 ### `trace2d.agent`
 
@@ -91,59 +107,48 @@ The addon/plugin is removed from the preserved candidate artifact before the ind
 - ordinary Trace2D candidate scene file,
 - no benchmark-only engine API.
 
-For B0's first authoring task, the Agent may use either the public CLI or MCP surface. The independent verifier remains outside both surfaces.
+## Owner-local qualification
 
-## Owner-local calibration
-
-ChatGPT-managed Codex credentials are intentionally not placed in GitHub Actions for this public repository. The owner-local calibration script uses the already authenticated local Codex CLI and never commits the credential.
-
-From a current PR #118 checkout on Windows:
+The first calibration already completed the expensive deterministic toolchain setup but stopped at provider model availability before isolation. After updating the PR checkout, reuse that qualified toolchain with:
 
 ```powershell
-./scripts/run_benchmark_b0_codex_calibration.ps1
+./scripts/run_benchmark_b0_codex_chatgpt_calibration.ps1
 ```
 
-The script performs, in order:
+The recovery calibration:
 
-1. exact Codex `0.144.6` and login check,
-2. pinned vcpkg setup, Trace2D configure/build/full CTest,
-3. official Godot 4.7.1 Windows download + SHA-512 verification,
-4. official Node 22.18.0 download + SHA-256 verification,
-5. exact Godot MCP 4.1.0 npm install/integrity recording,
-6. copy of only the public Trace2D executable surfaces outside the source repository,
-7. real Codex filesystem-isolation canary probe,
-8. exactly one **unscored** trial in each of the three B0 lanes,
-9. raw hash-chained record/report preservation,
-10. credential scrubbing and evidence ZIP creation.
+1. verifies exact Codex `0.144.6` and local ChatGPT login,
+2. finds the latest prior calibration toolchain evidence,
+3. verifies its frozen Trace2D/Godot/Node/Godot-MCP identities and cached archive hashes,
+4. uses `gpt-5.6-sol` with `high` reasoning through the ChatGPT-specific wrapper,
+5. runs the real filesystem-isolation canary,
+6. preserves exactly one **unscored** attempt in each B0 lane,
+7. keeps failed Agent attempts rather than stopping the matched cohort,
+8. emits raw hash-chained records and aggregate report,
+9. removes credentials/transient Codex homes and creates a scrubbed evidence ZIP.
 
-The script deliberately does **not** promote `suite.json` to `eligible` and does not run `--scored`.
+The script does **not** promote `suite.json` to `eligible` and does not invoke `--scored`.
 
-The generated ZIP is reviewed first. Only if the real isolation/model/environment facts are valid may the suite/task be promoted to scored eligibility. A subsequent repeated matched cohort then uses the same committed profile hash and predefined sample/retry policy.
+## Credential/evidence packaging
 
-## Credential handling
+`~/.codex/auth.json` is password-equivalent and is never committed or uploaded. The wrapper copies it only into an isolated per-run `CODEX_HOME`; the evidence packager excludes transient Codex/plugin/cache directories and refuses to package an unexpected `auth.json`.
 
-`~/.codex/auth.json` is treated as a password-equivalent credential:
-
-- it is copied only into per-run isolated `CODEX_HOME` directories so user config cannot silently change benchmark settings,
-- it is outside the model's permitted workspace,
-- the calibration script recursively removes every copied `auth.json` before producing its evidence ZIP,
-- no credential or API key is committed to the repository or GitHub Actions.
-
-If the local Codex installation stores credentials only in an OS keyring and no file-backed `auth.json` exists, the script stops before model execution and asks the owner to explicitly re-login with file-backed CLI credential storage. This is an infrastructure/setup outcome, not an Agent task failure.
+The first owner's ZIP also exposed a PowerShell `Compress-Archive` race against disappearing Codex plugin-cache paths. That packaging defect was fixed by replacing broad recursive archiving with an allowlisted scrubbed evidence packager. The failure did not change any benchmark outcome.
 
 ## Promotion rule
 
-Do not change `qualification_required` / `qualification_candidate` to `eligible` until all of the following are observed from a real owner-local run:
+Do not change `qualification_required` / `qualification_candidate` to `eligible` until a real owner-local ChatGPT Codex run proves all of the following:
 
-- exact Codex version accepted,
-- exact model snapshot accepted,
+- exact Codex `0.144.6` accepted,
+- `gpt-5.6-sol` accepted through ChatGPT sign-in,
+- model/auth/provider-revision policy recorded,
 - workspace write probe passed,
 - held-out canary read was actually attempted and denied,
 - canary content did not appear in model-visible output,
-- all three unscored lane calibrations produced parseable Agent results,
+- all three unscored lane calibrations produced parseable Agent records,
 - profile hashes match across the three records,
-- provider-reported usage is present,
+- provider-reported usage is present when exposed by Codex JSONL,
 - no human intervention occurred,
 - independent verifiers completed.
 
-After promotion, all repeated scored attempts—including failures and infrastructure outcomes—remain part of the cohort evidence.
+After promotion, every repeated scored attempt—including failures and predefined infrastructure outcomes—remains part of the cohort evidence. No best-of-N selection is allowed.
