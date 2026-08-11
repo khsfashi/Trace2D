@@ -27,6 +27,10 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_chatgpt_safe_runner.py
 
+      - name: Test qualified Windows ACL calibration runner
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_windows_acl_runner.py
+
       - name: Test Windows ACL isolation probe helpers
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_windows_acl_isolation.py
@@ -49,10 +53,10 @@ jobs:
             exit 1
           }
 
-      - name: Compile-check retired calibration and ACL qualification tooling
-        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
+      - name: Compile-check B0 Codex qualification tooling
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
 
-      - name: Validate frozen Codex model/budget profile
+      - name: Validate frozen Codex model/isolation/budget profile
         shell: bash
         run: |
           set -euo pipefail
@@ -73,11 +77,17 @@ jobs:
           assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
           assert profile['model_id'] == 'gpt-5.5'
           assert profile['model_revision'] == 'gpt-5.5'
+          assert profile['settings']['permission_profile'] == ':workspace'
+          assert profile['settings']['isolation_backend'] == 'windows_ntfs_acl_v1'
+          assert profile['settings']['protected_root_policy'] == 'repository_root_deny_for_codex_sandbox_sid'
+          assert profile['settings']['network_access'] == 'disabled'
           assert profile['settings']['provider_revision_policy'] == 'chatgpt_codex_cli_selector_no_dated_snapshot'
           print(json.dumps({
               'status': 'ok',
               'agent_id': profile['agent_id'],
               'model_id': profile['model_id'],
               'model_revision': profile['model_revision'],
+              'permission_profile': profile['settings']['permission_profile'],
+              'isolation_backend': profile['settings']['isolation_backend'],
           }))
           PY
