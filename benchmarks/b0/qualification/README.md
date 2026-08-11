@@ -38,6 +38,14 @@ The last record rejects the attempted Codex-internal native-Windows read-deny ba
 
 A passing result qualifies only the external ACL mechanism. The full B0 runner still needs a reviewed repo/harness quarantine lifecycle before any lane trial may start. That integration must then replace `qualification_pending_external_isolation_backend` with an exact frozen isolation setting and produce the profile hash shared across all three lanes.
 
+Current owner-local command after updating PR #118:
+
+```powershell
+python .\scripts\qualify_benchmark_b0_windows_acl_isolation.py
+```
+
+Do not run `run_benchmark_b0_codex_chatgpt_calibration_safe.py`; it now fails closed by design.
+
 ## Determinism note for the Godot Agent lane
 
 The qualification deliberately preserved and learned from two rejected measurement boundaries instead of hiding them:
