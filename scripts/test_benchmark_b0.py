@@ -18,14 +18,19 @@ class BenchmarkB0Tests(unittest.TestCase):
             {lane["id"] for lane in suite["lanes"]},
             set(benchmark_b0.EXPECTED_LANES),
         )
-        self.assertEqual(suite["state"], "qualification_required")
+        self.assertEqual(suite["state"], "eligible")
+        task = benchmark_b0.find_task(suite, "b0-semantic-scene-authoring")
+        self.assertEqual(task["state"], "eligible")
 
-    def test_scored_cohort_is_preregistered_and_still_blocked(self) -> None:
-        policy = benchmark_b0.load_json(
-            benchmark_b0.repository_root() / "benchmarks/b0/scored-cohort-v1.json"
+    def test_scored_cohort_is_preregistered_and_ready(self) -> None:
+        root = benchmark_b0.repository_root()
+        policy = benchmark_b0.load_json(root / "benchmarks/b0/scored-cohort-v1.json")
+        acceptance = benchmark_b0.load_json(
+            root
+            / "benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json"
         )
         self.assertEqual(policy["schema_version"], 1)
-        self.assertEqual(policy["state"], "blocked_until_suite_and_task_eligible")
+        self.assertEqual(policy["state"], "ready")
         self.assertEqual(policy["task_id"], "b0-semantic-scene-authoring")
         self.assertEqual(policy["repetitions_per_lane"], 3)
         self.assertEqual(policy["total_planned_trials"], 9)
@@ -40,6 +45,7 @@ class BenchmarkB0Tests(unittest.TestCase):
             0,
         )
         self.assertFalse(policy["retry_policy"]["early_stopping"])
+        self.assertFalse(policy["reporting_policy"]["best_of_n"])
         schedule = policy["lane_order_by_repetition"]
         self.assertEqual(len(schedule), 3)
         self.assertTrue(
@@ -47,6 +53,13 @@ class BenchmarkB0Tests(unittest.TestCase):
         )
         for lane in benchmark_b0.EXPECTED_LANES:
             self.assertEqual(sum(order.count(lane) for order in schedule), 3)
+        self.assertTrue(acceptance["accepted"])
+        self.assertFalse(acceptance["scored"])
+        self.assertTrue(acceptance["promotion_decision"]["suite_task_eligible"])
+        self.assertEqual(
+            acceptance["agent"]["canonical_profile_sha256"],
+            policy["agent_profile_canonical_sha256"],
+        )
 
     def test_hash_chained_jsonl_detects_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
