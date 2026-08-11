@@ -38,6 +38,7 @@ Every record below is pre-scoring evidence.
 - [`codex-windows-acl-final-profile-freeze-2026-08-11.json`](codex-windows-acl-final-profile-freeze-2026-08-11.json) — final pre-lane profile pins `[windows] sandbox = "elevated"`.
 - [`codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json`](codex-windows-acl-integrated-command-matcher-false-negative-2026-08-11.json) — real elevated model isolation behaved correctly, but doubled Windows backslashes caused an evidence-matcher false negative.
 - [`codex-windows-acl-unscored-calibration-harness-attempt-2026-08-11.json`](codex-windows-acl-unscored-calibration-harness-attempt-2026-08-11.json) — first real three-lane calibration attempt. Isolation passed; `godot.generic` and `trace2d.agent` produced verifier-pass artifacts but exceeded the frozen input-token budget; `godot.agent` exposed sandbox-SID timing and volatile `.godot/shader_cache` hashing defects before a raw record could be appended.
+- [`codex-windows-acl-unscored-isolation-sid-discovery-timeout-2026-08-11.json`](codex-windows-acl-unscored-isolation-sid-discovery-timeout-2026-08-11.json) — next corrected owner run passed the `gpt-5.5` preflight but the auxiliary `codex sandbox ... whoami` process used only to rediscover the sandbox SID timed out after 60 seconds before ACL application, canary execution, or any matched lane.
 
 None of these is a scored comparative result.
 
@@ -48,15 +49,17 @@ The final wrapper is [`../../../scripts/benchmark_b0_codex_windows_acl_wrapper.p
 1. pins Codex built-in `:workspace`,
 2. pins `[windows] sandbox = "elevated"`,
 3. prepares `CODEX_HOME`,
-4. discovers host/sandbox identity **before** Godot editor startup,
-5. rejects SID equality and keeps the raw SID only in-process,
-6. applies the repository NTFS deny ACE for that sandbox identity,
+4. resolves the already-qualified local account `CodexSandboxOffline` to its SID from the host Windows account database **without launching an auxiliary Codex sandbox process**,
+5. rejects host/sandbox SID equality and keeps the raw sandbox SID only in-process,
+6. applies the repository NTFS deny ACE for that SID,
 7. runs Codex with shell network disabled,
 8. removes the deny ACE in `finally`,
-9. preserves scrubbed ACL lifecycle evidence,
+9. preserves scrubbed ACL lifecycle evidence including the identity-resolution source,
 10. canonicalizes doubled Windows backslashes only for the isolation attempt matcher.
 
 Raw provider JSONL is never rewritten.
+
+The security decision still fails closed on the **real model canary**, not on the account name alone. The initial isolation gate instructs the frozen elevated/network-disabled model to attempt the exact held-out canary read. If `CodexSandboxOffline` is not the effective identity, the deny ACE cannot protect the canary and the gate fails before any matched lane starts. A positive gate therefore validates the host-resolved SID against the actual model turn while avoiding the flaky redundant `codex sandbox whoami` subprocess.
 
 ## Stable owner-local harness semantics
 
@@ -83,6 +86,7 @@ The runner performs:
 
 ```text
 gpt-5.5 preflight
+ -> host-resolve CodexSandboxOffline SID
  -> real elevated-Windows ACL isolation canary
  -> godot.generic   exactly one unscored attempt
  -> godot.agent     exactly one unscored attempt
@@ -107,7 +111,7 @@ Before `eligible`, the next archive must contain:
 - independent verifier result for every preserved lane,
 - no silent retry or best-of-N selection.
 
-Only after that review may `suite.json` and the task become `eligible` and the predefined repeated scored cohort begin.
+Only after that review may `suite.json` and the task become `eligible` and the preregistered repeated scored cohort begin.
 
 ## Godot deterministic-step note
 
