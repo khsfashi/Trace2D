@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_codex_owner_local_recovery_attempt",
+  "recorded_at": "2026-08-11",
+  "scored": false,
+  "classification": "infrastructure_observability_gap_before_isolation_evidence",
+  "source": {
+    "repository_head": "3503420b7482dbb99f7bd50ecfb6268e04e1b1c0",
+    "evidence_zip_sha256": "4cf293a6cd4de8eb18a30ebd3e616b1580ecc4c45a0c66aec78acc2fb948b745",
+    "evidence_zip_size_bytes": 1130
+  },
+  "requested_agent": {
+    "agent_id": "openai-codex-cli@0.144.6",
+    "model_selector": "gpt-5.6-sol",
+    "reasoning_effort": "high",
+    "auth_mode": "chatgpt-managed-local"
+  },
+  "preserved_toolchain": {
+    "frozen_trace2d_commit": "f45e3acf72de26c8c2e2757b75a0a221a76300e5",
+    "godot": "4.7.1-stable",
+    "node": "22.18.0",
+    "godot_mcp": "@satelliteoflove/godot-mcp@4.1.0"
+  },
+  "observed": {
+    "archive_entries": [
+      "toolchain.json",
+      "isolation-probe/workspace/ISOLATION_ALLOWED_SOURCE.txt"
+    ],
+    "credential_file_present_in_archive": false,
+    "model_preflight_evidence_present": false,
+    "isolation_verdict_present": false,
+    "isolation_jsonl_present": false,
+    "matched_lane_records_present": false,
+    "matched_lane_trials_started": 0,
+    "raw_jsonl_present": false
+  },
+  "limits": {
+    "exact_child_process_error_preserved": false,
+    "provider_model_acceptance_proven": false,
+    "isolation_denial_proven": false,
+    "reason": "The recovery orchestrator streamed the isolation-wrapper child process output only to the console. The scrubbed ZIP therefore proves an early exit after the isolation workspace was initialized but does not contain the child stdout/stderr needed to classify whether model selection, strict config, or another wrapper-startup condition caused the exit."
+  },
+  "disposition": {
+    "engine_loss": false,
+    "agent_task_failure": false,
+    "eligible_for_scoring": false,
+    "next_change": "Use the officially documented ChatGPT Codex CLI selector gpt-5.6 and persist model-preflight plus isolation child stdout/stderr and failure.json before any matched lane can begin."
+  }
+}
