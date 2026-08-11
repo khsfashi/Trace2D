@@ -26,6 +26,19 @@ class SpriteS0ContractTests(unittest.TestCase):
         self.assertEqual(self.contract["status"], "frozen")
         self.assertEqual(self.contract["next_stage"], "S1")
 
+    def test_cross_contract_reconciliation_is_explicit_and_paths_exist(self) -> None:
+        reconciles = self.contract["reconciles"]
+        expected = {
+            "sprite_program": "docs/SPRITES.md",
+            "production_architecture": "docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md",
+            "ai_operated_workflow": "docs/AI_OPERATED_WORKFLOW.md",
+            "production_gaps": "docs/PRODUCTION_GAPS.md",
+        }
+        for key, relative in expected.items():
+            self.assertEqual(reconciles[key], relative)
+            self.assertTrue((ROOT / relative).is_file(), f"missing reconciled contract: {relative}")
+        self.assertIn("does not supersede", reconciles["rule"])
+
     def test_authority_never_makes_renderer_truth(self) -> None:
         authority = self.contract["authority"]
         self.assertEqual(authority["canonical_asset"], "authored_cpu")
