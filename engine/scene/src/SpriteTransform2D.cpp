@@ -57,7 +57,9 @@ namespace
 
 [[nodiscard]] double WrapSignedRadians(const double radians) noexcept
 {
-    constexpr double Pi = std::numbers::pi_v<double>;
+    // Authoritative Transform2D angles are floats. Use that same representable pi/tau
+    // domain so an exact +pi/-pi float tie does not change sign after promotion to double.
+    constexpr double Pi = static_cast<double>(std::numbers::pi_v<float>);
     constexpr double Tau = Pi * 2.0;
 
     double wrapped = std::fmod(radians, Tau);
