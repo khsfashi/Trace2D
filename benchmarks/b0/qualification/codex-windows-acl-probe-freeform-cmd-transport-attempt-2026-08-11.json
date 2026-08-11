@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_infrastructure_attempt",
+  "date": "2026-08-11",
+  "classification": "infrastructure_probe_cmd_transport_mismatch",
+  "source_zip": {
+    "name": "windows-acl-isolation-20260811-134039-817ae5f4.zip",
+    "sha256": "c123da4927ea3ef8a665b3c7c17e24b5141a9dc47555725dc5ffb41d271752b3",
+    "size_bytes": 2112
+  },
+  "codex_version": "0.144.6",
+  "scored": false,
+  "model_called": false,
+  "engine_trial_started": false,
+  "matched_lane_trials_started": 0,
+  "observed": {
+    "sandbox_sid_differs_from_host": true,
+    "acl_apply_return_code": 0,
+    "host_canary_access_preserved": true,
+    "workspace_profile": ":workspace",
+    "workspace_write_proved": false,
+    "workspace_write_return_code": 1,
+    "workspace_write_stderr_summary": "cmd.exe still treated the quoted echo token as a command name after /s had been removed",
+    "held_out_read_attempted": false,
+    "acl_cleanup_succeeded": true,
+    "canary_cleanup_succeeded": true
+  },
+  "interpretation": "This attempt still does not reject the external Windows ACL mechanism. The sandbox SID was distinct from the host SID and the temporary deny ACE applied and cleaned up successfully. Qualification stopped before held-out read testing because transporting a free-form cmd.exe /c command string through the nested Codex Windows sandbox quoting layer remained unreliable. The probe now creates workspace-local .cmd files and invokes them by filename, removing free-form /c command strings from the transport path.",
+  "engine_result": false
+}
