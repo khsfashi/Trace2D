@@ -425,7 +425,7 @@ def main() -> int:
                     {
                         "schema_version": 1,
                         "kind": "codex_filesystem_isolation_probe",
-                        "passed": false if False else False,
+                        "passed": False,
                         "stage": "wrapper_startup_or_transport",
                         "wrapper_return_code": probe.returncode,
                         "model_selector": MODEL_ID,
