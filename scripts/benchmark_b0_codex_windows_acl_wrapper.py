@@ -2,15 +2,19 @@
 """Final B0 Codex wrapper: elevated Windows sandbox + external NTFS ACL.
 
 The final B0 owner-local path keeps the frozen Codex/model/isolation contract,
-while adding three integration details learned before scored eligibility:
+while applying integration corrections learned before scored eligibility:
 
-- discover the effective Windows sandbox identity before a Godot editor is
-  launched, then reuse that exact in-process identity for the guarded model turn;
+- resolve the already-qualified ``CodexSandboxOffline`` local-account SID from
+  the host rather than starting a second ``codex sandbox whoami`` subprocess;
+- do that identity preparation before a Godot editor is launched and reuse the
+  exact in-process identity for the guarded model turn;
 - canonicalize doubled Windows backslashes only for isolation evidence matching;
 - classify a completed provider turn that exceeded the frozen resource budget as
   ``budget_exceeded`` rather than a tool transport failure.
 
-Raw Codex trajectories and the frozen task/profile/budget remain unchanged.
+The real-model isolation canary remains the fail-closed proof that the resolved
+local account is the effective identity for the frozen elevated/offline Codex
+turn. Raw Codex trajectories and the frozen task/profile/budget remain unchanged.
 """
 from __future__ import annotations
 
@@ -27,6 +31,8 @@ MODEL_ID = "gpt-5.5"
 MODEL_REVISION = "gpt-5.5"
 WINDOWS_SANDBOX_MODE = "elevated"
 ISOLATION_BACKEND = "windows_ntfs_acl_v1_elevated"
+SANDBOX_ACCOUNT_NAME = "CodexSandboxOffline"
+SANDBOX_IDENTITY_SOURCE = "host_local_account_translation_v1"
 
 _ORIGINAL_COMMAND_TEXTS = core.command_texts
 _ORIGINAL_SETUP_CODEX_HOME = core.setup_codex_home
@@ -72,6 +78,46 @@ def _identity_key(codex_home: Path) -> str:
     return os.path.normcase(str(codex_home.resolve()))
 
 
+def resolve_offline_sandbox_identity(workspace: Path):
+    """Resolve the Codex elevated/offline local account SID without sandbox startup.
+
+    The model-free qualification previously proved that the frozen elevated,
+    network-disabled backend executes as ``CodexSandboxOffline``. Later owner
+    runs showed that launching ``codex sandbox ... whoami`` solely to rediscover
+    the same SID can hang for 60 seconds before any model/lane work starts.
+
+    Resolve the Windows-managed local account on the host instead. The real-model
+    canary still validates the security boundary: if this SID is not the identity
+    used by the frozen Codex turn, the deny ACE will not block the exact canary
+    read and the isolation gate fails closed before any lane starts.
+    """
+    if os.name != "nt":
+        raise acl.AclIsolationError("windows_ntfs_acl_v1 requires native Windows")
+    windir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    powershell = windir / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    script = (
+        "$account = New-Object System.Security.Principal.NTAccount("
+        "$env:COMPUTERNAME, 'CodexSandboxOffline'); "
+        "$account.Translate([System.Security.Principal.SecurityIdentifier]).Value"
+    )
+    completed = acl._host_capture(
+        [
+            str(powershell),
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            script,
+        ],
+        workspace,
+    )
+    if completed.returncode != 0:
+        raise acl.AclIsolationError(
+            "unable to resolve CodexSandboxOffline SID from the local Windows account"
+        )
+    return acl._parse_sid(completed.stdout), completed
+
+
 def setup_codex_home_with_identity(
     *,
     codex: str,
@@ -82,14 +128,7 @@ def setup_codex_home_with_identity(
     godot_mcp: Path | None,
     trace2d_mcp: Path | None,
 ) -> Path:
-    """Prepare CODEX_HOME and discover the ACL identity before editor startup.
-
-    The 2026-08-11 unscored calibration showed that running ``codex sandbox
-    whoami`` only after the Godot editor/MCP stack was live could hit the
-    60-second infrastructure timeout. Identity discovery does not depend on the
-    editor, so perform it at the earlier deterministic setup boundary and keep
-    the raw SID only in this wrapper process.
-    """
+    """Prepare CODEX_HOME and the ACL identity before editor/model startup."""
     codex_home = _ORIGINAL_SETUP_CODEX_HOME(
         codex=codex,
         workspace=workspace,
@@ -100,16 +139,30 @@ def setup_codex_home_with_identity(
         trace2d_mcp=trace2d_mcp,
     )
     host_identity = acl._host_sid(workspace)
-    sandbox_identity = acl._sandbox_sid(
-        codex=codex,
-        workspace=workspace,
-        codex_home=codex_home,
-        read_roots=read_roots,
-    )
+    sandbox_identity = resolve_offline_sandbox_identity(workspace)
     if sandbox_identity[0] == host_identity[0]:
         raise acl.AclIsolationError("Codex sandbox SID unexpectedly equals host SID")
     _PREPARED_IDENTITIES[_identity_key(codex_home)] = (host_identity, sandbox_identity)
     return codex_home
+
+
+def _annotate_acl_identity_evidence(codex_home: Path) -> None:
+    path = codex_home.parent / "acl-isolation.json"
+    if not path.is_file():
+        return
+    try:
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(evidence, dict):
+        return
+    evidence["sandbox_identity_source"] = SANDBOX_IDENTITY_SOURCE
+    evidence["sandbox_account_name"] = SANDBOX_ACCOUNT_NAME
+    evidence["identity_effectiveness_gate"] = "real_model_exact_canary_read_denial"
+    path.write_text(
+        json.dumps(evidence, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _export_probe_acl_evidence(*, codex_home: Path, workspace: Path, strict: bool) -> None:
@@ -159,12 +212,14 @@ def guarded_run_codex(
                 timeout=timeout,
             )
         except BaseException:
+            _annotate_acl_identity_evidence(codex_home)
             _export_probe_acl_evidence(
                 codex_home=codex_home,
                 workspace=workspace,
                 strict=False,
             )
             raise
+        _annotate_acl_identity_evidence(codex_home)
         _export_probe_acl_evidence(
             codex_home=codex_home,
             workspace=workspace,
