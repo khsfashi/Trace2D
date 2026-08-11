@@ -23,6 +23,10 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_wrapper.py
 
+      - name: Test scrubbed evidence packaging
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_evidence_packager.py
+
       - name: Parse-check owner-local calibration PowerShell
         shell: pwsh
         run: |
