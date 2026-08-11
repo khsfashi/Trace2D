@@ -16,7 +16,10 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
 
     def test_redact_removes_random_canary(self) -> None:
         secret = "TRACE2D-B0-ACL-DENY-secret"
-        self.assertEqual(probe.redact(f"before {secret} after", secret), "before <REDACTED_RANDOM_CANARY> after")
+        self.assertEqual(
+            probe.redact(f"before {secret} after", secret),
+            "before <REDACTED_RANDOM_CANARY> after",
+        )
 
     def test_direct_sandbox_uses_explicit_profile_and_cd(self) -> None:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
@@ -24,7 +27,7 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
             result = probe.run_codex_sandbox(
                 "codex.cmd",
                 profile=":workspace",
-                cwd=Path("C:/candidate"),
+                cwd=Path("candidate"),
                 command=["cmd.exe", "/c", "echo ok"],
                 timeout=42.0,
             )
