@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "contract_id": "trace2d.sprite.s0",
+  "issue": 119,
+  "umbrella_issue": 59,
+  "status": "frozen",
+  "next_stage": "S1",
+  "authority": {
+    "canonical_asset": "authored_cpu",
+    "renderer_component": "authoritative_runtime_semantics",
+    "animator_state": "authoritative_runtime_semantics",
+    "current_fixed_transform": "authoritative_runtime",
+    "previous_fixed_transform": "authoritative_runtime_history",
+    "presentation_transform": "derived_presentation",
+    "normalized_uv": "derived_presentation",
+    "gpu_handles": "derived_presentation",
+    "batch_identity": "derived_presentation",
+    "agent_snapshot": "explicit_observation",
+    "work_result": "explicit_evidence",
+    "workspace_review": "derived_review",
+    "generation_and_repair": "offline_tooling"
+  },
+  "source_space": {
+    "origin": "top_left",
+    "positive_x": "right",
+    "positive_y": "down",
+    "rect_bounds": "half_open",
+    "geometry_units": "integer_pixels",
+    "pivot_space": "untrimmed_source",
+    "trim_preserves_logical_source_space": true,
+    "packed_rotation_is_storage_only": true
+  },
+  "presentation_history": {
+    "authoritative_sample": "current_fixed",
+    "history_sample": "previous_fixed",
+    "position_interpolation": "linear",
+    "scale_interpolation": "linear",
+    "rotation_interpolation": "shortest_arc_2d",
+    "discrete_fields_are_not_interpolated": true,
+    "hierarchy_policy": "interpolate_local_then_compose",
+    "discontinuity_policy": "synchronize_previous_to_current",
+    "exact_frame_capture": "authoritative_current",
+    "subframe_capture_requires_explicit_alpha": true
+  },
+  "renderer_seams": {
+    "resource_identity": "typed_project_relative_cpu_identity",
+    "view_input": "backend_independent_resolved_2d_view",
+    "material_identity": "resolved_material_pipeline_compatibility",
+    "batching": "compatible_contiguous_runs_only",
+    "global_resource_sorting_may_change_painter_order": false
+  },
+  "texture_contract": {
+    "color_space_intent_explicit": true,
+    "alpha_conversion_boundary_explicit": true,
+    "exact_pixel_metadata_is_canonical": true,
+    "gpu_packaging_is_derived": true,
+    "single_uncompressed_rgba8_page_assumption_frozen": false
+  },
+  "verification_authority": {
+    "objective_sprite_facts": "deterministic_or_structured",
+    "perceptual_sprite_facts": "multimodal_only_when_needed",
+    "creative_approval": "human",
+    "agent_self_report_is_final_truth": false,
+    "screenshot_may_override_deterministic_failure": false
+  },
+  "hot_path": {
+    "import_or_repair_per_frame": false,
+    "full_agent_snapshot_per_frame": false,
+    "capture_readback_per_frame": false,
+    "presentation_interpolation_requires_transient_sprite_list": false
+  },
+  "future_handoffs": {
+    "world_components": 71,
+    "resource_lifecycle": 86,
+    "camera_viewport": 88,
+    "material_shader": 89,
+    "mesh2d": 60,
+    "spine_license_gate": 61
+  }
+}
