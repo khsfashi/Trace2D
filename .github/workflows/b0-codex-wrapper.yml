@@ -31,6 +31,10 @@ jobs:
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_codex_windows_acl_runner.py
 
+      - name: Test preregistered scored cohort runner
+        working-directory: scripts
+        run: python3 -m unittest test_benchmark_b0_codex_windows_acl_scored_runner.py
+
       - name: Test Windows ACL isolation probe helpers
         working-directory: scripts
         run: python3 -m unittest test_benchmark_b0_windows_acl_isolation.py
@@ -54,7 +58,7 @@ jobs:
           }
 
       - name: Compile-check B0 Codex qualification tooling
-        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/benchmark_b0_codex_windows_acl_wrapper.py scripts/benchmark_b0_stable_harness.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
+        run: python3 -m py_compile scripts/run_benchmark_b0_codex_chatgpt_calibration.py scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py scripts/run_benchmark_b0_codex_windows_acl_calibration.py scripts/run_benchmark_b0_codex_windows_acl_scored_cohort.py scripts/benchmark_b0_codex_chatgpt_wrapper.py scripts/benchmark_b0_codex_windows_acl_wrapper.py scripts/benchmark_b0_stable_harness.py scripts/qualify_benchmark_b0_windows_acl_isolation.py
 
       - name: Validate frozen Codex model/isolation/budget profile
         shell: bash
@@ -74,6 +78,16 @@ jobs:
               Path('benchmarks/b0/agent-profile.codex-0.144.6.json').resolve(),
               task,
           )
+          policy = json.loads(Path('benchmarks/b0/scored-cohort-v1.json').read_text(encoding='utf-8'))
+          acceptance = json.loads(Path('benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json').read_text(encoding='utf-8'))
+          assert suite['state'] == 'eligible'
+          assert task['state'] == 'eligible'
+          assert acceptance['accepted'] is True
+          assert acceptance['promotion_decision']['suite_task_eligible'] is True
+          assert policy['state'] == 'ready'
+          assert policy['total_planned_trials'] == 9
+          assert policy['retry_policy']['automatic_retries_per_trial'] == 0
+          assert policy['retry_policy']['replacement_trials_for_infrastructure_failure'] == 0
           assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
           assert profile['model_id'] == 'gpt-5.5'
           assert profile['model_revision'] == 'gpt-5.5'
@@ -85,8 +99,11 @@ jobs:
           assert profile['settings']['provider_revision_policy'] == 'chatgpt_codex_cli_selector_no_dated_snapshot'
           assert profile['command'][2] == 'benchmark_b0_codex_windows_acl_wrapper'
           assert profile['budget']['max_input_tokens'] == 100000
+          assert benchmark_b0.sha256_json(profile) == policy['agent_profile_canonical_sha256']
           print(json.dumps({
               'status': 'ok',
+              'suite_state': suite['state'],
+              'task_state': task['state'],
               'agent_id': profile['agent_id'],
               'model_id': profile['model_id'],
               'model_revision': profile['model_revision'],
@@ -94,5 +111,6 @@ jobs:
               'windows_sandbox_backend': profile['settings']['windows_sandbox_backend'],
               'isolation_backend': profile['settings']['isolation_backend'],
               'max_input_tokens': profile['budget']['max_input_tokens'],
+              'scored_trials': policy['total_planned_trials'],
           }))
           PY
