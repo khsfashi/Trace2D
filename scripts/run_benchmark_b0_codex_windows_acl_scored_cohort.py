@@ -310,7 +310,7 @@ def main() -> int:
                     for index, (repetition, lane) in enumerate(schedule, start=1)
                 ],
                 "retry_policy": policy["retry_policy"],
-                "scored": true,
+                "scored": True,
             },
         )
 
@@ -474,7 +474,7 @@ def main() -> int:
                 "stage": stage,
                 "exception_type": type(exc).__name__,
                 "message": str(exc),
-                "scored": true,
+                "scored": True,
             },
         )
     finally:
