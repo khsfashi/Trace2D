@@ -5,6 +5,13 @@
   "umbrella_issue": 59,
   "status": "frozen",
   "next_stage": "S1",
+  "reconciles": {
+    "sprite_program": "docs/SPRITES.md",
+    "production_architecture": "docs/PRODUCTION_ARCHITECTURE_CONTRACTS.md",
+    "ai_operated_workflow": "docs/AI_OPERATED_WORKFLOW.md",
+    "production_gaps": "docs/PRODUCTION_GAPS.md",
+    "rule": "S0 specializes existing cross-cutting authority/resource/view/material/review contracts for Sprite; it does not supersede them or authorize their later implementation early."
+  },
   "authority": {
     "canonical_asset": "authored_cpu",
     "renderer_component": "authoritative_runtime_semantics",
