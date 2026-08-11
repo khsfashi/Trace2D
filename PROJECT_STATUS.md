@@ -65,6 +65,8 @@ The real coding-Agent candidate was frozen before any scored matched-lane result
 
 Owner-local model preflight has proved `gpt-5.5` is callable: `MODEL_OK`, process code `0`, completed turn and provider token usage were all preserved. Do not change this model after scored eligibility without explicitly superseding the benchmark version.
 
+The Agent profile now records `permission_profile = qualification_pending_external_isolation_backend`. This is intentional: the previous native-Windows Codex permission profile was rejected, so the final isolation setting/profile hash must be frozen only after the replacement mechanism is independently qualified, but still **before the first matched lane trial**.
+
 ### Native-Windows Codex read-deny backend — rejected
 
 The latest owner-local isolation attempt is decisive. With the frozen `gpt-5.5` Agent and the 285-second probe ceiling:
@@ -99,7 +101,7 @@ A passing probe qualifies only the mechanism. The full calibration runner may ad
 
 Until then:
 
-- do **not** run `run_benchmark_b0_codex_chatgpt_calibration_safe.py`,
+- do **not** run `run_benchmark_b0_codex_chatgpt_calibration_safe.py`; that entrypoint now fails closed,
 - do **not** start any matched lane trial,
 - suite/task remain `qualification_required` / `qualification_candidate`,
 - `--scored` remains blocked.
@@ -122,7 +124,7 @@ Three qualified environments and a proven real model are readiness evidence, not
 ### Remaining gate before PR #118 may merge / #102 may close
 
 1. qualify a replacement hard isolation backend; current native Codex read-deny backend is rejected,
-2. integrate the qualified boundary into the owner-local runner with safe cleanup/recovery,
+2. integrate the qualified boundary into the owner-local runner with safe cleanup/recovery and freeze its exact profile hash,
 3. preserve exactly one three-lane **unscored** calibration with the frozen Agent/model/settings/budget,
 4. review canary denial/no leakage, provider trajectory/usage, common profile identity and independent verifiers,
 5. only then promote suite/task to `eligible`,
