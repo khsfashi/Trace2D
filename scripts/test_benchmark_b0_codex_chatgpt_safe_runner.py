@@ -41,7 +41,7 @@ class SafeCalibrationCleanupTests(unittest.TestCase):
         argv = base_run.call_args.args[0]
         self.assertEqual(argv[-2:], ["--timeout", "123"])
 
-    def test_scrub_preserves_public_sandbox_log_and_removes_codex_home(self) -> None:
+    def test_scrub_preserves_packageable_sandbox_log_and_removes_codex_home(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
             root = Path(root_text)
             codex_home = root / "isolation-probe" / "workspace" / ".probe-artifacts" / "codex-home"
@@ -55,9 +55,10 @@ class SafeCalibrationCleanupTests(unittest.TestCase):
             safe_runner.scrub_transient_codex_state(root)
 
             self.assertFalse(codex_home.exists())
-            diagnostic = codex_home.parent / "codex-sandbox.log"
-            self.assertTrue(diagnostic.is_file())
-            self.assertEqual(diagnostic.read_text(encoding="utf-8"), "sandbox diagnostic")
+            diagnostics = list((root / "codex-sandbox-logs").glob("*.log"))
+            self.assertEqual(len(diagnostics), 1)
+            self.assertEqual(diagnostics[0].read_text(encoding="utf-8"), "sandbox diagnostic")
+            self.assertNotIn(".probe-artifacts", diagnostics[0].parts)
 
     def test_scrub_removes_unexpected_auth_outside_codex_home(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
