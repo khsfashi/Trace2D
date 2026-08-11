@@ -20,6 +20,34 @@ class BenchmarkB0Tests(unittest.TestCase):
         )
         self.assertEqual(suite["state"], "qualification_required")
 
+    def test_scored_cohort_is_preregistered_and_still_blocked(self) -> None:
+        policy = benchmark_b0.load_json(
+            benchmark_b0.repository_root() / "benchmarks/b0/scored-cohort-v1.json"
+        )
+        self.assertEqual(policy["schema_version"], 1)
+        self.assertEqual(policy["state"], "blocked_until_suite_and_task_eligible")
+        self.assertEqual(policy["task_id"], "b0-semantic-scene-authoring")
+        self.assertEqual(policy["repetitions_per_lane"], 3)
+        self.assertEqual(policy["total_planned_trials"], 9)
+        self.assertEqual(
+            policy["agent_profile_canonical_sha256"],
+            "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+        )
+        self.assertEqual(policy["budget"]["max_input_tokens"], 100000)
+        self.assertEqual(policy["retry_policy"]["automatic_retries_per_trial"], 0)
+        self.assertEqual(
+            policy["retry_policy"]["replacement_trials_for_infrastructure_failure"],
+            0,
+        )
+        self.assertFalse(policy["retry_policy"]["early_stopping"])
+        schedule = policy["lane_order_by_repetition"]
+        self.assertEqual(len(schedule), 3)
+        self.assertTrue(
+            all(set(order) == set(benchmark_b0.EXPECTED_LANES) for order in schedule)
+        )
+        for lane in benchmark_b0.EXPECTED_LANES:
+            self.assertEqual(sum(order.count(lane) for order in schedule), 3)
+
     def test_hash_chained_jsonl_detects_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "raw.jsonl"
