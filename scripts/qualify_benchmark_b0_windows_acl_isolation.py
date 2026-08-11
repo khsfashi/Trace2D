@@ -12,6 +12,11 @@ canary directory, and proves two facts with the built-in `:workspace` profile:
 The rejected custom Codex permission profile is intentionally not involved.
 Every post-setup failure is packaged as scrubbed evidence so qualification never
 depends on copying terminal output back into the repository by hand.
+
+Codex 0.144 selects the host sandbox implementation by platform. On native
+Windows, `codex sandbox` is already the WindowsCommand surface; adding a legacy
+`windows` positional token makes Codex try to execute a program literally named
+`windows`. Keep this invocation shape covered by unit tests.
 """
 from __future__ import annotations
 
@@ -92,8 +97,7 @@ def run_codex_sandbox(
         codex,
         [
             "sandbox",
-            "windows",
-            "--permissions-profile",
+            "--permission-profile",
             profile,
             "--cd",
             str(cwd),
@@ -183,6 +187,7 @@ def main() -> int:
         "model_called": False,
         "engine_trial_started": False,
         "canary_sha256": sha256_text(secret),
+        "sandbox_cli_shape": "codex sandbox --permission-profile <name> --cd <dir> -- <command>",
     }
     sandbox_sid = ""
     acl_applied = False
