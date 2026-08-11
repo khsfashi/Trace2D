@@ -9,8 +9,8 @@ import benchmark_b0_codex_wrapper as core
 
 class ChatGptCodexWrapperTests(unittest.TestCase):
     def test_frozen_chatgpt_model_selection_is_exact(self) -> None:
-        self.assertEqual(chatgpt_wrapper.MODEL_ID, "gpt-5.6")
-        self.assertEqual(chatgpt_wrapper.MODEL_REVISION, "gpt-5.6")
+        self.assertEqual(chatgpt_wrapper.MODEL_ID, "gpt-5.5")
+        self.assertEqual(chatgpt_wrapper.MODEL_REVISION, "gpt-5.5")
         self.assertEqual(
             chatgpt_wrapper.PROVIDER_REVISION_POLICY,
             "chatgpt_codex_cli_selector_no_dated_snapshot",
@@ -21,8 +21,8 @@ class ChatGptCodexWrapperTests(unittest.TestCase):
         original_revision = core.MODEL_REVISION
         try:
             chatgpt_wrapper.configure()
-            self.assertEqual(core.MODEL_ID, "gpt-5.6")
-            self.assertEqual(core.MODEL_REVISION, "gpt-5.6")
+            self.assertEqual(core.MODEL_ID, "gpt-5.5")
+            self.assertEqual(core.MODEL_REVISION, "gpt-5.5")
             self.assertEqual(core.AGENT_ID, "openai-codex-cli@0.144.6")
             self.assertEqual(core.REASONING_EFFORT, "high")
         finally:
