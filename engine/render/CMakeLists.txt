@@ -8,6 +8,7 @@ add_library(trace2d_render STATIC
     src/RenderData.cpp
     src/Renderer.cpp
     src/RendererWorkload.cpp
+    src/SpriteAppearance2D.cpp
     src/SpriteGeometry2D.cpp
     src/SpriteRenderContract.cpp
 )
