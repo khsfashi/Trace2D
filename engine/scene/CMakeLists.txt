@@ -3,6 +3,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 add_library(trace2d_scene STATIC
     src/Scene.cpp
     src/SceneText.cpp
+    src/SpriteTransform2D.cpp
 )
 
 add_library(Trace2D::Scene ALIAS trace2d_scene)
