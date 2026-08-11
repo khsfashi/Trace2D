@@ -3,10 +3,10 @@
 
 The core wrapper owns isolation, metrics, lane setup and result contracts. This
 module changes only the provider-selectable model identity. Owner-local
-qualification proved that the current ChatGPT account does not yet accept the
-GPT-5.6 selector even though it is rolling out in Codex. GPT-5.5 is explicitly
-listed as a ChatGPT/Codex CLI model and is available to the owner's account, so
-B0 freezes that CLI selector before any scored matched-lane outcome exists.
+qualification proved that the current ChatGPT account does not accept the
+GPT-5.6 selector at this time. GPT-5.5 is explicitly documented as a Codex CLI
+model, so B0 freezes it as the pre-scoring fallback candidate. The owner-local
+preflight must still prove this account actually accepts it before eligibility.
 """
 from __future__ import annotations
 
