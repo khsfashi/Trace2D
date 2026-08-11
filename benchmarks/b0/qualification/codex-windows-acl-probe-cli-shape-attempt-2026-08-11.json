@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_pre_scoring_attempt",
+  "date": "2026-08-11",
+  "classification": "infrastructure_probe_cli_shape_mismatch",
+  "scored": false,
+  "model_called": false,
+  "engine_trial_started": false,
+  "matched_lane_trials_started": 0,
+  "repository_head": "de6b4addab0f3c82ca62e4fa8f87bfdb463e8764",
+  "uploaded_evidence_zip": {
+    "name": "windows-acl-isolation-20260811-133034-aea9850c.zip",
+    "sha256": "d5bb9da04307782c0d2c2becc143d30296b86478889c11cdfeb030f39ee4548a",
+    "size_bytes": 1282
+  },
+  "probe": {
+    "codex_version": "0.144.6",
+    "stage": "host_identity",
+    "host_identity_succeeded": true,
+    "sandbox_identity_succeeded": false,
+    "acl_applied": false,
+    "acl_cleanup_succeeded": true,
+    "canary_cleanup_succeeded": true,
+    "observed_error": "windows sandbox SpawnChild attempted a program named 'windows' and CreateProcessAsUserW returned Windows error 2 (file not found)"
+  },
+  "root_cause": {
+    "summary": "The mechanism probe used the older `codex sandbox windows ...` command shape. In Codex 0.144.x, the `sandbox` command is already bound to the platform-specific WindowsCommand on native Windows, so the extra `windows` token became the sandbox child program rather than a subcommand.",
+    "fix": "Use `codex sandbox --permission-profile <name> --cd <dir> -- <command>` and lock that exact argv shape with a unit test."
+  },
+  "interpretation": {
+    "windows_acl_backend_proved": false,
+    "windows_acl_backend_rejected": false,
+    "note": "The sandbox identity command never started, no deny ACE was applied, no model was called and no engine trial began. This attempt therefore says nothing about the viability of the external ACL boundary itself."
+  }
+}
