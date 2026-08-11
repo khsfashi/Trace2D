@@ -30,14 +30,23 @@ jobs:
       - name: Parse-check owner-local calibration PowerShell
         shell: pwsh
         run: |
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Resolve-Path "scripts/run_benchmark_b0_codex_calibration.ps1").Path,
-            [ref]$null,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -ne 0) {
-            $errors | Format-List | Out-String | Write-Error
+          $allErrors = @()
+          foreach ($script in @(
+            "scripts/run_benchmark_b0_codex_calibration.ps1",
+            "scripts/run_benchmark_b0_codex_chatgpt_calibration.ps1"
+          )) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $script).Path,
+              [ref]$null,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -ne 0) {
+              $allErrors += $errors
+            }
+          }
+          if ($allErrors.Count -ne 0) {
+            $allErrors | Format-List | Out-String | Write-Error
             exit 1
           }
 
