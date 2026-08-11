@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Race-safe Windows entrypoint for owner-local ChatGPT Codex B0 recovery.
 
-Two Windows-specific hazards are isolated here without changing the frozen B0
+Three owner-local hazards are isolated here without changing the frozen B0
 harness semantics:
 
 1. Codex may delete transient plugin-cache directories while cleanup is walking
    them. Cleanup therefore never descends into a ``codex-home`` tree.
-2. npm exposes Codex as ``codex.cmd``. A free-form positional prompt passed
-   through ``cmd.exe /c`` can be split into multiple CLI arguments. Codex exec
-   supports reading the prompt from stdin, so the model preflight uses the same
-   stdin ``-`` transport already used by the real three-lane wrapper.
+2. npm exposes Codex as ``codex.cmd``. Free-form positional prompts can be split
+   by ``cmd.exe``; model preflight therefore uses stdin ``-`` transport, matching
+   the real three-lane wrapper.
+3. GPT-5.6 is still rolling out and the owner's real ChatGPT Codex session
+   rejected it. Before any scored result exists, the cohort is frozen to the
+   documented ChatGPT/Codex CLI selector ``gpt-5.5``.
 
 The final allowlist evidence packager remains the independent credential guard.
 """
@@ -22,6 +24,9 @@ from typing import Any
 
 import run_benchmark_b0_codex_chatgpt_calibration as calibration
 
+FROZEN_MODEL_ID = "gpt-5.5"
+FROZEN_PROVIDER_REVISION_POLICY = "chatgpt_codex_cli_selector_no_dated_snapshot"
+
 
 def scrub_transient_codex_state(root: Path) -> None:
     root = Path(root)
@@ -29,7 +34,6 @@ def scrub_transient_codex_state(root: Path) -> None:
         return
 
     def ignore_walk_error(_error: OSError) -> None:
-        # Transient Codex cache entries are allowed to disappear while walking.
         return
 
     for current, dirnames, filenames in os.walk(
@@ -38,16 +42,11 @@ def scrub_transient_codex_state(root: Path) -> None:
         onerror=ignore_walk_error,
     ):
         current_path = Path(current)
-
-        # Never recurse into Codex homes. They contain the copied credential and
-        # volatile plugin caches, neither of which belongs in benchmark evidence.
         for dirname in list(dirnames):
             if dirname.casefold() != "codex-home":
                 continue
             shutil.rmtree(current_path / dirname, ignore_errors=True)
             dirnames.remove(dirname)
-
-        # Defense in depth for an auth file that somehow lives outside codex-home.
         for filename in filenames:
             if filename.casefold() != "auth.json":
                 continue
@@ -64,13 +63,6 @@ def stdin_model_preflight(
     workspace: Path,
     evidence_root: Path,
 ) -> dict[str, Any]:
-    """Prove the selected ChatGPT Codex model using stdin prompt transport.
-
-    The normal benchmark wrapper already invokes ``codex exec ... -`` and writes
-    the prompt to stdin. Keep preflight transport identical so Windows ``.cmd``
-    quoting cannot turn prompt words into extra clap arguments.
-    """
-
     workspace.mkdir(parents=True, exist_ok=True)
     codex_home = evidence_root / "codex-home"
     codex_home.mkdir(parents=True, exist_ok=True)
@@ -138,6 +130,9 @@ def stdin_model_preflight(
 
 
 def main() -> int:
+    calibration.MODEL_ID = FROZEN_MODEL_ID
+    calibration.MODEL_REVISION = FROZEN_MODEL_ID
+    calibration.PROVIDER_REVISION_POLICY = FROZEN_PROVIDER_REVISION_POLICY
     calibration.scrub_auth = scrub_transient_codex_state
     calibration.model_preflight = stdin_model_preflight
     return calibration.main()
