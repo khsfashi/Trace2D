@@ -1,6 +1,7 @@
 add_executable(trace2d_scene_tests
     SceneTests.cpp
     SceneTextTests.cpp
+    SpriteTransform2DTests.cpp
 )
 
 target_link_libraries(trace2d_scene_tests
