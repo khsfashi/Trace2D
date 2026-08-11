@@ -39,6 +39,14 @@ class WindowsAclIsolationProbeTests(unittest.TestCase):
         self.assertIn("--", args)
         self.assertEqual(capture.call_args.kwargs["timeout"], 42.0)
 
+    def test_cmd_transport_disables_autorun_without_s_quote_rewrite(self) -> None:
+        args = probe.cmd_command("cmd.exe", "echo ACL_WORKSPACE_OK>result.txt")
+        self.assertEqual(
+            args,
+            ["cmd.exe", "/d", "/c", "echo ACL_WORKSPACE_OK>result.txt"],
+        )
+        self.assertNotIn("/s", [value.casefold() for value in args])
+
     def test_process_record_redacts_canary(self) -> None:
         secret = "TRACE2D-B0-ACL-DENY-secret"
         completed = subprocess.CompletedProcess(
