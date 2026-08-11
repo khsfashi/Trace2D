@@ -66,7 +66,7 @@ class WindowsAclCodexWrapperTests(unittest.TestCase):
             stdout="S-1-5-21-123-456-789-1001\n",
             stderr="",
         )
-        with mock.patch.object(wrapper.os, "name", "nt"), mock.patch.object(
+        with mock.patch.object(wrapper, "_native_windows", return_value=True), mock.patch.object(
             base, "_host_capture", return_value=completed
         ) as host_capture:
             sid, process = wrapper.resolve_offline_sandbox_identity(Path.cwd())
