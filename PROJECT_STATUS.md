@@ -26,14 +26,16 @@ Completed Sprite stages:
 - #119 / S0 Sprite architecture and authority contract — PR #120 / squash `00dc587153bc4b0d6f6ac350d5491eec481585f0`,
 - #121 / S1 canonical SpriteAsset/import representation — PR #122 / squash `27250bff8afd40f55edf2bfbed9be8b143f1ea1d`,
 - #123 / SR0 renderer contract / canonical asset-render separation — PR #124 / squash `aa30a8e4498fd5edd6df9d2be7bb9a91bcdea5db`,
-- #125 / SR1 transform geometry and fixed-step presentation history — PR #126 / squash `7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`.
+- #125 / SR1 transform geometry and fixed-step presentation history — PR #126 / squash `7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`,
+- #127 / SR2 trim/pivot/atlas/rotated-storage geometry and UV derivation — PR #128 / squash `a42e65c8a7953d38ad2d82894332c1f39da288f1`.
 
 **Active core program: #59 Complete Sprite program.**  
-**Active Sprite child: #127 / SR2 — trim/pivot/atlas/rotated-storage geometry and UV derivation.**  
-**Active implementation PR: #128 (`agent/sprite-sr2-atlas-geometry`).**  
-**Exact next child after #127/#128 merges green: SR3 — color/alpha/blend/sampling semantics.**
+**Active Sprite child: #130 / SR3 — color/alpha/blend/sampling semantics.**  
+**Active implementation PR: none yet; #130 was created after SR2 merged and implementation intentionally starts on the next continuation turn.**  
+**Exact next implementation action: implement #130 / SR3 only.**  
+**Exact next child after #130 merges green: SR4 — painter order, sorting groups and Sprite masking.**
 
-Do not begin SR3, #103, or later fixed-order work while #127/#128 is open.
+Do not begin SR4, #103, or later fixed-order work while #130 is open.
 
 ## #59 Sprite program — active
 
@@ -48,7 +50,7 @@ Fixed internal order:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [complete] -> SR2 [active] -> SR3 -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [active] -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
@@ -169,11 +171,11 @@ Performance/ownership:
 - caller-owned outputs are reusable,
 - SR1 consumes the pre-resolved SR0 region and does not re-resolve semantic names.
 
-### #127 / SR2 — active via PR #128
+### #127 / SR2 — complete via PR #128
 
 SR2 extends the same source-point math boundary to exact visible trim geometry and canonical page-space UV derivation.
 
-Current implementation contract:
+Implemented contract:
 
 ```text
 ResolvedSpriteRegion
@@ -202,7 +204,24 @@ Key rules:
 
 Backend-independent tests cover untrimmed equivalence, trim placement, exact/out-of-source pivot, transform/scale/flip/PPU behavior, exact UVs/no half-texel, `cw90` permutation and position equivalence, page-edge 0/1 mapping, corrupted bounds/extents/rotation, numeric failures and repeated extraction.
 
-PR #128 remains draft until repository CI validates the branch head; no local build result is claimed when the current agent runtime cannot execute the repository toolchain.
+PR #128 merged green as squash `a42e65c8a7953d38ad2d82894332c1f39da288f1`; #127 is closed completed.
+
+### #130 / SR3 — active contract, implementation next
+
+SR3 owns color/alpha/blend/sampling semantics and backend behavior. The exact issue contract freezes:
+
+- finite runtime tint/opacity and sampling/blend intent suitable for future `SpriteRenderer2D`,
+- linear-working-space tint math,
+- canonical straight-alpha texture truth with one explicit straight -> premultiplied fragment boundary,
+- exact normal/additive/multiply/screen equations,
+- sRGB vs linear sampled texture encoding with no double gamma conversion,
+- cached nearest/linear SDL GPU sampler state,
+- atlas-safe texel-center sample bounds derived separately from SR2 pixel-edge canonical UVs,
+- cached target-format-aware blend pipeline state,
+- O(1), allocation-free backend-independent appearance extraction,
+- real Windows presentation-GPU blend/sampling conformance evidence before SR3 completion.
+
+No SR3 implementation PR exists yet. Routine continuation now implements #130 only.
 
 ## Owner-fixed core execution order
 
@@ -221,8 +240,9 @@ Content production
       -> #121 S1 canonical asset/import                     [complete via #122]
       -> #123 SR0 asset/render contract                     [complete via #124]
       -> #125 SR1 transform/history/geometry                [complete via #126]
-      -> #127 SR2 atlas/trim/pivot/UV geometry              [active via #128]
-      -> SR3..SR8 renderer
+      -> #127 SR2 atlas/trim/pivot/UV geometry              [complete via #128]
+      -> #130 SR3 color/alpha/blend/sampling                [active; implementation next]
+      -> SR4..SR8 renderer
       -> SA0..SA4 animation
       -> SPP0..SPP5 offline processing/generation
       -> SE2E -> SPERF
@@ -296,16 +316,26 @@ The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves th
 18. #121 Sprite S1 — PR #122
 19. #123 Sprite SR0 — PR #124
 20. #125 Sprite SR1 — PR #126
+21. #127 Sprite SR2 — PR #128
 
 Production architecture freeze #85 remains complete via PR #94.
 
 ## Continuation rule
 
-While PR #128 is open, finish only #127/SR2 acceptance, tests, docs and CI. Do not create or implement SR3 in parallel.
+SR2 is complete: #127 closed via merged PR #128 / squash `a42e65c8a7953d38ad2d82894332c1f39da288f1`.
 
-After PR #128 merges green:
+#130 / SR3 was created after that merge. By the explicit Sprite handoff rule, this continuation turn stops after synchronizing repository state and creating exactly one next child issue; it does **not** implement SR3 in the same turn.
 
-1. close/confirm #127 through the PR,
-2. update this file to mark SR2 complete,
-3. create exactly one SR3 child issue,
-4. implement SR3 only on a later continuation turn.
+On the next routine continuation turn:
+
+1. recover #130 as the first incomplete/unblocked child,
+2. implement only SR3 on one implementation branch/PR,
+3. satisfy backend-independent tests, hosted repository CI and the issue-required real-GPU blend/sampling conformance evidence,
+4. do not create or implement SR4 until #130 merges green.
+
+After SR3 merges green:
+
+1. close/confirm #130 through the PR,
+2. update this file to mark SR3 complete,
+3. create exactly one SR4 child issue,
+4. implement SR4 only on a later continuation turn.
