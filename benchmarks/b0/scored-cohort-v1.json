@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_scored_cohort_policy",
+  "cohort_id": "trace2d-b0-semantic-scene-authoring-scored-v1",
+  "state": "blocked_until_suite_and_task_eligible",
+  "task_id": "b0-semantic-scene-authoring",
+  "task_version": 1,
+  "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
+  "agent_profile_canonical_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+  "repetitions_per_lane": 3,
+  "total_planned_trials": 9,
+  "lane_order_by_repetition": [
+    [
+      "godot.generic",
+      "godot.agent",
+      "trace2d.agent"
+    ],
+    [
+      "godot.agent",
+      "trace2d.agent",
+      "godot.generic"
+    ],
+    [
+      "trace2d.agent",
+      "godot.generic",
+      "godot.agent"
+    ]
+  ],
+  "budget": {
+    "wall_seconds": 300,
+    "max_tool_calls": 80,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 0
+  },
+  "retry_policy": {
+    "automatic_retries_per_trial": 0,
+    "replacement_trials_for_infrastructure_failure": 0,
+    "early_stopping": false,
+    "preserve_every_scheduled_attempt": true,
+    "rule": "Every scheduled slot produces at most one attempt. Infrastructure, budget, implementation, human, integrity, timeout and verifier outcomes remain visible in the cohort. Do not reroll a failed slot."
+  },
+  "ordering_policy": {
+    "kind": "deterministic_rotating_lane_order",
+    "reason": "Avoid always assigning one lane the first or last temporal position while keeping the complete schedule preregistered and reproducible."
+  },
+  "reporting_policy": {
+    "best_of_n": false,
+    "publish_raw_sample_count": true,
+    "publish_status_distribution": true,
+    "publish_resource_distributions": true,
+    "separate_infrastructure_from_implementation": true,
+    "separate_budget_exceeded_from_transport_failure": true,
+    "broad_superiority_claim_allowed": false
+  },
+  "preregistration": {
+    "timing": "committed before suite/task eligibility and before any scored B0 trial",
+    "rationale": "B0 is a harness-integrity milestone with one narrow admitted task. Three independent scheduled attempts per lane are the minimum useful cohort for a median/range and stochastic-repeat demonstration without turning #102 into a high-cost benchmark program. Larger publishable suites belong to later B1/B2 growth.",
+    "internal_methodology": "docs/AUTONOMOUS_BENCHMARK.md#19-statisticalrepetition-policy",
+    "external_methodology": [
+      "https://inspect.aisi.org.uk/reference/inspect_eval.html",
+      "https://inspect.aisi.org.uk/errors-and-limits.html",
+      "https://github.com/openai/evals/blob/main/docs/run-evals.md"
+    ]
+  }
+}
