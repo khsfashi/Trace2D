@@ -1,6 +1,7 @@
 #include <trace2d/render/Renderer.hpp>
 
 #include "ParticleGpuBackend.hpp"
+#include "SpriteGpuBackend.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
@@ -8,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -38,6 +40,13 @@ struct SpriteVertex final
     float localY;
     float u;
     float v;
+};
+
+struct TextureResource final
+{
+    SDL_GPUTexture* texture{nullptr};
+    SpriteTextureEncoding spriteEncoding{SpriteTextureEncoding::Linear};
+    bool hasSpriteEncoding{false};
 };
 
 constexpr std::array<SpriteVertex, 6> SpriteVertices{
@@ -267,6 +276,28 @@ public:
     }
     return particle.stableOrder < sprite.stableOrder;
 }
+
+[[nodiscard]] bool IsFiniteUnit(const float value) noexcept
+{
+    return std::isfinite(value) && value >= 0.0F && value <= 1.0F;
+}
+
+[[nodiscard]] bool IsFiniteNormalizedBounds(const SpriteSampleBounds& bounds) noexcept
+{
+    return std::isfinite(bounds.minimum.x) && std::isfinite(bounds.minimum.y) &&
+        std::isfinite(bounds.maximum.x) && std::isfinite(bounds.maximum.y) &&
+        bounds.minimum.x >= 0.0F && bounds.minimum.y >= 0.0F &&
+        bounds.maximum.x <= 1.0F && bounds.maximum.y <= 1.0F &&
+        bounds.minimum.x <= bounds.maximum.x && bounds.minimum.y <= bounds.maximum.y;
+}
+
+[[nodiscard]] bool IsFiniteDrawVertex(const SpriteDrawVertex& vertex) noexcept
+{
+    return std::isfinite(vertex.position.x) && std::isfinite(vertex.position.y) &&
+        std::isfinite(vertex.uv.x) && std::isfinite(vertex.uv.y) &&
+        vertex.uv.x >= 0.0F && vertex.uv.x <= 1.0F &&
+        vertex.uv.y >= 0.0F && vertex.uv.y <= 1.0F;
+}
 } // namespace
 
 class Renderer::Impl final
@@ -311,6 +342,9 @@ public:
             }
 
             CreatePersistentSpriteResources();
+            spriteGpuBackend_ =
+                std::make_unique<detail::SpriteGpuBackend>(device_, colorTargetFormat_);
+            SyncSpriteGpuMetrics();
             particleGpuBackend_ =
                 std::make_unique<detail::ParticleGpuBackend>(device_, colorTargetFormat_);
 
@@ -334,103 +368,47 @@ public:
 
     [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData)
     {
-        const std::size_t byteCount = ExpectedRgba8ByteCount(textureData);
-        if (textureData.pixels.size() != byteCount)
+        return CreateTextureRgba8Internal(
+            textureData,
+            SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
+            false,
+            SpriteTextureEncoding::Linear);
+    }
+
+    [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        const Rgba8TextureData& textureData,
+        const SpriteTextureEncoding encoding)
+    {
+        const SDL_GPUTextureFormat format = detail::SpriteGpuBackend::ResolveTextureFormat(encoding);
+        if (format == SDL_GPU_TEXTUREFORMAT_INVALID)
         {
-            throw std::invalid_argument{
-                "RGBA8 texture byte count must equal width * height * 4."};
+            throw std::invalid_argument{"Unsupported Sprite SR3 texture encoding."};
         }
-        if (textures_.size() >=
-            static_cast<std::size_t>(std::numeric_limits<TextureHandle>::max() - 1U))
+        if (!detail::SpriteGpuBackend::SupportsTextureEncoding(device_, encoding))
         {
-            throw std::length_error{"Trace2D texture handle space exhausted."};
+            throw std::runtime_error{
+                "SDL GPU backend does not support the required Sprite SR3 sampled texture format."};
         }
-
-        SDL_GPUTextureCreateInfo textureInfo{};
-        textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
-        textureInfo.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
-        textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-        textureInfo.width = textureData.width;
-        textureInfo.height = textureData.height;
-        textureInfo.layer_count_or_depth = 1U;
-        textureInfo.num_levels = 1U;
-        textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
-
-        SDL_GPUTexture* const texture = SDL_CreateGPUTexture(device_, &textureInfo);
-        if (texture == nullptr)
-        {
-            throw MakeSdlError("SDL GPU texture creation failed");
-        }
-
-        SDL_GPUTransferBufferCreateInfo transferInfo{};
-        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-        transferInfo.size = static_cast<Uint32>(byteCount);
-        SDL_GPUTransferBuffer* const transferBuffer =
-            SDL_CreateGPUTransferBuffer(device_, &transferInfo);
-        if (transferBuffer == nullptr)
-        {
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw MakeSdlError("SDL GPU texture transfer-buffer creation failed");
-        }
-
-        void* const mapped = SDL_MapGPUTransferBuffer(device_, transferBuffer, false);
-        if (mapped == nullptr)
-        {
-            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw MakeSdlError("SDL GPU texture transfer-buffer mapping failed");
-        }
-        std::memcpy(mapped, textureData.pixels.data(), byteCount);
-        SDL_UnmapGPUTransferBuffer(device_, transferBuffer);
-
-        SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
-        if (commandBuffer == nullptr)
-        {
-            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw MakeSdlError("SDL GPU texture upload command-buffer acquisition failed");
-        }
-
-        SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
-        if (copyPass == nullptr)
-        {
-            const std::string error{SDL_GetError()};
-            SDL_CancelGPUCommandBuffer(commandBuffer);
-            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw std::runtime_error{"SDL GPU texture copy-pass creation failed: " + error};
-        }
-
-        SDL_GPUTextureTransferInfo source{};
-        source.transfer_buffer = transferBuffer;
-        SDL_GPUTextureRegion destination{};
-        destination.texture = texture;
-        destination.w = textureData.width;
-        destination.h = textureData.height;
-        destination.d = 1U;
-        SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
-        SDL_EndGPUCopyPass(copyPass);
-
-        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
-        {
-            const std::string error{SDL_GetError()};
-            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw std::runtime_error{"SDL GPU texture upload submission failed: " + error};
-        }
-
-        SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-        textures_.push_back(texture);
-        return static_cast<TextureHandle>(textures_.size());
+        return CreateTextureRgba8Internal(textureData, format, true, encoding);
     }
 
     void DestroyTexture(const TextureHandle texture) noexcept
     {
-        SDL_GPUTexture*& resource = ResolveTextureSlot(texture);
-        if (resource != nullptr)
+        if (texture == InvalidTextureHandle)
         {
-            SDL_ReleaseGPUTexture(device_, resource);
-            resource = nullptr;
+            return;
+        }
+        const std::size_t index = static_cast<std::size_t>(texture - 1U);
+        if (index >= textures_.size())
+        {
+            return;
+        }
+
+        TextureResource& resource = textures_[index];
+        if (resource.texture != nullptr)
+        {
+            SDL_ReleaseGPUTexture(device_, resource.texture);
+            resource.texture = nullptr;
         }
     }
 
@@ -531,7 +509,7 @@ public:
 
     void RenderFrame()
     {
-        RenderFrameInternal(nullptr, {}, {}, nullptr, nullptr);
+        RenderFrameInternal(nullptr, {}, {}, {}, nullptr, nullptr);
     }
 
     void RenderFrame(
@@ -545,7 +523,7 @@ public:
         const OrthographicCamera& camera,
         const std::span<const SpriteRenderData> sprites)
     {
-        RenderFrameInternal(&camera, sprites, {}, nullptr, nullptr);
+        RenderFrameInternal(&camera, sprites, {}, {}, nullptr, nullptr);
     }
 
     void RenderFrame(
@@ -553,7 +531,23 @@ public:
         const std::span<const SpriteRenderData> sprites,
         const std::span<const GpuParticleRenderData> particles)
     {
-        RenderFrameInternal(&camera, sprites, particles, nullptr, nullptr);
+        RenderFrameInternal(&camera, sprites, particles, {}, nullptr, nullptr);
+    }
+
+    void RenderFrame(
+        const OrthographicCamera& camera,
+        const SpritePresentationRenderData& sprite)
+    {
+        RenderFrame(
+            camera,
+            std::span<const SpritePresentationRenderData>{&sprite, 1U});
+    }
+
+    void RenderFrame(
+        const OrthographicCamera& camera,
+        const std::span<const SpritePresentationRenderData> sprites)
+    {
+        RenderFrameInternal(&camera, {}, {}, sprites, nullptr, nullptr);
     }
 
     [[nodiscard]] CapturedFrame CaptureFrame(
@@ -579,20 +573,32 @@ public:
         const std::span<const SpriteRenderData> sprites,
         const std::span<const GpuParticleRenderData> particles)
     {
-        if (request.artifactPath.empty())
-        {
-            throw std::invalid_argument{"Capture artifact path must not be empty."};
-        }
-        switch (request.format)
-        {
-        case CaptureImageFormat::Bmp:
-            break;
-        default:
-            throw std::invalid_argument{"Unsupported capture image format."};
-        }
-
+        ValidateCaptureRequest(request);
         CapturedFrame frame{};
-        RenderFrameInternal(&camera, sprites, particles, &request, &frame);
+        RenderFrameInternal(&camera, sprites, particles, {}, &request, &frame);
+        WriteCaptureArtifact(request, frame);
+        return frame;
+    }
+
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        const SpritePresentationRenderData& sprite)
+    {
+        return CaptureFrame(
+            request,
+            camera,
+            std::span<const SpritePresentationRenderData>{&sprite, 1U});
+    }
+
+    [[nodiscard]] CapturedFrame CaptureFrame(
+        const CaptureRequest& request,
+        const OrthographicCamera& camera,
+        const std::span<const SpritePresentationRenderData> sprites)
+    {
+        ValidateCaptureRequest(request);
+        CapturedFrame frame{};
+        RenderFrameInternal(&camera, {}, {}, sprites, &request, &frame);
         WriteCaptureArtifact(request, frame);
         return frame;
     }
@@ -613,6 +619,125 @@ public:
     }
 
 private:
+    [[nodiscard]] TextureHandle CreateTextureRgba8Internal(
+        const Rgba8TextureData& textureData,
+        const SDL_GPUTextureFormat format,
+        const bool hasSpriteEncoding,
+        const SpriteTextureEncoding spriteEncoding)
+    {
+        const std::size_t byteCount = ExpectedRgba8ByteCount(textureData);
+        if (textureData.pixels.size() != byteCount)
+        {
+            throw std::invalid_argument{
+                "RGBA8 texture byte count must equal width * height * 4."};
+        }
+        if (textures_.size() >=
+            static_cast<std::size_t>(std::numeric_limits<TextureHandle>::max() - 1U))
+        {
+            throw std::length_error{"Trace2D texture handle space exhausted."};
+        }
+
+        SDL_GPUTextureCreateInfo textureInfo{};
+        textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
+        textureInfo.format = format;
+        textureInfo.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        textureInfo.width = textureData.width;
+        textureInfo.height = textureData.height;
+        textureInfo.layer_count_or_depth = 1U;
+        textureInfo.num_levels = 1U;
+        textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+        SDL_GPUTexture* const texture = SDL_CreateGPUTexture(device_, &textureInfo);
+        if (texture == nullptr)
+        {
+            throw MakeSdlError("SDL GPU texture creation failed");
+        }
+
+        SDL_GPUTransferBufferCreateInfo transferInfo{};
+        transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        transferInfo.size = static_cast<Uint32>(byteCount);
+        SDL_GPUTransferBuffer* const transferBuffer =
+            SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        if (transferBuffer == nullptr)
+        {
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture transfer-buffer creation failed");
+        }
+
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, transferBuffer, false);
+        if (mapped == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture transfer-buffer mapping failed");
+        }
+        std::memcpy(mapped, textureData.pixels.data(), byteCount);
+        SDL_UnmapGPUTransferBuffer(device_, transferBuffer);
+
+        SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
+        if (commandBuffer == nullptr)
+        {
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw MakeSdlError("SDL GPU texture upload command-buffer acquisition failed");
+        }
+
+        SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
+        if (copyPass == nullptr)
+        {
+            const std::string error{SDL_GetError()};
+            SDL_CancelGPUCommandBuffer(commandBuffer);
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw std::runtime_error{"SDL GPU texture copy-pass creation failed: " + error};
+        }
+
+        SDL_GPUTextureTransferInfo source{};
+        source.transfer_buffer = transferBuffer;
+        SDL_GPUTextureRegion destination{};
+        destination.texture = texture;
+        destination.w = textureData.width;
+        destination.h = textureData.height;
+        destination.d = 1U;
+        SDL_UploadToGPUTexture(copyPass, &source, &destination, false);
+        SDL_EndGPUCopyPass(copyPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            const std::string error{SDL_GetError()};
+            SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw std::runtime_error{"SDL GPU texture upload submission failed: " + error};
+        }
+
+        SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
+        try
+        {
+            textures_.push_back(TextureResource{texture, spriteEncoding, hasSpriteEncoding});
+        }
+        catch (...)
+        {
+            SDL_ReleaseGPUTexture(device_, texture);
+            throw;
+        }
+        return static_cast<TextureHandle>(textures_.size());
+    }
+
+    static void ValidateCaptureRequest(const CaptureRequest& request)
+    {
+        if (request.artifactPath.empty())
+        {
+            throw std::invalid_argument{"Capture artifact path must not be empty."};
+        }
+        switch (request.format)
+        {
+        case CaptureImageFormat::Bmp:
+            break;
+        default:
+            throw std::invalid_argument{"Unsupported capture image format."};
+        }
+    }
+
     template <typename Encode>
     void SubmitParticleControl(
         const GpuParticleEmitterHandle emitter,
@@ -1134,6 +1259,27 @@ private:
         }
     }
 
+    void EncodeSpritePresentations(
+        SDL_GPUCommandBuffer* const commandBuffer,
+        SDL_GPURenderPass* const renderPass,
+        const std::span<const SpritePresentationRenderData> sprites,
+        std::uint64_t& encodedSpriteDraws,
+        std::uint64_t& encodedSpriteCount)
+    {
+        for (std::size_t index = 0U; index < sprites.size(); ++index)
+        {
+            const SpritePresentationRenderData& sprite = sprites[index];
+            spriteGpuBackend_->DrawPresentation(
+                commandBuffer,
+                renderPass,
+                ResolveTexture(sprite.texture),
+                sprite,
+                index);
+            ++encodedSpriteDraws;
+            ++encodedSpriteCount;
+        }
+    }
+
     void EnsureOffscreenColorTarget(const Uint32 width, const Uint32 height)
     {
         if (width == 0U || height == 0U)
@@ -1205,14 +1351,15 @@ private:
         captureTransferBufferCapacity_ = requiredBytes;
     }
 
-    [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
+    [[nodiscard]] const TextureResource& ResolveTextureResource(
+        const TextureHandle texture) const
     {
         if (texture == InvalidTextureHandle)
         {
             throw std::invalid_argument{"Sprite texture handle is invalid."};
         }
         const std::size_t index = static_cast<std::size_t>(texture - 1U);
-        if (index >= textures_.size() || textures_[index] == nullptr)
+        if (index >= textures_.size() || textures_[index].texture == nullptr)
         {
             throw std::invalid_argument{
                 "Sprite texture handle does not reference a live renderer texture."};
@@ -1220,20 +1367,9 @@ private:
         return textures_[index];
     }
 
-    [[nodiscard]] SDL_GPUTexture*& ResolveTextureSlot(
-        const TextureHandle texture) noexcept
+    [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
     {
-        static SDL_GPUTexture* invalidSlot = nullptr;
-        if (texture == InvalidTextureHandle)
-        {
-            return invalidSlot;
-        }
-        const std::size_t index = static_cast<std::size_t>(texture - 1U);
-        if (index >= textures_.size())
-        {
-            return invalidSlot;
-        }
-        return textures_[index];
+        return ResolveTextureResource(texture).texture;
     }
 
     void ValidatePresentationInputs(
@@ -1267,6 +1403,93 @@ private:
         }
     }
 
+    void ValidateSpritePresentationInputs(
+        const std::span<const SpritePresentationRenderData> sprites) const
+    {
+        for (const SpritePresentationRenderData& sprite : sprites)
+        {
+            const TextureResource& texture = ResolveTextureResource(sprite.texture);
+            const SpriteAppearanceContractData& appearance = sprite.presentation.appearance;
+            if (!texture.hasSpriteEncoding)
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite presentation requires a texture created by CreateSpriteTextureRgba8."};
+            }
+            if (texture.spriteEncoding != appearance.textureEncoding)
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite texture encoding does not match resolved canonical page color space."};
+            }
+            if (appearance.sourceAlphaMode != assets::SpriteAlphaMode::Straight)
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite presentation requires canonical straight-alpha source truth."};
+            }
+            if (!IsFiniteUnit(appearance.tint.red) ||
+                !IsFiniteUnit(appearance.tint.green) ||
+                !IsFiniteUnit(appearance.tint.blue) ||
+                !IsFiniteUnit(appearance.tint.alpha) ||
+                !IsFiniteUnit(appearance.opacity))
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite presentation contains invalid tint or opacity."};
+            }
+            if (!IsFiniteNormalizedBounds(appearance.sampleBounds))
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite presentation contains invalid atlas-safe sample bounds."};
+            }
+            switch (appearance.sampler)
+            {
+            case SpriteSamplerCompatibility::Nearest:
+            case SpriteSamplerCompatibility::Linear:
+                break;
+            default:
+                throw std::invalid_argument{"SR3 Sprite presentation has unsupported sampling."};
+            }
+            switch (appearance.blend)
+            {
+            case SpriteBlendCompatibility::Normal:
+            case SpriteBlendCompatibility::Additive:
+            case SpriteBlendCompatibility::Multiply:
+            case SpriteBlendCompatibility::Screen:
+                break;
+            default:
+                throw std::invalid_argument{"SR3 Sprite presentation has unsupported blending."};
+            }
+            switch (appearance.textureEncoding)
+            {
+            case SpriteTextureEncoding::Srgb:
+            case SpriteTextureEncoding::Linear:
+                break;
+            default:
+                throw std::invalid_argument{"SR3 Sprite presentation has unsupported texture encoding."};
+            }
+
+            const SpriteDrawQuad& quad = sprite.presentation.quad;
+            if (!IsFiniteDrawVertex(quad.topLeft) ||
+                !IsFiniteDrawVertex(quad.topRight) ||
+                !IsFiniteDrawVertex(quad.bottomRight) ||
+                !IsFiniteDrawVertex(quad.bottomLeft))
+            {
+                throw std::invalid_argument{
+                    "SR3 Sprite presentation contains invalid SR2 geometry or canonical UVs."};
+            }
+        }
+    }
+
+    void SyncSpriteGpuMetrics() noexcept
+    {
+        if (spriteGpuBackend_ == nullptr)
+        {
+            return;
+        }
+        const detail::SpriteGpuBackendMetrics& gpuMetrics = spriteGpuBackend_->Metrics();
+        metrics_.spriteSamplerCreations = gpuMetrics.samplerCreations;
+        metrics_.spritePipelineCreations = gpuMetrics.pipelineCreations;
+        metrics_.spriteVertexCapacitySprites = gpuMetrics.vertexCapacitySprites;
+    }
+
     void CommitFrameMetrics(
         const bool presented,
         const bool encodedRenderPass,
@@ -1275,6 +1498,8 @@ private:
         const std::uint64_t encodedParticleDraws,
         const std::uint64_t encodedParticleInstances,
         const std::uint64_t culledSpriteCount,
+        const std::uint64_t encodedPresentationSpriteDraws,
+        const std::uint64_t encodedPresentationSpriteCount,
         const Uint32 targetWidth,
         const Uint32 targetHeight) noexcept
     {
@@ -1295,12 +1520,16 @@ private:
         metrics_.submittedGpuParticleInstances += encodedParticleInstances;
         metrics_.gpuParticleDrawCalls += encodedParticleDraws;
         metrics_.culledSprites += culledSpriteCount;
+        metrics_.spritePresentationDrawCalls += encodedPresentationSpriteDraws;
+        metrics_.spritePresentationSprites += encodedPresentationSpriteCount;
+        SyncSpriteGpuMetrics();
     }
 
     void RenderFrameInternal(
         const OrthographicCamera* const camera,
         const std::span<const SpriteRenderData> sprites,
         const std::span<const GpuParticleRenderData> particles,
+        const std::span<const SpritePresentationRenderData> spritePresentations,
         const CaptureRequest* const captureRequest,
         CapturedFrame* const capturedFrame)
     {
@@ -1310,8 +1539,14 @@ private:
             throw std::invalid_argument{
                 "Capture request and capture output must be provided together."};
         }
+        if (!spritePresentations.empty() && (!sprites.empty() || !particles.empty()))
+        {
+            throw std::invalid_argument{
+                "SR3 Sprite presentation cannot be mixed with legacy SpriteRenderData or particles before SR4."};
+        }
 
-        const bool hasPresentation = !sprites.empty() || !particles.empty();
+        const bool hasPresentation =
+            !sprites.empty() || !particles.empty() || !spritePresentations.empty();
         if (hasPresentation)
         {
             if (camera == nullptr)
@@ -1319,7 +1554,14 @@ private:
                 throw std::invalid_argument{
                     "2D presentation requires an orthographic camera."};
             }
-            ValidatePresentationInputs(sprites, particles);
+            if (!spritePresentations.empty())
+            {
+                ValidateSpritePresentationInputs(spritePresentations);
+            }
+            else
+            {
+                ValidatePresentationInputs(sprites, particles);
+            }
         }
 
         SDL_GPUCommandBuffer* const commandBuffer = SDL_AcquireGPUCommandBuffer(device_);
@@ -1351,6 +1593,8 @@ private:
         std::uint64_t encodedParticleDraws = 0U;
         std::uint64_t encodedParticleInstances = 0U;
         std::uint64_t culledSpriteCount = 0U;
+        std::uint64_t encodedPresentationSpriteDraws = 0U;
+        std::uint64_t encodedPresentationSpriteCount = 0U;
         CaptureReadbackLayout captureLayout{};
 
         if (swapchainTexture != nullptr)
@@ -1381,6 +1625,14 @@ private:
                         view,
                         sprites,
                         batchMeasurement.visibleSprites);
+                }
+                if (!spritePresentations.empty())
+                {
+                    spriteGpuBackend_->UploadPresentations(
+                        commandBuffer,
+                        view,
+                        spritePresentations);
+                    SyncSpriteGpuMetrics();
                 }
 
                 if (captureRequested)
@@ -1424,7 +1676,18 @@ private:
                     "SDL GPU render pass creation failed: " + error};
             }
 
-            if (!particles.empty())
+            if (!spritePresentations.empty())
+            {
+                EncodeSpritePresentations(
+                    commandBuffer,
+                    renderPass,
+                    spritePresentations,
+                    encodedSpriteDraws,
+                    encodedSpriteCount);
+                encodedPresentationSpriteDraws = encodedSpriteDraws;
+                encodedPresentationSpriteCount = encodedSpriteCount;
+            }
+            else if (!particles.empty())
             {
                 EncodeMixedDraws(
                     commandBuffer,
@@ -1489,6 +1752,7 @@ private:
                 SDL_DownloadFromGPUTexture(
                     copyPass, &captureSource, &captureDestination);
                 encodedCaptureDownload = true;
+                ++metrics_.explicitGpuReadbacks;
             }
             SDL_EndGPUCopyPass(copyPass);
         }
@@ -1508,6 +1772,8 @@ private:
                 encodedParticleDraws,
                 encodedParticleInstances,
                 culledSpriteCount,
+                encodedPresentationSpriteDraws,
+                encodedPresentationSpriteCount,
                 targetWidth,
                 targetHeight);
             throw std::runtime_error{
@@ -1528,6 +1794,8 @@ private:
                 encodedParticleDraws,
                 encodedParticleInstances,
                 culledSpriteCount,
+                encodedPresentationSpriteDraws,
+                encodedPresentationSpriteCount,
                 targetWidth,
                 targetHeight);
             return;
@@ -1549,10 +1817,13 @@ private:
             encodedParticleDraws,
             encodedParticleInstances,
             culledSpriteCount,
+            encodedPresentationSpriteDraws,
+            encodedPresentationSpriteCount,
             targetWidth,
             targetHeight);
 
         SDL_GPUFence* fences[]{fence};
+        ++metrics_.explicitGpuFenceWaits;
         if (!SDL_WaitForGPUFences(device_, true, fences, 1U))
         {
             const std::string error{SDL_GetError()};
@@ -1595,13 +1866,14 @@ private:
         if (device_ != nullptr)
         {
             particleGpuBackend_.reset();
+            spriteGpuBackend_.reset();
 
-            for (SDL_GPUTexture*& texture : textures_)
+            for (TextureResource& resource : textures_)
             {
-                if (texture != nullptr)
+                if (resource.texture != nullptr)
                 {
-                    SDL_ReleaseGPUTexture(device_, texture);
-                    texture = nullptr;
+                    SDL_ReleaseGPUTexture(device_, resource.texture);
+                    resource.texture = nullptr;
                 }
             }
 
@@ -1676,8 +1948,9 @@ private:
     SDL_GPUBuffer* spriteInstanceBuffer_{nullptr};
     SDL_GPUTransferBuffer* spriteInstanceTransferBuffer_{nullptr};
     std::uint64_t spriteInstanceCapacity_{0U};
-    std::vector<SDL_GPUTexture*> textures_{};
+    std::vector<TextureResource> textures_{};
     std::unique_ptr<detail::ParticleGpuBackend> particleGpuBackend_{};
+    std::unique_ptr<detail::SpriteGpuBackend> spriteGpuBackend_{};
     bool windowClaimed_{false};
     std::string driverName_{};
 };
@@ -1694,6 +1967,13 @@ Renderer::~Renderer() = default;
 TextureHandle Renderer::CreateTextureRgba8(const Rgba8TextureData& textureData)
 {
     return impl_->CreateTextureRgba8(textureData);
+}
+
+TextureHandle Renderer::CreateSpriteTextureRgba8(
+    const Rgba8TextureData& textureData,
+    const SpriteTextureEncoding encoding)
+{
+    return impl_->CreateSpriteTextureRgba8(textureData, encoding);
 }
 
 void Renderer::DestroyTexture(const TextureHandle texture) noexcept
@@ -1786,6 +2066,20 @@ void Renderer::RenderFrame(
     impl_->RenderFrame(camera, sprites, particles);
 }
 
+void Renderer::RenderFrame(
+    const OrthographicCamera& camera,
+    const SpritePresentationRenderData& sprite)
+{
+    impl_->RenderFrame(camera, sprite);
+}
+
+void Renderer::RenderFrame(
+    const OrthographicCamera& camera,
+    const std::span<const SpritePresentationRenderData> sprites)
+{
+    impl_->RenderFrame(camera, sprites);
+}
+
 CapturedFrame Renderer::CaptureFrame(
     const CaptureRequest& request,
     const OrthographicCamera& camera,
@@ -1809,6 +2103,22 @@ CapturedFrame Renderer::CaptureFrame(
     const std::span<const GpuParticleRenderData> particles)
 {
     return impl_->CaptureFrame(request, camera, sprites, particles);
+}
+
+CapturedFrame Renderer::CaptureFrame(
+    const CaptureRequest& request,
+    const OrthographicCamera& camera,
+    const SpritePresentationRenderData& sprite)
+{
+    return impl_->CaptureFrame(request, camera, sprite);
+}
+
+CapturedFrame Renderer::CaptureFrame(
+    const CaptureRequest& request,
+    const OrthographicCamera& camera,
+    const std::span<const SpritePresentationRenderData> sprites)
+{
+    return impl_->CaptureFrame(request, camera, sprites);
 }
 
 const RendererConfig& Renderer::Config() const noexcept

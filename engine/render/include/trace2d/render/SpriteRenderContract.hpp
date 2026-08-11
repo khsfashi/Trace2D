@@ -25,7 +25,10 @@ enum class SpriteSamplerCompatibility : std::uint8_t
 
 enum class SpriteBlendCompatibility : std::uint8_t
 {
-    StraightAlpha = 0,
+    Normal = 0,
+    Additive = 1,
+    Multiply = 2,
+    Screen = 3,
 };
 
 enum class SpriteMaskCompatibility : std::uint8_t
@@ -137,7 +140,7 @@ private:
     SpritePageResourceKey pageResource_{};
     SpriteMaterialPipeline materialPipeline_{SpriteMaterialPipeline::BuiltInSprite};
     SpriteSamplerCompatibility sampler_{SpriteSamplerCompatibility::Nearest};
-    SpriteBlendCompatibility blend_{SpriteBlendCompatibility::StraightAlpha};
+    SpriteBlendCompatibility blend_{SpriteBlendCompatibility::Normal};
     SpriteMaskCompatibility mask_{SpriteMaskCompatibility::None};
     SpritePrimitiveKind primitive_{SpritePrimitiveKind::Quad};
 };
@@ -152,7 +155,7 @@ struct SpriteRenderContractData final
     SpritePageResourceKey pageResource{};
     SpriteMaterialPipeline materialPipeline{SpriteMaterialPipeline::BuiltInSprite};
     SpriteSamplerCompatibility sampler{SpriteSamplerCompatibility::Nearest};
-    SpriteBlendCompatibility blend{SpriteBlendCompatibility::StraightAlpha};
+    SpriteBlendCompatibility blend{SpriteBlendCompatibility::Normal};
     SpriteMaskCompatibility mask{SpriteMaskCompatibility::None};
     SpritePrimitiveKind primitive{SpritePrimitiveKind::Quad};
 

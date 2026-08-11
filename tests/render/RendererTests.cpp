@@ -19,6 +19,13 @@ TEST(RendererTests, RenderMetricsDefaultToZero)
     EXPECT_EQ(metrics.submittedGpuParticleInstances, 0U);
     EXPECT_EQ(metrics.gpuParticleDrawCalls, 0U);
     EXPECT_EQ(metrics.culledSprites, 0U);
+    EXPECT_EQ(metrics.spritePresentationDrawCalls, 0U);
+    EXPECT_EQ(metrics.spritePresentationSprites, 0U);
+    EXPECT_EQ(metrics.spriteSamplerCreations, 0U);
+    EXPECT_EQ(metrics.spritePipelineCreations, 0U);
+    EXPECT_EQ(metrics.spriteVertexCapacitySprites, 0U);
+    EXPECT_EQ(metrics.explicitGpuReadbacks, 0U);
+    EXPECT_EQ(metrics.explicitGpuFenceWaits, 0U);
     EXPECT_EQ(metrics.lastTargetWidth, 0U);
     EXPECT_EQ(metrics.lastTargetHeight, 0U);
 }

@@ -100,7 +100,10 @@ std::string_view ToString(const SpriteBlendCompatibility value) noexcept
 {
     switch (value)
     {
-    case SpriteBlendCompatibility::StraightAlpha: return "straight_alpha";
+    case SpriteBlendCompatibility::Normal: return "normal";
+    case SpriteBlendCompatibility::Additive: return "additive";
+    case SpriteBlendCompatibility::Multiply: return "multiply";
+    case SpriteBlendCompatibility::Screen: return "screen";
     }
     return "unknown";
 }
@@ -287,7 +290,7 @@ SpriteResolveStatus ResolveSpriteRegionByIndices(
     };
     outSelection.materialPipeline_ = SpriteMaterialPipeline::BuiltInSprite;
     outSelection.sampler_ = sampler;
-    outSelection.blend_ = SpriteBlendCompatibility::StraightAlpha;
+    outSelection.blend_ = SpriteBlendCompatibility::Normal;
     outSelection.mask_ = SpriteMaskCompatibility::None;
     outSelection.primitive_ = SpritePrimitiveKind::Quad;
     return Success();
