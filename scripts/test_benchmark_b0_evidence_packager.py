@@ -51,6 +51,28 @@ class EvidencePackagerTests(unittest.TestCase):
             with self.assertRaises(packager.PackagingError):
                 packager.package(run_root, base / "evidence.zip")
 
+    def test_empty_generic_root_remains_an_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            run_root = base / "run"
+            run_root.mkdir()
+            with self.assertRaises(packager.PackagingError):
+                packager.package(run_root, base / "evidence.zip")
+
+    def test_empty_scored_startup_root_gets_diagnostic_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            run_root = base / "codex-chatgpt-scored-20260811-000000-deadbeef"
+            run_root.mkdir()
+            output = base / "evidence.zip"
+            count = packager.package(run_root, output)
+            self.assertEqual(count, 1)
+            with zipfile.ZipFile(output) as archive:
+                names = set(archive.namelist())
+                text = archive.read(packager.EMPTY_SCORED_DIAGNOSTIC).decode("utf-8")
+            self.assertEqual(names, {packager.EMPTY_SCORED_DIAGNOSTIC})
+            self.assertIn("No scored raw record is implied", text)
+
 
 if __name__ == "__main__":
     unittest.main()
