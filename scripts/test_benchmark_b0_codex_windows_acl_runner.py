@@ -16,6 +16,7 @@ class WindowsAclCalibrationRunnerTests(unittest.TestCase):
         self.assertEqual(runner.ISOLATION_BACKEND, "windows_ntfs_acl_v1_elevated")
         self.assertEqual(runner.WRAPPER_MODULE, "benchmark_b0_codex_windows_acl_wrapper")
         self.assertEqual(runner.ISOLATION_TIMEOUT_SECONDS, 285.0)
+        self.assertEqual(runner.STABLE_HARNESS.name, "benchmark_b0_stable_harness.py")
 
     def test_isolation_timeout_and_wrapper_match_final_backend(self) -> None:
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
@@ -30,6 +31,24 @@ class WindowsAclCalibrationRunnerTests(unittest.TestCase):
         self.assertIn("benchmark_b0_codex_windows_acl_wrapper", argv)
         self.assertNotIn("benchmark_b0_codex_chatgpt_wrapper", argv)
         self.assertEqual(argv[-2:], ["--timeout", "285.0"])
+
+    def test_owner_local_harness_is_routed_through_stable_entrypoint(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr="")
+        with mock.patch.object(runner, "_BASE_RUN", return_value=completed) as base_run:
+            runner.run_with_matched_isolation_timeout(
+                [
+                    "python",
+                    str(Path("D:/Trace2D-pr118/scripts/benchmark_b0.py")),
+                    "run-trial",
+                    "--task",
+                    "b0-semantic-scene-authoring",
+                ],
+                cwd=Path.cwd(),
+                check=False,
+                capture=True,
+            )
+        argv = base_run.call_args.args[0]
+        self.assertEqual(Path(argv[1]), runner.STABLE_HARNESS)
 
     def test_model_preflight_uses_stdin_dash(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
