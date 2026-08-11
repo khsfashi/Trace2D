@@ -6,21 +6,37 @@ Do not commit placeholder `qualified: true` files.
 
 ## Current state — 2026-08-11
 
-- `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json). GitHub Actions downloaded the pinned official Godot 4.7.1 x86_64 build, verified it against the release `SHA512-SUMS.txt`, verified the engine version, accepted the known-good task fixture and rejected the wrong-position known-bad fixture.
-- `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json). The exact selected bridge is `@satelliteoflove/godot-mcp@4.1.0`. A hosted Godot editor session proved Q1 authoring, Q2 structured runtime inspection under frame-zero freeze, Q3 real raw-`D` input, and Q4 deterministic replay by using the public `step_until` control to stop on the fixture's authoritative `physics_ticks == 12` boundary. Both clean runs stopped at tick 12 with `Player.position_x == 2`; wall-clock waiting while frozen did not advance state. The independent `godot.agent` gold/known-bad oracle also passed.
-- `trace2d.agent` — **oracle-qualified** with committed hosted evidence in [`trace2d-agent.json`](trace2d-agent.json). The Windows CI qualification run passed the repository test set and the built `trace2d.exe` accepted the known-good fixture while rejecting the wrong-position known-bad fixture.
-- coding Agent — frozen to `openai-codex-cli@0.144.6` + ChatGPT-managed `gpt-5.5`. Owner-local model preflight is now **proven**: the real Codex session returned `MODEL_OK`, completed the turn and emitted provider token usage. The following filesystem isolation probe exceeded its original 90-second process ceiling before a verdict; that pre-scoring attempt is preserved in [`codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json). No matched lane or scored result started. The retry path now uses the same 285-second process ceiling as the real Agent wrapper and preserves packageable Codex sandbox diagnostics without relaxing the canary-denial rule.
+- `godot.generic` — **oracle-qualified** with committed hosted evidence in [`godot-generic.json`](godot-generic.json).
+- `godot.agent` — **bridge- and oracle-qualified** with committed hosted evidence in [`godot-agent.json`](godot-agent.json), exact bridge `@satelliteoflove/godot-mcp@4.1.0`.
+- `trace2d.agent` — **oracle-qualified** with committed Windows evidence in [`trace2d-agent.json`](trace2d-agent.json).
+- coding Agent — frozen to `openai-codex-cli@0.144.6` + ChatGPT-managed `gpt-5.5`; owner-local model preflight is **proven callable**.
+- isolation backend — **not qualified**. The attempted native-Windows Codex custom permission profile is rejected after a real owner-local canary leak.
 
-All three **environment/bridge qualification records exist**, and the real coding model is callable. The suite/task deliberately remain `qualification_required` / `qualification_candidate` because B0 still requires successful filesystem isolation plus one real unscored matched attempt in every lane before scored eligibility. Environment/model readiness is not a benchmark result.
+All three engine/adapter environments and the real coding model are ready. No matched lane trial has started because the held-out integrity boundary is still unresolved.
 
-Owner-local pre-scoring infrastructure attempts remain committed rather than erased:
+## Owner-local Codex qualification history
 
-- [`codex-chatgpt-model-attempt-2026-08-11.json`](codex-chatgpt-model-attempt-2026-08-11.json) — dated API snapshot unavailable through ChatGPT-managed Codex,
-- [`codex-chatgpt-recovery-attempt-2026-08-11.json`](codex-chatgpt-recovery-attempt-2026-08-11.json) — early recovery observability gap,
-- [`codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json`](codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json) — `gpt-5.6` rejected for the owner account before any lane trial,
-- [`codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json) — `gpt-5.5` model preflight passed; isolation child timed out before verdict under the superseded 90-second process ceiling.
+Every file below is pre-scoring evidence and is retained rather than rewritten as an engine result.
 
-None is an engine loss or scored result.
+- [`codex-chatgpt-model-attempt-2026-08-11.json`](codex-chatgpt-model-attempt-2026-08-11.json) — dated API snapshot unavailable through ChatGPT-managed Codex.
+- [`codex-chatgpt-recovery-attempt-2026-08-11.json`](codex-chatgpt-recovery-attempt-2026-08-11.json) — early recovery observability gap.
+- [`codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json`](codex-chatgpt-gpt56-rollout-attempt-2026-08-11.json) — `gpt-5.6` reached the provider but was unavailable to the owner account.
+- [`codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json) — frozen `gpt-5.5` model preflight passed; the old 90-second isolation process ceiling expired before verdict.
+- [`codex-chatgpt-native-windows-isolation-breach-2026-08-11.json`](codex-chatgpt-native-windows-isolation-breach-2026-08-11.json) — **decisive integrity evidence** from repository head `cc678f80c7b681ac559b4ad498108ff914bb30e9`: `gpt-5.5` completed, workspace writes were blocked by Codex policy, and the exact random canary beside the held-out verifier was successfully read and exposed to the model. Classification: `integrity_isolation_breach_native_windows_profile`.
+
+The last record rejects the attempted Codex-internal native-Windows read-deny backend. It is not an engine loss, and the old three-lane calibration must not be rerun until a replacement hard boundary is qualified and integrated.
+
+## Replacement isolation mechanism probe
+
+[`scripts/qualify_benchmark_b0_windows_acl_isolation.py`](../../scripts/qualify_benchmark_b0_windows_acl_isolation.py) is the current next gate. It performs **no model call and no engine trial**. In throwaway local directories it discovers the effective Codex Windows sandbox SID, applies a temporary NTFS deny ACE only to that SID, and requires:
+
+1. sandbox SID differs from the host user SID,
+2. Codex built-in `:workspace` permits a normal workspace write,
+3. the ACL-protected external random canary cannot be read by the sandbox identity,
+4. no canary content leaks,
+5. host access remains intact and the temporary deny ACE is removed.
+
+A passing result qualifies only the external ACL mechanism. The full B0 runner still needs a reviewed repo/harness quarantine lifecycle before any lane trial may start.
 
 ## Determinism note for the Godot Agent lane
 
@@ -35,7 +51,7 @@ The accepted Q4 protocol uses the bridge's public `step_until` action with:
 until = tree.get_nodes_in_group("mcp_watch")[0].physics_ticks >= 12
 ```
 
-The raw `D` key hold extends beyond that boundary and is force-released by the bridge when stepping stops, so input duration does not define the stop condition. Two clean launch-frozen runs both stopped at exactly 12 physics ticks with `Player.position_x == 2`. Their render-frame counts were 267 and 271 and are retained as evidence but intentionally not compared.
+The raw `D` key hold extends beyond that boundary and is force-released by the bridge when stepping stops, so input duration does not define the stop condition. Two clean launch-frozen runs both stopped at exactly 12 physics ticks with `Player.position_x == 2`. Their render-frame counts are retained as evidence but intentionally not compared.
 
 ## Required lane evidence shape
 
@@ -64,24 +80,7 @@ Every lane evidence file is JSON format version 1 and records the exact environm
 }
 ```
 
-`godot.agent` additionally records the exact bridge package/integrity and these positive checks:
-
-```json
-{
-  "bridge": {
-    "id": "satelliteoflove/godot-mcp",
-    "version": "4.1.0"
-  },
-  "checks": {
-    "authoring": true,
-    "runtime_inspection": true,
-    "timed_input": true,
-    "deterministic_step": true
-  }
-}
-```
-
-The bridge qualification is deliberately broader than the first static scene task. It prevents a weak authoring-only Godot bridge from being chosen simply because the first micro-task does not exercise runtime control yet.
+`godot.agent` additionally records the exact bridge package/integrity and positive authoring/runtime/input/deterministic-step checks.
 
 ## Fixture oracle command
 
