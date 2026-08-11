@@ -18,50 +18,43 @@ Completed AI-operated foundation:
 
 - #97 machine-readable intent / Definition of Done — complete via PR #115,
 - #98 unified verification / diagnosis / repair / WorkResult — complete via PR #116,
-- #99 Trace2D Workspace / human feedback loop — complete via PR #117, merge `f45e3acf72de26c8c2e2757b75a0a221a76300e5`.
+- #99 Trace2D Workspace / human feedback loop — complete via PR #117,
+- #102 Benchmark B0 acceptance — **satisfied in PR #118; pending final green merge**.
 
-**Active core work: #102 Benchmark B0 in draft PR #118.**
+**Next fixed-order core work after PR #118 merges: #59 Complete Sprite program.**
 
-Do not begin #59/#103 or later fixed-order core work while #102/PR #118 remains active.
+Do not start #103 or later fixed-order work before #59.
 
-## #102 active gate
+## #102 Benchmark B0 — acceptance satisfied
 
-PR #118 establishes the executable B0 harness, the first matched current-capability task, qualification evidence for all three lanes, a frozen owner-local Codex/model/isolation profile, and a preregistered repeated scored cohort.
+PR #118 now contains an end-to-end matched benchmark harness and real owner-local evidence across:
 
-Current B0 contract:
+```text
+godot.generic
+godot.agent
+trace2d.agent
+```
 
-- exact lanes: `godot.generic`, `godot.agent`, `trace2d.agent`,
-- same public task intent and frozen budget across lanes,
-- task: semantic scene authoring with stable `player` identity, `Player` name and exact `(4, 1)` position,
-- independent engine-side verifier decides objective acceptance,
-- known-good/meaningful known-bad fixtures validate the verifiers,
-- fresh candidate process/workspace per attempt,
-- append-only canonical SHA-256 hash-chained raw records,
-- infrastructure, implementation, budget, eligibility, human and integrity outcomes remain distinct,
-- independent re-verification can run after the stochastic Agent is gone,
-- no best-of-N, no favorable replacement retry.
+Frozen matched task:
 
-### Environment/bridge qualification — complete
+```text
+semantic scene authoring
+entity id = player
+name      = Player
+position  = (4, 1)
+```
 
-- `godot.generic` — pinned official Godot `4.7.1-stable`; independent known-good accepted and wrong-position known-bad rejected.
-- `godot.agent` — selected `@satelliteoflove/godot-mcp@4.1.0`; live authoring, structured runtime state, raw input and authoritative physics-tick stepping qualified.
-- `trace2d.agent` — frozen Trace2D source/build plus independent known-good/known-bad oracle qualified.
-
-### Frozen Agent/model/isolation — complete
+Frozen coding-Agent profile:
 
 ```text
 Agent                    openai-codex-cli@0.144.6
-auth                     owner-local ChatGPT sign-in
 model                    gpt-5.5
-provider revision policy chatgpt_codex_cli_selector_no_dated_snapshot
 reasoning                high
 approval                 never
 permission profile       :workspace
 Windows sandbox backend  elevated
 isolation backend        windows_ntfs_acl_v1_elevated
-protected-root policy    repository-root deny for Codex sandbox SID
 shell network            disabled
-session persistence      ephemeral
 human intervention       0
 wall/tool/token budget   300 / 80 / 100000 input / 20000 output
 ```
@@ -72,56 +65,38 @@ Canonical Agent profile SHA-256:
 2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708
 ```
 
-The model/backend/prompt/verifier/budget are frozen. The `100000` input-token limit was **not** raised after observing calibration usage above the ceiling.
+### Isolation
 
-### External Windows ACL isolation — complete
+The original native-Windows Codex custom filesystem profile is permanently rejected after a real held-out canary leak.
 
-The old custom native-Windows Codex filesystem profile is permanently rejected after a real held-out canary leak.
+The accepted replacement is the elevated Codex Windows sandbox identity plus external NTFS ACL. Before matched work the host applies a repository deny ACE to the effective Codex sandbox SID, a real frozen-model turn attempts the exact held-out canary read, and the run may proceed only if Windows denies that read with no leakage. ACL cleanup is mandatory and fail-closed.
 
-The final boundary uses the elevated/network-disabled `CodexSandboxOffline` local identity plus external NTFS ACL. The host resolves that local account SID, applies a repository deny ACE, runs the real frozen model, and requires the exact held-out canary read to be denied with no leakage before any matched work may start. ACL cleanup is mandatory in `finally`.
-
-The account name is not trusted as the verdict. The real-model exact-canary denial validates that the applied SID actually protects the model turn; otherwise execution fails closed before the cohort.
-
-### Accepted unscored calibration — complete; B0 is eligible
-
-Accepted owner archive:
+### Accepted unscored calibration
 
 ```text
 codex-chatgpt-calibration-20260811-163459-3812f9f7.zip
 SHA-256 31d1e70938a3e98716559073518bf1e1de5465316f85bafffab4d58880e097fd
 ```
 
-Evidence: [`benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json).
+Evidence:
 
-Verified facts:
+[`benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-unscored-calibration-accepted-2026-08-11.json)
 
-- model preflight passed,
-- real ACL isolation passed,
-- exact canary read attempt observed and denied,
-- no canary leakage,
-- ACL apply/cleanup passed for isolation and all three lane turns,
-- exactly three unscored records exist,
-- same frozen canonical profile hash across all records,
-- canonical record hashes and previous-record chain independently recompute,
-- human intervention is zero,
-- provider usage and independent verifier evidence are preserved,
-- no credential/raw SID/canary secret is packaged.
+The calibration established eligibility without raising the frozen budget after observing over-budget usage.
 
-Calibration outcomes:
+### Accepted preregistered scored cohort
 
-| Lane | Status | Verifier | Input tokens | Tools |
-|---|---|---|---:|---:|
-| `godot.generic` | `budget_exceeded` | pass | 187515 | 17 |
-| `godot.agent` | `budget_exceeded` | fail (`player_missing`) | 508388 | 32 |
-| `trace2d.agent` | `budget_exceeded` | pass | 195453 | 17 |
+```text
+codex-chatgpt-scored-20260811-180458-214dfeb0.zip
+SHA-256 0625e084b6704258a537de7005a3f9a427d66147663abc7878d5880b2860ea52
+```
 
-These are pre-scoring outcomes. The two verifier passes are not selected as scored wins, and the `godot.agent` failure is not repaired away. A valid calibration proves faithful measurement, not favorable performance.
+Evidence:
 
-`benchmarks/b0/suite.json` and `b0-semantic-scene-authoring` are now `eligible`.
+- [`benchmarks/b0/qualification/codex-windows-acl-scored-cohort-accepted-2026-08-11.json`](benchmarks/b0/qualification/codex-windows-acl-scored-cohort-accepted-2026-08-11.json)
+- [`benchmarks/b0/RESULTS.md`](benchmarks/b0/RESULTS.md)
 
-### Preregistered scored cohort — ready
-
-[`benchmarks/b0/scored-cohort-v1.json`](benchmarks/b0/scored-cohort-v1.json) was committed before eligibility and before any scored result:
+Preregistered policy remained unchanged:
 
 ```text
 repetitions per lane  3
@@ -132,60 +107,56 @@ early stop             false
 best-of-N              false
 ```
 
-Order:
+All nine scheduled attempts exist in the predefined rotating order. No failed or unfavorable slot was replaced.
 
-```text
-R1  godot.generic -> godot.agent   -> trace2d.agent
-R2  godot.agent   -> trace2d.agent -> godot.generic
-R3  trace2d.agent -> godot.generic -> godot.agent
-```
+Authoritative benchmark status:
 
-Every scheduled slot gets at most one attempt. Infrastructure and budget outcomes remain visible; no reroll replaces an unfavorable sample.
+| Lane | Samples | `budget_exceeded` | Benchmark success |
+|---|---:|---:|---:|
+| `godot.generic` | 3 | 3 | 0/3 |
+| `godot.agent` | 3 | 3 | 0/3 |
+| `trace2d.agent` | 3 | 3 | 0/3 |
 
-### Current owner-local gate
+Every provider turn exceeded the frozen `100000` input-token ceiling. The ceiling is not rewritten after observing the outcome.
 
-From an updated PR #118 checkout on native Windows, run only:
+Independent verifier outcomes are retained separately:
 
-```powershell
-python .\scripts\run_benchmark_b0_codex_windows_acl_scored_cohort.py
-```
+| Lane | Verifier pass | Verifier fail |
+|---|---:|---:|
+| `godot.generic` | 1/3 | 2/3 (`player_missing`) |
+| `godot.agent` | 3/3 | 0/3 |
+| `trace2d.agent` | 3/3 | 0/3 |
 
-The runner performs:
+Cohort integrity review passed:
 
-```text
-frozen gpt-5.5 preflight
- -> real elevated-Windows ACL canary
- -> exactly nine preregistered scored slots
- -> aggregate report
- -> independent reverify of all nine preserved workspaces
- -> scrubbed evidence ZIP
-```
+- model preflight passed,
+- real held-out read attempted and denied with no canary leakage,
+- isolation + nine trial ACL records all applied and cleaned up (`10/10`),
+- nine scored raw records and nine replay records exist,
+- frozen Agent profile hash is common to all nine,
+- human intervention is zero in all nine,
+- raw and replay SHA chains independently recompute,
+- all nine independent reverify subprocesses returned zero,
+- all nine workspace hashes and verifier verdicts match their originals,
+- packaged evidence contains no auth file, obvious API key, plaintext canary, raw Windows SID or bearer token.
 
-Do not manually run individual `--scored` slots and do not rerun a failed scheduled slot. If the orchestrator stops because of a genuine harness/integrity defect, preserve/upload its ZIP rather than creating an unofficial replacement sample.
+Godot trajectories also preserve six `signal 11` crash events across five Godot trials. They are not hidden or rerolled; the cohort still completed all final verifiers and all final workspaces/verdicts reverified exactly.
 
-### Remaining gate before PR #118 may merge / #102 may close
-
-1. preserve the single preregistered nine-attempt scored archive,
-2. verify nine raw records, nine replay records, common profile/budget identity, real isolation and ACL cleanup,
-3. publish raw sample counts/status/resource distributions without broad superiority claims,
-4. make PR #118 ready, merge it, close #102,
-5. advance to #59 Complete Sprite program.
-
-Hosted CI has no owner model credential. Green hosted CI proves harness/contracts, not owner-local stochastic scored outcomes.
+B0 therefore proves the required benchmark methodology and evidence quality. It does **not** establish broad Trace2D-over-Godot superiority from one narrow three-sample task.
 
 ## Owner-fixed core execution order
 
-Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent follows the first incomplete/unblocked item below and never skips an active core PR or recognized human/environment gate.
+Routine `@GitHub Trace2D 다음 진행해줘`, `Trace2D next`, or equivalent follows the first incomplete/unblocked item below.
 
 ```text
 AI-operated foundation
  -> #97 machine-readable intent / Definition of Done         [complete via PR #115]
  -> #98 unified verify / diagnose / repair / WorkResult      [complete via PR #116]
  -> #99 result-review Workspace / feedback loop              [complete via PR #117]
- -> #102 Benchmark B0 matched harness + current-capability tasks [active draft PR #118; owner-local scored 9-slot cohort gate]
+ -> #102 Benchmark B0 matched harness + current tasks        [acceptance satisfied in PR #118; merge pending]
 
 Content production
- -> #59 complete Sprite program
+ -> #59 complete Sprite program                              [next after PR #118 merge]
  -> #103 Benchmark B1 Sprite/animation/particle matched tasks
 
 External game-production foundation
@@ -246,6 +217,7 @@ Umbrellas/registers:
 13. #97 machine-readable intent / Definition of Done — complete via PR #115
 14. #98 unified verify / diagnose / repair / WorkResult — complete via PR #116
 15. #99 result-review Workspace / feedback loop — complete via PR #117
+16. #102 Benchmark B0 matched harness/evidence — acceptance satisfied in PR #118
 
 Production architecture freeze #85 is complete via PR #94.
 
@@ -277,12 +249,12 @@ WorkSpec acceptance
  -> subjective review only where required
 ```
 
-Agent self-report is not independent truth. Historical failures remain preserved after repair, and #102 owns an independent benchmark verifier/provenance boundary.
+Agent self-report is not independent truth. Historical failures remain preserved after repair.
 
 ### #99 Workspace boundary
 
 ```text
-WorkSpec + WorkResult + optional existing Agent InspectionSnapshot
+WorkSpec + WorkResult + optional Agent InspectionSnapshot
  -> derived WorkspaceSnapshot
  -> result review
  -> revision-bound feedback/approval packet
@@ -298,18 +270,17 @@ Workspace does not create a second editor/project database, silently mutate engi
 ```text
 frozen task + lane + Agent/model/budget
  -> isolated fresh trial
+ -> append-only Agent trajectory
  -> independent verifier
  -> immutable raw result record
- -> repeated matched cohort
+ -> preregistered repeated matched cohort
  -> aggregate raw statistics
  -> independent re-verification/replay
 ```
 
-Benchmark truth remains independent from the candidate Agent and its WorkResult. Capability admission, infrastructure failures, budget failures and human intervention remain separate from implementation correctness.
+Benchmark truth remains independent from the candidate Agent. Capability admission, infrastructure failures, budget failures, verifier correctness and human intervention remain separate dimensions.
 
 ## Particle architecture frozen by #47-#53
-
-The V1 particle contract remains:
 
 ```text
 rich text-authored effect
@@ -331,13 +302,11 @@ Primary particle contracts/evidence:
 - [`docs/PARTICLE_CONFORMANCE.md`](docs/PARTICLE_CONFORMANCE.md)
 - [`docs/evidence/particle-53/924dbc1/README.md`](docs/evidence/particle-53/924dbc1/README.md)
 
-## Benchmark growth after #102
+## Benchmark growth
 
 ```text
-#102 B0 — harness + current-capability matched tasks
+#102 B0 — harness + current-capability matched task [complete after PR #118 merge]
  -> #59 Complete Sprite program
  -> #103 B1 — Sprite/animation/particle matched tasks
  -> #104 B2 — coherent autonomous top-down combat micro-game
 ```
-
-Do not advance to #59/#103 until #102's scored cohort is reviewed and PR #118 is genuinely complete, unless the owner explicitly changes the fixed order.
