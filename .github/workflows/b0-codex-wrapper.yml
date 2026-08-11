@@ -67,8 +67,8 @@ jobs:
               task,
           )
           assert profile['agent_id'] == 'openai-codex-cli@0.144.6'
-          assert profile['model_id'] == 'gpt-5.6'
-          assert profile['model_revision'] == 'gpt-5.6'
+          assert profile['model_id'] == 'gpt-5.5'
+          assert profile['model_revision'] == 'gpt-5.5'
           assert profile['settings']['provider_revision_policy'] == 'chatgpt_codex_cli_selector_no_dated_snapshot'
           print(json.dumps({
               'status': 'ok',
