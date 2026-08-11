@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b0_owner_local_isolation_backend_qualification",
+  "date": "2026-08-11",
+  "classification": "qualified_external_windows_acl_backend",
+  "qualified": true,
+  "scored": false,
+  "matched_lane_trials_started": 0,
+  "uploaded_evidence_zip": {
+    "name": "windows-acl-isolation-20260811-134920-58f2579b.zip",
+    "sha256": "01f66e85eea009f8ccf2bf2ca122cb6efb0f5b8699bdc855cf3fa4c616861478",
+    "size_bytes": 2852
+  },
+  "probe": {
+    "codex_version": "0.144.6",
+    "model_called": false,
+    "engine_trial_started": false,
+    "sandbox_cli_shape": "codex sandbox --permission-profile <name> --cd <dir> -- <command>",
+    "command_transport": "workspace_local_cmd_files",
+    "sandbox_sid_differs_from_host": true,
+    "host_canary_access_preserved": true,
+    "workspace_profile": ":workspace",
+    "workspace_write_proved": true,
+    "external_acl_read_denied": true,
+    "canary_secret_leaked": false,
+    "acl_cleanup_succeeded": true,
+    "canary_cleanup_succeeded": true,
+    "passed": true
+  },
+  "credential_scrub": {
+    "auth_json_present": false,
+    "random_canary_plaintext_present": false,
+    "obvious_api_credential_markers_present": false
+  },
+  "decision": {
+    "backend_id": "windows_ntfs_acl_v1",
+    "mechanism_qualified": true,
+    "suite_eligible": false,
+    "note": "This qualifies only the model-free OS isolation mechanism. The committed final wrapper must still prove the same boundary during a real gpt-5.5 isolation turn before the first unscored lane continues."
+  }
+}
