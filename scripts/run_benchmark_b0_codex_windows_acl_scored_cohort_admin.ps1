@@ -32,6 +32,7 @@ if (-not $env:LOCALAPPDATA) {
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $runsRoot = Join-Path $env:LOCALAPPDATA "Trace2D\b0\runs"
+$localBase = Join-Path $env:LOCALAPPDATA "Trace2D\b0"
 New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
 
 $python = Get-Command python -ErrorAction SilentlyContinue
@@ -88,6 +89,77 @@ finally {
     Remove-Item -LiteralPath $pythonProbeDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# Exercise the scored runner's own deterministic pre-model contract using its
+# real JSON readers/validators, accepted local calibration/toolchain lookup, and
+# write_json implementation. This intentionally performs no Codex/model call and
+# creates no scored raw record. If it fails, surface that exact prerequisite
+# error here instead of letting the later evidence packager mask it.
+$runnerProbeCode = @'
+from pathlib import Path
+import json
+import sys
+import uuid
+repo = Path(sys.argv[1]).resolve()
+runs = Path(sys.argv[2]).resolve()
+local_base = Path(sys.argv[3]).resolve()
+sys.path.insert(0, str(repo / "scripts"))
+import benchmark_b0
+import run_benchmark_b0_codex_windows_acl_scored_cohort as runner
+suite = benchmark_b0.validate_suite(repo / "benchmarks/b0/suite.json")
+profile = runner.load_json(repo / runner.PROFILE_RELATIVE)
+policy = runner.load_json(repo / runner.POLICY_RELATIVE)
+acceptance = runner.load_json(repo / runner.ACCEPTANCE_RELATIVE)
+schedule = runner.validate_frozen_contract(
+    repo_root=repo,
+    suite=suite,
+    policy=policy,
+    acceptance=acceptance,
+    profile=profile,
+)
+accepted_run = runner.accepted_local_run_root(runs, acceptance)
+env, toolchain = runner.build_environment(
+    repo_root=repo,
+    scripts_root=repo / "scripts",
+    local_base=local_base,
+    accepted_run=accepted_run,
+    profile=profile,
+)
+probe = runs / (".owner-scored-runner-contract-probe-" + uuid.uuid4().hex + ".json")
+runner.write_json(
+    probe,
+    {
+        "schema_version": 1,
+        "kind": "trace2d_b0_owner_scored_runner_host_preflight",
+        "agent_profile_canonical_sha256": benchmark_b0.sha256_json(profile),
+        "schedule": [
+            {"slot": index, "repetition": repetition, "lane_id": lane}
+            for index, (repetition, lane) in enumerate(schedule, start=1)
+        ],
+        "retry_policy": policy["retry_policy"],
+        "accepted_run": accepted_run.name,
+        "frozen_trace2d_commit": toolchain["frozen_trace2d_commit"],
+    },
+)
+loaded = json.loads(probe.read_text(encoding="utf-8"))
+if len(loaded.get("schedule", [])) != 9:
+    raise RuntimeError("scored runner host preflight schedule did not round-trip")
+probe.unlink()
+print("TRACE2D_B0_SCORED_RUNNER_HOST_PREFLIGHT_OK")
+'@
+try {
+    $runnerProbeOutput = $runnerProbeCode | & $python.Source - $repoRoot $runsRoot $localBase 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        $detail = ($runnerProbeOutput | Out-String).TrimEnd()
+        Fail-B0 "Scored runner deterministic host preflight failed before any model call:`n$detail"
+    }
+    if (($runnerProbeOutput | Out-String) -notmatch "TRACE2D_B0_SCORED_RUNNER_HOST_PREFLIGHT_OK") {
+        Fail-B0 "Scored runner deterministic host preflight did not emit its success marker."
+    }
+}
+catch {
+    Fail-B0 "Scored runner deterministic host preflight failed before any model call:`n$($_.Exception.Message)"
+}
+
 # Never create an unofficial replacement sample. If any earlier scored launcher
 # reached even one raw scored record, stop and preserve that cohort for review.
 $existingScored = @()
@@ -119,6 +191,7 @@ $details
 Write-Host "[B0] Administrator host confirmed."
 Write-Host "[B0] Evidence root PowerShell write/read preflight passed: $runsRoot"
 Write-Host "[B0] Evidence root elevated-Python child write/read preflight passed."
+Write-Host "[B0] Scored runner deterministic host/toolchain/write_json preflight passed."
 Write-Host "[B0] No prior scored raw record exists; preregistered nine-slot cohort may start."
 Write-Host "[B0] The runner will still re-prove the distinct Codex sandbox SID and held-out ACL canary before slot 1."
 
