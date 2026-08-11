@@ -16,9 +16,10 @@ filesystem boundary, or scoring semantics:
    recovery path aligns the probe process ceiling with the real wrapper ceiling
    so a slow tool-using turn is not misclassified as an isolation failure.
 
-Before deleting transient Codex homes, the safe entrypoint preserves Codex's
-public ``.sandbox/sandbox.log`` beside the evidence when it exists. Credentials
-and transient homes remain excluded by the final evidence packager.
+Before deleting transient Codex homes, the safe entrypoint copies Codex's public
+``.sandbox/sandbox.log`` into a packageable ``codex-sandbox-logs`` directory when
+it exists. Credentials, ``.sandbox-secrets`` and transient homes remain excluded
+by cleanup and the final evidence packager.
 """
 from __future__ import annotations
 
@@ -47,6 +48,18 @@ def preserve_sandbox_log(codex_home: Path, destination: Path) -> None:
         pass
 
 
+def sandbox_log_destination(root: Path, current_path: Path) -> Path:
+    """Return a stable path outside directories excluded by the ZIP packager."""
+    try:
+        relative = current_path.relative_to(root)
+        parts = relative.parts
+    except ValueError:
+        parts = ("external",)
+    label = "__".join(parts) if parts else "root"
+    safe_label = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in label)
+    return root / "codex-sandbox-logs" / f"{safe_label}.log"
+
+
 def scrub_transient_codex_state(root: Path) -> None:
     root = Path(root)
     if not root.exists():
@@ -65,7 +78,10 @@ def scrub_transient_codex_state(root: Path) -> None:
             if dirname.casefold() != "codex-home":
                 continue
             codex_home = current_path / dirname
-            preserve_sandbox_log(codex_home, current_path / "codex-sandbox.log")
+            preserve_sandbox_log(
+                codex_home,
+                sandbox_log_destination(root, current_path),
+            )
             shutil.rmtree(codex_home, ignore_errors=True)
             dirnames.remove(dirname)
         for filename in filenames:
