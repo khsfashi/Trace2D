@@ -80,7 +80,8 @@ $profilePath = Join-Path $repoRoot $ProfileRelative
 $harnessPath = Join-Path $repoRoot "scripts/benchmark_b0.py"
 $suitePath = Join-Path $repoRoot "benchmarks/b0/suite.json"
 $wrapperPath = Join-Path $repoRoot "scripts/benchmark_b0_codex_wrapper.py"
-foreach ($required in @($profilePath, $harnessPath, $suitePath, $wrapperPath)) {
+$packagerPath = Join-Path $repoRoot "scripts/package_benchmark_b0_evidence.py"
+foreach ($required in @($profilePath, $harnessPath, $suitePath, $wrapperPath, $packagerPath)) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
         throw "Required PR #118 file is missing: $required`nUse a current PR #118 checkout."
     }
@@ -134,6 +135,7 @@ $canaryPath = Join-Path $repoRoot ("benchmarks/b0/verifiers/.codex-isolation-can
 Ensure-Directory $calibrationRoot
 Ensure-Directory $probeRoot
 $completedSuccessfully = $false
+$packagingError = $null
 
 try {
     Write-Host "== Trace2D B0 Codex calibration =="
@@ -331,9 +333,22 @@ finally {
     Scrub-CodexCredentials $runRoot
     if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
     if (Test-Path -LiteralPath $runRoot) {
-        Compress-Archive -Path (Join-Path $runRoot "*") -DestinationPath $zipPath -CompressionLevel Optimal -Force
-        Write-Host "Evidence ZIP: $zipPath"
+        try {
+            & $pythonCommand.Source $packagerPath --run-root $runRoot --output $zipPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "scrubbed evidence packager returned exit code $LASTEXITCODE"
+            }
+            Write-Host "Evidence ZIP: $zipPath"
+        }
+        catch {
+            $packagingError = $_.Exception.Message
+            Write-Warning "Evidence ZIP packaging failed: $packagingError"
+        }
     }
+}
+
+if ($null -ne $packagingError) {
+    throw "B0 evidence ZIP packaging failed: $packagingError"
 }
 
 if (-not $completedSuccessfully) {
