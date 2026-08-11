@@ -49,13 +49,14 @@ Current committed B0 state:
 - `godot.agent` — **selected qualified baseline** `@satelliteoflove/godot-mcp@4.1.0`; hosted Godot editor/MCP qualification proved authoring, structured runtime inspection, real raw-`D` input and clean launch-frozen deterministic replay. The accepted protocol uses public `step_until` to stop on the fixture's authoritative `physics_ticks >= 12` predicate. Both clean runs stopped at exactly tick 12 with `Player.position_x == 2`; uncapped render frames differed (`267` vs `271`) and are intentionally non-authoritative. Earlier fixed-render-frame and fixed-200ms boundaries were rejected after they exposed scheduler-dependent physics progress. The independent lane oracle also accepted known-good and rejected wrong-position known-bad.
 - `trace2d.agent` — frozen Trace2D source/build qualified in Windows CI; all 188 repository tests passed in the qualification run, then the independent known-good/known-bad task oracle passed.
 
-### Coding-Agent/profile freeze — complete; owner-local qualification still pending
+### Coding-Agent/profile freeze — complete; real model availability — proven; isolation/three-lane qualification — pending
 
-The real coding-Agent candidate is now frozen before any scored matched-lane result exists:
+The real coding-Agent candidate was frozen before any scored matched-lane result existed:
 
 - Agent: `openai-codex-cli@0.144.6`,
 - auth surface: owner-local ChatGPT sign-in,
 - model selector: `gpt-5.5`,
+- provider revision policy: `chatgpt_codex_cli_selector_no_dated_snapshot`,
 - reasoning effort: `high`,
 - approval policy: `never`,
 - web search: disabled,
@@ -66,16 +67,23 @@ Pre-scoring infrastructure attempts are deliberately preserved rather than rewri
 
 1. dated API snapshot `gpt-5.5-2026-04-23` — rejected by ChatGPT-managed Codex before tool use,
 2. guessed `gpt-5.6-sol` — stopped before classifiable isolation evidence and exposed an observability gap that was then fixed,
-3. documented `gpt-5.6` CLI selector — real provider reached through stdin prompt transport, but HTTP 400 reported that the model was not supported for the owner's ChatGPT Codex account; zero tokens, zero lane trials, isolation not started.
+3. `gpt-5.6` CLI selector — real provider reached through stdin prompt transport, but HTTP 400 reported that the model was not supported for the owner's ChatGPT Codex account; zero lane trials,
+4. frozen `gpt-5.5` — **model preflight passed** with `MODEL_OK`, process code `0`, completed turn, input tokens `12589`, cached input tokens `1408`, output tokens `6`; the following filesystem-isolation child exceeded the original `90` second process ceiling before a normal isolation verdict, so no lane trial started.
 
-The current `gpt-5.5` profile is therefore the frozen pre-scoring fallback. Do not change it after scored eligibility without explicitly superseding the benchmark version.
+The fourth attempt is preserved as [`benchmarks/b0/qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json`](benchmarks/b0/qualification/codex-chatgpt-gpt55-isolation-timeout-attempt-2026-08-11.json). It is classified as `infrastructure_isolation_probe_timeout_before_verdict`, not an engine loss or isolation breach. The evidence does not establish whether the delay came from model/tool latency, native Windows sandbox setup, or another pre-verdict child-process condition.
 
-Owner-local qualification must now prove, in order:
+The `gpt-5.5` model-availability gate is therefore resolved. Do not change this model after scored eligibility without explicitly superseding the benchmark version.
 
-1. `gpt-5.5` model preflight succeeds through the real ChatGPT Codex session,
-2. the candidate workspace can be modified while a random canary beside the held-out verifier is actually attempted and denied without leakage,
-3. exactly one unscored calibration attempt is preserved in each of `godot.generic`, `godot.agent`, and `trace2d.agent`,
-4. all three records share one profile hash, provider trajectory/usage is preserved where exposed, and independent verifiers complete.
+The recovery path now aligns the unscored isolation process ceiling with the real Agent wrapper ceiling of `285` seconds while leaving the acceptance boundary unchanged. Before any matched lane begins it must still prove all of the following:
+
+1. normal candidate-workspace read/write succeeds,
+2. Codex actually attempts an exact read of a random canary beside the held-out verifier,
+3. that external read is denied,
+4. the canary secret does not leak.
+
+When available, Codex's public `.sandbox/sandbox.log` is copied into packageable `codex-sandbox-logs/` evidence before the credential-bearing transient Codex home is removed. `auth.json`, transient plugin caches and secret-bearing sandbox state remain excluded.
+
+After isolation succeeds, owner-local qualification must preserve exactly one **unscored** calibration attempt in each of `godot.generic`, `godot.agent`, and `trace2d.agent`, with one common profile hash, provider trajectory/usage where exposed, zero human intervention and completed independent verifiers.
 
 Until those facts are real, the suite/task intentionally remain `qualification_required` / `qualification_candidate` and `--scored` stays blocked.
 
@@ -92,18 +100,18 @@ Primary B0 implementation/contracts:
 - [`scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py`](scripts/run_benchmark_b0_codex_chatgpt_calibration_safe.py)
 - [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md)
 
-Three qualified environments and a frozen Agent profile are readiness evidence, not a comparative result.
+Three qualified environments, a frozen Agent profile and a successful standalone model preflight are readiness evidence, not a comparative result.
 
 ### Remaining gate before PR #118 may merge / #102 may close
 
-1. complete the owner-local `gpt-5.5` model/isolation/three-lane **unscored** calibration,
+1. complete the owner-local filesystem-isolation canary and three-lane **unscored** calibration with the frozen `gpt-5.5` profile,
 2. review that evidence and only then promote the suite/task to `eligible`,
 3. run the predefined repeated **scored** matched cohort with the same Agent/model/settings/budget,
 4. retain every raw attempt, including losses and infrastructure outcomes,
 5. independently re-verify/replay recorded result artifacts,
 6. publish raw sample counts and distributions without best-of-N cherry-picking.
 
-Do **not** manufacture model identity, token counts, provider usage, isolation evidence, or successful trials. A green repository CI run proves harness/environment contracts, not the missing owner-local model-run facts.
+Do **not** manufacture model identity, token counts, provider usage, isolation evidence, or successful trials. A green repository CI run proves harness/environment contracts, not the missing owner-local isolation/lane-run facts.
 
 ## Owner-fixed core execution order
 
@@ -176,7 +184,7 @@ Umbrellas/registers:
 11. #52 explicit GPU particle runtime — complete via PR #95 after required owner real-GPU evidence
 12. #53 CPU/GPU conformance, workloads and measured recommendation guidance — complete via PR #114
 13. #97 machine-readable intent / Definition of Done — complete via PR #115
-14. #98 unified verification / diagnosis / repair / WorkResult — complete via PR #116
+14. #98 unified verify / diagnose / repair / WorkResult — complete via PR #116
 15. #99 result-review Workspace / feedback loop — complete via PR #117
 
 Production architecture freeze #85 is complete via PR #94.
