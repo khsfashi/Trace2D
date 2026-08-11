@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Owner-local B0 unscored calibration using the qualified Windows ACL backend.
 
-This runner reuses the existing deterministic toolchain setup from the earlier
-recovery orchestrator but replaces the rejected Codex custom permission profile
-with the committed built-in :workspace + elevated Windows sandbox + external
-NTFS ACL wrapper. It remains strictly unscored.
+This runner reuses the deterministic toolchain setup from the earlier recovery
+orchestrator, but routes all owner-local lane/report commands through the stable
+B0 harness shim. The shim excludes engine-owned Godot cache from candidate
+artifact hashing and preserves the frozen resource budget as a distinct
+``budget_exceeded`` outcome. This runner remains strictly unscored.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ FROZEN_PROVIDER_REVISION_POLICY = "chatgpt_codex_cli_selector_no_dated_snapshot"
 ISOLATION_TIMEOUT_SECONDS = 285.0
 ISOLATION_BACKEND = "windows_ntfs_acl_v1_elevated"
 WRAPPER_MODULE = "benchmark_b0_codex_windows_acl_wrapper"
+STABLE_HARNESS = Path(__file__).resolve().with_name("benchmark_b0_stable_harness.py")
 _BASE_RUN = calibration.run
 
 
@@ -81,10 +83,14 @@ def run_with_matched_isolation_timeout(
     check: bool = True,
     capture: bool = False,
 ):
-    adjusted = [
-        WRAPPER_MODULE if item == "benchmark_b0_codex_chatgpt_wrapper" else item
-        for item in argv
-    ]
+    adjusted: list[str] = []
+    for item in argv:
+        if item == "benchmark_b0_codex_chatgpt_wrapper":
+            adjusted.append(WRAPPER_MODULE)
+        elif Path(item).name == "benchmark_b0.py":
+            adjusted.append(str(STABLE_HARNESS))
+        else:
+            adjusted.append(item)
     if "probe-isolation" in adjusted and "--timeout" not in adjusted:
         adjusted.extend(["--timeout", str(ISOLATION_TIMEOUT_SECONDS)])
     return _BASE_RUN(
