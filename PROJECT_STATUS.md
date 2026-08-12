@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-12**
+Last explanatory handoff update: **2026-08-13**
 
 This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state through the repository-state tooling. Do not guess a merge or active child from this Markdown file when those sources disagree.
 
@@ -22,66 +22,69 @@ Completed Sprite chain:
 S0 -> S1
  -> SR0..SR8
  -> SA0..SA4
- -> SPP0 -> SPP1 -> SPP2 -> SPP3
+ -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4
 ```
 
 Frozen milestone references retained for contract continuity:
 
 - #144 / SA0 — deterministic Sprite animation timing/frame/event contract, frozen and complete.
 - #164 / PR #165 / `926993ace6d020e00e3d4565d0ffacff866ee252` — SPP3 external sheet/import conversion, frozen and complete.
+- #166 / PR #167 / `e195afb2a9dc7c80f49d71abff32c920e3e850c4` — SPP4 generator-manifest interoperability, frozen and complete.
 
-Current child: **#166 / SPP4 — deterministic sprite-gen / PerfectPixel manifest interoperability**.  
-Current draft PR: **#167**.  
-Current branch: `agent/sprite-spp4-generator-manifests`.  
-Exact next child after SPP4 merges green: **SPP5 — provider-neutral generation orchestration**.
+Current child: **#168 / SPP5 — provider-neutral generation orchestration with deterministic post-generation validation**.  
+Current draft PR: **#169**.  
+Current branch: `agent/sprite-spp5-generation-orchestration`.  
+Exact next child after SPP5 merges green: **SE2E — end-to-end generated/imported Sprite proof**.
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SPP4 contract: [`docs/SPRITE_GENERATOR_INTEROP_SPP4.md`](docs/SPRITE_GENERATOR_INTEROP_SPP4.md).  
-SPP3 frozen contract: [`docs/SPRITE_IMPORT_SPP3.md`](docs/SPRITE_IMPORT_SPP3.md).  
+SPP5 contract: [`docs/SPRITE_GENERATION_SPP5.md`](docs/SPRITE_GENERATION_SPP5.md).  
+SPP4 frozen contract: [`docs/SPRITE_GENERATOR_INTEROP_SPP4.md`](docs/SPRITE_GENERATOR_INTEROP_SPP4.md).  
 Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
-## SPP4 authority
+## SPP5 authority
 
 ```text
-explicit provider manifest + decoded RGBA8 atlas
- -> explicit finite SPP4 adapter
- -> ordered generic SPP3 regions + animation evidence
- -> ImportGenericSpriteSheet
- -> existing S1 canonical validation
- -> deterministic SPP4 structural evidence
+provider-neutral request + deterministic post-process plan
+ -> replaceable external SpriteGenerationProvider
+ -> nondeterministic owned candidate response
+ -> deterministic SPP5 candidate validation
+ -> loose frames: SPP2 -> SPP3 -> S1
+ -> manifest atlas: SPP4 -> SPP3 -> S1
+ -> canonical SpriteAsset only after every required gate passes
 ```
 
-SPP4 remains offline/setup work. It does not replace canonical S1 assets, SA0-SA4 animation state, runtime Sprite components, renderer state, provider orchestration or GPU evidence.
+Generation/provider output is external nondeterministic input. SPP5 does not make provider/model state, request retries, network state or generated pixels into engine runtime truth. Determinism begins from one concrete recorded response and explicit post-process plan.
 
-Baseline scope in PR #167:
+Baseline scope in PR #169:
 
-- explicit `SpriteGenComponentRow` and `PerfectPixelV2` adapter kinds; no weak-field auto-detection,
-- sprite-gen runtime `game_input`, `degraded_static_fallback=false`, absolute `frame_layout`, explicit animation rows/FPS/loop/per-frame millisecond durations,
-- repeated sprite-gen atlas rectangles preserved as distinct playback slots,
-- mandatory explicit rational sprite-gen pivot rather than alpha/pixel inference,
-- PerfectPixel `perfectpixel.sprite/2` sheet identity, full-cell rects, local trims, integer pivot and duration/FPS/loop metadata,
-- exact PerfectPixel trim lowering into S1 packed-content/source/trim geometry,
-- explicit row ordering independent of JSON map order,
-- checked integer millisecond-to-nanosecond duration conversion,
-- both formats lowered through existing SPP3 `ImportGenericSpriteSheet` and S1 canonicalization rather than a second SpriteAsset builder,
-- deterministic schema-versioned structural evidence,
-- transactional failure with no partial authoritative output,
+- protocol/network-independent `SpriteGenerationProvider` with one explicit generation call,
+- preflight validation before provider execution so invalid plans cause zero provider calls,
+- provider-neutral loose-frame output where caller-owned targets define canonical page/region/texture identity and optional exact pivot,
+- exact positive-dimension RGBA8 byte validation and expected-frame gates,
+- existing SPP2 quality/repair followed by SPP3 loose-frame import and S1 validation,
+- explicit SPP4 generator-manifest atlas path without format auto-detection,
+- provider failure/exception/request-identity/candidate-kind rejection,
+- no canonical output exposure after failed post-generation validation,
+- deterministic schema-versioned structural JSON for the same recorded response,
+- fake/recorded providers only in CI; no live/paid generation service is required,
 - focused backend-independent tests.
 
-Provider execution, curation/editor state, raw generation state, background workers, runtime source-format dispatch and automatic semantic/pivot inference are outside SPP4. Live provider-neutral generation belongs to SPP5.
+Provider SDKs, HTTP/auth/secrets, retries/backoff, background workers, prompt routing/optimization, runtime generation, learned/VLM quality judgment as deterministic truth and automatic semantic/pivot inference are outside SPP5.
 
 ## Performance boundary
 
-- manifest parsing/planning: `O(manifest bytes + frame count)`,
-- animation row ordering: `O(animation count log animation count)`,
-- canonical lowering: existing SPP3 `O(frame count)` plus S1 metadata validation,
-- decoded atlas bytes are viewed for exact byte/dimension validation rather than recopied merely for metadata adaptation,
-- no SPP4 work enters fixed-step animation, normal render submission, GPU presentation or provider runtime paths,
-- existing `nlohmann-json` is reused; no new package is introduced.
+- request/plan/envelope validation: `O(frame target count)`,
+- loose candidate shape checks: `O(frame count)`,
+- loose pixel processing reuses existing SPP2 cost and SPP3 `O(frame count)` import,
+- manifest processing reuses SPP4 `O(manifest bytes + frame count)` plus SPP3/S1 validation,
+- generated buffers are owned by the provider response and viewed by downstream APIs where possible,
+- repaired RGBA8 copies occur only for explicit SPP2 repair,
+- no SPP5 work enters fixed-step animation, normal rendering or GPU presentation,
+- no new package is introduced.
 
 ## Current validation gate
 
-Required on the final exact PR #167 head:
+Required on the final exact PR #169 head:
 
 - Project State Contract,
 - Sprite S0 Contract,
@@ -90,10 +93,10 @@ Required on the final exact PR #167 head:
 - Windows MSVC configure/build/full CTest,
 - clean-clone README configure/build/full CTest.
 
-No local full-build claim is made for this execution because its local checkout path cannot resolve `github.com`. Hosted exact-head CI is the integration authority for this continuation.
+No local full-build claim is made for this execution because the implementation container cannot resolve `github.com`. Hosted exact-head CI is the integration authority for this continuation.
 
-No new real-GPU gate is required because SPP4 changes no presentation behavior.
+No new real-GPU gate is required because SPP5 changes no presentation behavior.
 
 ## Continuation rule
 
-Keep #167 draft until the final exact head has green hosted integration/audit evidence and stage documentation agrees with #166/implementation. Repair only SPP4 issues exposed by code review or CI. After #167 is ready and merged and #166 closes, stop. Do **not** start SPP5 in the same completion continuation.
+Keep #169 draft until the final exact head has green hosted integration/audit evidence and stage documentation agrees with #168/implementation. Repair only SPP5 issues exposed by code review or CI. After #169 is ready and merged and #168 closes, stop. Do **not** start SE2E in the same completion continuation.
