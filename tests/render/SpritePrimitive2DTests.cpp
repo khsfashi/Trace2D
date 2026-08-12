@@ -250,6 +250,34 @@ TEST(SpritePrimitive2DTests, TiledRepeatsCenterAndClipsFinalPartialTile)
     EXPECT_NEAR(partialCenter.sampleBounds.maximum.x, 11.5F / 64.0F, 1.0e-5F);
 }
 
+TEST(SpritePrimitive2DTests, SubTexelPartialTileClampsToRepresentedTexelCenter)
+{
+    assets::SpriteAsset asset = MakePrimitiveAsset();
+    asset.regions[0].border = assets::SpritePixelBorder{1U, 1U, 1U, 1U};
+    const ResolvedSpriteRegion selection = ResolveOnlyRegion(asset);
+    const SpritePrimitive2D primitive{SpritePrimitiveMode::Tiled, Float2{6.5F, 6.0F}};
+
+    std::array<SpritePrimitivePatch2D, 12U> patches{};
+    std::size_t patchCount = 0U;
+    ASSERT_TRUE(BuildSpritePrimitivePatches(
+        selection,
+        scene::SpritePose2D{},
+        1.0F,
+        primitive,
+        patches,
+        patchCount).Succeeded());
+    ASSERT_EQ(patchCount, 12U);
+
+    // Row 1 / center cell emits one full four-pixel tile followed by a half-pixel tile.
+    // Exact UV geometry remains [11, 11.5] atlas pixels, but linear sampling must collapse to
+    // the represented texel center 11.5 rather than the geometric midpoint 11.25.
+    const SpritePrimitivePatch2D& halfTexelCenter = patches[6];
+    ExpectNear(halfTexelCenter.quad.topLeft.uv, 11.0F / 64.0F, 21.0F / 64.0F);
+    ExpectNear(halfTexelCenter.quad.topRight.uv, 11.5F / 64.0F, 21.0F / 64.0F);
+    EXPECT_NEAR(halfTexelCenter.sampleBounds.minimum.x, 11.5F / 64.0F, 1.0e-5F);
+    EXPECT_NEAR(halfTexelCenter.sampleBounds.maximum.x, 11.5F / 64.0F, 1.0e-5F);
+}
+
 TEST(SpritePrimitive2DTests, ReportsRequiredCapacityWithoutPartialWrites)
 {
     const assets::SpriteAsset asset = MakePrimitiveAsset();
