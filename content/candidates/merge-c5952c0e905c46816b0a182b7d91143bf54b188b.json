@@ -1,0 +1,260 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-c5952c0e905c46816b0a182b7d91143bf54b188b",
+  "source_event": "merge",
+  "event_id": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#152",
+        "url": "https://github.com/khsfashi/Trace2D/issues/152"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 151,
+        "url": "https://github.com/khsfashi/Trace2D/pull/151"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+        "authored_at": "2026-08-12T19:27:43+09:00",
+        "subject": "Sprite SA4: animation conformance and deterministic workloads (#153)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-animation"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "SA4 validates the frozen SA0-SA3 runtime through explicit deterministic workloads rather than adding another animation state machine",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Portable CI gates exact structural replay/state/emission evidence; environment-dependent timing is optional local Release evidence only",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Semantic transcript digest hashes fixed numeric/enumerated fields only, is serialized losslessly as a JSON string, and remains explicit tooling evidence rather than runtime authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Ordinary SpriteAnimator2D stepping receives no mandatory hash/report/JSON/filesystem/wall-clock/renderer/GPU work",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "hosted-CI wall-clock performance thresholds | machine noise is not a deterministic correctness oracle",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ],
+        "alternative": "hosted-CI wall-clock performance thresholds",
+        "reason": "machine noise is not a deterministic correctness oracle"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "new benchmark framework dependency | existing dependency-free workload tooling is sufficient for the bounded SA4 measurement surface",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ],
+        "alternative": "new benchmark framework dependency",
+        "reason": "existing dependency-free workload tooling is sufficient for the bounded SA4 measurement surface"
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "GitHub Actions CI #666 / run 31586799797 on head d85f5fc0c05aa8f262f1e687225307e1f36ae111 | clean clone and Windows MSVC integration green; 342/342 CTests passed in clean-clone with 8 expected opt-in GPU skips",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "SA4 structural workloads and six SpriteAnimationConformanceSA4Tests on exact PR merge ref 0f66c73d3b5896baa051bc9ce27cad889484040a | passed",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "local full repository checkout in implementation container | github.com DNS unavailable; exact-head hosted clean-clone/MSVC used as integration authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      },
+      {
+        "id": "not-tested-002",
+        "text": "new SA4 real-GPU evidence | not required because SA4 adds no presentation/GPU behavior",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+            "trailer": "Not-tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "FoundationDB Simulation documentation 2026-08-12 | ADOPT/ADAPT | deterministic replay and correctness/performance separation",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "Google Benchmark user guide 2026-08-12 | ADAPT/REJECT | warmup/repetitions/statistics yes, shared-CI time gates no",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+        }
+      ]
+    },
+    {
+      "id": "reference-003",
+      "text": "Godot SpriteFrames/AnimatedSprite2D current docs 2026-08-12 | ADAPT/REJECT | loop/reverse/ping-pong comparison coverage without float authority",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+          "trailer": "Reference",
+          "ordinal": 3,
+          "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+        }
+      ]
+    },
+    {
+      "id": "reference-004",
+      "text": "Aseprite file format main 2026-08-12 | ADOPT/ADAPT | per-frame durations and direction/repeat precedent",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "c5952c0e905c46816b0a182b7d91143bf54b188b",
+          "trailer": "Reference",
+          "ordinal": 4,
+          "url": "https://github.com/khsfashi/Trace2D/commit/c5952c0e905c46816b0a182b7d91143bf54b188b"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "#150",
+    "PR #151"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
