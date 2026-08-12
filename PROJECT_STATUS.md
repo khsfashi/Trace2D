@@ -69,7 +69,7 @@ Comparison rationale: [`benchmarks/b1/qualification/SELECTION.md`](benchmarks/b1
 
 ## B1 scored suite — frozen before scoring
 
-`benchmarks/b1/suite.json` now freezes the B1 task membership, budgets, matched lane mappings and fixture paths. `benchmarks/b1/verifiers.json` freezes verifier identities, authority seams and deterministic check sets.
+`benchmarks/b1/suite.json` freezes the B1 task membership, budgets, matched lane mappings and fixture paths. `benchmarks/b1/verifiers.json` freezes verifier identities, authority seams and deterministic check sets.
 
 The three scored scenarios cover every preregistered #103 class exactly once:
 
@@ -81,7 +81,19 @@ The B0 Agent budget is reused without expansion for every task: 300 seconds, 80 
 
 `godot.generic` and `godot.agent` are locked to identical Godot starter/known-good/known-bad fixture paths and the same independent verifier identity. The selected hi-godot bridge changes only the interaction adapter. `trace2d.agent` uses semantically matched native Trace2D fixtures and public production authorities.
 
-Scored execution is still **disabled**. No scored comparative outcome has been observed on this branch.
+No scored comparative outcome has been observed on this branch yet.
+
+## B1 frozen fixture qualification — passed
+
+The prerequisite fixture/verifier discrimination gate is complete and recorded in [`benchmarks/b1/fixture-qualification.json`](benchmarks/b1/fixture-qualification.json). The frozen suite and verifier registry were not changed to obtain the result.
+
+Qualification source head: `557c7edf9ee30fd9dca0cc33379731887e79f29a`.
+
+- Godot official `4.7.1.stable.official.a13da4feb`: all three known-good fixtures accepted and all three seeded known-bad fixtures rejected in workflow `31651157113` / job `94295573573`. The evidence artifact is `benchmark-b1-godot-fixture-qualification` / artifact `9162609754`.
+- Trace2D native dispatch: six `benchmark_b1_fixture_qualification` CTests passed in workflow `31651157103` / job `94295573606`, exercising the real Sprite parser, animation runtime types and particle parser/compiler.
+- The same frozen Godot fixture/verifier dispatch qualifies both `godot.generic` and `godot.agent`; Agent bridge behavior itself remains part of scored execution rather than fixture qualification.
+
+Fixture qualification enables scoring; it is not a scored result.
 
 ## Performance / fairness boundary
 
@@ -99,16 +111,16 @@ Independent verifier evidence remains authoritative for deterministic acceptance
 
 ## Current validation gate
 
-For the suite-freeze stage:
+For the frozen B1 contract and completed fixture qualification:
 
 - `python3 scripts/benchmark_b1.py validate-contract`,
 - `python3 scripts/benchmark_b1.py validate-suite`,
 - `python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'`,
 - selected `godot.agent` identity and exact source pin remain frozen,
-- all three task IDs/class bindings/budgets/lane mappings/fixture paths/verifier IDs are frozen,
-- Godot generic/Agent fixtures are identical by contract,
-- scoring eligibility remains gated by independent `benchmarks/b1/fixture-qualification.json` evidence; the frozen suite and verifier registry must not mutate.
+- all three task IDs/class bindings/budgets/lane mappings/fixture paths/verifier IDs remain frozen,
+- Godot generic/Agent fixtures remain identical by contract,
+- `benchmarks/b1/fixture-qualification.json` records successful known-good/known-bad discrimination for pinned Godot and Trace2D production-source dispatch.
 
 ## Continuation rule
 
-Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should implement/run **fixture qualification only**: every frozen known-good fixture must pass and every frozen known-bad fixture must fail through the frozen verifier dispatch on the pinned engine/tool sources. Do not run the scored Agent cohort and do not begin #69 yet.
+Keep #103 and `agent/benchmark-b1-content-authoring` active. Fixture qualification is complete. The next continuation is **scored B1 cohort execution only** with the frozen suite, verifier identities, budgets, Agent pins and isolated trial rules. Preserve raw evidence before aggregation, do not alter the frozen benchmark after observing results, and do not begin #69 until B1 has reviewable multi-run acceptance evidence.

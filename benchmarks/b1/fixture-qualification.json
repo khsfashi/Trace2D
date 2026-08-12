@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "trace2d-b1",
+  "qualification_state": "passed",
+  "frozen_sources": {
+    "trace2d_commit": "31712ca419efb232d292680661caea51d8a318e4",
+    "godot_version": "4.7.1-stable"
+  },
+  "qualification_source_head": "557c7edf9ee30fd9dca0cc33379731887e79f29a",
+  "github_pr_tested_merge_sha": "c3a3a54653ae5dcc078897930b48ab0f420fb7e4",
+  "dispatch": {
+    "godot": {
+      "qualified": true,
+      "workflow_run_id": 31651157113,
+      "job_id": 94295573573,
+      "version_observed": "4.7.1.stable.official.a13da4feb",
+      "artifact": {
+        "id": 9162609754,
+        "name": "benchmark-b1-godot-fixture-qualification",
+        "sha256": "6b8db39450b9cbfc1ffb8db4a369be73e56b4af489ad3089104051af5e7c1eff"
+      },
+      "tasks": [
+        {
+          "task_id": "b1-sprite-normalize-repair",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        },
+        {
+          "task_id": "b1-animation-exact-event",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        },
+        {
+          "task_id": "b1-particle-budget-repair",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        }
+      ]
+    },
+    "trace2d": {
+      "qualified": true,
+      "workflow_run_id": 31651157103,
+      "job_id": 94295573606,
+      "ctest_label": "benchmark_b1_fixture_qualification",
+      "ctest_total": 6,
+      "ctest_passed": 6,
+      "tasks": [
+        {
+          "task_id": "b1-sprite-normalize-repair",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        },
+        {
+          "task_id": "b1-animation-exact-event",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        },
+        {
+          "task_id": "b1-particle-budget-repair",
+          "known_good": "accepted",
+          "known_bad": "rejected"
+        }
+      ]
+    }
+  },
+  "lane_qualification_dispatch": {
+    "godot.generic": "godot",
+    "godot.agent": "godot",
+    "trace2d.agent": "trace2d"
+  },
+  "godot_lanes_share_frozen_fixtures_and_verifier": true,
+  "scoring_eligible": true,
+  "scored_runs_observed": false
+}
