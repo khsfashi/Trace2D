@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 
 namespace
 {
@@ -157,4 +158,13 @@ TEST(SpriteRendererConformanceTests, Sr8CommittedStructuralWorkloadHasExactRawMe
     EXPECT_EQ(measurement.culledSprites, 256U);
     EXPECT_EQ(measurement.visibleQuads, 960U);
     EXPECT_EQ(measurement.contiguousRuns, 7U);
+
+    std::cout
+        << "TRACE2D_SR8_WORKLOAD_V1"
+        << " submitted=" << measurement.submittedSprites
+        << " visible=" << measurement.visibleSprites
+        << " culled=" << measurement.culledSprites
+        << " quads=" << measurement.visibleQuads
+        << " runs=" << measurement.contiguousRuns
+        << '\n';
 }
