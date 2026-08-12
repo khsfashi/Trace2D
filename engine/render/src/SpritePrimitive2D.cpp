@@ -513,6 +513,30 @@ template <typename Callback>
     }
 }
 
+void ResolveAtlasSafeSampleRange(
+    const double minimum,
+    const double maximum,
+    double& outMinimum,
+    double& outMaximum) noexcept
+{
+    const double extent = maximum - minimum;
+    if (extent >= 1.0)
+    {
+        outMinimum = minimum + 0.5;
+        outMaximum = maximum - 0.5;
+        return;
+    }
+
+    // A linear-filter footprint is one texel wide. When a geometrically clipped tile leaves a
+    // source interval narrower than one texel, no sample position can keep the whole footprint
+    // inside that interval. Collapse the clamp to the nearest actual texel center represented by
+    // the interval instead of its geometric midpoint; the latter still blends atlas neighbors.
+    const double midpoint = (minimum + maximum) * 0.5;
+    const double texelCenter = std::ceil(midpoint) - 0.5;
+    outMinimum = texelCenter;
+    outMaximum = texelCenter;
+}
+
 [[nodiscard]] bool BuildPatchUvAndBounds(
     const assets::SpriteAtlasPage& page,
     const assets::SpriteRegion& region,
@@ -571,12 +595,16 @@ template <typename Callback>
         return false;
     }
 
-    const double guardX = std::min(0.5, extentX * 0.5);
-    const double guardY = std::min(0.5, extentY * 0.5);
-    return TryFloat((*minimumX + guardX) / pageWidth, outBounds.minimum.x) &&
-        TryFloat((*minimumY + guardY) / pageHeight, outBounds.minimum.y) &&
-        TryFloat((*maximumX - guardX) / pageWidth, outBounds.maximum.x) &&
-        TryFloat((*maximumY - guardY) / pageHeight, outBounds.maximum.y);
+    double sampleMinimumX = 0.0;
+    double sampleMaximumX = 0.0;
+    double sampleMinimumY = 0.0;
+    double sampleMaximumY = 0.0;
+    ResolveAtlasSafeSampleRange(*minimumX, *maximumX, sampleMinimumX, sampleMaximumX);
+    ResolveAtlasSafeSampleRange(*minimumY, *maximumY, sampleMinimumY, sampleMaximumY);
+    return TryFloat(sampleMinimumX / pageWidth, outBounds.minimum.x) &&
+        TryFloat(sampleMinimumY / pageHeight, outBounds.minimum.y) &&
+        TryFloat(sampleMaximumX / pageWidth, outBounds.maximum.x) &&
+        TryFloat(sampleMaximumY / pageHeight, outBounds.maximum.y);
 }
 
 [[nodiscard]] SpritePrimitiveStatus BuildPatch(
