@@ -1,9 +1,9 @@
 # Sprite SR5 Primitive Contract
 
-Status: **implementation in progress — #134 / PR #135**  
+Status: **complete — #134 / PR #135; all hosted and owner Windows presentation-GPU acceptance gates passed on 2026-08-12**  
 Umbrella: #59  
 Predecessors: S1 canonical assets, SR0 selection, SR1 transforms, SR2 atlas geometry, SR3 appearance, SR4 order/groups/masks  
-Next stage after verified SR5 completion: **SR6 — pixel-perfect runtime presentation**
+Exact next stage: **SR6 — pixel-perfect runtime presentation**
 
 SR5 adds production 9-slice and tiled/repeated Sprite presentation without changing the authority model established by earlier Sprite stages. Canonical source-pixel metadata remains CPU truth; primitive geometry, UVs, sample guards and GPU buffers are derived presentation data.
 
@@ -69,8 +69,6 @@ y = [0, top,  source_height - bottom, source_height]
 
 If the target is large enough, opposing target border widths preserve their source-pixel-equivalent sizes. If a target dimension is smaller than the sum of its opposing borders, the two target borders shrink proportionally and the center span becomes zero.
 
-That rule prevents overlap, inversion and hidden minimum-size state while keeping undersized presentation deterministic.
-
 For `Sliced`:
 
 - four corner cells preserve border extents,
@@ -117,19 +115,13 @@ cw90:
     packed_y = packed_rect.y + local_x
 ```
 
-This allows partial tiled cells and slice intersections to reuse the exact same canonical atlas storage rules as ordinary SR2 quads.
-
 ## 6. Per-patch sampling guard
 
 SR3 keeps color space, straight-alpha source truth, tint, opacity, sampler and blend authority.
 
-SR5 refines only the atlas-safe linear-filter clamp domain for each emitted patch. A patch's normalized UV geometry remains exact pixel-edge truth; a separate `SpriteSampleBounds` clamps sampling to texel centers inside that patch's sampled source sub-rectangle.
+SR5 refines only the atlas-safe linear-filter clamp domain for each emitted patch. A patch's normalized UV geometry remains exact pixel-edge truth; a separate `SpriteSampleBounds` clamps sampling to texel centers inside the source texels represented by that patch.
 
-For a one-pixel-wide partial tile, min/max clamp to the same texel center. This prevents linear filtering from pulling color from:
-
-- an adjacent repeated cell,
-- another 9-slice source cell,
-- a neighboring atlas region.
+For ordinary one-pixel extents, min/max collapse to that texel center. For a sub-texel partial tile, the guard also collapses to the represented source texel center rather than to the geometric midpoint of the fractional edge interval. This prevents linear filtering from pulling color from an adjacent repeated cell, another 9-slice source cell, or a neighboring atlas region.
 
 Per-patch bounds are uploaded as vertex attributes. All six vertices of one patch contain identical bounds, so they remain constant over both triangles without adding a draw call per patch.
 
@@ -186,8 +178,6 @@ Capture/readback remains an explicit diagnostic API and is not part of normal pr
 
 ## 10. External precedent decisions
 
-SR5 uses current production APIs as semantic precedent without importing their hidden/editor state into Trace2D.
-
 | Source | Decision | Trace2D use |
 |---|---|---|
 | Unity SpriteRenderer `Sliced` | ADAPT | corners retain size; edge/center regions stretch |
@@ -197,11 +187,11 @@ SR5 uses current production APIs as semantic precedent without importing their h
 | SDL GPU triangle-list draw | ADOPT | contiguous explicit vertex submission |
 | per-frame GPU resource creation | REJECT | persistent capacity-managed state |
 
-The external behavior is precedent only. Canonical border/pivot/trim/rotation semantics remain explicitly specified by Trace2D.
+External behavior is precedent only. Canonical border/pivot/trim/rotation semantics remain explicitly specified by Trace2D.
 
 ## 11. Verification boundary
 
-Backend-independent tests must prove:
+Backend-independent tests prove:
 
 - omitted/explicit border parse-save-parse identity,
 - strict border bounds and malformed-array rejection,
@@ -213,10 +203,11 @@ Backend-independent tests must prove:
 - arbitrary `cw90` source-subrect mapping,
 - exact and partial tiled repetition,
 - per-patch sample guard values,
+- sub-texel partial guards collapse to the represented texel center,
 - exact capacity/no-partial-write behavior,
 - exact 4096 and one-over safety boundary.
 
-Production/GPU tests must additionally prove:
+Production/GPU tests additionally prove:
 
 - one top-level SR4 semantic order item owns all primitive patches,
 - masked primitive output is correct,
@@ -226,13 +217,41 @@ Production/GPU tests must additionally prove:
 - sampler/pipeline counts remain stable,
 - ordinary presentation adds zero explicit readbacks/fence waits.
 
-Hosted CI may skip a real-GPU fixture when no qualifying adapter is available. SR5 is not complete until the required owner Windows presentation-GPU gate passes and the evidence is recorded in the completion PR.
+## 12. Completion evidence
 
-## 12. Handoff
+Final implementation head before completion-document commit:
 
-After #134 / PR #135 satisfies the backend-independent, hosted and owner-GPU gates:
+```text
+e05dc7158f5ea68b990f0e87f753629d6149ebab
+```
 
-- mark SR5 complete in `docs/SPRITES.md` and `PROJECT_STATUS.md`,
-- close #134 through the completion PR,
-- stop that continuation after merge,
-- create SR6 only on the next `@GitHub Trace2D 다음 진행해줘` continuation.
+Hosted validation on that head passed on 2026-08-12:
+
+- CI run #604 — success,
+- Content Evidence — success,
+- Sprite S0 Contract — success,
+- B0 Codex Wrapper — success,
+- B0 Godot Agent Oracle — success.
+
+Blocking owner Windows presentation-GPU fixture:
+
+```text
+SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
+```
+
+The first owner run exposed a real fractional-tile bleed: the expected pure-green sample was observed as approximately `(red=64, green=191)`. The implementation had collapsed a 0.5-texel sampled interval to its geometric midpoint, which is still a linear interpolation point. The fix collapses such sub-texel partial intervals to the source texel center they actually represent, and `SubTexelPartialTileClampsToRepresentedTexelCenter` locks that behavior in CPU CI.
+
+The owner rebuilt and reran the real-GPU fixture. Final observed result:
+
+```text
+Start 120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
+1/1 Test #120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract ... Passed
+100% tests passed out of 1
+Total Test time (real) = 2.28 sec
+```
+
+No renderer/driver string was captured; the completion record does not invent one.
+
+## 13. Handoff
+
+SR5 acceptance is complete. PR #135 is the completion/merge vehicle for #134. After it merges, confirm #134 closed and stop the continuation. **Do not create SR6 in the same continuation.** The next `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR6 child.
