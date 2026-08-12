@@ -16,10 +16,19 @@ struct SpriteGpuBackendMetrics final
 {
     std::uint64_t samplerCreations{0U};
     std::uint64_t pipelineCreations{0U};
-    // Compatibility name retained from SR3/SR4. SR5 counts reusable six-vertex quad slots;
-    // one primitive Sprite may occupy multiple slots while still issuing one top-level draw.
+    // Reusable six-vertex quad-slot capacity. One primitive Sprite may occupy multiple slots.
     std::uint64_t vertexCapacitySprites{0U};
+    std::uint64_t vertexCapacityBytes{0U};
     std::uint64_t maskTargetCreations{0U};
+
+    // Exact most-recent UploadPresentations plan. Renderer commits these only after a successful
+    // command-buffer submission, preserving cumulative public-metric semantics.
+    std::uint64_t lastSubmittedSprites{0U};
+    std::uint64_t lastVisibleSprites{0U};
+    std::uint64_t lastCulledSprites{0U};
+    std::uint64_t lastUploadedQuads{0U};
+    std::uint64_t lastUploadedVertexBytes{0U};
+    std::uint64_t lastCompatibilityRuns{0U};
 };
 
 class SpriteGpuBackend final
@@ -53,8 +62,8 @@ public:
 
     [[nodiscard]] std::size_t OrderedSourceIndex(std::size_t orderedIndex) const;
 
-    // Returns whether a GPU primitive was emitted. Existing Renderer call sites may intentionally
-    // ignore this until metrics distinguish semantic Sprite submissions from zero-patch draws.
+    // Emits one actual GPU draw only for the first visible Sprite of a precomputed compatible run.
+    // Culled/zero-output items and continuation items return false without issuing a primitive.
     bool DrawPresentation(
         SDL_GPUCommandBuffer* commandBuffer,
         SDL_GPURenderPass* renderPass,
@@ -98,9 +107,12 @@ private:
     bool maskingRequired_{false};
     SpritePixelPerfectViewport2D pixelPerfectViewport_{};
     bool pixelPerfectViewportEnabled_{false};
+
+    // All scratch is retained across frames. orderScratch_ is mutated into SR4 painter order;
+    // source-index keyed arrays describe the compacted SR7 visible stream and batch-run starts.
     std::vector<SpriteOrderMaskEntry2D> orderScratch_{};
-    // Source-index keyed first quad-slot offset for the current frame. Capacity is retained.
     std::vector<std::size_t> patchOffsetScratch_{};
+    std::vector<std::size_t> batchQuadCountScratch_{};
     SpriteGpuBackendMetrics metrics_{};
 };
 } // namespace trace2d::render::detail

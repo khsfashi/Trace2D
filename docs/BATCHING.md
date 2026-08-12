@@ -17,9 +17,9 @@ candidate draw-call saving:  5
 
 That five-draw reduction is material enough for the first narrow batching implementation.
 
-## Implemented batching contract
+## Implemented legacy batching contract
 
-PR #34 implements contiguous same-texture GPU instancing without changing caller-provided painter order.
+PR #34 implements contiguous same-texture GPU instancing for the legacy `SpriteRenderData` path without changing caller-provided painter order.
 
 For each presented non-empty sprite frame, the renderer:
 
@@ -42,13 +42,35 @@ float2 halfClip
 
 The vertex shader consumes that data from an instance-rate vertex stream. The six-vertex unit quad remains persistent.
 
+## SR7 production Sprite batching
+
+The SR4-SR6 `SpritePresentationRenderData` path cannot reuse the legacy texture-only key because production presentation also carries resolved sampler, blend, masking, variable primitive patch counts, pixel-perfect view state, and a future Material2D/Shader2D compatibility seam.
+
+SR7 therefore adds a separate production contract, documented in `docs/SPRITE_BATCHING_SR7.md`.
+
+Its compatibility key is:
+
+```text
+texture/resource identity
++ material/pipeline identity
++ sampler compatibility
++ blend compatibility
++ exact mask mode/id
+```
+
+Tint and opacity are not key fields. SR7 stores their resolved derived values in the transient expanded Sprite vertex payload, so otherwise-compatible adjacent Sprites may batch even when appearance differs.
+
+The production path first resolves the complete SR4 painter/mask sequence, then evaluates visibility against the exact presentation view, compacts visible quad/primitive vertices in that resolved order, and emits one GPU draw per contiguous compatible visible run. A fully culled or zero-output Sprite does not split a run.
+
+SR7 does **not** globally sort by any resource/material key. #89 remains the owner of programmable material execution; SR7 only establishes the non-zero built-in material/pipeline identity required for future compatibility-safe batching.
+
 ## Painter-order invariant
 
-The renderer never sorts by texture.
+The renderer never sorts by texture or material.
 
-Only sprites that are already adjacent in the **visible** painter sequence and use the same texture may share one draw. A culled sprite does not split a run because it emits no presentation output.
+Only sprites that are already adjacent in the **visible** painter sequence and have a compatible batch key may share one draw. A culled sprite does not split a run because it emits no presentation output.
 
-Example:
+Legacy example:
 
 ```text
 caller sequence:  tex1, tex1, [culled tex9], tex1, tex2, tex2, tex1
@@ -56,52 +78,65 @@ visible sequence: tex1, tex1,                tex1, tex2, tex2, tex1
 instanced runs:   [tex1 x3]                       [tex2 x2] [tex1 x1]
 ```
 
-No texture identity participates in draw-order sorting. This keeps batching an implementation detail under the existing authored/caller painter sequence.
+Production SR7 applies the same invariant after SR4 has resolved its semantic painter sequence; the compatibility comparison is simply broader than texture identity.
 
 ## Allocation and resource policy
 
-The frame path does not create a renderer-owned visible-sprite vector or run vector.
+Neither Sprite path creates a renderer-owned visible-sprite scene or a globally sorted batch list.
 
-The renderer owns:
+The legacy renderer owns:
 
 - one persistent unit-quad vertex buffer,
 - one persistent instance GPU buffer,
 - one persistent instance upload transfer buffer,
 - the existing persistent pipeline/sampler/texture resources.
 
-Instance capacity grows geometrically only when the measured visible count exceeds retained capacity. Replacement resources are created before old resources are released. Steady-capacity frames reuse the retained buffers and use SDL GPU cycling for in-flight safety; they do not recreate buffers.
+The SR7 production backend owns and retains:
 
-The CPU work remains direct O(N) scans with no sorting. The explicit full-span texture validation pass is retained because invalid texture semantics must not depend on camera visibility.
+- nearest/linear samplers,
+- built-in graphics pipelines,
+- one geometrically growing expanded-Sprite vertex GPU buffer,
+- one matching upload transfer buffer,
+- the stencil target while dimensions remain compatible,
+- CPU scratch vectors whose capacity is retained across frames.
+
+GPU upload capacity grows geometrically only when the visible high-water mark exceeds retained capacity. Equal or smaller workloads reuse it. Steady-state uploads use SDL GPU cycling rather than adding ordinary-frame explicit fence waits.
+
+The new SR7 scan work is O(N + Q) after the existing SR4 semantic ordering step, where N is top-level Sprite count and Q is emitted quad count for visible top-level Sprites. No additional resource-based sorting pass is added.
 
 ## Metrics
 
-After instancing, `RenderMetrics` intentionally separates draw count from submitted sprite count:
+Legacy `RenderMetrics` separates draw count from visible encoded Sprite count:
 
 ```text
 submittedSprites delta = visible sprite instances encoded
 culledSprites delta    = supplied sprites rejected by visibility
-DrawCalls delta        = contiguous visible texture runs actually drawn
+DrawCalls delta        = contiguous visible runs actually drawn
 ```
 
-For the committed Public Alpha workload, the algorithmic contract is therefore:
+For production SR7, dedicated cumulative metrics additionally distinguish semantic submissions from GPU work:
 
 ```text
-submittedSprites: 7
-culledSprites:    0
-drawCalls:        2
+spritePresentationSprites
+spritePresentationVisibleSprites
+spritePresentationCulledSprites
+spritePresentationDrawCalls
+spritePresentationCompatibilityRuns
+spritePresentationUploadedQuads
+spritePresentationUploadedVertexBytes
 ```
 
-The windowed `trace2d public-alpha --json` command reports the renderer's actual successful submission metrics when a GPU presentation target is available. Hosted CI continues to validate renderer compilation and CPU contracts without requiring an interactive GPU/window.
+Retained state is also observable through sampler/pipeline creation counts, Sprite vertex quad-slot/byte capacity, and mask-target creation count. Ordinary-frame explicit readback/fence counters remain visible so an Agent can detect an accidental synchronization regression.
 
 ## Why not broader batching
 
-The measured five-draw saving does not justify a render graph, bindless architecture, global material sort, frame allocator, texture atlas system, or renderer-owned frame scene.
+The measured benefit does not justify a render graph, bindless architecture, global material sort, frame allocator, texture atlas system, or renderer-owned frame scene.
 
 Future batching changes must still start from measured representative workloads and preserve visible equivalence. If a future optimization requires reordering alpha-blended sprites, it needs an explicit correctness proof rather than silently weakening painter order.
 
 ## Official SDL3 basis
 
-This implementation uses SDL GPU's documented instance-rate vertex input, `SDL_DrawGPUPrimitives` instance ranges, reusable transfer buffers, and cycled uploads. `instance_step_rate` remains `0` as required by SDL3.
+These paths use SDL GPU's documented reusable GPU/transfer resources, cycled upload semantics, explicit vertex ranges, and sampler/pipeline binding model. The legacy path additionally uses instance-rate vertex input.
 
 References:
 

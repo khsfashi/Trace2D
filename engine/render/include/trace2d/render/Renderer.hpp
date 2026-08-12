@@ -4,6 +4,7 @@
 #include <trace2d/render/Capture.hpp>
 #include <trace2d/render/ParticleGpuRuntime.hpp>
 #include <trace2d/render/RenderData.hpp>
+#include <trace2d/render/SpriteBatch2D.hpp>
 #include <trace2d/render/SpriteOrderMask2D.hpp>
 #include <trace2d/render/SpritePixelPerfect2D.hpp>
 #include <trace2d/render/SpritePresentation2D.hpp>
@@ -48,16 +49,18 @@ enum class SpritePresentationGeometryKind : std::uint8_t
     PrimitivePatches = 1,
 };
 
-// Production SR6 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
-// SR4 adds finite semantic painter order/group/mask state and SR5 may replace the legacy single
-// quad with caller-owned, already-derived primitive patches. Primitive patches stay one atomic
-// top-level SR4 item and are consumed only for the duration of RenderFrame/CaptureFrame.
+// Production SR7 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
+// SR4 adds finite semantic painter order/group/mask state, SR5 may replace the legacy single quad
+// with caller-owned primitive patches, SR6 may attach exact pixel-perfect frame state, and SR7 adds
+// only a resolved material/pipeline compatibility identity for batching. The built-in identity is
+// the only executable material in SR7; programmable Material2D/Shader2D remains owned by #89.
 //
-// `pixelPerfectViewport` is optional caller-owned frame-level SR6 presentation state. When any
-// submitted Sprite enables it, every Sprite in that frame must provide an equal mapping. The GPU
-// backend consumes its logical view plus integer target viewport/scissor; it never becomes
-// canonical Sprite/gameplay truth. The pointed value must outlive the RenderFrame/CaptureFrame call.
-// Texture handles and all GPU resources remain derived renderer state.
+// Primitive patches stay one atomic top-level SR4 item and are consumed only for the duration of
+// RenderFrame/CaptureFrame. `pixelPerfectViewport` is optional caller-owned frame-level SR6 state;
+// when any submitted Sprite enables it, every Sprite in that frame must provide an equal mapping.
+// Texture handles and all GPU resources remain derived renderer state. The SR7 material field is
+// appended after the pre-SR7 fields so existing positional aggregate initialization keeps its field
+// meaning while omitted material state naturally selects the built-in pipeline.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
@@ -67,6 +70,7 @@ struct SpritePresentationRenderData final
     SpritePresentationGeometryKind geometryKind{SpritePresentationGeometryKind::Quad};
     std::span<const SpritePrimitivePatch2D> primitivePatches{};
     const SpritePixelPerfectViewport2D* pixelPerfectViewport{nullptr};
+    SpriteMaterialPipelineIdentity materialPipeline{BuiltInSpriteMaterialPipelineIdentity};
 };
 
 struct RenderMetrics
@@ -79,13 +83,23 @@ struct RenderMetrics
     std::uint64_t submittedGpuParticleInstances{0};
     std::uint64_t gpuParticleDrawCalls{0};
     std::uint64_t culledSprites{0};
+
+    // SR4-SR7 production Sprite presentation metrics. Draw calls are actual GPU batch draws,
+    // while Sprite counts distinguish semantic submissions from visible/cull output.
     std::uint64_t spritePresentationDrawCalls{0};
     std::uint64_t spritePresentationSprites{0};
+    std::uint64_t spritePresentationVisibleSprites{0};
+    std::uint64_t spritePresentationCulledSprites{0};
+    std::uint64_t spritePresentationUploadedQuads{0};
+    std::uint64_t spritePresentationUploadedVertexBytes{0};
+    std::uint64_t spritePresentationCompatibilityRuns{0};
+
     std::uint64_t spriteSamplerCreations{0};
     std::uint64_t spritePipelineCreations{0};
-    // Kept for compatibility with SR3/SR4 metrics. In SR5 this is the reusable capacity in
-    // six-vertex Sprite quad slots, so one sliced/tiled Sprite may consume multiple slots.
+    // Reusable capacity in six-vertex Sprite quad slots, so one sliced/tiled Sprite may consume
+    // multiple slots. SR7 also publishes the matching retained byte capacity below.
     std::uint64_t spriteVertexCapacitySprites{0};
+    std::uint64_t spriteVertexCapacityBytes{0};
     std::uint64_t spriteMaskTargetCreations{0};
     std::uint64_t explicitGpuReadbacks{0};
     std::uint64_t explicitGpuFenceWaits{0};
@@ -138,11 +152,10 @@ public:
         std::span<const SpriteRenderData> sprites,
         std::span<const GpuParticleRenderData> particles);
 
-    // SR4-SR6 production path. The renderer resolves painter order from each top-level input,
-    // submits that order without resource sorting, then emits all SR5 patches of one Sprite as one
-    // contiguous triangle-list draw. Optional SR6 frame context resolves the same logical view used
-    // by CPU pixel snapping and restricts rasterization to its integer target viewport/scissor.
-    // SR7 owns broad cross-Sprite batching/culling.
+    // SR4-SR7 production path. SR4 painter order remains authoritative; SR7 conservatively culls,
+    // compacts visible vertices in that exact resolved order, and merges only contiguous compatible
+    // GPU state. Resource/material identity never authorizes global sorting. SR5 patches stay atomic
+    // beneath one top-level Sprite and SR6 viewport/scissor state remains exact frame-level truth.
     void RenderFrame(
         const OrthographicCamera& camera,
         const SpritePresentationRenderData& sprite);
