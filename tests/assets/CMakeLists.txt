@@ -4,6 +4,7 @@ add_executable(trace2d_assets_tests
     SpriteBorderAssetsTests.cpp
     SpriteExtractionOverflowTests.cpp
     SpriteExtractionTests.cpp
+    SpriteImportTests.cpp
     SpriteProcessingTests.cpp
     SpriteQualityTests.cpp
     TextureAssetsTests.cpp
