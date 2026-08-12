@@ -7,6 +7,11 @@
 #include <type_traits>
 #include <vector>
 
+namespace trace2d::assets
+{
+struct SpriteAsset;
+}
+
 namespace trace2d::runtime
 {
 using SpriteAnimationTime2D = std::chrono::nanoseconds;
@@ -22,6 +27,7 @@ struct SpriteAnimationFrame2D final
 enum class SpriteAnimationClipError : std::uint8_t
 {
     None = 0,
+    NullSpriteAsset,
     EmptyFrames,
     TooManyFrames,
     RegionIndexOutOfRange,
@@ -55,11 +61,14 @@ public:
     ~SpriteAnimationClip2D() = default;
 
     [[nodiscard]] static SpriteAnimationClipStatus Prepare(
-        std::span<const SpriteAnimationFrame2D> frames,
+        const assets::SpriteAsset* spriteAsset,
         std::uint32_t spriteRegionCount,
+        std::span<const SpriteAnimationFrame2D> frames,
         SpriteAnimationClip2D& outClip);
 
     [[nodiscard]] bool Prepared() const noexcept;
+    [[nodiscard]] const assets::SpriteAsset* SpriteAsset() const noexcept;
+    [[nodiscard]] std::uint32_t SpriteRegionCount() const noexcept;
     [[nodiscard]] std::uint32_t FrameCount() const noexcept;
     [[nodiscard]] SpriteAnimationTime2D Duration() const noexcept;
     [[nodiscard]] std::span<const SpriteAnimationFrame2D> Frames() const noexcept;
@@ -70,10 +79,20 @@ public:
         std::uint32_t& outFrameIndex) const noexcept;
 
 private:
+    const assets::SpriteAsset* spriteAsset_{nullptr};
+    std::uint32_t spriteRegionCount_{0};
     std::vector<SpriteAnimationFrame2D> frames_{};
     std::vector<SpriteAnimationTime2D> frameBoundaries_{};
     SpriteAnimationTime2D duration_{0};
     bool prepared_{false};
+};
+
+struct SpriteAnimationRegionSelection2D final
+{
+    const assets::SpriteAsset* asset{nullptr};
+    std::uint32_t regionIndex{0};
+
+    [[nodiscard]] bool operator==(const SpriteAnimationRegionSelection2D&) const noexcept = default;
 };
 
 struct SpriteAnimationSpeed2D final
@@ -171,6 +190,7 @@ public:
     [[nodiscard]] bool HasState() const noexcept;
     [[nodiscard]] const SpriteAnimator2DState& State() const noexcept;
     [[nodiscard]] const SpriteAnimationFrame2D* CurrentFrame() const noexcept;
+    [[nodiscard]] bool TryGetCurrentRegion(SpriteAnimationRegionSelection2D& outSelection) const noexcept;
     [[nodiscard]] bool TryGetCurrentRegionIndex(std::uint32_t& outRegionIndex) const noexcept;
 
 private:
@@ -178,6 +198,7 @@ private:
 };
 
 static_assert(std::is_trivially_copyable_v<SpriteAnimationFrame2D>);
+static_assert(std::is_trivially_copyable_v<SpriteAnimationRegionSelection2D>);
 static_assert(std::is_trivially_copyable_v<SpriteAnimationSpeed2D>);
 static_assert(std::is_trivially_copyable_v<SpriteAnimator2DState>);
 } // namespace trace2d::runtime
