@@ -114,10 +114,11 @@ Analysis-only requests do not allocate repaired pixel copies. Repair requests ma
 
 For each violating block:
 
-1. count exact RGBA values,
-2. select the most frequent value,
-3. resolve equal-frequency ties by the lowest packed numeric RGBA value,
-4. rewrite every pixel in that block to the selected RGBA.
+1. collect exact packed RGBA values into reusable operation-local storage,
+2. sort them by packed numeric RGBA,
+3. select the most frequent value,
+4. resolve equal-frequency ties by the lowest packed numeric RGBA value,
+5. rewrite every pixel in that block to the selected RGBA.
 
 The record reports changed blocks and actually changed pixels. This is deterministic caller-selected cleanup, not inferred artistic correction.
 
@@ -158,14 +159,15 @@ Identical input bytes/order/options must produce byte-identical structural JSON.
 SPP2 is explicit offline work:
 
 - base frame evidence: `O(total pixels)`,
-- pixel-grid analysis/repair: `O(total checked pixels)`,
+- pixel-grid analysis: `O(total checked pixels)`,
+- deterministic block-mode repair: `O(sum(blockPixels * log(blockPixels)))` because each block uses a comparison sort,
 - bounded simple palette membership/nearest search: `O(visible pixels * palette size)`, palette size `<= 256`,
 - adjacent silhouette/RGBA comparison: `O(total comparable adjacent pixels)`,
 - centroid evidence: folded into linear frame scans,
 - repaired RGBA buffers: allocated only when a repair is explicitly requested,
-- reusable temporary block storage is retained within the explicit repair operation.
+- packed-RGBA block storage is reused within the explicit repair operation instead of allocating a new container for each block.
 
-Do not add a global palette cache/index, background worker framework, renderer readback, GPU dependency or runtime hot-path work until a measured later workload proves need.
+The sort-based block mode and bounded linear palette scan are intentionally simple and deterministic. Do not add a global palette cache/index, background worker framework, renderer readback, GPU dependency or runtime hot-path work until measured SPP2/SPERF workloads justify more complexity.
 
 ## External reference decisions — 2026-08-12
 
