@@ -4,6 +4,7 @@
 #include <trace2d/render/Capture.hpp>
 #include <trace2d/render/ParticleGpuRuntime.hpp>
 #include <trace2d/render/RenderData.hpp>
+#include <trace2d/render/SpriteOrderMask2D.hpp>
 #include <trace2d/render/SpritePresentation2D.hpp>
 
 #include <cstdint>
@@ -39,12 +40,15 @@ struct Rgba8TextureData final
     std::span<const std::uint8_t> pixels{};
 };
 
-// Production SR3 Sprite draw input. SR2/SR3 semantics are already resolved before entering the
-// backend; the renderer owns only the live texture handle and derived GPU resources.
+// Production SR4 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
+// SR4 adds only finite semantic painter order, one-level sorting-group intent and bounded mask state.
+// Texture handles and all GPU resources remain derived renderer state.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
     TextureHandle texture{InvalidTextureHandle};
+    SpriteOrder2D order{};
+    SpriteMask2D mask{};
 };
 
 struct RenderMetrics
@@ -62,6 +66,7 @@ struct RenderMetrics
     std::uint64_t spriteSamplerCreations{0};
     std::uint64_t spritePipelineCreations{0};
     std::uint64_t spriteVertexCapacitySprites{0};
+    std::uint64_t spriteMaskTargetCreations{0};
     std::uint64_t explicitGpuReadbacks{0};
     std::uint64_t explicitGpuFenceWaits{0};
     std::uint32_t lastTargetWidth{0};
@@ -83,7 +88,7 @@ public:
     [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData);
 
     // SR3 texture creation preserves the canonical page color-space meaning through the matching
-    // sampled GPU encoding. The created handle is tagged and validated against each SR3 draw.
+    // sampled GPU encoding. The created handle is tagged and validated against each SR3/SR4 draw.
     [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
         const Rgba8TextureData& textureData,
         SpriteTextureEncoding encoding);
@@ -113,9 +118,10 @@ public:
         std::span<const SpriteRenderData> sprites,
         std::span<const GpuParticleRenderData> particles);
 
-    // SR3 production path. Input order is preserved exactly; SR4 owns painter-order/group/mask
-    // semantics and SR7 owns broad batching. These overloads intentionally do not mix legacy
-    // SpriteRenderData or particles into the same call.
+    // SR4 production path. The renderer derives exact semantic painter order from each input's
+    // order/group fields, then submits in that order without resource sorting. Default order/mask
+    // values preserve pre-SR4 caller order. SR7 owns broad batching; these overloads intentionally
+    // do not mix legacy SpriteRenderData or particles into the same call.
     void RenderFrame(
         const OrthographicCamera& camera,
         const SpritePresentationRenderData& sprite);
