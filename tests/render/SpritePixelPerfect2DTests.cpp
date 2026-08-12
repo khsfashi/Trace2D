@@ -112,7 +112,7 @@ TEST(SpritePixelPerfect2DTests, CentersOddRemaindersWithFloorOnLeftAndTop)
     EXPECT_EQ(viewport.targetHeight - viewport.contentRect.y - viewport.contentRect.height, 2U);
 }
 
-TEST(SpritePixelPerfect2DTests, RejectsInvalidAndTooSmallViewportInputsTransactionally)
+TEST(SpritePixelPerfect2DTests, RejectsInvalidTooSmallAndInexactFloatViewportInputsTransactionally)
 {
     SpritePixelPerfectViewport2D viewport{};
     viewport.logicalWidth = 999U;
@@ -128,6 +128,20 @@ TEST(SpritePixelPerfect2DTests, RejectsInvalidAndTooSmallViewportInputsTransacti
         BuildSpritePixelPerfectViewport(PixelCamera(), LogicalWidth, LogicalHeight, 319U, 180U, viewport),
         (SpritePixelPerfectStatus{
             SpritePixelPerfectError::TargetTooSmall,
+            SpritePixelPerfectField::Target}));
+    EXPECT_EQ(viewport, SpritePixelPerfectViewport2D{});
+
+    constexpr std::uint32_t FirstIntegerNotExactlyRepresentableInFloat = (1U << 24U) + 1U;
+    EXPECT_EQ(
+        BuildSpritePixelPerfectViewport(
+            PixelCamera(),
+            LogicalWidth,
+            LogicalHeight,
+            FirstIntegerNotExactlyRepresentableInFloat,
+            720U,
+            viewport),
+        (SpritePixelPerfectStatus{
+            SpritePixelPerfectError::InvalidTargetSize,
             SpritePixelPerfectField::Target}));
     EXPECT_EQ(viewport, SpritePixelPerfectViewport2D{});
 
@@ -186,6 +200,8 @@ TEST(SpritePixelPerfect2DTests, SnapsUntrimmedSourceOriginAndPreservesOnePixelBa
     ExpectNear(mapping.sourcePixelBasisYLogical, 0.0F, 1.0F);
     EXPECT_EQ(mapping.sourcePixelScaleX, 1U);
     EXPECT_EQ(mapping.sourcePixelScaleY, 1U);
+    EXPECT_EQ(mapping.timeMode, SpritePresentationTimeMode::AuthoritativeCurrent);
+    EXPECT_FLOAT_EQ(mapping.interpolationAlpha, 1.0F);
     EXPECT_FALSE(mapping.axesSwapped);
     ExpectNear(
         mapping.worldSnapDelta,
@@ -299,6 +315,8 @@ TEST(SpritePixelPerfect2DTests, SelectsAuthoritativeCurrentOrExistingSr1Interpol
         viewport,
         SpritePixelPerfectPoseRequest{SpritePresentationTimeMode::AuthoritativeCurrent, 0.0F},
         exact).Succeeded());
+    EXPECT_EQ(exact.timeMode, SpritePresentationTimeMode::AuthoritativeCurrent);
+    EXPECT_FLOAT_EQ(exact.interpolationAlpha, 1.0F);
     EXPECT_NEAR(exact.sourceOriginLogicalAfterSnap.x, 163.0F, 1.0e-4F);
 
     SpritePixelPerfectMapping2D interpolated{};
@@ -309,6 +327,8 @@ TEST(SpritePixelPerfect2DTests, SelectsAuthoritativeCurrentOrExistingSr1Interpol
         viewport,
         SpritePixelPerfectPoseRequest{SpritePresentationTimeMode::Interpolated, 0.5F},
         interpolated).Succeeded());
+    EXPECT_EQ(interpolated.timeMode, SpritePresentationTimeMode::Interpolated);
+    EXPECT_FLOAT_EQ(interpolated.interpolationAlpha, 0.5F);
     // 161.5 ties toward +infinity by the SR6 contract.
     EXPECT_NEAR(interpolated.sourceOriginLogicalBeforeSnap.x, 161.5F, 1.0e-4F);
     EXPECT_NEAR(interpolated.sourceOriginLogicalAfterSnap.x, 162.0F, 1.0e-4F);
