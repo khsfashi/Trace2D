@@ -1,0 +1,71 @@
+{
+  "schema": "trace2d.core-lane.v1",
+  "repository": "khsfashi/Trace2D",
+  "owner_detours": [
+    {
+      "id": "live-project-state-hardening",
+      "issue": 158,
+      "reason": "Owner-directed repository-state hardening before SPP2"
+    },
+    {
+      "id": "sprite-sa2-reference-oracle",
+      "issue": 159,
+      "reason": "Owner-directed independent animation oracle hardening before SPP2"
+    }
+  ],
+  "core_program": {
+    "id": "complete-sprite",
+    "issue": 59,
+    "stages": [
+      {"id": "S0", "issue": 119},
+      {"id": "S1", "issue": 121},
+      {"id": "SR0", "issue": 123},
+      {"id": "SR1", "issue": 125},
+      {"id": "SR2", "issue": 127},
+      {"id": "SR3", "issue": 130},
+      {"id": "SR4", "issue": 132},
+      {"id": "SR5", "issue": 134},
+      {"id": "SR6", "issue": 136},
+      {"id": "SR7", "issue": 138},
+      {"id": "SR8", "issue": 142},
+      {"id": "SA0", "issue": 144},
+      {"id": "SA1", "issue": 146},
+      {"id": "SA2", "issue": 148},
+      {"id": "SA3", "issue": 150},
+      {"id": "SA4", "issue": 152},
+      {"id": "SPP0", "issue": 154},
+      {"id": "SPP1", "issue": 156},
+      {"id": "SPP2", "issue": null},
+      {"id": "SPP3", "issue": null},
+      {"id": "SPP4", "issue": null},
+      {"id": "SPP5", "issue": null},
+      {"id": "SE2E", "issue": null},
+      {"id": "SPERF", "issue": null}
+    ]
+  },
+  "after_core": [
+    {"id": "B1", "issue": 103},
+    {"id": "external-game-application", "issue": 69},
+    {"id": "project-manifest-consumer-build-package", "issue": 70},
+    {"id": "scene-hierarchy-components", "issue": 71},
+    {"id": "resources", "issue": 86},
+    {"id": "templates-world-lifecycle", "issue": 87},
+    {"id": "camera-viewport", "issue": 88},
+    {"id": "input-actions", "issue": 72},
+    {"id": "tilemap", "issue": 73},
+    {"id": "text", "issue": 74},
+    {"id": "ui", "issue": 75},
+    {"id": "B2", "issue": 104},
+    {"id": "material-shader", "issue": 89},
+    {"id": "tween", "issue": 90},
+    {"id": "physics", "issue": 76},
+    {"id": "audio", "issue": 77},
+    {"id": "profiler", "issue": 91},
+    {"id": "linux-toolchain", "issue": 78},
+    {"id": "tiered-gpu-qa", "issue": 92},
+    {"id": "save-migration", "issue": 79},
+    {"id": "flagship-game", "issue": 12},
+    {"id": "mesh2d", "issue": 60},
+    {"id": "spine-license-gate", "issue": 61}
+  ]
+}
