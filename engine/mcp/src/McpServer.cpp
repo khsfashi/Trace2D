@@ -1,4 +1,5 @@
 #include <trace2d/mcp/McpServer.hpp>
+#include <trace2d/mcp/SpriteAnimationMcp.hpp>
 
 #include <trace2d/agent/Inspection.hpp>
 #include <trace2d/core/Version.hpp>
@@ -199,7 +200,7 @@ Json EntityToJson(const agent::EntitySnapshot& entity)
     {
         result["bounds"] = Json{
             {"center", Json{{"x", entity.bounds->center.x}, {"y", entity.bounds->center.y}}},
-            {"extents", Json{{"x", entity.bounds->extents.x}, {"y", entity.bounds->extents.y}}},
+            {"extents", Json{{"x", entity.bounds.extents.x}, {"y", entity.bounds.extents.y}}},
         };
     }
     else
@@ -581,6 +582,9 @@ Json BuildToolList()
         {"type", "object"}, {"properties", Json{{"control", Json{{"type", "string"}}}}}, {"required", Json::array({"control"})}, {"additionalProperties", false}}));
     tools.push_back(ToolDefinition("trace2d.runtime.step", "Advance the existing GameplayScenario by an explicit bounded frame count.", Json{
         {"type", "object"}, {"properties", Json{{"frames", Json{{"type", "integer"}, {"minimum", 1}, {"maximum", MaxStepFrames}}}}}, {"required", Json::array({"frames"})}, {"additionalProperties", false}}));
+
+    AppendSpriteAnimationTools(tools);
+
     tools.push_back(ToolDefinition("trace2d.assert_float", "Run the existing deterministic gameplay float-field assertion.", Json{
         {"type", "object"}, {"properties", Json{
             {"selector", Json{{"type", "string"}, {"minLength", 1}}}, {"component", Json{{"type", "string"}, {"minLength", 1}}},
@@ -600,7 +604,8 @@ bool IsKnownTool(const std::string_view name) noexcept
     return name == "trace2d.inspect" || name == "trace2d.query" || name == "trace2d.ui.inspect"
         || name == "trace2d.ui.query" || name == "trace2d.ui.focus" || name == "trace2d.ui.activate"
         || name == "trace2d.ui.input_text" || name == "trace2d.ui.assert" || name == "trace2d.input.schedule"
-        || name == "trace2d.input.inspect" || name == "trace2d.runtime.step" || name == "trace2d.assert_float";
+        || name == "trace2d.input.inspect" || name == "trace2d.runtime.step" || name == "trace2d.assert_float"
+        || IsSpriteAnimationTool(name);
 }
 
 Json ExecuteTool(
@@ -608,11 +613,17 @@ Json ExecuteTool(
     const Json& arguments,
     agent::AgentFacade& agentFacade,
     testing::GameplayScenario& scenario,
-    const testing::GameplayFrameUpdate& frameUpdate)
+    const testing::GameplayFrameUpdate& frameUpdate,
+    const std::span<const agent::SpriteAnimatorBinding> spriteAnimators)
 {
     if (!arguments.is_object())
     {
         return MakeToolResult(MakeErrorPayload("invalid_arguments", "Tool arguments must be a JSON object."), true);
+    }
+
+    if (IsSpriteAnimationTool(name))
+    {
+        return ExecuteSpriteAnimationTool(name, arguments, agentFacade, spriteAnimators);
     }
 
     if (name == "trace2d.inspect")
@@ -858,7 +869,7 @@ Json BuildDiscoveryResult()
         {"resultType", "complete"},
         {"supportedVersions", Json::array({std::string{ProtocolVersion}})},
         {"capabilities", Json{{"tools", Json::object()}}},
-        {"instructions", "Use semantic Trace2D tools for deterministic runtime, scene, UI, input, stepping, and assertions. Coordinates are observational UI bounds, not primary identity."},
+        {"instructions", "Use semantic Trace2D tools for deterministic runtime, scene, UI, input, Sprite animation, stepping, and assertions. Coordinates are observational UI bounds, not primary identity."},
         {"ttlMs", CacheTtlMilliseconds},
         {"cacheScope", "public"},
     };
@@ -868,10 +879,12 @@ Json BuildDiscoveryResult()
 McpServer::McpServer(
     agent::AgentFacade& agent,
     testing::GameplayScenario& scenario,
-    testing::GameplayFrameUpdate frameUpdate)
+    testing::GameplayFrameUpdate frameUpdate,
+    const std::span<const agent::SpriteAnimatorBinding> spriteAnimators)
     : agent_{agent}
     , scenario_{scenario}
     , frameUpdate_{std::move(frameUpdate)}
+    , spriteAnimators_{spriteAnimators}
 {
 }
 
@@ -975,7 +988,10 @@ std::string McpServer::HandleMessage(const std::string_view message)
                 }
                 arguments = *argumentsValue;
             }
-            return MakeJsonRpcResult(id, ExecuteTool(toolName, arguments, agent_, scenario_, frameUpdate_)).dump();
+            return MakeJsonRpcResult(
+                       id,
+                       ExecuteTool(toolName, arguments, agent_, scenario_, frameUpdate_, spriteAnimators_))
+                .dump();
         }
 
         return MakeJsonRpcError(id, JsonRpcMethodNotFound, "Method not found").dump();
