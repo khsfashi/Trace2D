@@ -1,0 +1,41 @@
+name: Project State Contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "config/trace2d.core-lane.json"
+      - "scripts/project_state.py"
+      - "scripts/test_project_state.py"
+      - "tests/fixtures/project_state/**"
+      - "docs/PROJECT_STATE.md"
+      - ".github/workflows/project-state-contract.yml"
+  pull_request:
+    paths:
+      - "config/trace2d.core-lane.json"
+      - "scripts/project_state.py"
+      - "scripts/test_project_state.py"
+      - "tests/fixtures/project_state/**"
+      - "docs/PROJECT_STATE.md"
+      - ".github/workflows/project-state-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Validate project-state resolver
+        run: python scripts/test_project_state.py
+      - name: Prove deterministic snapshot output
+        run: |
+          python scripts/project_state.py --json --snapshot tests/fixtures/project_state/active_draft.json > state-a.json
+          python scripts/project_state.py --json --snapshot tests/fixtures/project_state/active_draft.json > state-b.json
+          cmp state-a.json state-b.json
