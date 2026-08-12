@@ -27,15 +27,27 @@ class BenchmarkB1ContractTests(unittest.TestCase):
         with self.assertRaises(benchmark_b1.ContractError):
             benchmark_b1.validate_contract(mutated, self.repo_root)
 
-    def test_scored_suite_stays_blocked_before_qualification(self):
+    def test_selected_candidate_cannot_change_after_qualification(self):
         mutated = copy.deepcopy(self.contract)
-        mutated["freeze_gate"]["scored_suite_allowed"] = True
+        mutated["qualification"]["selected_candidate_id"] = "satelliteoflove/godot-mcp"
         with self.assertRaises(benchmark_b1.ContractError):
             benchmark_b1.validate_contract(mutated, self.repo_root)
 
-    def test_selection_cannot_precede_evidence(self):
+    def test_scored_gate_requires_passed_qualification(self):
         mutated = copy.deepcopy(self.contract)
-        mutated["qualification"]["selected_candidate_id"] = "hi-godot/godot-ai"
+        mutated["qualification"]["status"] = "not_run"
+        with self.assertRaises(benchmark_b1.ContractError):
+            benchmark_b1.validate_contract(mutated, self.repo_root)
+
+    def test_selected_candidate_must_retain_independent_evidence(self):
+        mutated = copy.deepcopy(self.contract)
+        mutated["candidates"][1]["qualification_result"]["known_bad_rejected"] = False
+        with self.assertRaises(benchmark_b1.ContractError):
+            benchmark_b1.validate_contract(mutated, self.repo_root)
+
+    def test_satellite_failure_reason_cannot_be_erased(self):
+        mutated = copy.deepcopy(self.contract)
+        mutated["candidates"][0]["qualification_result"]["reason_code"] = "unknown"
         with self.assertRaises(benchmark_b1.ContractError):
             benchmark_b1.validate_contract(mutated, self.repo_root)
 

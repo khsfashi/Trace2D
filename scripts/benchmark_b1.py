@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the preregistered Benchmark B1 strongest-baseline gate."""
+"""Validate Benchmark B1 baseline selection and scored-suite freeze gate."""
 
 from __future__ import annotations
 
@@ -21,6 +21,9 @@ REQUIRED_CANDIDATES = (
     "hi-godot/godot-ai",
     "Erodenn/godot-mcp-runtime",
 )
+SELECTED_ID = "hi-godot/godot-ai"
+SELECTED_PIN = "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+QUALIFICATION_RUN = 31622618958
 
 
 class ContractError(ValueError):
@@ -35,18 +38,20 @@ def _require(condition: bool, message: str) -> None:
 def validate_contract(data: dict[str, Any], repo_root: Path) -> None:
     _require(data.get("schema_version") == 1, "schema_version must be 1")
     _require(data.get("benchmark_id") == "trace2d-b1", "benchmark_id must be trace2d-b1")
-    _require(data.get("state") == "baseline_qualification", "B1 must remain in baseline_qualification before freeze")
+    _require(data.get("state") == "baseline_selected", "B1 strongest baseline must be selected before scored task freeze")
 
     inherits = data.get("inherits")
     _require(isinstance(inherits, dict), "inherits must be an object")
-    _require(inherits.get("godot_version") == "4.7.1-stable", "B1 must reuse frozen Godot 4.7.1-stable before an explicit version-change decision")
+    _require(inherits.get("godot_version") == "4.7.1-stable", "B1 must reuse frozen Godot 4.7.1-stable")
     for key in ("b0_suite", "agent_profile"):
         value = inherits.get(key)
         _require(isinstance(value, str) and value, f"inherits.{key} must be a repository path")
         _require((repo_root / value).is_file(), f"inherited file does not exist: {value}")
 
-    task_classes = data.get("required_task_classes")
-    _require(task_classes == list(REQUIRED_TASK_CLASSES), "required_task_classes must preserve the #103 preregistered order and membership")
+    _require(
+        data.get("required_task_classes") == list(REQUIRED_TASK_CLASSES),
+        "required_task_classes must preserve the #103 preregistered order and membership",
+    )
 
     selection_rule = data.get("selection_rule")
     _require(isinstance(selection_rule, dict), "selection_rule must be an object")
@@ -71,23 +76,40 @@ def validate_contract(data: dict[str, Any], repo_root: Path) -> None:
         notes = candidate.get("capability_notes")
         _require(isinstance(notes, list) and notes, f"{candidate.get('id')} must record reviewed capability notes")
 
-    hi_godot = candidates[1]
+    satellite = candidates[0]
+    satellite_result = satellite.get("qualification_result")
+    _require(isinstance(satellite_result, dict), "satellite qualification result must be recorded")
+    _require(satellite_result.get("qualified") is False, "satellite must retain the observed B1 qualification failure")
+    _require(satellite_result.get("workflow_run_id") == QUALIFICATION_RUN, "satellite qualification run must remain pinned")
     _require(
-        hi_godot.get("pin") == "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a",
-        "hi-godot B1 candidate must remain pinned to the reviewed v3.0.6 tag commit",
+        satellite_result.get("reason_code") == "godot_4_7_method_track_api_incompatible",
+        "satellite failure reason must remain explicit",
     )
+
+    hi_godot = candidates[1]
+    _require(hi_godot.get("pin") == SELECTED_PIN, "selected hi-godot pin changed")
+    hi_result = hi_godot.get("qualification_result")
+    _require(isinstance(hi_result, dict), "selected candidate qualification result must be recorded")
+    _require(hi_result.get("qualified") is True, "selected candidate must have passed qualification")
+    _require(hi_result.get("workflow_run_id") == QUALIFICATION_RUN, "selected qualification run must remain pinned")
+    for key in ("known_good_accepted", "known_bad_rejected", "presentation_capture_handoff"):
+        _require(hi_result.get(key) is True, f"selected candidate evidence missing {key}")
 
     qualification = data.get("qualification")
     _require(isinstance(qualification, dict), "qualification must be an object")
-    _require(qualification.get("status") == "not_run", "qualification status may change only with committed non-scored evidence")
-    _require(qualification.get("selected_candidate_id") is None, "no B1 baseline may be selected before qualification evidence")
+    _require(qualification.get("status") == "passed", "qualification must be passed before scored freeze")
+    _require(qualification.get("workflow_run_id") == QUALIFICATION_RUN, "qualification workflow run must remain pinned")
+    _require(qualification.get("selected_candidate_id") == SELECTED_ID, "selected B1 Godot Agent changed")
+    _require(qualification.get("selected_pin") == SELECTED_PIN, "selected B1 Godot Agent pin changed")
+    selection_document = qualification.get("selection_document")
+    _require(isinstance(selection_document, str) and selection_document, "selection document path is required")
+    _require((repo_root / selection_document).is_file(), "selection document does not exist")
     evidence = qualification.get("required_evidence")
     _require(isinstance(evidence, list) and len(evidence) >= 8, "qualification.required_evidence is incomplete")
 
     freeze_gate = data.get("freeze_gate")
     _require(isinstance(freeze_gate, dict), "freeze_gate must be an object")
-    _require(freeze_gate.get("scored_suite_allowed") is False, "scored suite must remain blocked before baseline qualification")
-    _require(not (repo_root / "benchmarks/b1/suite.json").exists(), "benchmarks/b1/suite.json must not exist while the freeze gate is closed")
+    _require(freeze_gate.get("scored_suite_allowed") is True, "scored suite may open only after selected qualification evidence")
 
 
 def load_and_validate(path: Path, repo_root: Path) -> dict[str, Any]:
@@ -113,7 +135,7 @@ def main() -> int:
         repo_root = Path(__file__).resolve().parents[1]
         path = repo_root / args.contract
         load_and_validate(path, repo_root)
-        print("Benchmark B1 qualification contract: OK")
+        print("Benchmark B1 baseline selection contract: OK")
         return 0
     raise AssertionError("unreachable")
 
