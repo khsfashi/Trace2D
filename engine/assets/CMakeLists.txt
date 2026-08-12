@@ -1,9 +1,11 @@
 find_path(STB_IMAGE_INCLUDE_DIRS "stb_image.h" REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_assets STATIC
     src/SpriteAssets.cpp
     src/SpriteExtraction.cpp
+    src/SpriteImport.cpp
     src/SpriteProcessing.cpp
     src/SpriteQuality.cpp
     src/TextureAssets.cpp
@@ -20,6 +22,7 @@ target_include_directories(trace2d_assets
 
 target_link_libraries(trace2d_assets
     PRIVATE
+        nlohmann_json::nlohmann_json
         tomlplusplus::tomlplusplus
 )
 
