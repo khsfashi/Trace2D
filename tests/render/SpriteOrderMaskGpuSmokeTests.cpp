@@ -233,6 +233,9 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
         101U);
     ExpectPrimaryNear(PixelAt(grouped, 32U, 32U), 255U, 0U, 0U);
 
+    // Unmasked SR3/SR4 presentations must not pay for a depth/stencil target or clear.
+    EXPECT_EQ(renderer.Metrics().spriteMaskTargetCreations, 0U);
+
     render::SpritePresentationRenderData writer{leftHalf, whiteTexture};
     writer.order.stableOrder = 0U;
     writer.mask = render::SpriteMask2D{render::SpriteMaskMode::Write, 3U};
