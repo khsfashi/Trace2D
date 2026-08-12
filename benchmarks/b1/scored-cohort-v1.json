@@ -7,6 +7,14 @@
   "fixture_qualification": "benchmarks/b1/fixture-qualification.json",
   "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
   "agent_profile_canonical_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+  "godot_agent_python_environment": {
+    "qualification_workflow_run_id": 31622618958,
+    "qualification_artifact_id": 9151863240,
+    "qualification_artifact_sha256": "799fb557100c3c39b4421b8fe4abc85dbe79693826083089780a607c333b6cb2",
+    "freeze": "benchmarks/b1/godot-ai-python-freeze.txt",
+    "freeze_sha256": "75ae3394599cefe2426e3921403b6d2448463e7aa3ec3272b15313bccf6eb73e",
+    "selected_source_commit": "f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+  },
   "repetitions_per_task_lane": 3,
   "total_planned_trials": 27,
   "task_order_by_repetition": [
@@ -77,6 +85,6 @@
   "preregistration": {
     "timing": "committed after frozen fixture qualification and before any scored B1 comparative result",
     "inherits": "benchmarks/b0/scored-cohort-v1.json",
-    "rationale": "B1 reuses B0's three repetitions, zero-retry policy, frozen Agent budget and raw evidence semantics. B1 adds three matched content tasks, so the complete cohort contains 27 preregistered task/lane slots. Task order rotates independently of the inherited lane rotation to reduce systematic temporal-position bias without changing task membership or verifier authority."
+    "rationale": "B1 reuses B0's three repetitions, zero-retry policy, frozen Agent budget and raw evidence semantics. B1 adds three matched content tasks, so the complete cohort contains 27 preregistered task/lane slots. Task order rotates independently of the inherited lane rotation to reduce systematic temporal-position bias without changing task membership or verifier authority. The selected Godot Agent Python dependency freeze is copied byte-for-byte from the preregistered qualification artifact before scoring so the same source pin cannot silently resolve to a different dependency graph."
   }
 }
