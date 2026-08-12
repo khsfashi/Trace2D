@@ -56,7 +56,7 @@ func _verify_animation(root: Node) -> bool:
 
 	var frame_track := -1
 	var method_track := -1
-	for track in animation.get_track_count():
+	for track in range(animation.get_track_count()):
 		if animation.track_get_type(track) == Animation.TYPE_VALUE:
 			frame_track = track
 		elif animation.track_get_type(track) == Animation.TYPE_METHOD:
@@ -69,7 +69,7 @@ func _verify_animation(root: Node) -> bool:
 		return false
 	var expected_times := [0.0, 0.1, 0.25]
 	var expected_frames := [0, 1, 2]
-	for index in 3:
+	for index in range(3):
 		if not is_equal_approx(animation.track_get_key_time(frame_track, index), expected_times[index]):
 			return false
 		if int(animation.track_get_key_value(frame_track, index)) != expected_frames[index]:
