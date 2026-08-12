@@ -77,6 +77,7 @@ private:
     SDL_GPUSampler* nearestSampler_{nullptr};
     SDL_GPUSampler* linearSampler_{nullptr};
     std::array<SDL_GPUGraphicsPipeline*, 4U> unmaskedPipelines_{};
+    std::array<SDL_GPUGraphicsPipeline*, 4U> stencilCompatibleUnmaskedPipelines_{};
     std::array<SDL_GPUGraphicsPipeline*, 4U> maskInsidePipelines_{};
     std::array<SDL_GPUGraphicsPipeline*, 4U> maskOutsidePipelines_{};
     SDL_GPUGraphicsPipeline* maskWritePipeline_{nullptr};
