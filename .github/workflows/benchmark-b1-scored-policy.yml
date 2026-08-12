@@ -9,9 +9,12 @@ on:
       - "benchmarks/b0/agent-profile.codex-0.144.6.json"
       - "benchmarks/b0/scored-cohort-v1.json"
       - "benchmarks/b1/**"
+      - "tests/benchmark/**"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/verify_benchmark_b1_candidate.py"
       - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-scored-policy.yml"
   pull_request:
     branches:
@@ -20,9 +23,12 @@ on:
       - "benchmarks/b0/agent-profile.codex-0.144.6.json"
       - "benchmarks/b0/scored-cohort-v1.json"
       - "benchmarks/b1/**"
+      - "tests/benchmark/**"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/verify_benchmark_b1_candidate.py"
       - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-scored-policy.yml"
 
 permissions:
@@ -48,8 +54,15 @@ jobs:
       - name: Validate preregistered 27-slot scored policy
         run: python3 scripts/benchmark_b1_scored_policy.py --print-schedule
 
-      - name: Run scored-policy regression tests
-        run: python3 -m unittest scripts.test_benchmark_b1_scored_policy
+      - name: Run scored-policy and candidate-dispatch regression tests
+        run: |
+          python3 -m unittest scripts.test_benchmark_b1_scored_policy
+          python3 -m unittest scripts.test_verify_benchmark_b1_candidate
 
-      - name: Syntax-check scored-policy tooling
-        run: python3 -m py_compile scripts/benchmark_b1_scored_policy.py scripts/test_benchmark_b1_scored_policy.py
+      - name: Syntax-check scored-harness tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b1_scored_policy.py \
+            scripts/verify_benchmark_b1_candidate.py \
+            scripts/test_benchmark_b1_scored_policy.py \
+            scripts/test_verify_benchmark_b1_candidate.py
