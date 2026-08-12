@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+  "source_event": "merge",
+  "event_id": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#146",
+        "url": "https://github.com/khsfashi/Trace2D/issues/146"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 145,
+        "url": "https://github.com/khsfashi/Trace2D/pull/145"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+        "authored_at": "2026-08-12T16:44:50+09:00",
+        "subject": "Sprite SA1: implement authoritative animator state (#147)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-animation"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "SpriteAnimator2D authoritative state is renderer-independent fixed-size typed state over a prepared cached clip timeline",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Prepared clips preserve complete semantic selection as canonical SpriteAsset identity plus region index while Trace2D::Runtime remains independent of the Assets implementation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Prepared clips cache checked cumulative integer-nanosecond boundaries once; current state/frame/region access does not rebuild timeline data",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "Exact speed state is a canonical non-negative rational magnitude with traversal direction stored separately",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "No mandatory per-tick heap/filesystem/JSON/formatting/semantic-name lookup or renderer/GPU dependency",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "SA1 defines state/validation/observation only; playback/event/transition execution remains SA2",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "globally interpreting regionIndex without SpriteAsset identity | identical numeric indices in different assets are distinct semantic regions",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ],
+        "alternative": "globally interpreting regionIndex without SpriteAsset identity",
+        "reason": "identical numeric indices in different assets are distinct semantic regions"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "floating frame progress or floating speed accumulator as authority | conflicts with SA0 deterministic integer-time contract",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ],
+        "alternative": "floating frame progress or floating speed accumulator as authority",
+        "reason": "conflicts with SA0 deterministic integer-time contract"
+      },
+      {
+        "id": "rejected-alternatives-003",
+        "text": "shared ownership inside every animator state | unnecessary reference-count traffic in the fixed-step hot state; prepared clip lifetime is explicit",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Rejected",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ],
+        "alternative": "shared ownership inside every animator state",
+        "reason": "unnecessary reference-count traffic in the fixed-step hot state; prepared clip lifetime is explicit"
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "CI run 31574714328 passed on exact head 56a8cab7c7cb3030762e618151a0620e3163685e including Windows MSVC build/test and clean-clone README build/test",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "Sprite SA0 Contract run 31574714396, Sprite S0 Contract run 31574714378, Content Evidence run 31574714332, B0 Codex Wrapper run 31574714339 and B0 Godot Agent Oracle run 31574714355 passed on exact head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "new local real-GPU acceptance | SA1 is renderer-independent and introduces no presentation-GPU behavior, so the owning contract requires no new GPU gate",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "Godot AnimatedSprite2D current official docs | ADAPT/REJECT | explicit state useful, float progress/speed rejected as authority",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "Aseprite official file format | ADOPT/ADAPT | explicit variable frame durations and direction metadata",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "dc8909b24dc5f67e8bec2506263d7b433c6fb2f4",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/dc8909b24dc5f67e8bec2506263d7b433c6fb2f4"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "#144",
+    "PR #145"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
