@@ -213,9 +213,11 @@ void HashFinalState(std::uint64_t& hash, const SpriteAnimator2DState& state) noe
 
 void WriteJsonString(std::ostream& output, const std::string_view value)
 {
+    static constexpr char hexDigits[] = "0123456789abcdef";
     output << '"';
     for (const char character : value)
     {
+        const auto byte = static_cast<unsigned char>(character);
         switch (character)
         {
         case '"':
@@ -223,6 +225,12 @@ void WriteJsonString(std::ostream& output, const std::string_view value)
             break;
         case '\\':
             output << "\\\\";
+            break;
+        case '\b':
+            output << "\\b";
+            break;
+        case '\f':
+            output << "\\f";
             break;
         case '\n':
             output << "\\n";
@@ -234,7 +242,14 @@ void WriteJsonString(std::ostream& output, const std::string_view value)
             output << "\\t";
             break;
         default:
-            output << character;
+            if (byte < 0x20U)
+            {
+                output << "\\u00" << hexDigits[(byte >> 4U) & 0x0fU] << hexDigits[byte & 0x0fU];
+            }
+            else
+            {
+                output << character;
+            }
             break;
         }
     }
@@ -249,7 +264,7 @@ void WriteJsonString(std::ostream& output, const std::string_view value)
     std::uint64_t parsed = 0;
     const auto result = std::from_chars(text.data(), text.data() + text.size(), parsed);
     if (result.ec != std::errc{} || result.ptr != text.data() + text.size() ||
-        (!allowZero && parsed == 0) || parsed > std::numeric_limits<std::uint32_t>::max())
+        (!allowZero && parsed == 0U) || parsed > std::numeric_limits<std::uint32_t>::max())
     {
         return false;
     }
@@ -411,6 +426,7 @@ void PrepareFixture(const WorkloadDefinition& definition, Fixture& fixture)
 {
     Fixture fixture{};
     PrepareFixture(definition, fixture);
+
     WorkloadSummary summary{};
     summary.frameCount = definition.frameCount;
     summary.eventCount = definition.eventCount;
@@ -426,6 +442,7 @@ void PrepareFixture(const WorkloadDefinition& definition, Fixture& fixture)
         {
             throw std::runtime_error{"Sprite animation workload advance failed."};
         }
+
         ++summary.successfulAdvances;
         for (std::size_t index = 0; index < result.emissionCount; ++index)
         {
@@ -464,7 +481,7 @@ void PrepareFixture(const WorkloadDefinition& definition, Fixture& fixture)
     Fixture fixture{};
     PrepareFixture(definition, fixture);
     std::array<SpriteAnimationEmission2D, 128> emissions{};
-    std::uint64_t consumed = 0;
+    std::uint64_t consumedEmissions = 0U;
 
     const auto begin = std::chrono::steady_clock::now();
     for (std::uint32_t step = 0; step < definition.steps; ++step)
@@ -474,15 +491,26 @@ void PrepareFixture(const WorkloadDefinition& definition, Fixture& fixture)
         {
             throw std::runtime_error{"Timed Sprite animation workload advance failed."};
         }
-        consumed += result.emissionCount;
+        consumedEmissions += result.emissionCount;
     }
     const auto end = std::chrono::steady_clock::now();
 
-    if (consumed == std::numeric_limits<std::uint64_t>::max())
+    if (consumedEmissions == std::numeric_limits<std::uint64_t>::max())
     {
         std::cerr << "unreachable";
     }
     return std::chrono::duration<double, std::micro>{end - begin}.count();
+}
+
+[[nodiscard]] double Median(std::vector<double> samples)
+{
+    std::sort(samples.begin(), samples.end());
+    const std::size_t middle = samples.size() / 2U;
+    if ((samples.size() & 1U) != 0U)
+    {
+        return samples[middle];
+    }
+    return (samples[middle - 1U] + samples[middle]) / 2.0;
 }
 
 [[nodiscard]] double Percentile95(std::vector<double> samples)
@@ -522,7 +550,7 @@ void WriteSummaryJson(
               << "\"final_direction\":\"" << DirectionName(summary.finalDirection) << "\","
               << "\"completed\":" << (summary.completed ? "true" : "false") << ','
               << "\"speed_remainder\":" << summary.speedRemainder << ','
-              << "\"transcript_digest_fnv1a64\":" << summary.transcriptDigest
+              << "\"transcript_digest_fnv1a64\":\"" << summary.transcriptDigest << "\""
               << "}\n";
 }
 
@@ -544,9 +572,7 @@ void WriteTimingJson(
     }
 
     const double total = std::accumulate(samples.begin(), samples.end(), 0.0);
-    std::vector<double> sorted = samples;
-    std::sort(sorted.begin(), sorted.end());
-    const double median = sorted[sorted.size() / 2U];
+    const double median = Median(samples);
     const double p95 = Percentile95(samples);
 
     std::cout << '{'
@@ -565,8 +591,8 @@ void WriteTimingJson(
               << "\"steps_per_iteration\":" << definition.steps << ','
               << "\"average_us_per_window\":" << (total / static_cast<double>(samples.size())) << ','
               << "\"median_us_per_window\":" << median << ','
-              << "\"p95_us_per_window\":" << p95 << ','
-              << "\"structural_digest_fnv1a64\":" << summary.transcriptDigest
+              << "\"p95_nearest_rank_us_per_window\":" << p95 << ','
+              << "\"structural_digest_fnv1a64\":\"" << summary.transcriptDigest << "\""
               << "}\n";
 }
 
