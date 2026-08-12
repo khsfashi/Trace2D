@@ -53,9 +53,10 @@ public:
 
     [[nodiscard]] std::size_t OrderedSourceIndex(std::size_t orderedIndex) const;
 
-    // Returns true when at least one GPU triangle-list primitive was encoded. A valid SR5
-    // PrimitivePatches item may contain zero visible patches after trim/undersized resolution.
-    [[nodiscard]] bool DrawPresentation(
+    // A valid SR5 PrimitivePatches item may contain zero visible patches after trim/undersized
+    // resolution; in that case the semantic top-level Sprite is retained but no GPU primitive is
+    // encoded for that item.
+    void DrawPresentation(
         SDL_GPUCommandBuffer* commandBuffer,
         SDL_GPURenderPass* renderPass,
         SDL_GPUTexture* texture,
