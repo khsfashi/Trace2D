@@ -876,26 +876,12 @@ void SpriteGpuBackend::UploadPresentations(
 
 void SpriteGpuBackend::ApplyPixelPerfectRasterState(
     SDL_GPURenderPass* const renderPass,
-    const std::uint32_t targetWidth,
-    const std::uint32_t targetHeight) const
+    const std::uint32_t,
+    const std::uint32_t) const
 {
-    if (!pixelPerfectViewportEnabled_)
+    if (!pixelPerfectViewportEnabled_ || renderPass == nullptr)
     {
         return;
-    }
-    if (renderPass == nullptr)
-    {
-        throw std::invalid_argument{"Sprite SR6 pixel-perfect raster state requires a live render pass."};
-    }
-    if (targetWidth != pixelPerfectViewport_.targetWidth ||
-        targetHeight != pixelPerfectViewport_.targetHeight)
-    {
-        throw std::invalid_argument{
-            "Sprite SR6 pixel-perfect viewport is stale for the acquired presentation target."};
-    }
-    if (!ValidateSpritePixelPerfectViewport(pixelPerfectViewport_).Succeeded())
-    {
-        throw std::invalid_argument{"Sprite SR6 pixel-perfect viewport failed backend validation."};
     }
 
     const SpritePixelRect2D& rect = pixelPerfectViewport_.contentRect;
@@ -926,6 +912,20 @@ SDL_GPURenderPass* SpriteGpuBackend::BeginPresentationRenderPass(
     if (commandBuffer == nullptr || colorTarget.texture == nullptr)
     {
         throw std::invalid_argument{"Sprite SR6 render pass requires live command/color-target state."};
+    }
+    if (pixelPerfectViewportEnabled_)
+    {
+        if (targetWidth != pixelPerfectViewport_.targetWidth ||
+            targetHeight != pixelPerfectViewport_.targetHeight)
+        {
+            throw std::invalid_argument{
+                "Sprite SR6 pixel-perfect viewport is stale for the acquired presentation target."};
+        }
+        if (!ValidateSpritePixelPerfectViewport(pixelPerfectViewport_).Succeeded())
+        {
+            throw std::invalid_argument{
+                "Sprite SR6 pixel-perfect viewport failed backend validation."};
+        }
     }
 
     SDL_GPURenderPass* renderPass = nullptr;
