@@ -1,3 +1,4 @@
+#include <trace2d/assets/SpriteAssets.hpp>
 #include <trace2d/runtime/SpriteAnimator2D.hpp>
 
 #include <gtest/gtest.h>
@@ -10,18 +11,27 @@
 namespace
 {
 using namespace std::chrono_literals;
+using trace2d::assets::SpriteAsset;
 using trace2d::runtime::SpriteAnimationClip2D;
 using trace2d::runtime::SpriteAnimationClipError;
 using trace2d::runtime::SpriteAnimationDirection;
 using trace2d::runtime::SpriteAnimationFrame2D;
 using trace2d::runtime::SpriteAnimationLoopMode;
 using trace2d::runtime::SpriteAnimationPlaybackState;
+using trace2d::runtime::SpriteAnimationRegionSelection2D;
 using trace2d::runtime::SpriteAnimationSpeed2D;
 using trace2d::runtime::SpriteAnimator2D;
 using trace2d::runtime::SpriteAnimator2DError;
 using trace2d::runtime::SpriteAnimator2DState;
 
-[[nodiscard]] SpriteAnimationClip2D PrepareVariableClip()
+[[nodiscard]] SpriteAsset MakeSpriteAsset(std::size_t regionCount)
+{
+    SpriteAsset asset{};
+    asset.regions.resize(regionCount);
+    return asset;
+}
+
+[[nodiscard]] SpriteAnimationClip2D PrepareVariableClip(const SpriteAsset& asset)
 {
     const std::array frames{
         SpriteAnimationFrame2D{2U, 100ms},
@@ -30,16 +40,23 @@ using trace2d::runtime::SpriteAnimator2DState;
     };
 
     SpriteAnimationClip2D clip{};
-    const auto status = SpriteAnimationClip2D::Prepare(frames, 5U, clip);
+    const auto status = SpriteAnimationClip2D::Prepare(
+        &asset,
+        static_cast<std::uint32_t>(asset.regions.size()),
+        frames,
+        clip);
     EXPECT_TRUE(status.Succeeded());
     return clip;
 }
 
 TEST(SpriteAnimator2DTests, PreparesVariableDurationsAndCachesExactBoundaries)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
 
     ASSERT_TRUE(clip.Prepared());
+    EXPECT_EQ(clip.SpriteAsset(), &asset);
+    EXPECT_EQ(clip.SpriteRegionCount(), 5U);
     EXPECT_EQ(clip.FrameCount(), 3U);
     EXPECT_EQ(clip.Duration(), 300ms);
 
@@ -59,7 +76,8 @@ TEST(SpriteAnimator2DTests, PreparesVariableDurationsAndCachesExactBoundaries)
 
 TEST(SpriteAnimator2DTests, ResolvesHalfOpenBoundariesAndTerminalFrameExactly)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
     std::uint32_t frameIndex = 99U;
 
     EXPECT_TRUE(clip.ResolveFrameIndex(0ns, frameIndex).Succeeded());
@@ -86,20 +104,23 @@ TEST(SpriteAnimator2DTests, ResolvesHalfOpenBoundariesAndTerminalFrameExactly)
 
 TEST(SpriteAnimator2DTests, RejectsInvalidClipInputsWithoutReplacingPreparedOutput)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
     const auto originalDuration = clip.Duration();
+    const auto* originalAsset = clip.SpriteAsset();
 
     const std::array<SpriteAnimationFrame2D, 0> emptyFrames{};
     EXPECT_EQ(
-        SpriteAnimationClip2D::Prepare(emptyFrames, 5U, clip).error,
+        SpriteAnimationClip2D::Prepare(&asset, 5U, emptyFrames, clip).error,
         SpriteAnimationClipError::EmptyFrames);
     EXPECT_EQ(clip.Duration(), originalDuration);
+    EXPECT_EQ(clip.SpriteAsset(), originalAsset);
 
     const std::array zeroDurationFrames{
         SpriteAnimationFrame2D{0U, 0ns},
     };
     EXPECT_EQ(
-        SpriteAnimationClip2D::Prepare(zeroDurationFrames, 1U, clip).error,
+        SpriteAnimationClip2D::Prepare(&asset, 5U, zeroDurationFrames, clip).error,
         SpriteAnimationClipError::NonPositiveFrameDuration);
     EXPECT_EQ(clip.Duration(), originalDuration);
 
@@ -107,7 +128,7 @@ TEST(SpriteAnimator2DTests, RejectsInvalidClipInputsWithoutReplacingPreparedOutp
         SpriteAnimationFrame2D{3U, 1ns},
     };
     EXPECT_EQ(
-        SpriteAnimationClip2D::Prepare(invalidRegionFrames, 3U, clip).error,
+        SpriteAnimationClip2D::Prepare(&asset, 3U, invalidRegionFrames, clip).error,
         SpriteAnimationClipError::RegionIndexOutOfRange);
     EXPECT_EQ(clip.Duration(), originalDuration);
 
@@ -117,9 +138,18 @@ TEST(SpriteAnimator2DTests, RejectsInvalidClipInputsWithoutReplacingPreparedOutp
         SpriteAnimationFrame2D{0U, 1ns},
     };
     EXPECT_EQ(
-        SpriteAnimationClip2D::Prepare(overflowFrames, 1U, clip).error,
+        SpriteAnimationClip2D::Prepare(&asset, 1U, overflowFrames, clip).error,
         SpriteAnimationClipError::DurationOverflow);
     EXPECT_EQ(clip.Duration(), originalDuration);
+
+    const std::array validSingleFrame{
+        SpriteAnimationFrame2D{0U, 1ns},
+    };
+    EXPECT_EQ(
+        SpriteAnimationClip2D::Prepare(nullptr, 1U, validSingleFrame, clip).error,
+        SpriteAnimationClipError::NullSpriteAsset);
+    EXPECT_EQ(clip.Duration(), originalDuration);
+    EXPECT_EQ(clip.SpriteAsset(), originalAsset);
 }
 
 TEST(SpriteAnimator2DTests, NormalizesExactSpeedWithoutFloatingPointAuthority)
@@ -139,7 +169,8 @@ TEST(SpriteAnimator2DTests, NormalizesExactSpeedWithoutFloatingPointAuthority)
 
 TEST(SpriteAnimator2DTests, BuildsTypedAuthoritativeStateAndResolvesCurrentRegion)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
     SpriteAnimator2DState state{};
 
     const auto status = trace2d::runtime::MakeSpriteAnimator2DState(
@@ -168,6 +199,11 @@ TEST(SpriteAnimator2DTests, BuildsTypedAuthoritativeStateAndResolvesCurrentRegio
     ASSERT_NE(animator.CurrentFrame(), nullptr);
     EXPECT_EQ(animator.CurrentFrame()->duration, 50ms);
 
+    SpriteAnimationRegionSelection2D selection{};
+    ASSERT_TRUE(animator.TryGetCurrentRegion(selection));
+    EXPECT_EQ(selection.asset, &asset);
+    EXPECT_EQ(selection.regionIndex, 4U);
+
     std::uint32_t regionIndex = 0;
     ASSERT_TRUE(animator.TryGetCurrentRegionIndex(regionIndex));
     EXPECT_EQ(regionIndex, 4U);
@@ -175,7 +211,8 @@ TEST(SpriteAnimator2DTests, BuildsTypedAuthoritativeStateAndResolvesCurrentRegio
 
 TEST(SpriteAnimator2DTests, RejectsInconsistentFrameAndPreservesPriorState)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
     SpriteAnimator2DState validState{};
     ASSERT_TRUE(trace2d::runtime::MakeSpriteAnimator2DState(
                     clip,
@@ -202,7 +239,8 @@ TEST(SpriteAnimator2DTests, RejectsInconsistentFrameAndPreservesPriorState)
 
 TEST(SpriteAnimator2DTests, ValidatesCompletionAsExplicitNonLoopEndpointState)
 {
-    SpriteAnimationClip2D clip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D clip = PrepareVariableClip(asset);
     SpriteAnimator2DState state{};
 
     EXPECT_TRUE(trace2d::runtime::MakeSpriteAnimator2DState(
@@ -274,7 +312,8 @@ TEST(SpriteAnimator2DTests, RejectsInvalidTypedStateValuesAndUnpreparedClip)
             .error,
         SpriteAnimator2DError::UnpreparedClip);
 
-    SpriteAnimationClip2D preparedClip = PrepareVariableClip();
+    const SpriteAsset asset = MakeSpriteAsset(5U);
+    SpriteAnimationClip2D preparedClip = PrepareVariableClip(asset);
     ASSERT_TRUE(trace2d::runtime::MakeSpriteAnimator2DState(
                     preparedClip,
                     0ns,
