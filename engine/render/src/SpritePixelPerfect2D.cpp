@@ -9,6 +9,8 @@ namespace trace2d::render
 namespace
 {
 constexpr std::uint32_t MaximumExactGpuViewportInteger = 1U << 24U;
+constexpr double PixelIntegerAbsoluteEpsilon = 1.0e-3;
+constexpr double PixelAxisRelativeEpsilon = 1.0e-6;
 
 [[nodiscard]] SpritePixelPerfectStatus Success() noexcept
 {
@@ -46,6 +48,14 @@ constexpr std::uint32_t MaximumExactGpuViewportInteger = 1U << 24U;
 {
     const double scale = std::max({1.0, std::abs(left), std::abs(right)});
     return std::abs(left - right) <= absoluteEpsilon * scale;
+}
+
+[[nodiscard]] bool NearlyEqualAbsolute(
+    const double left,
+    const double right,
+    const double epsilon = PixelIntegerAbsoluteEpsilon) noexcept
+{
+    return std::abs(left - right) <= epsilon;
 }
 
 [[nodiscard]] bool TryWorldToLogicalPixel(
@@ -94,18 +104,27 @@ struct IntegerBasis final
         return {};
     }
 
-    const bool xZero = NearlyEqual(static_cast<double>(basis.x), 0.0);
-    const bool yZero = NearlyEqual(static_cast<double>(basis.y), 0.0);
+    const double basisX = static_cast<double>(basis.x);
+    const double basisY = static_cast<double>(basis.y);
+    const double dominantMagnitude = std::max(std::abs(basisX), std::abs(basisY));
+    if (dominantMagnitude < 1.0)
+    {
+        return {};
+    }
+
+    const double axisEpsilon = std::max(
+        PixelIntegerAbsoluteEpsilon,
+        dominantMagnitude * PixelAxisRelativeEpsilon);
+    const bool xZero = std::abs(basisX) <= axisEpsilon;
+    const bool yZero = std::abs(basisY) <= axisEpsilon;
     if (xZero == yZero)
     {
         return {};
     }
 
-    const double component = xZero
-        ? static_cast<double>(basis.y)
-        : static_cast<double>(basis.x);
+    const double component = xZero ? basisY : basisX;
     const double rounded = std::round(component);
-    if (!NearlyEqual(component, rounded) || std::abs(rounded) < 1.0 ||
+    if (!NearlyEqualAbsolute(component, rounded) || std::abs(rounded) < 1.0 ||
         std::abs(rounded) > static_cast<double>(std::numeric_limits<std::uint32_t>::max()))
     {
         return {};
@@ -484,8 +503,8 @@ SpritePixelPerfectStatus ResolveSpritePixelPerfectPose(
 
     Float2 snappedOriginLogical{};
     if (!TryWorldToLogicalPixel(viewport, snappedLogicalQuad.topLeft, snappedOriginLogical) ||
-        !NearlyEqual(static_cast<double>(snappedOriginLogical.x), snappedLogicalX) ||
-        !NearlyEqual(static_cast<double>(snappedOriginLogical.y), snappedLogicalY))
+        !NearlyEqualAbsolute(static_cast<double>(snappedOriginLogical.x), snappedLogicalX) ||
+        !NearlyEqualAbsolute(static_cast<double>(snappedOriginLogical.y), snappedLogicalY))
     {
         return Failure(
             SpritePixelPerfectError::MappingOverflow,
