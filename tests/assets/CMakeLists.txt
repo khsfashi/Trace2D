@@ -2,6 +2,7 @@ add_executable(trace2d_assets_tests
     SpriteAssetValidationTests.cpp
     SpriteAssetsTests.cpp
     SpriteBorderAssetsTests.cpp
+    SpriteProcessingTests.cpp
     TextureAssetsTests.cpp
 )
 
