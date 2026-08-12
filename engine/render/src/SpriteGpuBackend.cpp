@@ -16,6 +16,7 @@ namespace trace2d::render::detail
 namespace
 {
 constexpr std::size_t VerticesPerSprite = 6U;
+constexpr std::size_t BlendCompatibilityCount = 4U;
 
 struct SpriteGpuVertex final
 {
@@ -34,6 +35,7 @@ struct alignas(16) SpriteFragmentUniform final
 
 static_assert(sizeof(SpriteFragmentUniform) == 48U);
 static_assert(alignof(SpriteFragmentUniform) >= 16U);
+static_assert(BlendCompatibilityCount == 4U);
 
 constexpr char SpritePresentationVertexShaderHlsl[] = R"(
 struct VertexInput
@@ -84,6 +86,33 @@ float4 main(FragmentInput input) : SV_Target0
 }
 )";
 
+constexpr char SpriteMaskWriterFragmentShaderHlsl[] = R"(
+Texture2D SpriteTexture : register(t0, space2);
+SamplerState SpriteSampler : register(s0, space2);
+
+cbuffer SpriteAppearance : register(b0, space3)
+{
+    float4 Tint;
+    float4 SampleBounds;
+    float4 OpacityAndPadding;
+};
+
+struct FragmentInput
+{
+    float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+
+float4 main(FragmentInput input) : SV_Target0
+{
+    const float2 sampleUv = clamp(input.uv, SampleBounds.xy, SampleBounds.zw);
+    const float4 sampledStraight = SpriteTexture.Sample(SpriteSampler, sampleUv);
+    const float effectiveAlpha = sampledStraight.a * Tint.a * OpacityAndPadding.x;
+    clip(effectiveAlpha - 0.5);
+    return float4(0.0, 0.0, 0.0, 0.0);
+}
+)";
+
 [[nodiscard]] std::runtime_error MakeSdlError(const char* const context)
 {
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
@@ -96,7 +125,7 @@ public:
     {
         if (!SDL_ShaderCross_Init())
         {
-            throw MakeSdlError("SDL_shadercross initialization failed for Sprite SR3");
+            throw MakeSdlError("SDL_shadercross initialization failed for Sprite SR4");
         }
     }
 
@@ -123,7 +152,7 @@ public:
     void* const spirv = SDL_ShaderCross_CompileSPIRVFromHLSL(&hlslInfo, &spirvSize);
     if (spirv == nullptr)
     {
-        throw MakeSdlError("Sprite SR3 HLSL to SPIR-V compilation failed");
+        throw MakeSdlError("Sprite SR4 HLSL to SPIR-V compilation failed");
     }
 
     SDL_ShaderCross_GraphicsShaderMetadata* const metadata =
@@ -131,7 +160,7 @@ public:
     if (metadata == nullptr)
     {
         SDL_free(spirv);
-        throw MakeSdlError("Sprite SR3 SPIR-V reflection failed");
+        throw MakeSdlError("Sprite SR4 SPIR-V reflection failed");
     }
 
     SDL_ShaderCross_SPIRV_Info spirvInfo{};
@@ -148,7 +177,7 @@ public:
 
     if (shader == nullptr)
     {
-        throw MakeSdlError("Sprite SR3 SDL GPU shader compilation failed");
+        throw MakeSdlError("Sprite SR4 SDL GPU shader compilation failed");
     }
     return shader;
 }
@@ -164,7 +193,7 @@ public:
     case SpriteBlendCompatibility::Multiply:
         return SDL_GPU_BLENDFACTOR_DST_COLOR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR3 blend compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
 }
 
 [[nodiscard]] SDL_GPUBlendFactor DestinationColorFactor(const SpriteBlendCompatibility blend)
@@ -179,7 +208,7 @@ public:
     case SpriteBlendCompatibility::Screen:
         return SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_COLOR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR3 blend compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
 }
 
 [[nodiscard]] SDL_GPUFilter ResolveFilter(const SpriteSamplerCompatibility sampler)
@@ -191,7 +220,43 @@ public:
     case SpriteSamplerCompatibility::Linear:
         return SDL_GPU_FILTER_LINEAR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR3 sampler compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR4 sampler compatibility."};
+}
+
+[[nodiscard]] std::size_t BlendIndex(const SpriteBlendCompatibility blend)
+{
+    switch (blend)
+    {
+    case SpriteBlendCompatibility::Normal:
+        return 0U;
+    case SpriteBlendCompatibility::Additive:
+        return 1U;
+    case SpriteBlendCompatibility::Multiply:
+        return 2U;
+    case SpriteBlendCompatibility::Screen:
+        return 3U;
+    }
+    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
+}
+
+[[nodiscard]] SDL_GPUTextureFormat ResolveDepthStencilTargetFormat(SDL_GPUDevice* const device)
+{
+    constexpr std::array<SDL_GPUTextureFormat, 2U> Candidates{
+        SDL_GPU_TEXTUREFORMAT_D24_UNORM_S8_UINT,
+        SDL_GPU_TEXTUREFORMAT_D32_FLOAT_S8_UINT,
+    };
+    for (const SDL_GPUTextureFormat format : Candidates)
+    {
+        if (SDL_GPUTextureSupportsFormat(
+                device,
+                format,
+                SDL_GPU_TEXTURETYPE_2D,
+                SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET))
+        {
+            return format;
+        }
+    }
+    return SDL_GPU_TEXTUREFORMAT_INVALID;
 }
 
 [[nodiscard]] SpriteGpuVertex BuildVertex(
@@ -214,6 +279,32 @@ void WritePresentationVertices(
     destination[4] = BuildVertex(view, quad.bottomRight);
     destination[5] = BuildVertex(view, quad.bottomLeft);
 }
+
+[[nodiscard]] const char* OrderMaskErrorMessage(const SpriteOrderMaskError error) noexcept
+{
+    switch (error)
+    {
+    case SpriteOrderMaskError::None:
+        return "Sprite SR4 order/mask resolution unexpectedly reported success.";
+    case SpriteOrderMaskError::InvalidSourceIndex:
+        return "Sprite SR4 order scratch contains an invalid source index.";
+    case SpriteOrderMaskError::InvalidStableOrder:
+        return "Sprite SR4 order contains the reserved invalid stable order.";
+    case SpriteOrderMaskError::InvalidSortingGroup:
+        return "Sprite SR4 sorting-group state is malformed.";
+    case SpriteOrderMaskError::InconsistentSortingGroup:
+        return "Sprite SR4 sorting-group identity resolves to inconsistent anchors.";
+    case SpriteOrderMaskError::InvalidMask:
+        return "Sprite SR4 mask state is malformed.";
+    case SpriteOrderMaskError::MaskTesterWithoutWriter:
+        return "Sprite SR4 mask tester has no active preceding writer.";
+    case SpriteOrderMaskError::MaskWriterAfterTester:
+        return "Sprite SR4 mask writer appears after a tester in the same mask phase.";
+    case SpriteOrderMaskError::MaskPhaseReentry:
+        return "Sprite SR4 mask phase re-enters an identity after another writer replaced it.";
+    }
+    return "Sprite SR4 order/mask resolution failed.";
+}
 } // namespace
 
 SpriteGpuBackend::SpriteGpuBackend(
@@ -223,7 +314,14 @@ SpriteGpuBackend::SpriteGpuBackend(
 {
     if (device_ == nullptr || colorTargetFormat_ == SDL_GPU_TEXTUREFORMAT_INVALID)
     {
-        throw std::invalid_argument{"Sprite SR3 GPU backend requires a valid device and color target."};
+        throw std::invalid_argument{"Sprite SR4 GPU backend requires a valid device and color target."};
+    }
+
+    depthStencilTargetFormat_ = ResolveDepthStencilTargetFormat(device_);
+    if (depthStencilTargetFormat_ == SDL_GPU_TEXTUREFORMAT_INVALID)
+    {
+        throw std::runtime_error{
+            "SDL GPU backend does not expose a Sprite SR4 stencil-capable depth target format."};
     }
 
     try
@@ -296,7 +394,7 @@ void SpriteGpuBackend::CreateSamplers()
         SDL_GPUSampler* const created = SDL_CreateGPUSampler(device_, &samplerInfo);
         if (created == nullptr)
         {
-            throw MakeSdlError("SDL GPU Sprite SR3 sampler creation failed");
+            throw MakeSdlError("SDL GPU Sprite SR4 sampler creation failed");
         }
         ++metrics_.samplerCreations;
         return created;
@@ -311,6 +409,7 @@ void SpriteGpuBackend::CreatePipelines()
     const ShaderCrossScope shaderCrossScope{};
     SDL_GPUShader* vertexShader = nullptr;
     SDL_GPUShader* fragmentShader = nullptr;
+    SDL_GPUShader* maskWriterFragmentShader = nullptr;
 
     try
     {
@@ -322,13 +421,17 @@ void SpriteGpuBackend::CreatePipelines()
             device_,
             SpritePresentationFragmentShaderHlsl,
             SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT);
+        maskWriterFragmentShader = CompileHlslShader(
+            device_,
+            SpriteMaskWriterFragmentShaderHlsl,
+            SDL_SHADERCROSS_SHADERSTAGE_FRAGMENT);
 
-        std::array<SDL_GPUVertexBufferDescription, 1> bufferDescriptions{};
+        std::array<SDL_GPUVertexBufferDescription, 1U> bufferDescriptions{};
         bufferDescriptions[0].slot = 0U;
         bufferDescriptions[0].pitch = sizeof(SpriteGpuVertex);
         bufferDescriptions[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        std::array<SDL_GPUVertexAttribute, 2> attributes{};
+        std::array<SDL_GPUVertexAttribute, 2U> attributes{};
         attributes[0].location = 0U;
         attributes[0].buffer_slot = 0U;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
@@ -338,24 +441,40 @@ void SpriteGpuBackend::CreatePipelines()
         attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         attributes[1].offset = static_cast<Uint32>(offsetof(SpriteGpuVertex, u));
 
-        const auto createPipeline = [this, vertexShader, fragmentShader, &bufferDescriptions, &attributes](
-                                        const SpriteBlendCompatibility blend)
+        const auto createPipeline =
+            [this, vertexShader, fragmentShader, maskWriterFragmentShader, &bufferDescriptions, &attributes](
+                const SpriteBlendCompatibility blend,
+                const SpriteMaskMode maskMode,
+                const bool hasStencilTarget)
         {
             SDL_GPUColorTargetDescription colorTargetDescription{};
             colorTargetDescription.format = colorTargetFormat_;
-            colorTargetDescription.blend_state.enable_blend = true;
-            colorTargetDescription.blend_state.color_write_mask = 0xFU;
-            colorTargetDescription.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
-            colorTargetDescription.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
-            colorTargetDescription.blend_state.src_color_blendfactor = SourceColorFactor(blend);
-            colorTargetDescription.blend_state.dst_color_blendfactor = DestinationColorFactor(blend);
-            colorTargetDescription.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
-            colorTargetDescription.blend_state.dst_alpha_blendfactor =
-                SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            colorTargetDescription.blend_state.enable_color_write_mask = true;
+
+            if (maskMode == SpriteMaskMode::Write)
+            {
+                colorTargetDescription.blend_state.enable_blend = false;
+                colorTargetDescription.blend_state.color_write_mask = 0U;
+            }
+            else
+            {
+                colorTargetDescription.blend_state.enable_blend = true;
+                colorTargetDescription.blend_state.color_write_mask = 0xFU;
+                colorTargetDescription.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+                colorTargetDescription.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+                colorTargetDescription.blend_state.src_color_blendfactor = SourceColorFactor(blend);
+                colorTargetDescription.blend_state.dst_color_blendfactor =
+                    DestinationColorFactor(blend);
+                colorTargetDescription.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+                colorTargetDescription.blend_state.dst_alpha_blendfactor =
+                    SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+            }
 
             SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.vertex_shader = vertexShader;
-            pipelineInfo.fragment_shader = fragmentShader;
+            pipelineInfo.fragment_shader = maskMode == SpriteMaskMode::Write
+                ? maskWriterFragmentShader
+                : fragmentShader;
             pipelineInfo.vertex_input_state.vertex_buffer_descriptions = bufferDescriptions.data();
             pipelineInfo.vertex_input_state.num_vertex_buffers =
                 static_cast<Uint32>(bufferDescriptions.size());
@@ -366,21 +485,74 @@ void SpriteGpuBackend::CreatePipelines()
             pipelineInfo.rasterizer_state.enable_depth_clip = true;
             pipelineInfo.target_info.color_target_descriptions = &colorTargetDescription;
             pipelineInfo.target_info.num_color_targets = 1U;
+            pipelineInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
+
+            if (hasStencilTarget)
+            {
+                pipelineInfo.target_info.depth_stencil_format = depthStencilTargetFormat_;
+                pipelineInfo.target_info.has_depth_stencil_target = true;
+            }
+
+            if (maskMode != SpriteMaskMode::None)
+            {
+                SDL_GPUStencilOpState stencilState{};
+                stencilState.fail_op = SDL_GPU_STENCILOP_KEEP;
+                stencilState.depth_fail_op = SDL_GPU_STENCILOP_KEEP;
+                stencilState.pass_op = maskMode == SpriteMaskMode::Write
+                    ? SDL_GPU_STENCILOP_REPLACE
+                    : SDL_GPU_STENCILOP_KEEP;
+                switch (maskMode)
+                {
+                case SpriteMaskMode::Write:
+                    stencilState.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
+                    break;
+                case SpriteMaskMode::TestInside:
+                    stencilState.compare_op = SDL_GPU_COMPAREOP_EQUAL;
+                    break;
+                case SpriteMaskMode::TestOutside:
+                    stencilState.compare_op = SDL_GPU_COMPAREOP_NOT_EQUAL;
+                    break;
+                case SpriteMaskMode::None:
+                    break;
+                }
+
+                pipelineInfo.depth_stencil_state.front_stencil_state = stencilState;
+                pipelineInfo.depth_stencil_state.back_stencil_state = stencilState;
+                pipelineInfo.depth_stencil_state.compare_mask = 0xFFU;
+                pipelineInfo.depth_stencil_state.write_mask =
+                    maskMode == SpriteMaskMode::Write ? 0xFFU : 0U;
+                pipelineInfo.depth_stencil_state.enable_stencil_test = true;
+            }
 
             SDL_GPUGraphicsPipeline* const created =
                 SDL_CreateGPUGraphicsPipeline(device_, &pipelineInfo);
             if (created == nullptr)
             {
-                throw MakeSdlError("SDL GPU Sprite SR3 graphics-pipeline creation failed");
+                throw MakeSdlError("SDL GPU Sprite SR4 graphics-pipeline creation failed");
             }
             ++metrics_.pipelineCreations;
             return created;
         };
 
-        normalPipeline_ = createPipeline(SpriteBlendCompatibility::Normal);
-        additivePipeline_ = createPipeline(SpriteBlendCompatibility::Additive);
-        multiplyPipeline_ = createPipeline(SpriteBlendCompatibility::Multiply);
-        screenPipeline_ = createPipeline(SpriteBlendCompatibility::Screen);
+        constexpr std::array<SpriteBlendCompatibility, BlendCompatibilityCount> Blends{
+            SpriteBlendCompatibility::Normal,
+            SpriteBlendCompatibility::Additive,
+            SpriteBlendCompatibility::Multiply,
+            SpriteBlendCompatibility::Screen,
+        };
+        for (const SpriteBlendCompatibility blend : Blends)
+        {
+            const std::size_t index = BlendIndex(blend);
+            unmaskedPipelines_[index] = createPipeline(blend, SpriteMaskMode::None, false);
+            stencilCompatibleUnmaskedPipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::None, true);
+            maskInsidePipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::TestInside, true);
+            maskOutsidePipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::TestOutside, true);
+        }
+        maskWritePipeline_ =
+            createPipeline(SpriteBlendCompatibility::Normal, SpriteMaskMode::Write, true);
     }
     catch (...)
     {
@@ -392,11 +564,16 @@ void SpriteGpuBackend::CreatePipelines()
         {
             SDL_ReleaseGPUShader(device_, fragmentShader);
         }
+        if (maskWriterFragmentShader != nullptr)
+        {
+            SDL_ReleaseGPUShader(device_, maskWriterFragmentShader);
+        }
         throw;
     }
 
     SDL_ReleaseGPUShader(device_, vertexShader);
     SDL_ReleaseGPUShader(device_, fragmentShader);
+    SDL_ReleaseGPUShader(device_, maskWriterFragmentShader);
 }
 
 void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
@@ -412,7 +589,7 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
         static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()) / BytesPerSprite;
     if (static_cast<std::uint64_t>(requiredSprites) > MaxSprites)
     {
-        throw std::length_error{"Sprite SR3 vertex upload exceeds SDL GPU buffer limits."};
+        throw std::length_error{"Sprite SR4 vertex upload exceeds SDL GPU buffer limits."};
     }
 
     std::uint64_t replacementCapacity = vertexCapacitySprites_ == 0U ? 1U : vertexCapacitySprites_;
@@ -434,7 +611,7 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
     SDL_GPUBuffer* const replacementBuffer = SDL_CreateGPUBuffer(device_, &bufferInfo);
     if (replacementBuffer == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR3 vertex-buffer creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR4 vertex-buffer creation failed");
     }
 
     SDL_GPUTransferBufferCreateInfo transferInfo{};
@@ -445,7 +622,7 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
     if (replacementTransfer == nullptr)
     {
         SDL_ReleaseGPUBuffer(device_, replacementBuffer);
-        throw MakeSdlError("SDL GPU Sprite SR3 transfer-buffer creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR4 transfer-buffer creation failed");
     }
 
     if (vertexTransferBuffer_ != nullptr)
@@ -463,25 +640,88 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
     metrics_.vertexCapacitySprites = replacementCapacity;
 }
 
+void SpriteGpuBackend::EnsureMaskTarget(
+    const std::uint32_t width,
+    const std::uint32_t height)
+{
+    if (width == 0U || height == 0U)
+    {
+        throw std::invalid_argument{"Sprite SR4 mask target dimensions must be non-zero."};
+    }
+    if (maskTarget_ != nullptr && maskTargetWidth_ == width && maskTargetHeight_ == height)
+    {
+        return;
+    }
+
+    SDL_GPUTextureCreateInfo textureInfo{};
+    textureInfo.type = SDL_GPU_TEXTURETYPE_2D;
+    textureInfo.format = depthStencilTargetFormat_;
+    textureInfo.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+    textureInfo.width = width;
+    textureInfo.height = height;
+    textureInfo.layer_count_or_depth = 1U;
+    textureInfo.num_levels = 1U;
+    textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
+
+    SDL_GPUTexture* const replacement = SDL_CreateGPUTexture(device_, &textureInfo);
+    if (replacement == nullptr)
+    {
+        throw MakeSdlError("SDL GPU Sprite SR4 mask target creation failed");
+    }
+
+    if (maskTarget_ != nullptr)
+    {
+        SDL_ReleaseGPUTexture(device_, maskTarget_);
+    }
+    maskTarget_ = replacement;
+    maskTargetWidth_ = width;
+    maskTargetHeight_ = height;
+    ++metrics_.maskTargetCreations;
+}
+
 void SpriteGpuBackend::UploadPresentations(
     SDL_GPUCommandBuffer* const commandBuffer,
     const OrthographicView& view,
     const std::span<const SpritePresentationRenderData> presentations)
 {
+    maskingRequired_ = false;
+    orderScratch_.clear();
     if (presentations.empty())
     {
         return;
     }
     if (commandBuffer == nullptr)
     {
-        throw std::invalid_argument{"Sprite SR3 upload requires a command buffer."};
+        throw std::invalid_argument{"Sprite SR4 upload requires a command buffer."};
+    }
+    if (presentations.size() > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+    {
+        throw std::length_error{"Sprite SR4 presentation count exceeds semantic source-index range."};
+    }
+
+    orderScratch_.resize(presentations.size());
+    for (std::size_t index = 0U; index < presentations.size(); ++index)
+    {
+        maskingRequired_ =
+            maskingRequired_ || presentations[index].mask.mode != SpriteMaskMode::None;
+        orderScratch_[index] = SpriteOrderMaskEntry2D{
+            presentations[index].order,
+            presentations[index].mask,
+            static_cast<std::uint32_t>(index),
+        };
+    }
+
+    const SpriteOrderMaskStatus orderStatus = ResolveSpriteOrderMask2D(orderScratch_);
+    if (!orderStatus.Succeeded())
+    {
+        throw std::invalid_argument{OrderMaskErrorMessage(orderStatus.error)};
     }
 
     EnsureVertexCapacity(presentations.size());
     void* const mapped = SDL_MapGPUTransferBuffer(device_, vertexTransferBuffer_, true);
     if (mapped == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR3 transfer-buffer mapping failed");
+        throw MakeSdlError("SDL GPU Sprite SR4 transfer-buffer mapping failed");
     }
 
     auto* const vertices = static_cast<SpriteGpuVertex*>(mapped);
@@ -497,7 +737,7 @@ void SpriteGpuBackend::UploadPresentations(
     SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
     if (copyPass == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR3 upload copy-pass creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR4 upload copy-pass creation failed");
     }
 
     SDL_GPUTransferBufferLocation source{};
@@ -510,6 +750,71 @@ void SpriteGpuBackend::UploadPresentations(
     SDL_EndGPUCopyPass(copyPass);
 }
 
+SDL_GPURenderPass* SpriteGpuBackend::BeginPresentationRenderPass(
+    SDL_GPUCommandBuffer* const commandBuffer,
+    const SDL_GPUColorTargetInfo& colorTarget,
+    const std::uint32_t targetWidth,
+    const std::uint32_t targetHeight)
+{
+    if (commandBuffer == nullptr || colorTarget.texture == nullptr)
+    {
+        throw std::invalid_argument{"Sprite SR4 render pass requires live command/color-target state."};
+    }
+
+    if (!maskingRequired_)
+    {
+        return SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1U, nullptr);
+    }
+
+    EnsureMaskTarget(targetWidth, targetHeight);
+
+    SDL_GPUDepthStencilTargetInfo depthStencilTarget{};
+    depthStencilTarget.texture = maskTarget_;
+    depthStencilTarget.clear_depth = 1.0F;
+    depthStencilTarget.load_op = SDL_GPU_LOADOP_DONT_CARE;
+    depthStencilTarget.store_op = SDL_GPU_STOREOP_DONT_CARE;
+    depthStencilTarget.stencil_load_op = SDL_GPU_LOADOP_CLEAR;
+    depthStencilTarget.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+    depthStencilTarget.cycle = true;
+    depthStencilTarget.clear_stencil = 0U;
+
+    return SDL_BeginGPURenderPass(
+        commandBuffer,
+        &colorTarget,
+        1U,
+        &depthStencilTarget);
+}
+
+std::size_t SpriteGpuBackend::OrderedSourceIndex(const std::size_t orderedIndex) const
+{
+    if (orderedIndex >= orderScratch_.size())
+    {
+        throw std::out_of_range{"Sprite SR4 ordered presentation index is out of range."};
+    }
+    return static_cast<std::size_t>(orderScratch_[orderedIndex].sourceIndex);
+}
+
+SDL_GPUGraphicsPipeline* SpriteGpuBackend::ResolvePipeline(
+    const SpriteBlendCompatibility blend,
+    const SpriteMaskMode maskMode) const
+{
+    const std::size_t blendIndex = BlendIndex(blend);
+    switch (maskMode)
+    {
+    case SpriteMaskMode::None:
+        return maskingRequired_
+            ? stencilCompatibleUnmaskedPipelines_[blendIndex]
+            : unmaskedPipelines_[blendIndex];
+    case SpriteMaskMode::Write:
+        return maskWritePipeline_;
+    case SpriteMaskMode::TestInside:
+        return maskInsidePipelines_[blendIndex];
+    case SpriteMaskMode::TestOutside:
+        return maskOutsidePipelines_[blendIndex];
+    }
+    throw std::invalid_argument{"Unsupported Sprite SR4 mask mode."};
+}
+
 void SpriteGpuBackend::DrawPresentation(
     SDL_GPUCommandBuffer* const commandBuffer,
     SDL_GPURenderPass* const renderPass,
@@ -519,11 +824,11 @@ void SpriteGpuBackend::DrawPresentation(
 {
     if (commandBuffer == nullptr || renderPass == nullptr || texture == nullptr)
     {
-        throw std::invalid_argument{"Sprite SR3 draw requires live GPU command/render/texture state."};
+        throw std::invalid_argument{"Sprite SR4 draw requires live GPU command/render/texture state."};
     }
     if (presentationIndex >= vertexCapacitySprites_)
     {
-        throw std::out_of_range{"Sprite SR3 draw index exceeds uploaded vertex capacity."};
+        throw std::out_of_range{"Sprite SR4 draw index exceeds uploaded vertex capacity."};
     }
 
     SDL_GPUSampler* sampler = nullptr;
@@ -536,26 +841,20 @@ void SpriteGpuBackend::DrawPresentation(
         sampler = linearSampler_;
         break;
     default:
-        throw std::invalid_argument{"Unsupported Sprite SR3 sampler compatibility."};
+        throw std::invalid_argument{"Unsupported Sprite SR4 sampler compatibility."};
     }
 
-    SDL_GPUGraphicsPipeline* pipeline = nullptr;
-    switch (presentation.presentation.appearance.blend)
+    SDL_GPUGraphicsPipeline* const pipeline = ResolvePipeline(
+        presentation.presentation.appearance.blend,
+        presentation.mask.mode);
+    if (pipeline == nullptr)
     {
-    case SpriteBlendCompatibility::Normal:
-        pipeline = normalPipeline_;
-        break;
-    case SpriteBlendCompatibility::Additive:
-        pipeline = additivePipeline_;
-        break;
-    case SpriteBlendCompatibility::Multiply:
-        pipeline = multiplyPipeline_;
-        break;
-    case SpriteBlendCompatibility::Screen:
-        pipeline = screenPipeline_;
-        break;
-    default:
-        throw std::invalid_argument{"Unsupported Sprite SR3 blend compatibility."};
+        throw std::runtime_error{"Sprite SR4 required graphics pipeline is unavailable."};
+    }
+
+    if (presentation.mask.mode != SpriteMaskMode::None)
+    {
+        SDL_SetGPUStencilReference(renderPass, presentation.mask.id);
     }
 
     const SpriteAppearanceContractData& appearance = presentation.presentation.appearance;
@@ -594,7 +893,7 @@ void SpriteGpuBackend::DrawPresentation(
         static_cast<std::uint64_t>(presentationIndex) * VerticesPerSprite;
     if (firstVertex64 > static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()))
     {
-        throw std::length_error{"Sprite SR3 first vertex exceeds SDL GPU draw limits."};
+        throw std::length_error{"Sprite SR4 first vertex exceeds SDL GPU draw limits."};
     }
     SDL_DrawGPUPrimitives(
         renderPass,
@@ -616,6 +915,16 @@ void SpriteGpuBackend::Cleanup() noexcept
         return;
     }
 
+    maskingRequired_ = false;
+    orderScratch_.clear();
+
+    if (maskTarget_ != nullptr)
+    {
+        SDL_ReleaseGPUTexture(device_, maskTarget_);
+        maskTarget_ = nullptr;
+        maskTargetWidth_ = 0U;
+        maskTargetHeight_ = 0U;
+    }
     if (vertexTransferBuffer_ != nullptr)
     {
         SDL_ReleaseGPUTransferBuffer(device_, vertexTransferBuffer_);
@@ -627,25 +936,42 @@ void SpriteGpuBackend::Cleanup() noexcept
         vertexBuffer_ = nullptr;
         vertexCapacitySprites_ = 0U;
     }
-    if (screenPipeline_ != nullptr)
+    if (maskWritePipeline_ != nullptr)
     {
-        SDL_ReleaseGPUGraphicsPipeline(device_, screenPipeline_);
-        screenPipeline_ = nullptr;
+        SDL_ReleaseGPUGraphicsPipeline(device_, maskWritePipeline_);
+        maskWritePipeline_ = nullptr;
     }
-    if (multiplyPipeline_ != nullptr)
+    for (SDL_GPUGraphicsPipeline*& pipeline : maskOutsidePipelines_)
     {
-        SDL_ReleaseGPUGraphicsPipeline(device_, multiplyPipeline_);
-        multiplyPipeline_ = nullptr;
+        if (pipeline != nullptr)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(device_, pipeline);
+            pipeline = nullptr;
+        }
     }
-    if (additivePipeline_ != nullptr)
+    for (SDL_GPUGraphicsPipeline*& pipeline : maskInsidePipelines_)
     {
-        SDL_ReleaseGPUGraphicsPipeline(device_, additivePipeline_);
-        additivePipeline_ = nullptr;
+        if (pipeline != nullptr)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(device_, pipeline);
+            pipeline = nullptr;
+        }
     }
-    if (normalPipeline_ != nullptr)
+    for (SDL_GPUGraphicsPipeline*& pipeline : stencilCompatibleUnmaskedPipelines_)
     {
-        SDL_ReleaseGPUGraphicsPipeline(device_, normalPipeline_);
-        normalPipeline_ = nullptr;
+        if (pipeline != nullptr)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(device_, pipeline);
+            pipeline = nullptr;
+        }
+    }
+    for (SDL_GPUGraphicsPipeline*& pipeline : unmaskedPipelines_)
+    {
+        if (pipeline != nullptr)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(device_, pipeline);
+            pipeline = nullptr;
+        }
     }
     if (linearSampler_ != nullptr)
     {

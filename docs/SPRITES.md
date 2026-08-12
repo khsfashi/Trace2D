@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1/SR2/SR3 complete; SR4 painter-order/sorting-group/masking is the next child, but must be created only after PR #131 is merged/closed**
+Status: **S0/S1/SR0/SR1/SR2/SR3 complete; SR4 painter-order/sorting-group/masking is active via #132 / draft PR #133**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -9,7 +9,8 @@ Canonical S1 format: [`SPRITE_ASSET_FORMAT.md`](SPRITE_ASSET_FORMAT.md).
 SR0 render seam: [`SPRITE_RENDER_CONTRACT.md`](SPRITE_RENDER_CONTRACT.md).  
 SR1 transform/presentation seam: [`SPRITE_TRANSFORM_PRESENTATION.md`](SPRITE_TRANSFORM_PRESENTATION.md).  
 SR2 atlas/trim/UV seam: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).  
-SR3 color/alpha/blend/sampling seam: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).
+SR3 color/alpha/blend/sampling seam: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).  
+SR4 painter-order/group/masking seam: [`SPRITE_ORDER_MASKING.md`](SPRITE_ORDER_MASKING.md).
 
 This document owns the complete fixed Sprite stage order and capability target. Stage-local documents may refine implementation details but cannot silently change S0 authority or replace canonical authored/runtime truth with renderer/tool state.
 
@@ -65,16 +66,17 @@ Exactly one child issue/PR is active at a time:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete] -> SR4 -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete] -> SR4 [active #132/#133] -> SR5 -> SR6 -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
 Completed stage: **SR3 / #130 / PR #131**.  
-Exact next stage after PR #131 merges green: **SR4 — painter order, sorting groups and Sprite masking**.
+Active stage: **SR4 / #132 / draft PR #133**.  
+Exact next stage after SR4 merges green: **SR5 — 9-slice and tiled/repeated Sprite primitives**.
 
-Do not create or begin SR4 in the same continuation that finalizes PR #131.
+Do not create or begin SR5 while SR4 remains open.
 
 ## 4. Completed foundation
 
@@ -244,9 +246,9 @@ This separation is intentional: filtering safety must never rewrite canonical SR
 
 ### Production GPU state and reuse
 
-PR #131 implements a dedicated SR3 SDL GPU backend while retaining the legacy Sprite/particle sampler/pipeline resources unchanged.
+At SR3 completion, PR #131 implemented a dedicated SDL GPU backend while retaining the legacy Sprite/particle sampler/pipeline resources unchanged.
 
-Renderer/device lifetime owns:
+Renderer/device lifetime owned:
 
 - two persistent Sprite samplers: nearest and linear,
 - four persistent built-in blend pipelines for the renderer target format,
@@ -256,7 +258,7 @@ Renderer/device lifetime owns:
 
 Ordinary presentation performs no explicit GPU readback or fence wait. Explicit capture/conformance may synchronize because observation requires readback.
 
-SR3 deliberately preserves caller order and does not yet implement broad compatibility batching or mixed Sprite/particle painter semantics. SR4 owns painter-order/group/mask semantics; SR7 owns production batching/culling/reuse policy beyond the current fixed cache/capacity requirements.
+SR3 deliberately preserved caller order and did not yet implement broad compatibility batching or mixed Sprite/particle painter semantics. SR4 owns painter-order/group/mask semantics; SR7 owns production batching/culling/reuse policy beyond the current fixed cache/capacity requirements.
 
 ### Metrics and deterministic proof
 
@@ -310,11 +312,34 @@ That real-GPU fixture proves:
 
 No renderer/driver string was captured, so the completion record intentionally does not invent one.
 
-## 6. Remaining production Sprite renderer stages
+## 6. Active and remaining production Sprite renderer stages
 
-### SR4 — painter order/sorting groups/masking
+### SR4 — painter order/sorting groups/masking — active
 
-Implement layer/stable order, sorting groups and bounded Sprite mask/clip semantics. Global texture/material sorting that changes semantic order remains forbidden.
+Concrete contract: [`SPRITE_ORDER_MASKING.md`](SPRITE_ORDER_MASKING.md).  
+Implementation vehicle: **#132 / draft PR #133 / branch `sprite-sr4-order-mask`**.
+
+SR4 adds a finite backend-independent semantic ordering layer over `SpritePresentation2D`:
+
+```text
+SpritePresentation2D
+ + SpriteOrder2D
+ + SpriteMask2D
+ -> validated painter sequence
+ -> production renderer submission in exactly that order
+```
+
+The order resolver uses signed `layer`/`order`, explicit stable identity, one resolved sorting-group level and original input ordinal as the final exact-tie rule. Texture, material, sampler, blend, allocation address and GPU identity never participate in ordering. Current resolver cost is O(n) validation + one O(n log n) in-place sort + O(n) mask-phase validation with a fixed 256-entry group-validation table and reusable renderer-owned scratch.
+
+Bounded mask states are `none`, `write(id)`, `test_inside(id)` and `test_outside(id)` for semantic IDs `1..255`. The production SDL GPU mapping uses persistent stencil-compatible pipelines, dynamic stencil reference, alpha-threshold mask writers and a reusable size-matched mask target. Unmasked submissions use the color-only presentation pass and do not create, attach or clear the mask target.
+
+The committed opt-in real-GPU fixture is:
+
+```text
+SpriteOrderMaskGpuSmokeTests.Sr4PainterGroupsAndMasksMatchFrozenContract
+```
+
+It must pass on a real Windows presentation GPU before SR4 is complete. Hosted compile/CPU validation alone is not sufficient.
 
 ### SR5 — 9-slice and tiled/repeated primitives
 
@@ -437,6 +462,6 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-PR #131 is the SR3 completion vehicle. While it remains open, routine continuation may only finalize its evidence/status/merge state. After it merges and #130 closes, stop that continuation. On the next continuation only, create exactly one SR4 child issue and begin SR4 from the frozen order above.
+While #132 / PR #133 remains open, routine continuation may only finish SR4 implementation, hosted validation, review fixes and the committed real-GPU gate. Do not create SR5 early. After SR4 passes all gates, record the exact observed GPU result, merge #133, confirm #132 closed, and stop that continuation. On the next continuation only, create exactly one SR5 child.
 
 After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.

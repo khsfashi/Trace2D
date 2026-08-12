@@ -1266,15 +1266,17 @@ private:
         std::uint64_t& encodedSpriteDraws,
         std::uint64_t& encodedSpriteCount)
     {
-        for (std::size_t index = 0U; index < sprites.size(); ++index)
+        for (std::size_t orderedIndex = 0U; orderedIndex < sprites.size(); ++orderedIndex)
         {
-            const SpritePresentationRenderData& sprite = sprites[index];
+            const std::size_t sourceIndex =
+                spriteGpuBackend_->OrderedSourceIndex(orderedIndex);
+            const SpritePresentationRenderData& sprite = sprites[sourceIndex];
             spriteGpuBackend_->DrawPresentation(
                 commandBuffer,
                 renderPass,
                 ResolveTexture(sprite.texture),
                 sprite,
-                index);
+                sourceIndex);
             ++encodedSpriteDraws;
             ++encodedSpriteCount;
         }
@@ -1413,17 +1415,17 @@ private:
             if (!texture.hasSpriteEncoding)
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite presentation requires a texture created by CreateSpriteTextureRgba8."};
+                    "SR4 Sprite presentation requires a texture created by CreateSpriteTextureRgba8."};
             }
             if (texture.spriteEncoding != appearance.textureEncoding)
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite texture encoding does not match resolved canonical page color space."};
+                    "SR4 Sprite texture encoding does not match resolved canonical page color space."};
             }
             if (appearance.sourceAlphaMode != assets::SpriteAlphaMode::Straight)
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite presentation requires canonical straight-alpha source truth."};
+                    "SR4 Sprite presentation requires canonical straight-alpha source truth."};
             }
             if (!IsFiniteUnit(appearance.tint.red) ||
                 !IsFiniteUnit(appearance.tint.green) ||
@@ -1432,12 +1434,12 @@ private:
                 !IsFiniteUnit(appearance.opacity))
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite presentation contains invalid tint or opacity."};
+                    "SR4 Sprite presentation contains invalid tint or opacity."};
             }
             if (!IsFiniteNormalizedBounds(appearance.sampleBounds))
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite presentation contains invalid atlas-safe sample bounds."};
+                    "SR4 Sprite presentation contains invalid atlas-safe sample bounds."};
             }
             switch (appearance.sampler)
             {
@@ -1445,7 +1447,7 @@ private:
             case SpriteSamplerCompatibility::Linear:
                 break;
             default:
-                throw std::invalid_argument{"SR3 Sprite presentation has unsupported sampling."};
+                throw std::invalid_argument{"SR4 Sprite presentation has unsupported sampling."};
             }
             switch (appearance.blend)
             {
@@ -1455,7 +1457,7 @@ private:
             case SpriteBlendCompatibility::Screen:
                 break;
             default:
-                throw std::invalid_argument{"SR3 Sprite presentation has unsupported blending."};
+                throw std::invalid_argument{"SR4 Sprite presentation has unsupported blending."};
             }
             switch (appearance.textureEncoding)
             {
@@ -1463,7 +1465,7 @@ private:
             case SpriteTextureEncoding::Linear:
                 break;
             default:
-                throw std::invalid_argument{"SR3 Sprite presentation has unsupported texture encoding."};
+                throw std::invalid_argument{"SR4 Sprite presentation has unsupported texture encoding."};
             }
 
             const SpriteDrawQuad& quad = sprite.presentation.quad;
@@ -1473,7 +1475,7 @@ private:
                 !IsFiniteDrawVertex(quad.bottomLeft))
             {
                 throw std::invalid_argument{
-                    "SR3 Sprite presentation contains invalid SR2 geometry or canonical UVs."};
+                    "SR4 Sprite presentation contains invalid SR2 geometry or canonical UVs."};
             }
         }
     }
@@ -1488,6 +1490,7 @@ private:
         metrics_.spriteSamplerCreations = gpuMetrics.samplerCreations;
         metrics_.spritePipelineCreations = gpuMetrics.pipelineCreations;
         metrics_.spriteVertexCapacitySprites = gpuMetrics.vertexCapacitySprites;
+        metrics_.spriteMaskTargetCreations = gpuMetrics.maskTargetCreations;
     }
 
     void CommitFrameMetrics(
@@ -1542,7 +1545,7 @@ private:
         if (!spritePresentations.empty() && (!sprites.empty() || !particles.empty()))
         {
             throw std::invalid_argument{
-                "SR3 Sprite presentation cannot be mixed with legacy SpriteRenderData or particles before SR4."};
+                "SR4 Sprite presentation cannot be mixed with legacy SpriteRenderData or particles."};
         }
 
         const bool hasPresentation =
@@ -1666,8 +1669,24 @@ private:
             colorTarget.store_op = SDL_GPU_STOREOP_STORE;
             colorTarget.cycle = true;
 
-            SDL_GPURenderPass* const renderPass =
-                SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1U, nullptr);
+            SDL_GPURenderPass* renderPass = nullptr;
+            if (!spritePresentations.empty())
+            {
+                renderPass = spriteGpuBackend_->BeginPresentationRenderPass(
+                    commandBuffer,
+                    colorTarget,
+                    targetWidth,
+                    targetHeight);
+                SyncSpriteGpuMetrics();
+            }
+            else
+            {
+                renderPass = SDL_BeginGPURenderPass(
+                    commandBuffer,
+                    &colorTarget,
+                    1U,
+                    nullptr);
+            }
             if (renderPass == nullptr)
             {
                 const std::string error{SDL_GetError()};
