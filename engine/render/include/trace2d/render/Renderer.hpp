@@ -5,6 +5,7 @@
 #include <trace2d/render/ParticleGpuRuntime.hpp>
 #include <trace2d/render/RenderData.hpp>
 #include <trace2d/render/SpriteOrderMask2D.hpp>
+#include <trace2d/render/SpritePixelPerfect2D.hpp>
 #include <trace2d/render/SpritePresentation2D.hpp>
 #include <trace2d/render/SpritePrimitive2D.hpp>
 
@@ -47,10 +48,15 @@ enum class SpritePresentationGeometryKind : std::uint8_t
     PrimitivePatches = 1,
 };
 
-// Production SR5 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
+// Production SR6 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
 // SR4 adds finite semantic painter order/group/mask state and SR5 may replace the legacy single
 // quad with caller-owned, already-derived primitive patches. Primitive patches stay one atomic
 // top-level SR4 item and are consumed only for the duration of RenderFrame/CaptureFrame.
+//
+// `pixelPerfectViewport` is optional caller-owned frame-level SR6 presentation state. When any
+// submitted Sprite enables it, every Sprite in that frame must provide an equal mapping. The GPU
+// backend consumes its logical view plus integer target viewport/scissor; it never becomes
+// canonical Sprite/gameplay truth. The pointed value must outlive the RenderFrame/CaptureFrame call.
 // Texture handles and all GPU resources remain derived renderer state.
 struct SpritePresentationRenderData final
 {
@@ -60,6 +66,7 @@ struct SpritePresentationRenderData final
     SpriteMask2D mask{};
     SpritePresentationGeometryKind geometryKind{SpritePresentationGeometryKind::Quad};
     std::span<const SpritePrimitivePatch2D> primitivePatches{};
+    const SpritePixelPerfectViewport2D* pixelPerfectViewport{nullptr};
 };
 
 struct RenderMetrics
@@ -131,10 +138,11 @@ public:
         std::span<const SpriteRenderData> sprites,
         std::span<const GpuParticleRenderData> particles);
 
-    // SR4/SR5 production path. The renderer resolves painter order from each top-level input,
+    // SR4-SR6 production path. The renderer resolves painter order from each top-level input,
     // submits that order without resource sorting, then emits all SR5 patches of one Sprite as one
-    // contiguous triangle-list draw. Default geometry/order/mask preserve pre-SR5 single-quad
-    // behavior. SR7 owns broad cross-Sprite batching/culling.
+    // contiguous triangle-list draw. Optional SR6 frame context resolves the same logical view used
+    // by CPU pixel snapping and restricts rasterization to its integer target viewport/scissor.
+    // SR7 owns broad cross-Sprite batching/culling.
     void RenderFrame(
         const OrthographicCamera& camera,
         const SpritePresentationRenderData& sprite);
