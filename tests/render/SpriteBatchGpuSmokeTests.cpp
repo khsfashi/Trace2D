@@ -374,7 +374,9 @@ TEST(SpriteBatchGpuSmokeTests, Sr7BatchesCullsPreservesAppearanceMaskPrimitivePi
     const std::uint32_t scale = viewport.integerScale;
     const std::uint32_t y = viewport.contentRect.y + 3U * scale + scale / 2U;
     const std::uint32_t redX = viewport.contentRect.x + 3U * scale + scale / 2U;
-    const std::uint32_t greenX = viewport.contentRect.x + 9U * scale + scale / 2U;
+    // The green Sprite shares textureA with the red Sprite, so probe its second source texel
+    // (green) rather than its first source texel (red) when validating the green tint payload.
+    const std::uint32_t greenX = viewport.contentRect.x + 10U * scale + scale / 2U;
     const std::uint32_t blueX = viewport.contentRect.x + 12U * scale + scale / 2U;
     ExpectNear(PixelAt(batchCapture, redX, y), 128U, 0U, 0U);
     ExpectNear(PixelAt(batchCapture, greenX, y), 0U, 255U, 0U);
