@@ -177,6 +177,7 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     constexpr std::array<std::uint8_t, 4U> Green{0U, 255U, 0U, 255U};
     constexpr std::array<std::uint8_t, 4U> Blue{0U, 0U, 255U, 255U};
     constexpr std::array<std::uint8_t, 4U> White{255U, 255U, 255U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Transparent{0U, 0U, 0U, 0U};
 
     const render::TextureHandle redTexture = renderer.CreateSpriteTextureRgba8(
         render::Rgba8TextureData{1U, 1U, Red},
@@ -189,6 +190,9 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
         render::SpriteTextureEncoding::Linear);
     const render::TextureHandle whiteTexture = renderer.CreateSpriteTextureRgba8(
         render::Rgba8TextureData{1U, 1U, White},
+        render::SpriteTextureEncoding::Linear);
+    const render::TextureHandle transparentTexture = renderer.CreateSpriteTextureRgba8(
+        render::Rgba8TextureData{1U, 1U, Transparent},
         render::SpriteTextureEncoding::Linear);
 
     const std::filesystem::path temp = std::filesystem::temp_directory_path();
@@ -240,10 +244,19 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     writer.order.stableOrder = 0U;
     writer.mask = render::SpriteMask2D{render::SpriteMaskMode::Write, 3U};
 
+    // Transparent but otherwise ordinary Sprite proves `None` remains valid inside a masked pass.
+    // It must use the stencil-target-compatible unmasked pipeline without changing stencil state.
+    render::SpritePresentationRenderData unmaskedInMaskedPass{full, transparentTexture};
+    unmaskedInMaskedPass.order.stableOrder = 1U;
+
     render::SpritePresentationRenderData inside{full, greenTexture};
-    inside.order.stableOrder = 1U;
+    inside.order.stableOrder = 2U;
     inside.mask = render::SpriteMask2D{render::SpriteMaskMode::TestInside, 3U};
-    const std::array<render::SpritePresentationRenderData, 2U> insideDraws{inside, writer};
+    const std::array<render::SpritePresentationRenderData, 3U> insideDraws{
+        inside,
+        unmaskedInMaskedPass,
+        writer,
+    };
     const std::filesystem::path insidePath = temp / "trace2d_sprite_sr4_mask_inside.bmp";
     const render::CapturedFrame insideCapture = Capture(
         renderer,
@@ -255,9 +268,13 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     ExpectPrimaryNear(PixelAt(insideCapture, 40U, 32U), 0U, 0U, 0U);
 
     render::SpritePresentationRenderData outside{full, blueTexture};
-    outside.order.stableOrder = 1U;
+    outside.order.stableOrder = 2U;
     outside.mask = render::SpriteMask2D{render::SpriteMaskMode::TestOutside, 3U};
-    const std::array<render::SpritePresentationRenderData, 2U> outsideDraws{outside, writer};
+    const std::array<render::SpritePresentationRenderData, 3U> outsideDraws{
+        outside,
+        unmaskedInMaskedPass,
+        writer,
+    };
     const std::filesystem::path outsidePath = temp / "trace2d_sprite_sr4_mask_outside.bmp";
     const render::CapturedFrame outsideCapture = Capture(
         renderer,
@@ -272,7 +289,7 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     renderer.RenderFrame(camera, outsideDraws);
     const render::RenderMetrics firstWarmMetrics = renderer.Metrics();
     EXPECT_EQ(firstWarmMetrics.spriteSamplerCreations, 2U);
-    EXPECT_EQ(firstWarmMetrics.spritePipelineCreations, 13U);
+    EXPECT_EQ(firstWarmMetrics.spritePipelineCreations, 17U);
     EXPECT_EQ(firstWarmMetrics.spriteMaskTargetCreations, 1U);
     const std::uint64_t readbacksBeforeNormalRepeat = firstWarmMetrics.explicitGpuReadbacks;
     const std::uint64_t waitsBeforeNormalRepeat = firstWarmMetrics.explicitGpuFenceWaits;
@@ -286,6 +303,7 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     EXPECT_EQ(secondWarmMetrics.explicitGpuReadbacks, readbacksBeforeNormalRepeat);
     EXPECT_EQ(secondWarmMetrics.explicitGpuFenceWaits, waitsBeforeNormalRepeat);
 
+    renderer.DestroyTexture(transparentTexture);
     renderer.DestroyTexture(whiteTexture);
     renderer.DestroyTexture(blueTexture);
     renderer.DestroyTexture(greenTexture);
