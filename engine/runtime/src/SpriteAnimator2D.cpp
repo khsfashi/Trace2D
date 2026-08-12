@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <limits>
 #include <numeric>
+#include <utility>
 
 namespace trace2d::runtime
 {
