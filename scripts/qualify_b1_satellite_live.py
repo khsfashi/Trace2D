@@ -42,6 +42,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         missing = sorted(required - tools)
         require(not missing, f"missing B1 tools: {missing}")
 
+        editor_state = base.wait_for_editor(client)
         client.call_tool("godot_scene", {"action": "open", "scene_path": "res://main.tscn"})
         client.call_tool(
             "godot_animation_edit",
@@ -75,7 +76,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 for track in tracks
                 if isinstance(track, dict)
                 and track.get("type") == "method"
-                and track.get("path") == "Subject"
+                and str(track.get("path", "")).endswith("Subject")
             ),
             None,
         )
@@ -125,7 +126,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "provider": "satelliteoflove/godot-mcp",
             "pin": "@satelliteoflove/godot-mcp@4.1.0",
             "qualified_authoring": True,
-            "engine": {"id": "godot", "version": "4.7.1-stable"},
+            "engine": {
+                "id": "godot",
+                "version": "4.7.1-stable",
+                "reported_state": editor_state,
+            },
             "bridge": {
                 "reported_version": str(server_info.get("version", "unknown")),
                 "npm_integrity": os.environ.get("TRACE2D_B1_SATELLITE_INTEGRITY", "unknown"),
