@@ -71,10 +71,16 @@ namespace
 } // namespace
 
 SpriteAnimationClipStatus SpriteAnimationClip2D::Prepare(
-    std::span<const SpriteAnimationFrame2D> frames,
+    const assets::SpriteAsset* spriteAsset,
     std::uint32_t spriteRegionCount,
+    std::span<const SpriteAnimationFrame2D> frames,
     SpriteAnimationClip2D& outClip)
 {
+    if (spriteAsset == nullptr)
+    {
+        return {SpriteAnimationClipError::NullSpriteAsset, 0};
+    }
+
     if (frames.empty())
     {
         return {SpriteAnimationClipError::EmptyFrames, 0};
@@ -86,6 +92,8 @@ SpriteAnimationClipStatus SpriteAnimationClip2D::Prepare(
     }
 
     SpriteAnimationClip2D prepared{};
+    prepared.spriteAsset_ = spriteAsset;
+    prepared.spriteRegionCount_ = spriteRegionCount;
     prepared.frames_.reserve(frames.size());
     prepared.frameBoundaries_.reserve(frames.size() + 1U);
     prepared.frameBoundaries_.push_back(SpriteAnimationTime2D{0});
@@ -128,6 +136,16 @@ SpriteAnimationClipStatus SpriteAnimationClip2D::Prepare(
 bool SpriteAnimationClip2D::Prepared() const noexcept
 {
     return prepared_;
+}
+
+const assets::SpriteAsset* SpriteAnimationClip2D::SpriteAsset() const noexcept
+{
+    return spriteAsset_;
+}
+
+std::uint32_t SpriteAnimationClip2D::SpriteRegionCount() const noexcept
+{
+    return spriteRegionCount_;
 }
 
 std::uint32_t SpriteAnimationClip2D::FrameCount() const noexcept
@@ -333,7 +351,7 @@ const SpriteAnimationFrame2D* SpriteAnimator2D::CurrentFrame() const noexcept
     return &state_.clip->Frames()[state_.frameIndex];
 }
 
-bool SpriteAnimator2D::TryGetCurrentRegionIndex(std::uint32_t& outRegionIndex) const noexcept
+bool SpriteAnimator2D::TryGetCurrentRegion(SpriteAnimationRegionSelection2D& outSelection) const noexcept
 {
     const SpriteAnimationFrame2D* frame = CurrentFrame();
     if (frame == nullptr)
@@ -341,7 +359,19 @@ bool SpriteAnimator2D::TryGetCurrentRegionIndex(std::uint32_t& outRegionIndex) c
         return false;
     }
 
-    outRegionIndex = frame->regionIndex;
+    outSelection = {state_.clip->SpriteAsset(), frame->regionIndex};
+    return true;
+}
+
+bool SpriteAnimator2D::TryGetCurrentRegionIndex(std::uint32_t& outRegionIndex) const noexcept
+{
+    SpriteAnimationRegionSelection2D selection{};
+    if (!TryGetCurrentRegion(selection))
+    {
+        return false;
+    }
+
+    outRegionIndex = selection.regionIndex;
     return true;
 }
 } // namespace trace2d::runtime
