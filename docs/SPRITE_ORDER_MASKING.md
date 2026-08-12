@@ -211,18 +211,19 @@ A Sprite presentation submission that contains no mask state uses the normal col
 
 ### 7.1 Pipeline mapping
 
-Finite persistent pipeline state is:
+SDL GPU pipeline target compatibility is explicit, so SR4 keeps distinct unmasked pipelines for color-only passes and for ordinary `none` Sprites that appear inside a masked pass:
 
 ```text
-4 unmasked pipelines: normal/additive/multiply/screen
-4 inside pipelines:   normal/additive/multiply/screen
-4 outside pipelines:  normal/additive/multiply/screen
+4 color-only unmasked pipelines:            normal/additive/multiply/screen
+4 stencil-compatible unmasked pipelines:   normal/additive/multiply/screen
+4 inside pipelines:                        normal/additive/multiply/screen
+4 outside pipelines:                       normal/additive/multiply/screen
 1 mask-writer pipeline
------------------------------------------------
-13 Sprite presentation pipelines total
+--------------------------------------------------------------------------
+17 Sprite presentation pipelines total
 ```
 
-The two SR3 samplers remain persistent and reused. The four unmasked pipelines are created without depth/stencil target compatibility; only the nine masked pipelines require the selected stencil-capable target format.
+The two SR3 samplers remain persistent and reused. The color-only unmasked set is created without depth/stencil target compatibility. The second unmasked set has the selected stencil-capable target format but keeps stencil testing disabled; it is selected only when the current Sprite submission contains at least one masked Sprite. This allows a `none` Sprite to preserve painter order inside a masked render pass without mutating stencil state, while completely unmasked frames still avoid mask-target allocation, attachment and clear.
 
 Stencil mapping:
 
@@ -308,6 +309,7 @@ The opt-in real Windows presentation-GPU fixture must additionally prove:
 - overlapping opaque Sprites follow semantic painter order even when input/resource order differs,
 - a sorting group behaves as one top-level ordering unit,
 - unmasked presentation does not create/attach a mask target,
+- an ordinary `none` Sprite remains valid and leaves stencil state unchanged inside a masked pass,
 - inside mask capture exposes only covered pixels,
 - outside mask capture exposes the inverse coverage,
 - persistent pipeline/mask-target counts stop growing after warm-up,
