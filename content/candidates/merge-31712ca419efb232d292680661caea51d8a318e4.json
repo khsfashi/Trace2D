@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-31712ca419efb232d292680661caea51d8a318e4",
+  "source_event": "merge",
+  "event_id": "31712ca419efb232d292680661caea51d8a318e4",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "31712ca419efb232d292680661caea51d8a318e4",
+        "authored_at": "2026-08-13T01:38:36+09:00",
+        "subject": "Sprite SPERF: final reproducible performance evidence (#173)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "SPERF composes existing SR7/SR8/SA4/S1/SPP evidence instead of adding a second renderer, animator, profiler, resource model, or normal-frame reporting path.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Portable Sprite performance correctness is structural/count/byte/replay evidence; wall-clock timing is optional environment-labelled evidence only.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "spritePresentationUploadedVertexBytes is per-frame Trace2D-owned upload payload while spriteVertexCapacityBytes is retained reusable high-water capacity; neither is total driver allocation/residency.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "No production Sprite hot-path allocation, JSON/string formatting, filesystem, wall-clock, hashing, readback, Agent/MCP reporting, provider work, or duplicate cache.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "#70/#86 remain package/resource representation-lifetime owners; #91 remains generic profiling owner.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "shared-CI wall-clock thresholds | machine noise is not deterministic correctness truth.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ],
+        "alternative": "shared-CI wall-clock thresholds",
+        "reason": "machine noise is not deterministic correctness truth."
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "exact driver-memory inference from Sprite payload/capacity bytes | backend resources are opaque.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ],
+        "alternative": "exact driver-memory inference from Sprite payload/capacity bytes",
+        "reason": "backend resources are opaque."
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "GitHub Actions CI #705 on head aa64b446441e4147f802a66b661267cdef14d5f7 | all workflows green; Windows MSVC, clean clone, audits, qualifications, SPERF deterministic gate passed.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "artifact 9150179375 digest sha256:23e7b232ab5836cabdd3f6109185ab671a1845a6c9867aae41339197244f87c1 | exact structural/animation performance evidence produced.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "new real-GPU SPERF behavior | not applicable; no renderer behavior changed; SR8 remains trusted presentation GPU authority.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "31712ca419efb232d292680661caea51d8a318e4",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "Google Benchmark user guide 2026-08-13 | ADAPT/REJECT | warmup/repetitions/context yes, new dependency/shared-CI time gates no.",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "31712ca419efb232d292680661caea51d8a318e4",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "SDL3 GPU buffer/transfer/upload docs 2026-08-13 | ADOPT/ADAPT | application-known payload vs backend resource implementation separation.",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "31712ca419efb232d292680661caea51d8a318e4",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/31712ca419efb232d292680661caea51d8a318e4"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "#103"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
