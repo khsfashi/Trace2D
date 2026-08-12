@@ -1271,15 +1271,17 @@ private:
             const std::size_t sourceIndex =
                 spriteGpuBackend_->OrderedSourceIndex(orderedIndex);
             const SpritePresentationRenderData& sprite = sprites[sourceIndex];
-            spriteGpuBackend_->DrawPresentation(
-                commandBuffer,
-                renderPass,
-                ResolveTexture(sprite.texture),
-                sprite,
-                sourceIndex);
-            ++encodedSpriteDraws;
-            ++encodedSpriteCount;
+            if (spriteGpuBackend_->DrawPresentation(
+                    commandBuffer,
+                    renderPass,
+                    ResolveTexture(sprite.texture),
+                    sprite,
+                    sourceIndex))
+            {
+                ++encodedSpriteDraws;
+            }
         }
+        encodedSpriteCount = spriteGpuBackend_->Metrics().lastVisibleSprites;
     }
 
     void EnsureOffscreenColorTarget(const Uint32 width, const Uint32 height)
@@ -1412,6 +1414,11 @@ private:
         {
             const TextureResource& texture = ResolveTextureResource(sprite.texture);
             const SpriteAppearanceContractData& appearance = sprite.presentation.appearance;
+            if (sprite.materialPipeline != BuiltInSpriteMaterialPipelineIdentity)
+            {
+                throw std::invalid_argument{
+                    "SR7 Sprite presentation only supports the built-in material/pipeline identity; #89 owns programmable materials."};
+            }
             if (!texture.hasSpriteEncoding)
             {
                 throw std::invalid_argument{
@@ -1490,6 +1497,7 @@ private:
         metrics_.spriteSamplerCreations = gpuMetrics.samplerCreations;
         metrics_.spritePipelineCreations = gpuMetrics.pipelineCreations;
         metrics_.spriteVertexCapacitySprites = gpuMetrics.vertexCapacitySprites;
+        metrics_.spriteVertexCapacityBytes = gpuMetrics.vertexCapacityBytes;
         metrics_.spriteMaskTargetCreations = gpuMetrics.maskTargetCreations;
     }
 
@@ -1525,6 +1533,15 @@ private:
         metrics_.culledSprites += culledSpriteCount;
         metrics_.spritePresentationDrawCalls += encodedPresentationSpriteDraws;
         metrics_.spritePresentationSprites += encodedPresentationSpriteCount;
+        if (encodedPresentationSpriteCount != 0U && spriteGpuBackend_ != nullptr)
+        {
+            const detail::SpriteGpuBackendMetrics& gpuMetrics = spriteGpuBackend_->Metrics();
+            metrics_.spritePresentationVisibleSprites += gpuMetrics.lastVisibleSprites;
+            metrics_.spritePresentationCulledSprites += gpuMetrics.lastCulledSprites;
+            metrics_.spritePresentationUploadedQuads += gpuMetrics.lastUploadedQuads;
+            metrics_.spritePresentationUploadedVertexBytes += gpuMetrics.lastUploadedVertexBytes;
+            metrics_.spritePresentationCompatibilityRuns += gpuMetrics.lastCompatibilityRuns;
+        }
         SyncSpriteGpuMetrics();
     }
 
@@ -1703,8 +1720,17 @@ private:
                     spritePresentations,
                     encodedSpriteDraws,
                     encodedSpriteCount);
+                const detail::SpriteGpuBackendMetrics& presentationMetrics =
+                    spriteGpuBackend_->Metrics();
+                if (encodedSpriteDraws != presentationMetrics.lastCompatibilityRuns ||
+                    encodedSpriteCount != presentationMetrics.lastVisibleSprites)
+                {
+                    throw std::logic_error{
+                        "Sprite SR7 encoded draw/visibility metrics diverged from the upload plan."};
+                }
                 encodedPresentationSpriteDraws = encodedSpriteDraws;
-                encodedPresentationSpriteCount = encodedSpriteCount;
+                encodedPresentationSpriteCount = presentationMetrics.lastSubmittedSprites;
+                culledSpriteCount = presentationMetrics.lastCulledSprites;
             }
             else if (!particles.empty())
             {
