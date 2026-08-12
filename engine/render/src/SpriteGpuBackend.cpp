@@ -484,12 +484,13 @@ void SpriteGpuBackend::CreatePipelines()
             pipelineInfo.rasterizer_state.enable_depth_clip = true;
             pipelineInfo.target_info.color_target_descriptions = &colorTargetDescription;
             pipelineInfo.target_info.num_color_targets = 1U;
-            pipelineInfo.target_info.depth_stencil_format = depthStencilTargetFormat_;
-            pipelineInfo.target_info.has_depth_stencil_target = true;
             pipelineInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
 
             if (maskMode != SpriteMaskMode::None)
             {
+                pipelineInfo.target_info.depth_stencil_format = depthStencilTargetFormat_;
+                pipelineInfo.target_info.has_depth_stencil_target = true;
+
                 SDL_GPUStencilOpState stencilState{};
                 stencilState.fail_op = SDL_GPU_STENCILOP_KEEP;
                 stencilState.depth_fail_op = SDL_GPU_STENCILOP_KEEP;
@@ -675,6 +676,7 @@ void SpriteGpuBackend::UploadPresentations(
     const OrthographicView& view,
     const std::span<const SpritePresentationRenderData> presentations)
 {
+    maskingRequired_ = false;
     orderScratch_.clear();
     if (presentations.empty())
     {
@@ -692,6 +694,8 @@ void SpriteGpuBackend::UploadPresentations(
     orderScratch_.resize(presentations.size());
     for (std::size_t index = 0U; index < presentations.size(); ++index)
     {
+        maskingRequired_ =
+            maskingRequired_ || presentations[index].mask.mode != SpriteMaskMode::None;
         orderScratch_[index] = SpriteOrderMaskEntry2D{
             presentations[index].order,
             presentations[index].mask,
@@ -747,6 +751,11 @@ SDL_GPURenderPass* SpriteGpuBackend::BeginPresentationRenderPass(
     if (commandBuffer == nullptr || colorTarget.texture == nullptr)
     {
         throw std::invalid_argument{"Sprite SR4 render pass requires live command/color-target state."};
+    }
+
+    if (!maskingRequired_)
+    {
+        return SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1U, nullptr);
     }
 
     EnsureMaskTarget(targetWidth, targetHeight);
@@ -896,6 +905,7 @@ void SpriteGpuBackend::Cleanup() noexcept
         return;
     }
 
+    maskingRequired_ = false;
     orderScratch_.clear();
 
     if (maskTarget_ != nullptr)
