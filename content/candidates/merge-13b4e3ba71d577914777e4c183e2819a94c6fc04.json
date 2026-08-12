@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-13b4e3ba71d577914777e4c183e2819a94c6fc04",
+  "source_event": "merge",
+  "event_id": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#162",
+        "url": "https://github.com/khsfashi/Trace2D/issues/162"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+        "authored_at": "2026-08-12T22:34:53+09:00",
+        "subject": "Sprite SPP2: deterministic quality evidence and bounded repair (#163)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-processing"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "separate exact structural evidence, explicit policy-labelled advisory findings, and opt-in deterministic repair",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "successful repairs are re-analyzed through SPP0; SPP2 does not create a competing post-repair QA authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "analysis-only requests do not materialize repaired RGBA copies",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "palette baseline is bounded to <=256 explicit RGB entries and uses decoded-byte squared distance only when requested",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "inferred pixel-art scale | implicit palette conversion/dithering | automatic motion smoothing/translation | perceptual quality as deterministic engine truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "13b4e3ba71d577914777e4c183e2819a94c6fc04",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/13b4e3ba71d577914777e4c183e2819a94c6fc04"
+          }
+        ],
+        "alternative": "inferred pixel-art scale",
+        "reason": "implicit palette conversion/dithering | automatic motion smoothing/translation | perceptual quality as deterministic engine truth"
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#59 #154 #156 #158 #159"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
