@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-926993ace6d020e00e3d4565d0ffacff866ee252",
+  "source_event": "merge",
+  "event_id": "926993ace6d020e00e3d4565d0ffacff866ee252",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#164",
+        "url": "https://github.com/khsfashi/Trace2D/issues/164"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "926993ace6d020e00e3d4565d0ffacff866ee252",
+        "authored_at": "2026-08-12T23:29:13+09:00",
+        "subject": "Sprite SPP3: deterministic Aseprite and generic importers (#165)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-processing"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "external formats remain offline inputs; successful conversion reuses S1 canonical SpriteAsset validation and SA0-SA4 remains runtime animation authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Aseprite rotated=true requires explicit InterpretAsCw90 policy rather than inferred rotation direction",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "meta.image/meta.size must match supplied decoded RGBA8 and baseline meta.scale must be 1",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "generic sheet layout/count/order and loose-frame identities are explicit; no hidden inference or forced repack",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "native .ase/.aseprite compositing baseline | runtime source-tool dispatch | hidden generic segmentation | background importer workers",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ],
+        "alternative": "native .ase/.aseprite compositing baseline",
+        "reason": "runtime source-tool dispatch | hidden generic segmentation | background importer workers"
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "exact-head CI #690 clean-clone configure/build/full CTest green; Windows MSVC configure/build/full CTest and B0 qualification green",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "Sprite S0 #175, Sprite SA0 #52, Project State #11, B0 Codex #338, B0 Godot Agent #334, Content Evidence #427 green on ee2ab1ffa94b3a566753e70b4e3bd9c2a546b918",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "no new real-GPU gate because SPP3 changes no presentation path",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "SPP3 complete; do not begin SPP4 until the next continuation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "926993ace6d020e00e3d4565d0ffacff866ee252",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/926993ace6d020e00e3d4565d0ffacff866ee252"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#59 #158 #162 #163"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
