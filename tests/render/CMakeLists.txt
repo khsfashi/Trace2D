@@ -10,6 +10,7 @@ add_executable(trace2d_render_tests
     SpriteGeometry2DTests.cpp
     SpriteGpuSmokeTests.cpp
     SpriteOrderMask2DTests.cpp
+    SpriteOrderMaskGpuSmokeTests.cpp
     SpritePresentation2DTests.cpp
     SpriteRenderContractTests.cpp
 )
