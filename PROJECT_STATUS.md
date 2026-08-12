@@ -23,62 +23,64 @@ S0 -> S1
  -> SR0..SR8
  -> SA0..SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SE2E
 ```
 
 Frozen milestone references retained for contract continuity:
 
-- #144 / SA0 — deterministic Sprite animation timing/frame/event contract, frozen and complete.
-- #142 / SR8 — production Sprite renderer conformance and trusted presentation-GPU evidence, frozen and complete.
-- #152 / SA4 — deterministic Sprite animation conformance, frozen and complete.
-- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration, frozen and complete.
+- #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 production Sprite renderer conformance, reproducible structural workloads and trusted presentation-GPU evidence.
+- #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
+- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
+- #170 / PR #171 / `41536c6045b8c89831a2026f090b5be7889599f3` — SE2E generated/imported Sprite proof, merged and complete.
 
-Current child: **#170 / SE2E — end-to-end generated/imported Sprite proof**.  
-Current branch: `agent/sprite-se2e-end-to-end-proof`.  
-Exact next child after SE2E merges green: **SPERF — final reproducible Sprite performance evidence**.
+Current child: **#172 / SPERF — final reproducible Sprite performance evidence and guidance**.  
+Current branch: `agent/sprite-sperf-final-performance-evidence`.  
+Exact next core item after SPERF merges green and #59 closes: **#103 Benchmark B1**.
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SE2E contract: [`docs/SPRITE_END_TO_END_SE2E.md`](docs/SPRITE_END_TO_END_SE2E.md).  
-SPP5 frozen contract: [`docs/SPRITE_GENERATION_SPP5.md`](docs/SPRITE_GENERATION_SPP5.md).  
+SPERF contract: [`docs/SPRITE_PERFORMANCE_SPERF.md`](docs/SPRITE_PERFORMANCE_SPERF.md).  
+Machine-readable SPERF contract: [`docs/contracts/sprite-performance-sperf.json`](docs/contracts/sprite-performance-sperf.json).  
 Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
-## SE2E authority
+## SPERF authority
 
-SE2E composes existing authorities rather than introducing another production layer:
+SPERF composes existing production evidence instead of adding another runtime subsystem:
 
 ```text
-recorded request/provider response
- -> SPP deterministic cleanup / QA / canonical import
- -> canonical SpriteAsset
- -> SA deterministic animation
- -> SA3 headless exact-frame Agent inspection/assertion
- -> SR0 renderer-facing canonical region selection
- -> explicit capture artifact handoff
- -> #98 WorkResult deterministic evidence + review_needed presentation evidence
+SR8 production Sprite structural metrics
+ + SR7 existing upload/capacity counters
+ + SA4 deterministic animation workloads
+ + S1/SPP memory/complexity boundaries
+ -> explicit deterministic evidence collection
+ -> commit-bound trace2d.sprite-performance-final-gate.v1 manifest
+ -> optional machine-labelled local timing kept outside portable correctness
 ```
 
-Deterministic verification remains separate from perceptual review. A test-authored capture fixture proves exact-frame artifact packaging only; it is not GPU presentation truth. SR8 remains the authority for real-GPU rendering/capture behavior, while multimodal or human review owns visual/motion judgment.
+Key frozen interpretation:
 
-Baseline scope in #170:
-
-- backend-independent `tests/e2e` integration only; no new production SE2E module,
-- recorded/fake SPP5 provider data; no live/paid provider dependency,
-- exact canonical asset pointer and region identity preserved into animation and render-facing extraction,
-- authored frame-boundary advance observed through the existing SA3 Agent surface,
-- existing SR0 O(1) index resolver/extraction used after animation selection,
-- explicit capture artifact bound to the same logical simulation-frame id,
-- #98 `WorkResult` remains the machine-readable result/review boundary,
-- perceptual visual/motion quality remains `review_needed`,
-- invalid generation plans expose no canonical/downstream authority.
+- SR8 remains real-GPU presentation authority; SPERF introduces no new GPU truth model.
+- The frozen SR8 workload is 1,024 submitted / 768 visible / 256 culled / 960 visible quads / 7 contiguous compatibility runs.
+- The current built-in Sprite vertex payload is 6 vertices per quad and 48 bytes per vertex, so the frozen workload represents exactly 276,480 Trace2D-owned uploaded vertex bytes.
+- `spritePresentationUploadedVertexBytes` and `spriteVertexCapacityBytes` are different metrics: per-frame payload versus retained reusable high-water capacity.
+- Neither engine-owned value is total graphics-driver allocation or residency.
+- SA4 structural replay/digests remain deterministic evidence; optional Release timing remains environment-labelled evidence only.
+- Decoded RGBA8 page payload may be calculated exactly as `width * height * 4` only for that explicit representation. #70/#86 own future package/resource representation and lifetime.
+- SPP0-SPP5 work stays offline and outside ordinary animation/render frame budgets.
 
 ## Performance boundary
 
-SE2E changes test/tooling code only. It adds no normal-frame production cost: no provider calls, verification polling, filesystem work, capture/readback, reporting allocation, parsing, serialization, or new caches in gameplay/render loops. Existing SPP, SA, SR, and capture complexity/ownership remain authoritative.
+SPERF changes documentation/tooling only. It must add zero normal-frame production cost: no per-frame allocation, JSON/string formatting, filesystem access, wall-clock reads, hashing, capture/readback, provider work, Agent/MCP reporting, or duplicate global caches.
+
+Generic runtime profiling remains future #91 rather than being pre-implemented inside Sprite.
 
 ## Current validation gate
 
-Required on the final exact SE2E PR head:
+Required on the final exact SPERF PR head:
 
-- focused `trace2d_sprite_e2e_tests`,
+- `trace2d.sprite-performance.v1` contract parses and agrees with stage documentation,
+- `scripts/sprite_performance_final_gate.ps1` reproduces the SR8 structural marker,
+- all three supplementary renderer workload structures match their committed values,
+- all three SA4 animation workload structural runs return successful deterministic replay,
 - Project State Contract,
 - Sprite S0 Contract,
 - Sprite SA0 Contract,
@@ -86,8 +88,8 @@ Required on the final exact SE2E PR head:
 - Windows MSVC configure/build/full CTest,
 - clean-clone README configure/build/full CTest.
 
-No new real-GPU gate is introduced by SE2E. SR8 already owns trusted presentation-GPU conformance; SE2E must not create a competing GPU truth model.
+No new real-GPU acceptance gate is introduced because SPERF changes no renderer behavior and SR8 already owns trusted presentation-GPU evidence. Optional timing is local Release evidence and is never a shared-CI threshold.
 
 ## Continuation rule
 
-Keep the SE2E PR draft until its exact head has green hosted integration/audit evidence and stage documentation agrees with #170. Repair only SE2E issues exposed by review or CI. After the SE2E PR is ready, merged, and #170 closes, stop. The following `@GitHub Trace2D 다음 진행해줘` continuation creates exactly one SPERF child.
+Keep the SPERF PR scoped to #172 and repair only evidence/contract/tooling issues exposed by review or CI. After the exact SPERF head is green, merge it, close #172 and close #59. Stop. The following `@GitHub Trace2D 다음 진행해줘` continuation begins **#103 Benchmark B1**.
