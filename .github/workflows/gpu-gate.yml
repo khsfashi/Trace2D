@@ -74,11 +74,20 @@ jobs:
         shell: pwsh
         run: ./scripts/gpu_gate.ps1 -OutputDirectory artifacts/gpu-gate
 
+      - name: Build Sprite SR8 final evidence manifest
+        shell: pwsh
+        run: |
+          ./scripts/sprite_renderer_final_gate.ps1 `
+            -OutputDirectory artifacts/sprite-renderer-final-gate `
+            -ExistingGpuEvidenceDirectory artifacts/gpu-gate
+
       - name: Upload GPU gate evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gpu-gate-${{ github.sha }}
-          path: artifacts/gpu-gate
+          path: |
+            artifacts/gpu-gate
+            artifacts/sprite-renderer-final-gate
           if-no-files-found: warn
           retention-days: 30

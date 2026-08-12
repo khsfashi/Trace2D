@@ -20,6 +20,8 @@ add_executable(trace2d_render_tests
     SpritePrimitive2DTests.cpp
     SpritePrimitiveGpuSmokeTests.cpp
     SpriteRenderContractTests.cpp
+    SpriteRendererConformanceTests.cpp
+    SpriteRendererGpuConformanceTests.cpp
 )
 
 target_link_libraries(trace2d_render_tests
