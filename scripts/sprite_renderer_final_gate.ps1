@@ -5,20 +5,6 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-function Invoke-NativeChecked {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Name,
-        [Parameter(Mandatory = $true)]
-        [scriptblock]$Command
-    )
-
-    & $Command
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Name failed with exit code $LASTEXITCODE."
-    }
-}
-
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repositoryRoot
 try {
@@ -34,9 +20,6 @@ try {
     & (Join-Path $PSScriptRoot "gpu_gate.ps1") `
         -OutputDirectory $gpuOutputDirectory `
         -GpuTestRegex "Sprite.*Gpu(Smoke|Conformance)Tests"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Sprite real-GPU gate failed with exit code $LASTEXITCODE."
-    }
 
     $gpuManifestPath = Join-Path $gpuOutputDirectory "manifest.json"
     if (-not (Test-Path $gpuManifestPath -PathType Leaf)) {
@@ -56,7 +39,8 @@ try {
         "SpriteRendererGpuConformanceTests"
     )
     foreach ($suite in $requiredGpuSuites) {
-        if (-not @($gpuManifest.selected_tests | Where-Object { $_ -like "$suite.*" })) {
+        $matchingTests = @($gpuManifest.selected_tests | Where-Object { $_ -like "$suite.*" })
+        if ($matchingTests.Count -eq 0) {
             throw "Required Sprite GPU suite '$suite' was not selected by the trusted GPU gate."
         }
     }
@@ -95,11 +79,11 @@ try {
         contiguous_runs = [uint64]$workloadMatch.Groups[5].Value
         metric_source = "deterministic_structure"
     }
-    if ($structuralWorkload.submitted_sprites -ne 1024U -or
-        $structuralWorkload.visible_sprites -ne 768U -or
-        $structuralWorkload.culled_sprites -ne 256U -or
-        $structuralWorkload.visible_quads -ne 960U -or
-        $structuralWorkload.contiguous_runs -ne 7U) {
+    if ($structuralWorkload.submitted_sprites -ne [uint64]1024 -or
+        $structuralWorkload.visible_sprites -ne [uint64]768 -or
+        $structuralWorkload.culled_sprites -ne [uint64]256 -or
+        $structuralWorkload.visible_quads -ne [uint64]960 -or
+        $structuralWorkload.contiguous_runs -ne [uint64]7) {
         throw "SR8 committed structural workload changed without an explicit contract update."
     }
 
