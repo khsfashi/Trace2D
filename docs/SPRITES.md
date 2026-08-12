@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0 complete. SPP1 — deterministic alpha/background/frame extraction is active via #156 / draft PR #157.**
+Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP1 complete. SPP2 — deterministic quality evidence and bounded repair is active via #162 / draft PR #163.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -22,9 +22,10 @@ SA2 playback seam: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_
 SA3 Agent/MCP seam: [`SPRITE_ANIMATION_AGENT_SA3.md`](SPRITE_ANIMATION_AGENT_SA3.md).  
 SA4 conformance/workload seam: [`SPRITE_ANIMATION_CONFORMANCE_SA4.md`](SPRITE_ANIMATION_CONFORMANCE_SA4.md).  
 SPP0 processing/QA seam: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_SPP0.md).  
-Active SPP1 extraction seam: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
+SPP1 extraction seam: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).  
+Active SPP2 quality/repair seam: [`SPRITE_QUALITY_REPAIR_SPP2.md`](SPRITE_QUALITY_REPAIR_SPP2.md).
 
-This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, timing, or capture state.
+This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, quality/repair-result, timing, or capture state.
 
 ## 1. Product goal
 
@@ -73,7 +74,7 @@ Hard invariants:
 
 Animation authority is the completed SA0-SA4 chain: integer fixed-step animation time/frame/event crossings are authoritative runtime state; SA1 materializes renderer-independent prepared clip/state; SA2 executes exact retained-rational playback and typed emissions; SA3 exposes that existing authority to agents without duplicating it; SA4 validates/replays/measures it explicitly. MCP serialization, workload digests, timing samples, GPU resources and pixels never become a second animation state machine.
 
-Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary.
+Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary. SPP2 adds exact structural quality evidence plus only caller-selected bounded repairs; threshold/policy findings remain advisory and successful repairs are re-analyzed through SPP0 before later import.
 
 ## 3. Fixed implementation order
 
@@ -87,11 +88,11 @@ S0 [complete] -> S1 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
  -> SA4 [complete]
  -> SPP0 [complete]
- -> SPP1 [active #156/#157] -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SPP1 [complete] -> SPP2 [active #162/#163] -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Completed stages through SPP0 are frozen. **Do not create or begin SPP2 while #156/PR #157 remains open or while its hosted CI/audit/documentation gates are pending.**
+Completed stages through SPP1 are frozen. **Do not create or begin SPP3 while #162/PR #163 remains open or while its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -206,9 +207,9 @@ Current reference decisions: W3C PNG alpha semantics are adopted/adapted over de
 
 No new presentation/GPU behavior was introduced, so SPP0 required no new real-GPU acceptance gate.
 
-### SPP1 — deterministic alpha/background/frame extraction — active #156 / draft PR #157
+### SPP1 — deterministic alpha/background/frame extraction — complete
 
-Concrete contract: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
+Completed via #156 / PR #157 / squash `97a0e6533f248b9a92f0b8e900fc28f1fd6f9ff1`. Concrete contract: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
 
 SPP1 consumes decoded RGBA8 sheet pixels plus an explicit extraction specification and produces owned derived frame pixels with exact source rectangles. It supports only deterministic caller-selected cleanup: exact RGB color key, explicit alpha cutoff, optional transparent-RGB zeroing, and optional non-zero-alpha trim.
 
@@ -226,9 +227,17 @@ Fuzzy color matching, learned/VLM background removal and perceptual segmentation
 
 SPP1 is explicit offline work: component discovery is linear in source pixels, output copy is proportional to extracted pixels, visitation storage is bounded to the source operation, and no runtime/animation/render/GPU path changes.
 
-### SPP2 — pixel-grid/palette/pivot/identity/motion QA and repair
+### SPP2 — pixel-grid/palette/pivot/identity/motion QA and bounded repair — active #162 / draft PR #163
 
-Add offline deterministic or explicitly labelled heuristic analysis/repair with reviewable raw evidence. Deterministic facts stay distinct from perceptual/advisory judgments.
+Concrete contract: [`SPRITE_QUALITY_REPAIR_SPP2.md`](SPRITE_QUALITY_REPAIR_SPP2.md).
+
+SPP2 accepts ordered RGBA8 frames plus explicit quality/repair policy and keeps exact structural facts distinct from advisory policy findings. It adds explicit pixel-block consistency, bounded ordered-palette evidence, exact rational pivot target comparison, adjacent RGBA/visibility-mask evidence and integer-sum centroid motion evidence.
+
+Repairs are opt-in and transactional. Baseline repair order is pixel-block canonicalization, bounded nearest-palette remap and metadata-only pivot normalization, followed by existing SPP0 analysis over the owned repaired output. Analysis-only calls do not materialize repaired RGBA copies.
+
+Pixel-block mode selection uses deterministic packed-RGBA sort plus lowest-numeric tie-break. Palette remap uses squared decoded-byte RGB distance, lowest palette-index tie-break and an explicit maximum distance while preserving alpha. Automatic motion translation/crop/resampling and hidden dithering remain excluded.
+
+SPP2 is offline only: base evidence is linear in frame pixels, block-mode repair is `O(sum(B log B))`, the simple palette baseline is `O(visible pixels * palette size)` with palette size capped at 256, and no runtime/renderer/GPU path is changed.
 
 ### SPP3 — Aseprite/generic importers
 
@@ -336,8 +345,8 @@ Every Sprite child PR must:
 
 1. implement only the first incomplete stage,
 2. include tests/fixtures/evidence,
-3. update relevant stage contracts, this roadmap and `PROJECT_STATUS.md`,
+3. update relevant stage contracts, this roadmap and `PROJECT_STATUS.md` when explanatory handoff context benefits from reconciliation; live PR/CI state remains derived by `scripts/project_state.py`,
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SPP1 / #156 / draft PR #157 is the only active Sprite child. Keep it scoped to explicit deterministic cleanup/extraction, expected-frame gates, exact source geometry, SPP0 QA reuse and deterministic structural evidence. Do not create or implement SPP2 until PR #157 merges green.
+SPP2 / #162 / draft PR #163 is the only active Sprite child. Keep it scoped to exact structural quality evidence, explicit policy-labelled findings, bounded deterministic repair, SPP0 post-repair QA reuse and deterministic structural evidence. Do not create or implement SPP3 until PR #163 merges green.
