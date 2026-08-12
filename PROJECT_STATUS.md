@@ -28,6 +28,7 @@ S0 -> S1
 
 Frozen milestone references retained for contract continuity:
 
+- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract, frozen and complete.
 - #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 production Sprite renderer conformance, reproducible structural workloads and trusted presentation-GPU evidence.
 - #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
 - #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
