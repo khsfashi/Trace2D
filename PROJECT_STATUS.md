@@ -38,7 +38,8 @@ Completed Sprite foundation/renderer stages:
 Completed Sprite animation stages:
 
 - #144 / SA0 deterministic animation timing/frame/event contract — PR #145 / squash `d9955d4c987a627f0009a018b9b5293c6f3d8e73`,
-- #146 / SA1 `SpriteAnimator2D` authoritative runtime state — PR #147 / squash `dc8909b24dc5f67e8bec2506263d7b433c6fb2f4`.
+- #146 / SA1 `SpriteAnimator2D` authoritative runtime state — PR #147 / squash `dc8909b24dc5f67e8bec2506263d7b433c6fb2f4`,
+- #148 / SA2 deterministic playback/events/loops/transitions — PR #149 / squash `7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66`.
 
 Trusted owner real-GPU automation is complete:
 
@@ -55,8 +56,9 @@ SR8 completion evidence remains accepted:
 - exact-head Sprite final-evidence artifact `gpu-gate-74b5b82c9df961baeaeb84e80169e7e621535cfb`, digest `sha256:dcd0014191cc7bb0fdead133a38acb466e2d156bf866d171b2baa5804177163d`.
 
 **Active core program: #59 Complete Sprite program.**  
-**Only active Sprite child: #148 / draft PR #149 — SA2 deterministic playback, events, loops, and transitions.**  
-**Exact next child after SA2 merges green: SA3 — Agent/MCP inspection, actions, and exact-frame assertions.**
+**Only active Sprite child: #150 / draft PR #151 — SA3 Agent/MCP inspection, actions, and exact-frame assertions.**  
+**Active branch: `agent/sprite-sa3-agent-verification`.**  
+**Exact next child after SA3 merges green: SA4 — animation conformance, determinism, and performance workloads.**
 
 ## #59 Sprite program
 
@@ -64,7 +66,8 @@ Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).
 Architecture authority: [`docs/SPRITE_ARCHITECTURE.md`](docs/SPRITE_ARCHITECTURE.md).  
 Frozen SA0 timing/event contract: [`docs/SPRITE_ANIMATION_TIMING_SA0.md`](docs/SPRITE_ANIMATION_TIMING_SA0.md).  
 Frozen SA1 authoritative-state contract: [`docs/SPRITE_ANIMATOR_STATE_SA1.md`](docs/SPRITE_ANIMATOR_STATE_SA1.md).  
-Active SA2 playback contract: [`docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md`](docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md).
+Frozen SA2 playback contract: [`docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md`](docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md).  
+Active SA3 Agent/MCP verification contract: [`docs/SPRITE_ANIMATION_AGENT_SA3.md`](docs/SPRITE_ANIMATION_AGENT_SA3.md).
 
 Fixed internal order:
 
@@ -73,119 +76,162 @@ S0 [complete] -> S1 [complete]
  -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
  -> SR4 [complete] -> SR5 [complete] -> SR6 [complete] -> SR7 [complete]
  -> SR8 [complete]
- -> SA0 [complete] -> SA1 [complete] -> SA2 [active #148/#149] -> SA3 -> SA4
+ -> SA0 [complete] -> SA1 [complete] -> SA2 [complete]
+ -> SA3 [active #150/#151] -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
 Exactly one Sprite child is active at a time.
 
-## #148 / SA2 — deterministic playback, events, loops, and transitions — active via draft PR #149
+## #150 / SA3 — Agent/MCP inspection, actions, and exact-frame assertions — active via draft PR #151
 
-SA2 executes the renderer-independent animation timeline frozen by SA0 over SA1's typed authoritative state. It does not add Agent/MCP adapters or SA4 animation conformance/performance workloads.
+SA3 exposes the renderer-independent SA0-SA2 animation authority to coding agents. It does **not** add a second animation state machine, renderer authority, SA4 workloads, scene-component ownership, or a new real-GPU path.
 
-### Prepared authored events
+### Protocol-independent Agent surface
 
-`SpriteAnimationClip2D` now accepts optional typed authored events at setup:
-
-- numeric semantic event IDs are resolved before playback,
-- event offsets use integer nanoseconds and must be in `[0, duration)`,
-- authored ordinal provides deterministic equal-time ordering,
-- retained events are sorted once by `(offset, authoredOrdinal)`,
-- duplicate `(offset, authoredOrdinal)` identity is rejected,
-- ordinary playback performs no semantic-name/path lookup.
-
-Preparation remains O(frame_count + event_count log event_count) setup work with allocation allowed. Prepared frame/event storage is reused by playback.
-
-### Exact speed advancement
-
-`SpriteAnimator2DState` adds a retained rational `speedRemainder` so repeated small fixed steps do not lose fractional progress.
-
-The implementation deliberately avoids an unchecked `delta_ns * numerator` product. It decomposes delta by the canonical denominator, checks the whole contribution, then carries the fractional numerator/remainder exactly. This keeps the supported MSVC C++20 path portable without requiring `__int128` or floating accumulation.
-
-Remainder rules are explicit:
-
-- pause/resume preserves it,
-- actual speed/direction changes reset it,
-- seek/stop/reset/restart reset it,
-- completion resets it,
-- zero speed is canonical `0/1` with zero remainder.
-
-### Playback / traversal
-
-SA2 implements:
-
-- `Play`, `Pause`, `Stop`, `Reset`, `Restart`, `Seek`, `SetSpeed`, `SetDirection`,
-- directional `Once` completion,
-- linear `Loop` wrapping,
-- `PingPong` endpoint bounce/direction flips,
-- SA0 forward crossing `a < event_time <= b`,
-- SA0 reverse crossing `b <= event_time < a`,
-- equal-time authored ordinal preservation in both directions,
-- forward loop re-entry offset-zero emission exactly once,
-- reverse zero-arrival semantics with no synthetic duration event.
-
-Structural runtime emissions are typed separately from authored event IDs:
+New `agent::SpriteAnimatorBinding` is explicit and non-owning:
 
 ```text
-AuthoredEvent | Loop | Bounce | Completed
+entity semantic id
+SpriteAnimator2D*
 ```
 
-### Transactional bounded output
+The caller owns animator/prepared-clip lifetime. Agent operations consume the existing `SpriteAnimator2DState` and prepared `SpriteAnimationClip2D` only.
 
-`Advance` writes into caller-owned/reused bounded output storage and performs no mandatory fixed-tick heap allocation.
-
-To prevent silent or partial authoritative event loss, advancement uses:
+`AgentFacade::InspectSpriteAnimator` returns exact scalar state:
 
 ```text
-count-only traversal against caller capacity
- -> if insufficient: explicit OutputCapacityExceeded, no state mutation, no partial write
- -> if sufficient: deterministic replay into output
- -> validate final state
- -> commit authoritative state
+entity id
+clip duration/frame/event counts
+time_ns
+frame_index
+region_index
+playback
+loop_mode
+direction
+completed
+speed numerator/denominator/remainder
 ```
 
-This intentionally pays bounded duplicate traversal work to make state/output capacity behavior deterministic and transactional.
+Inspection does not advance time, replay events, initialize rendering/GPU, or perform ordinary-frame reporting work.
 
-### Performance / architecture boundary
+### Explicit actions
 
-After preparation:
+`AgentFacade::ActOnSpriteAnimator` delegates directly to SA2 runtime methods:
 
-- current state/frame/region access remains O(1),
-- arbitrary frame lookup remains O(log frame_count),
-- event segment entry uses binary search,
-- update work scales with crossed authored events/structural transitions rather than nanosecond count or unrelated assets,
-- no mandatory per-tick heap/filesystem/JSON/formatting/name lookup,
-- no renderer/GPU initialization, synchronization, readback, or presentation authority.
+```text
+Play | Pause | Stop | Reset | Restart | Seek
+SetSpeed | SetDirection | Advance
+```
+
+The Agent layer does not reproduce transition, loop, ping-pong, rational-speed, completion, or event-crossing logic.
+
+Explicit `Advance`:
+
+- takes integer nanoseconds, never wall-clock time,
+- materializes evidence only because the Agent request asked for it,
+- preserves ordered `AuthoredEvent | Loop | Bounce | Completed` emissions,
+- bounds one request to at most 4096 emissions,
+- inherits SA2 transactional `OutputCapacityExceeded`: no state mutation and no partial authoritative output.
+
+### Exact assertions
+
+`AgentFacade::AssertSpriteAnimator` checks one finite typed current-state field immediately.
+
+Supported values are bool/int64/uint64/string. Supported fields cover clip duration/counts, time/frame/region, playback/loop/direction/completion, speed numerator/denominator/remainder.
+
+Assertions deliberately have:
+
+- no implicit retry,
+- no implicit simulation step,
+- no timeout/wait loop,
+- no renderer/capture dependency.
+
+Mismatch diagnostics contain exact expected/observed values and bounded current-state context rather than unrelated world or pixel dumps.
+
+### MCP adapter
+
+MCP remains serialization only. A configured server exposes exactly:
+
+```text
+trace2d.sprite_animation.inspect
+trace2d.sprite_animation.action
+trace2d.sprite_animation.assert
+```
+
+Playback operations are an `action` enum rather than one MCP tool per runtime method. Servers with no configured Sprite animator bindings keep the previous 12-tool catalog.
+
+The repository remains on MCP `2026-07-28`. `structuredContent` remains the machine-readable result and compatibility `TextContent` carries the serialized payload. Read-only/action annotations are hints only.
+
+### Performance / ownership boundary
+
+Ordinary `SpriteAnimator2D` stepping is unchanged by SA3 and receives no:
+
+- Agent snapshot work,
+- JSON/string formatting,
+- filesystem access,
+- semantic-name lookup,
+- renderer/GPU access,
+- mandatory heap allocation,
+- background verification/report maintenance.
+
+Explicit MCP binding lookup is O(configured bindings) by linear scan. No speculative cache/index is added without SA4 workload evidence.
 
 ### External-reference decisions
 
-SA2 performed the required bounded current primary-source review on 2026-08-12:
+SA3 performed the required bounded current primary-source pass on 2026-08-12:
 
-- Godot current `AnimatedSprite2D` — **ADAPT** explicit play/pause/stop and separate loop/finish notification precedent; **REJECT** floating progress/speed as Trace2D authority and signals as the sole source of truth,
-- Aseprite official format — **ADOPT/ADAPT** integer frame duration and forward/reverse/ping-pong/repeat authoring precedent; runtime execution remains Trace2D-owned typed integer-nanosecond state/events.
+- MCP `2026-07-28` — **ADAPT** stateless/self-describing requests, deterministic/cacheable lists and full JSON Schema tool inputs,
+- MCP Tools — **ADOPT** schema-defined inputs and structured results; **ADAPT** repository compatibility text alongside `structuredContent`,
+- MCP tool annotations — **ADAPT** read-only/action hints only; never runtime authority,
+- Playwright assertions — **ADAPT** expected/observed diagnostic shape; **REJECT** auto-retry for exact animation state because retrying would implicitly move the simulation,
+- Trace2D Particle Agent verification — **ADOPT** explicit-request snapshots, finite typed assertions, stable errors and zero ordinary-step reporting work.
 
 No new runtime dependency is introduced.
 
+### Focused tests added
+
+Agent tests cover:
+
+- authoritative state inspection without renderer,
+- exact ordered forward emission evidence,
+- direct runtime action delegation,
+- seek/restart no historical event replay,
+- transactional output-capacity failure,
+- exact assertion success/state mismatch/type mismatch,
+- unavailable binding/state errors.
+
+MCP tests cover:
+
+- Sprite tool discovery only with configured bindings,
+- inspect -> exact advance -> assert against one authoritative animator,
+- ordered emission serialization,
+- capacity failure/state preservation,
+- unknown binding and runtime-rejected action error stability.
+
+Test fixtures explicitly link `Trace2D::Assets`; the runtime library itself remains free of an unnecessary Assets dependency.
+
 ### Current validation state
 
-Draft PR #149 was opened from `agent/sprite-sa2-playback-events`.
+Draft PR #151 is open from `agent/sprite-sa3-agent-verification` against `main@7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66`.
 
-Pre-publication supporting preflight passed for the core implementation as standalone C++20 with warnings treated as errors plus an executable behavioral harness covering rational remainder, forward/reverse event ordering, loop/ping-pong traversal, completion, arithmetic overflow rejection, controls, zero-speed behavior, and transactional output exhaustion.
+The implementation environment used for this continuation cannot directly clone GitHub due container DNS restrictions, so local full-repository compile evidence is unavailable here. Normal hosted GitHub Actions on the exact PR head are the compile/test acceptance authority and must be repaired to green before readiness.
 
-Repository hosted Windows/MSVC CI/audits on the current PR head remain the acceptance authority. SA2 adds no new presentation-GPU behavior, so no new local real-GPU acceptance gate is required.
+SA3 adds no presentation/GPU behavior; no new local real-GPU acceptance gate is required.
 
-### SA2 completion gates
+### SA3 completion gates
 
-PR #149 must remain draft/unmerged until the same final head satisfies:
+PR #151 must remain draft/unmerged until the same final head satisfies:
 
-1. focused `SpriteAnimator2DTests` and `SpriteAnimatorPlaybackSA2Tests` compile and pass,
-2. normal hosted repository CI/audits are green,
-3. `docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md`, `docs/SPRITES.md`, this file, issue #148 and implementation agree,
-4. output-capacity and arithmetic failures remain transactional,
-5. no renderer/GPU dependency or SA3/SA4 Agent/workload scope leaks into SA2.
+1. focused Agent and MCP Sprite-animation tests compile and pass,
+2. existing Agent/MCP tests remain green, including the unchanged 12-tool catalog for unbound servers,
+3. normal hosted repository CI/audits are green,
+4. `docs/SPRITE_ANIMATION_AGENT_SA3.md`, `docs/SPRITES.md`, this file, issue #150 and implementation agree,
+5. action/capacity failures remain structured and transactional,
+6. no renderer/GPU dependency, normal-step reporting cost, or SA4 workload scope leaks into SA3.
 
-After all gates pass, record exact final-head validation evidence, mark PR #149 ready, merge it, confirm #148 closes, and stop. Do not create SA3 in that same completion continuation.
+After all gates pass, record exact final-head validation evidence, mark PR #151 ready, merge it, confirm #150 closes, and stop. Do not create SA4 in that same completion continuation.
 
 ## Owner-fixed core execution order
 
@@ -203,8 +249,9 @@ Content production
       -> S0/S1/SR0..SR8                                    [complete]
       -> #144 SA0 animation timing/frame/event contract     [complete]
       -> #146 SA1 SpriteAnimator2D authoritative state      [complete]
-      -> #148 SA2 deterministic playback/events/transitions [active via draft #149]
-      -> SA3..SA4 animation
+      -> #148 SA2 deterministic playback/events/transitions [complete]
+      -> #150 SA3 Agent/MCP exact verification              [active via draft #151]
+      -> SA4 animation conformance/workloads
       -> SPP0..SPP5 offline processing/generation
       -> SE2E -> SPERF
  -> #103 Benchmark B1 Sprite/animation/particle matched tasks
@@ -247,25 +294,26 @@ Sprite authority remains:
 ```text
 canonical authored Sprite metadata
  + authoritative typed runtime/animation state
+        -> Agent inspection/action/assertion
         -> resolved/derived presentation
         -> backend renderer resources
 ```
 
-GPU resources, pixels, Agent snapshots and review artifacts never become canonical Sprite/gameplay truth.
+Agent/MCP snapshots, GPU resources, pixels and review artifacts never become canonical Sprite/gameplay truth.
 
 The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves the matched methodology/evidence loop, not broad engine superiority.
 
 ## Continuation rule
 
-SA2 / #148 / draft PR #149 is the only active Sprite child. The current continuation must:
+SA3 / #150 / draft PR #151 is the only active Sprite child. The current continuation must:
 
-1. keep PR #149 scoped to deterministic playback controls, exact retained-remainder advancement, authored event traversal/output and `Once|Loop|PingPong` structural transitions,
-2. preserve SA0 integer-nanosecond/event-crossing authority and SA1 renderer-independent state semantics,
-3. repair only SA2 implementation/test/documentation issues exposed by review or CI,
+1. keep PR #151 scoped to protocol-independent authoritative animator inspection/actions/exact assertions plus a thin MCP adapter,
+2. preserve SA0 integer-nanosecond/event-crossing authority and SA1-SA2 renderer-independent runtime semantics,
+3. repair only SA3 implementation/test/documentation issues exposed by review or CI,
 4. require normal hosted CI/audits on the final PR head,
-5. keep #149 draft/unmerged until those gates are green,
-6. require no new real-GPU gate because SA2 introduces no presentation-GPU behavior,
-7. after all gates pass, record exact validation evidence, mark ready/merge #149, confirm #148 closes, and stop,
-8. not create or implement SA3 in that completion continuation.
+5. keep #151 draft/unmerged until those gates are green,
+6. require no new real-GPU gate because SA3 introduces no presentation-GPU behavior,
+7. after all gates pass, record exact validation evidence, mark ready/merge #151, confirm #150 closes, and stop,
+8. not create or implement SA4 in that completion continuation.
 
-Only a **following** `@GitHub Trace2D 다음 진행해줘` continuation after SA2 merges green may create the SA3 child.
+Only a **following** `@GitHub Trace2D 다음 진행해줘` continuation after SA3 merges green may create the SA4 child.
