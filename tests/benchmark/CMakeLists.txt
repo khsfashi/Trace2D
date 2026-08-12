@@ -32,6 +32,47 @@ target_link_libraries(trace2d_b1_animation_bad_verify PRIVATE Trace2D::Assets Tr
 target_compile_features(trace2d_b1_animation_bad_verify PRIVATE cxx_std_20)
 trace2d_enable_warnings(trace2d_b1_animation_bad_verify)
 
+# Scored B1 animation workspaces are preserved outside the repository. When the
+# owner-local scored harness supplies one explicit candidate directory, compile
+# that candidate through the exact same verifier driver and production Runtime /
+# Assets authority used by the independently qualified known-good/known-bad
+# targets above. The default build remains unchanged and creates no candidate
+# target until this cache path is explicitly supplied.
+set(TRACE2D_B1_ANIMATION_CANDIDATE_DIR "" CACHE PATH
+    "Optional B1 scored animation candidate directory containing animation_case.cpp/.hpp")
+if(TRACE2D_B1_ANIMATION_CANDIDATE_DIR)
+    get_filename_component(
+        B1_ANIMATION_CANDIDATE_DIR
+        "${TRACE2D_B1_ANIMATION_CANDIDATE_DIR}"
+        ABSOLUTE)
+    if(NOT EXISTS "${B1_ANIMATION_CANDIDATE_DIR}/animation_case.cpp")
+        message(FATAL_ERROR
+            "TRACE2D_B1_ANIMATION_CANDIDATE_DIR is missing animation_case.cpp: ${B1_ANIMATION_CANDIDATE_DIR}")
+    endif()
+    if(NOT EXISTS "${B1_ANIMATION_CANDIDATE_DIR}/animation_case.hpp")
+        message(FATAL_ERROR
+            "TRACE2D_B1_ANIMATION_CANDIDATE_DIR is missing animation_case.hpp: ${B1_ANIMATION_CANDIDATE_DIR}")
+    endif()
+
+    add_executable(trace2d_b1_animation_candidate_verify
+        B1AnimationFixtureVerifierMain.cpp
+        "${B1_ANIMATION_CANDIDATE_DIR}/animation_case.cpp"
+    )
+    target_include_directories(
+        trace2d_b1_animation_candidate_verify
+        PRIVATE
+            "${B1_ANIMATION_CANDIDATE_DIR}"
+    )
+    target_link_libraries(
+        trace2d_b1_animation_candidate_verify
+        PRIVATE
+            Trace2D::Assets
+            Trace2D::Runtime
+    )
+    target_compile_features(trace2d_b1_animation_candidate_verify PRIVATE cxx_std_20)
+    trace2d_enable_warnings(trace2d_b1_animation_candidate_verify)
+endif()
+
 set(B1_SPRITE_ROOT "${CMAKE_SOURCE_DIR}/benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d")
 set(B1_PARTICLE_ROOT "${CMAKE_SOURCE_DIR}/benchmarks/b1/tasks/b1-particle-budget-repair/trace2d")
 
