@@ -124,8 +124,8 @@ TEST(SpriteRendererConformanceTests, Sr8CanonicalTrimPivotCw90AndPresentationTim
     EXPECT_FLOAT_EQ(interpolated.interpolationAlpha, 0.5F);
 
     // Presentation resolution is derived work and may not rewrite authoritative history.
-    EXPECT_EQ(history.previous, previous);
-    EXPECT_EQ(history.current, current);
+    EXPECT_EQ(history.previousFixed, previous);
+    EXPECT_EQ(history.currentFixed, current);
 }
 
 TEST(SpriteRendererConformanceTests, Sr8CommittedStructuralWorkloadHasExactRawMetrics)
