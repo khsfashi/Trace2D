@@ -12,6 +12,7 @@ add_library(trace2d_render STATIC
     src/SpriteGeometry2D.cpp
     src/SpriteGpuBackend.cpp
     src/SpriteOrderMask2D.cpp
+    src/SpritePixelPerfect2D.cpp
     src/SpritePresentation2D.cpp
     src/SpritePrimitive2D.cpp
     src/SpriteRenderContract.cpp
