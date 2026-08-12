@@ -46,10 +46,11 @@ using trace2d::runtime::SpriteAnimator2DState;
         SpriteAnimationFrame2D{2U, 100ns},
     };
     const std::array events{
-        SpriteAnimationEvent2D{11U, 50ns, 0U},
-        SpriteAnimationEvent2D{12U, 100ns, 1U},
-        SpriteAnimationEvent2D{13U, 100ns, 2U},
-        SpriteAnimationEvent2D{14U, 250ns, 3U},
+        SpriteAnimationEvent2D{10U, 0ns, 0U},
+        SpriteAnimationEvent2D{11U, 50ns, 1U},
+        SpriteAnimationEvent2D{12U, 100ns, 2U},
+        SpriteAnimationEvent2D{13U, 100ns, 3U},
+        SpriteAnimationEvent2D{14U, 250ns, 4U},
     };
 
     SpriteAnimationClip2D clip{};
@@ -101,7 +102,7 @@ TEST(SpriteAnimationInspectionTests, InspectsAuthoritativeAnimatorStateWithoutRe
     EXPECT_EQ(result.snapshot->entitySemanticId, "hero");
     EXPECT_EQ(result.snapshot->clipDurationNanoseconds, 300);
     EXPECT_EQ(result.snapshot->clipFrameCount, 3U);
-    EXPECT_EQ(result.snapshot->clipEventCount, 4U);
+    EXPECT_EQ(result.snapshot->clipEventCount, 5U);
     EXPECT_EQ(result.snapshot->timeNanoseconds, 100);
     EXPECT_EQ(result.snapshot->frameIndex, 1U);
     EXPECT_EQ(result.snapshot->regionIndex, 1U);
@@ -138,6 +139,109 @@ TEST(SpriteAnimationInspectionTests, AdvanceReturnsExactOrderedEmissionEvidence)
     EXPECT_EQ(result.snapshot->timeNanoseconds, 110);
     EXPECT_EQ(result.snapshot->frameIndex, 1U);
     EXPECT_EQ(animator.State().time, 110ns);
+}
+
+TEST(SpriteAnimationInspectionTests, ReverseAdvancePreservesExactEqualTimeOrdering)
+{
+    const SpriteAsset asset = MakeSpriteAsset(3U);
+    SpriteAnimationClip2D clip = PrepareClip(asset);
+    SpriteAnimator2D animator = MakeAnimator(
+        clip,
+        120ns,
+        SpriteAnimationLoopMode::Once,
+        SpriteAnimationDirection::Reverse);
+    AgentFacade agent{};
+
+    const auto result = agent.ActOnSpriteAnimator(
+        SpriteAnimatorBinding{"hero", &animator},
+        SpriteAnimationAction{
+            .kind = SpriteAnimationActionKind::Advance,
+            .time = 80ns,
+            .emissionCapacity = 4U,
+        });
+
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_EQ(result.emissions.size(), 3U);
+    EXPECT_EQ(result.emissions[0].eventId, 12U);
+    EXPECT_EQ(result.emissions[1].eventId, 13U);
+    EXPECT_EQ(result.emissions[2].eventId, 11U);
+    ASSERT_TRUE(result.snapshot.has_value());
+    EXPECT_EQ(result.snapshot->timeNanoseconds, 40);
+    EXPECT_EQ(result.snapshot->direction, SpriteAnimationDirection::Reverse);
+}
+
+TEST(SpriteAnimationInspectionTests, LoopAdvancePreservesStructuralAndOffsetZeroEvidence)
+{
+    const SpriteAsset asset = MakeSpriteAsset(3U);
+    SpriteAnimationClip2D clip = PrepareClip(asset);
+    SpriteAnimator2D animator = MakeAnimator(clip, 240ns, SpriteAnimationLoopMode::Loop);
+    AgentFacade agent{};
+
+    const auto result = agent.ActOnSpriteAnimator(
+        SpriteAnimatorBinding{"hero", &animator},
+        SpriteAnimationAction{
+            .kind = SpriteAnimationActionKind::Advance,
+            .time = 110ns,
+            .emissionCapacity = 5U,
+        });
+
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_EQ(result.emissions.size(), 4U);
+    EXPECT_EQ(result.emissions[0].eventId, 14U);
+    EXPECT_EQ(result.emissions[1].kind, SpriteAnimationEmissionKind::Loop);
+    EXPECT_EQ(result.emissions[2].eventId, 10U);
+    EXPECT_EQ(result.emissions[3].eventId, 11U);
+    ASSERT_TRUE(result.snapshot.has_value());
+    EXPECT_EQ(result.snapshot->timeNanoseconds, 50);
+}
+
+TEST(SpriteAnimationInspectionTests, PingPongAndCompletionExposeStructuralEvidence)
+{
+    const SpriteAsset asset = MakeSpriteAsset(3U);
+    SpriteAnimationClip2D clip = PrepareClip(asset);
+    AgentFacade agent{};
+
+    SpriteAnimator2D pingPong = MakeAnimator(
+        clip,
+        250ns,
+        SpriteAnimationLoopMode::PingPong,
+        SpriteAnimationDirection::Forward);
+    auto result = agent.ActOnSpriteAnimator(
+        SpriteAnimatorBinding{"ping", &pingPong},
+        SpriteAnimationAction{
+            .kind = SpriteAnimationActionKind::Advance,
+            .time = 100ns,
+            .emissionCapacity = 3U,
+        });
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_EQ(result.emissions.size(), 2U);
+    EXPECT_EQ(result.emissions[0].kind, SpriteAnimationEmissionKind::Bounce);
+    EXPECT_EQ(result.emissions[0].timeNanoseconds, 300);
+    EXPECT_EQ(result.emissions[1].eventId, 14U);
+    ASSERT_TRUE(result.snapshot.has_value());
+    EXPECT_EQ(result.snapshot->timeNanoseconds, 250);
+    EXPECT_EQ(result.snapshot->direction, SpriteAnimationDirection::Reverse);
+
+    SpriteAnimator2D once = MakeAnimator(
+        clip,
+        250ns,
+        SpriteAnimationLoopMode::Once,
+        SpriteAnimationDirection::Forward);
+    result = agent.ActOnSpriteAnimator(
+        SpriteAnimatorBinding{"once", &once},
+        SpriteAnimationAction{
+            .kind = SpriteAnimationActionKind::Advance,
+            .time = 100ns,
+            .emissionCapacity = 2U,
+        });
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_EQ(result.emissions.size(), 1U);
+    EXPECT_EQ(result.emissions[0].kind, SpriteAnimationEmissionKind::Completed);
+    ASSERT_TRUE(result.snapshot.has_value());
+    EXPECT_EQ(result.snapshot->timeNanoseconds, 300);
+    EXPECT_EQ(result.snapshot->frameIndex, 2U);
+    EXPECT_TRUE(result.snapshot->completed);
+    EXPECT_EQ(result.snapshot->playback, SpriteAnimationPlaybackState::Paused);
 }
 
 TEST(SpriteAnimationInspectionTests, AdvanceCapacityFailurePreservesAnimatorState)
