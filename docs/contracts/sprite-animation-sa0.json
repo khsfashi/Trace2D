@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "contract_id": "trace2d.sprite.animation.sa0",
+  "issue": 144,
+  "umbrella_issue": 59,
+  "status": "frozen",
+  "next_stage": "SA1",
+  "time_domain": {
+    "unit": "integer_nanoseconds",
+    "authoritative_source": "explicit_fixed_step_runtime_advancement",
+    "frame_duration_must_be_positive": true,
+    "clip_duration": "checked_exact_sum_of_frame_durations",
+    "event_offset_domain": "0 <= event_offset < duration",
+    "floating_cursor_is_authoritative": false,
+    "wall_clock_advances_authoritative_animation": false,
+    "presentation_alpha_advances_authoritative_animation": false,
+    "future_speed_scaling": "exact_integer_time_with_retained_remainder"
+  },
+  "frame_boundaries": {
+    "ownership": "half_open",
+    "frame_interval": "[boundary_i,boundary_i_plus_1)",
+    "internal_boundary_selects": "following_frame",
+    "normal_lookup_domain": "0 <= t < duration",
+    "non_loop_terminal_time": "t == duration",
+    "non_loop_terminal_presentation": "last_authored_frame",
+    "completion_is_explicit_state": true,
+    "synthetic_boundary_frame_allowed": false
+  },
+  "events": {
+    "equal_offset_order": "authored_ordinal",
+    "forward_crossing": "a < event_time <= b",
+    "forward_order": "increasing_time_then_authored_ordinal",
+    "reverse_crossing": "b <= event_time < a",
+    "reverse_order": "decreasing_time_then_authored_ordinal",
+    "emit_once_per_actual_crossing": true,
+    "large_advance_preserves_all_crossings": true,
+    "seek_reset_inspection_replays_history": false,
+    "structural_markers_are_authored_events": false,
+    "silent_event_loss_allowed": false
+  },
+  "traversal": {
+    "linear_loop": "ordered_segments_across_terminal_and_start",
+    "forward_wrap_offset_zero": "emit_once_after_loop_marker_before_positive_offset_segment",
+    "reverse_wrap_uses_same_timeline": true,
+    "pingpong_endpoint": "reverse_without_duplicate_endpoint_frame",
+    "reverse_uses_separate_reversed_clip": false,
+    "multi_wrap": "compose_segments_and_preserve_crossing_order"
+  },
+  "authority": {
+    "animation_time": "authoritative_runtime",
+    "current_frame": "authoritative_runtime_derived_from_timeline",
+    "event_crossings": "authoritative_runtime_output",
+    "renderer_selection": "derived_presentation_consumer",
+    "gpu_state": "derived_presentation",
+    "capture_pixels": "derived_evidence",
+    "agent_snapshot": "explicit_observation"
+  },
+  "hot_path": {
+    "filesystem_per_tick": false,
+    "json_per_tick": false,
+    "string_formatting_per_tick": false,
+    "semantic_name_lookup_per_tick": false,
+    "renderer_or_gpu_required": false,
+    "mandatory_heap_allocation_per_tick": false,
+    "precomputed_cumulative_offsets_allowed": true,
+    "work_scales_with": "crossed_timeline_boundaries",
+    "event_output": "caller_owned_or_reused_bounded_storage",
+    "capacity_exhaustion": "explicit_failure_not_silent_drop"
+  },
+  "scope": {
+    "full_sprite_animator_state": "SA1",
+    "playback_loop_speed_events_transitions": "SA2",
+    "agent_mcp_actions_assertions": "SA3",
+    "conformance_determinism_performance_workloads": "SA4"
+  },
+  "references": [
+    {
+      "source": "Aseprite official file format specification",
+      "decision": "ADOPT_ADAPT",
+      "lesson": "explicit per-frame integer duration and one canonical timeline; adapt milliseconds to Trace2D integer nanoseconds"
+    },
+    {
+      "source": "Godot stable SpriteFrames and AnimatedSprite2D documentation",
+      "decision": "ADOPT_ADAPT_REJECT",
+      "lesson": "adapt variable-duration, reverse, loop and ping-pong semantics; reject floating progress as authoritative deterministic time"
+    },
+    {
+      "source": "Godot stable physics interpolation guidance",
+      "decision": "ADOPT",
+      "lesson": "keep authoritative fixed-step state separate from rendered presentation"
+    }
+  ]
+}
