@@ -8,6 +8,8 @@ namespace trace2d::render
 {
 namespace
 {
+constexpr std::uint32_t MaximumExactGpuViewportInteger = 1U << 24U;
+
 [[nodiscard]] SpritePixelPerfectStatus Success() noexcept
 {
     return SpritePixelPerfectStatus{};
@@ -206,8 +208,8 @@ SpritePixelPerfectStatus BuildSpritePixelPerfectViewport(
             SpritePixelPerfectField::LogicalViewport);
     }
     if (targetWidth == 0U || targetHeight == 0U ||
-        targetWidth > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()) ||
-        targetHeight > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
+        targetWidth > MaximumExactGpuViewportInteger ||
+        targetHeight > MaximumExactGpuViewportInteger)
     {
         return Failure(SpritePixelPerfectError::InvalidTargetSize, SpritePixelPerfectField::Target);
     }
@@ -268,8 +270,8 @@ SpritePixelPerfectStatus ValidateSpritePixelPerfectViewport(
             SpritePixelPerfectField::LogicalViewport);
     }
     if (viewport.targetWidth == 0U || viewport.targetHeight == 0U ||
-        viewport.targetWidth > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()) ||
-        viewport.targetHeight > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
+        viewport.targetWidth > MaximumExactGpuViewportInteger ||
+        viewport.targetHeight > MaximumExactGpuViewportInteger)
     {
         return Failure(SpritePixelPerfectError::InvalidTargetSize, SpritePixelPerfectField::Target);
     }
@@ -498,6 +500,10 @@ SpritePixelPerfectStatus ResolveSpritePixelPerfectPose(
     outMapping.worldSnapDelta = worldDelta;
     outMapping.sourcePixelScaleX = integerBasisX.magnitude;
     outMapping.sourcePixelScaleY = integerBasisY.magnitude;
+    outMapping.timeMode = request.timeMode;
+    outMapping.interpolationAlpha = request.timeMode == SpritePresentationTimeMode::Interpolated
+        ? request.interpolationAlpha
+        : 1.0F;
     outMapping.axesSwapped = integerBasisX.axis == LogicalAxis::Y;
     return Success();
 }
