@@ -132,15 +132,17 @@ PR #133 currently implements:
 
 - target-format-aware SR3 appearance preserved for masked testers,
 - two persistent nearest/linear samplers,
-- four unmasked blend pipelines,
+- four color-only unmasked blend pipelines,
+- four stencil-target-compatible unmasked blend pipelines for `none` Sprites inside a masked pass,
 - four `test_inside` blend pipelines,
 - four `test_outside` blend pipelines,
 - one mask writer pipeline,
-- 13 finite persistent Sprite presentation pipelines total,
+- 17 finite persistent Sprite presentation pipelines total,
 - D24S8 then D32S8 stencil-target format probing,
 - dynamic 8-bit stencil reference from semantic mask ID,
 - writer `ALWAYS + REPLACE`, inside `EQUAL + KEEP`, outside `NOT_EQUAL + KEEP`,
-- stencil clear to zero per masked presentation pass,
+- wholly unmasked submissions use a color-only pass and create/attach/clear no mask target,
+- masked submissions clear stencil to zero and select target-compatible `none` pipelines without stencil tests,
 - reusable size-matched mask target,
 - reusable Sprite vertex and semantic-order scratch capacity,
 - no global resource sorting and no ordinary-frame explicit GPU readback/fence wait.
@@ -169,6 +171,8 @@ The fixture intentionally verifies:
 
 - semantic painter order from reversed caller input,
 - sorting-group semantics rather than caller/resource order,
+- unmasked-only presentation does not create a mask target,
+- a transparent `none` Sprite remains valid between a writer and tester in a masked pass without changing stencil state,
 - inside-mask captured coverage,
 - outside-mask inverse captured coverage,
 - persistent sampler/pipeline/mask-target/vertex-capacity reuse,
@@ -265,6 +269,7 @@ Primary external authority for the active backend is current official SDL3 GPU d
 
 - SDL stencil reference is treated as derived mapping of a bounded semantic mask ID, never canonical asset state,
 - one finite mask phase at a time is enforced so old stencil identities cannot be relied on after another writer,
+- color-only and stencil-target-compatible unmasked pipeline sets are separated so target compatibility is explicit without taxing wholly unmasked frames,
 - reusable scratch/target capacity is owned by the renderer rather than allocated per Sprite.
 
 **REJECT**
