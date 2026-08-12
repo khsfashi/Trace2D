@@ -1,8 +1,8 @@
 # Sprite SPP3 Import Contract
 
-Status: **active via #164**.  
+Status: **complete via #164 / PR #165 / squash `926993ace6d020e00e3d4565d0ffacff866ee252`**.  
 Parent: #59. Predecessor: SPP2 #162 / PR #163 / squash `13b4e3ba71d577914777e4c183e2819a94c6fc04`.  
-Exact next after green merge: **SPP4 — sprite-gen / PerfectPixel-style manifest interoperability**.
+Exact next stage: **SPP4 — sprite-gen / PerfectPixel-style manifest interoperability, active via #166**.
 
 ## Purpose and authority
 
@@ -115,6 +115,6 @@ Primary references:
 
 Decisions: **ADOPT/ADAPT** exported sheet+JSON, integer frame duration and tag metadata; **ADAPT** source/trim/page geometry into S1; **REJECT** runtime source-tool dispatch, hidden generic layout inference, native Aseprite binary compositing as baseline, and implicit `rotated=true -> cw90` without caller policy.
 
-No new real-GPU gate is required because SPP3 changes no presentation path.
+No new real-GPU gate was required because SPP3 changed no presentation path.
 
-After SPP3 merges green, stop. Begin SPP4 only in the following continuation.
+SPP3 is frozen complete. SPP4 continues only through the existing generic-import/S1 authority seam; it must not reopen SPP3 runtime semantics.
