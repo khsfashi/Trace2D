@@ -1,0 +1,36 @@
+{
+  "head_sha": "abc",
+  "issues": [
+    {"number": 119, "title": "Sprite S0 stage", "state": "closed"},
+    {"number": 121, "title": "Sprite S1 stage", "state": "closed"},
+    {"number": 123, "title": "Sprite SR0 stage", "state": "closed"},
+    {"number": 125, "title": "Sprite SR1 stage", "state": "closed"},
+    {"number": 127, "title": "Sprite SR2 stage", "state": "closed"},
+    {"number": 130, "title": "Sprite SR3 stage", "state": "closed"},
+    {"number": 132, "title": "Sprite SR4 stage", "state": "closed"},
+    {"number": 134, "title": "Sprite SR5 stage", "state": "closed"},
+    {"number": 136, "title": "Sprite SR6 stage", "state": "closed"},
+    {"number": 138, "title": "Sprite SR7 stage", "state": "closed"},
+    {"number": 142, "title": "Sprite SR8 stage", "state": "closed"},
+    {"number": 144, "title": "Sprite SA0 stage", "state": "closed"},
+    {"number": 146, "title": "Sprite SA1 stage", "state": "closed"},
+    {"number": 148, "title": "Sprite SA2 stage", "state": "closed"},
+    {"number": 150, "title": "Sprite SA3 stage", "state": "closed"},
+    {"number": 152, "title": "Sprite SA4 stage", "state": "closed"},
+    {"number": 154, "title": "Sprite SPP0 stage", "state": "closed"},
+    {"number": 156, "title": "Sprite SPP1 stage", "state": "closed"},
+    {"number": 158, "title": "Repository hardening: derive live project state and next action", "state": "open"},
+    {"number": 159, "title": "Sprite SA2 hardening: independent reference animator oracle", "state": "open"}
+  ],
+  "pulls": [
+    {
+      "number": 160,
+      "title": "Repository: derive live project state",
+      "state": "open",
+      "draft": true,
+      "body": "Closes #158",
+      "merged_at": null,
+      "head": {"ref": "agent/live-project-state", "sha": "def"}
+    }
+  ]
+}
