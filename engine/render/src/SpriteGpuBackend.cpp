@@ -444,7 +444,8 @@ void SpriteGpuBackend::CreatePipelines()
         const auto createPipeline =
             [this, vertexShader, fragmentShader, maskWriterFragmentShader, &bufferDescriptions, &attributes](
                 const SpriteBlendCompatibility blend,
-                const SpriteMaskMode maskMode)
+                const SpriteMaskMode maskMode,
+                const bool hasStencilTarget)
         {
             SDL_GPUColorTargetDescription colorTargetDescription{};
             colorTargetDescription.format = colorTargetFormat_;
@@ -486,11 +487,14 @@ void SpriteGpuBackend::CreatePipelines()
             pipelineInfo.target_info.num_color_targets = 1U;
             pipelineInfo.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_ALWAYS;
 
-            if (maskMode != SpriteMaskMode::None)
+            if (hasStencilTarget)
             {
                 pipelineInfo.target_info.depth_stencil_format = depthStencilTargetFormat_;
                 pipelineInfo.target_info.has_depth_stencil_target = true;
+            }
 
+            if (maskMode != SpriteMaskMode::None)
+            {
                 SDL_GPUStencilOpState stencilState{};
                 stencilState.fail_op = SDL_GPU_STENCILOP_KEEP;
                 stencilState.depth_fail_op = SDL_GPU_STENCILOP_KEEP;
@@ -539,12 +543,16 @@ void SpriteGpuBackend::CreatePipelines()
         for (const SpriteBlendCompatibility blend : Blends)
         {
             const std::size_t index = BlendIndex(blend);
-            unmaskedPipelines_[index] = createPipeline(blend, SpriteMaskMode::None);
-            maskInsidePipelines_[index] = createPipeline(blend, SpriteMaskMode::TestInside);
-            maskOutsidePipelines_[index] = createPipeline(blend, SpriteMaskMode::TestOutside);
+            unmaskedPipelines_[index] = createPipeline(blend, SpriteMaskMode::None, false);
+            stencilCompatibleUnmaskedPipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::None, true);
+            maskInsidePipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::TestInside, true);
+            maskOutsidePipelines_[index] =
+                createPipeline(blend, SpriteMaskMode::TestOutside, true);
         }
         maskWritePipeline_ =
-            createPipeline(SpriteBlendCompatibility::Normal, SpriteMaskMode::Write);
+            createPipeline(SpriteBlendCompatibility::Normal, SpriteMaskMode::Write, true);
     }
     catch (...)
     {
@@ -794,7 +802,9 @@ SDL_GPUGraphicsPipeline* SpriteGpuBackend::ResolvePipeline(
     switch (maskMode)
     {
     case SpriteMaskMode::None:
-        return unmaskedPipelines_[blendIndex];
+        return maskingRequired_
+            ? stencilCompatibleUnmaskedPipelines_[blendIndex]
+            : unmaskedPipelines_[blendIndex];
     case SpriteMaskMode::Write:
         return maskWritePipeline_;
     case SpriteMaskMode::TestInside:
@@ -940,6 +950,14 @@ void SpriteGpuBackend::Cleanup() noexcept
         }
     }
     for (SDL_GPUGraphicsPipeline*& pipeline : maskInsidePipelines_)
+    {
+        if (pipeline != nullptr)
+        {
+            SDL_ReleaseGPUGraphicsPipeline(device_, pipeline);
+            pipeline = nullptr;
+        }
+    }
+    for (SDL_GPUGraphicsPipeline*& pipeline : stencilCompatibleUnmaskedPipelines_)
     {
         if (pipeline != nullptr)
         {
