@@ -207,7 +207,7 @@ The production SDL GPU implementation uses a stencil-capable depth/stencil targe
 
 Support is queried for `SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET`; failure to find a supported format is structural backend failure.
 
-The stencil attachment is cleared to zero for each Sprite presentation render pass. Depth data is unused.
+A Sprite presentation submission that contains no mask state uses the normal color-only render pass and does not create, attach, or clear a mask target. When at least one masked Sprite is present, the stencil attachment is size-matched to the presentation target and cleared to zero for that masked render pass. Depth data is unused.
 
 ### 7.1 Pipeline mapping
 
@@ -222,7 +222,7 @@ Finite persistent pipeline state is:
 13 Sprite presentation pipelines total
 ```
 
-The two SR3 samplers remain persistent and reused.
+The two SR3 samplers remain persistent and reused. The four unmasked pipelines are created without depth/stencil target compatibility; only the nine masked pipelines require the selected stencil-capable target format.
 
 Stencil mapping:
 
@@ -252,7 +252,7 @@ test_outside(M):
 
 The dynamic stencil reference is set immediately before each masked draw.
 
-The mask target is size-matched to the presentation target and reused until the target dimensions change. Persistent mask pipelines, samplers, and steady target size must not be recreated per Sprite or per frame.
+The mask target is reused until the presentation target dimensions change. Persistent mask pipelines, samplers, and steady target size must not be recreated per Sprite or per frame.
 
 ## 8. Interaction with SR3 appearance
 
@@ -287,9 +287,9 @@ Production GPU failures remain explicit for unsupported depth/stencil format and
 
 ## 10. Synchronization and observation
 
-Ordinary rendering adds no explicit GPU readback and no explicit fence wait for ordering or masking. Capture/conformance paths may synchronize because observation requires CPU-visible pixels; those operations remain counted separately in renderer metrics.
+Ordinary rendering adds no explicit GPU readback and no explicit fence wait for ordering or masking. Unmasked presentation additionally performs no mask-target allocation/attachment/clear. Capture/conformance paths may synchronize because observation requires CPU-visible pixels; those operations remain counted separately in renderer metrics.
 
-The renderer exposes persistent sampler/pipeline/vertex capacity and mask-target creation metrics so tests can prove warm reuse rather than infer it from timing.
+The renderer exposes persistent sampler/pipeline/vertex capacity and mask-target creation metrics so tests can prove warm reuse and zero unmasked mask-target creation rather than infer either property from timing.
 
 ## 11. Tests required by SR4
 
@@ -307,6 +307,7 @@ The opt-in real Windows presentation-GPU fixture must additionally prove:
 
 - overlapping opaque Sprites follow semantic painter order even when input/resource order differs,
 - a sorting group behaves as one top-level ordering unit,
+- unmasked presentation does not create/attach a mask target,
 - inside mask capture exposes only covered pixels,
 - outside mask capture exposes the inverse coverage,
 - persistent pipeline/mask-target counts stop growing after warm-up,
