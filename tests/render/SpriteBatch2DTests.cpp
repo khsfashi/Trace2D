@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <span>
 
 namespace
 {
@@ -139,6 +140,8 @@ TEST(SpriteBatch2DTests, PrimitiveVisibilityRequiresAnyIntersectingPatch)
     patches[1].quad = MakeQuad(-0.25F, -0.25F, 0.25F, 0.25F);
 
     EXPECT_TRUE(IsSpritePresentationPrimitiveVisible(view, patches));
-    EXPECT_FALSE(IsSpritePresentationPrimitiveVisible(view, patches.first(1U)));
+    EXPECT_FALSE(IsSpritePresentationPrimitiveVisible(
+        view,
+        std::span<const SpritePrimitivePatch2D>{patches}.first(1U)));
     EXPECT_FALSE(IsSpritePresentationPrimitiveVisible(view, {}));
 }
