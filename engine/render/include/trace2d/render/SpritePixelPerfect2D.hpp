@@ -105,6 +105,8 @@ struct SpritePixelPerfectMapping2D final
     Float2 worldSnapDelta{};
     std::uint32_t sourcePixelScaleX{0U};
     std::uint32_t sourcePixelScaleY{0U};
+    SpritePresentationTimeMode timeMode{SpritePresentationTimeMode::AuthoritativeCurrent};
+    float interpolationAlpha{1.0F};
     bool axesSwapped{false};
 
     [[nodiscard]] bool operator==(const SpritePixelPerfectMapping2D&) const noexcept = default;
