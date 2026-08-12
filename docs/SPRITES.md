@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP4 complete. SPP5 — provider-neutral generation orchestration is active via #168.**
+Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP5 complete. SE2E — end-to-end generated/imported Sprite proof is active via #170.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -26,7 +26,8 @@ SPP1 extraction seam: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
 SPP2 quality/repair seam: [`SPRITE_QUALITY_REPAIR_SPP2.md`](SPRITE_QUALITY_REPAIR_SPP2.md).  
 SPP3 import seam: [`SPRITE_IMPORT_SPP3.md`](SPRITE_IMPORT_SPP3.md).  
 SPP4 generator-manifest seam: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).  
-Active SPP5 generation seam: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).
+SPP5 generation seam: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).  
+Active SE2E composition seam: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).
 
 This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, quality/repair-result, import-result, timing, or capture state.
 
@@ -79,6 +80,8 @@ Animation authority is the completed SA0-SA4 chain: integer fixed-step animation
 
 Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary. SPP2 adds exact structural quality evidence plus only caller-selected bounded repairs; threshold/policy findings remain advisory and successful repairs are re-analyzed through SPP0. SPP3 converts only explicit external interchange into canonical S1 `SpriteAsset` data plus ordered offline import evidence, then reuses the existing S1 serializer/parser as the final canonical validation authority. SPP4 adapts explicit maintained generator manifests into that existing SPP3 generic-import seam; provider formats, editor state and generation state never become runtime truth. SPP5 owns only provider-neutral offline orchestration: live provider execution remains nondeterministic external input, while one concrete response is accepted only after explicit candidate/cardinality validation and existing SPP2/SPP4 -> SPP3 -> S1 deterministic validation. Provider SDK/network/model state never becomes canonical Sprite or runtime authority.
 
+SE2E owns no new production authority. It composes the frozen SPP, SA, SR, capture and #98 WorkResult contracts into one backend-independent proof and keeps structural success separate from perceptual review. A fixture-authored capture may prove exact simulation-frame/artifact handoff, but SR8 remains real-GPU presentation truth and multimodal/human review remains perceptual truth.
+
 ## 3. Fixed implementation order
 
 Exactly one child issue/PR is active at a time:
@@ -91,11 +94,11 @@ S0 [complete] -> S1 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
  -> SA4 [complete]
  -> SPP0 [complete]
- -> SPP1 [complete] -> SPP2 [complete] -> SPP3 [complete] -> SPP4 [complete] -> SPP5 [active #168]
- -> SE2E -> SPERF
+ -> SPP1 [complete] -> SPP2 [complete] -> SPP3 [complete] -> SPP4 [complete] -> SPP5 [complete]
+ -> SE2E [active #170] -> SPERF
 ```
 
-Completed stages through SPP4 are frozen. **Do not create or begin SE2E while #168 remains open or while its hosted CI/audit/documentation gates are pending.**
+Completed stages through SPP5 are frozen. **Do not create or begin SPERF while #170 remains open or while its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -268,9 +271,9 @@ PerfectPixel imports explicit sheet identity/cell dimensions plus per-animation 
 
 SPP4 is offline only: parse/planning is `O(manifest bytes + frames)`, row ordering is `O(animation count log animation count)`, lowering is existing SPP3 `O(frame count)`, decoded atlas bytes are viewed for validation, no new dependency is added, and no runtime/renderer/GPU/provider path is changed.
 
-### SPP5 — provider-neutral generation orchestration — active #168
+### SPP5 — provider-neutral generation orchestration — complete
 
-Concrete contract: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).
+Completed via #168 / PR #169 / squash `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a`. Concrete contract: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).
 
 SPP5 introduces a protocol/network-independent `SpriteGenerationProvider` seam. The provider call itself may be nondeterministic; deterministic Trace2D authority begins only from one concrete owned response plus an explicit post-process plan. Invalid request/plan state fails before provider execution.
 
@@ -285,9 +288,11 @@ SPP5 is offline only: preflight/envelope checks are bounded by target/frame coun
 
 ## 7. End-to-end proof
 
-### SE2E
+### SE2E — active #170
 
-Prove request/import -> raw/generated pixels -> deterministic QA -> canonical asset -> animation -> headless exact-frame verification -> renderer/capture -> perceptual/human review.
+Concrete contract: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).
+
+SE2E proves request/import -> raw/generated pixels -> deterministic QA -> canonical asset -> animation -> headless exact-frame Agent verification -> renderer-facing canonical region -> explicit capture artifact -> #98-compatible deterministic/review evidence. The hosted fixture is deliberately backend-independent and never promotes fixture-authored pixels to real-GPU truth; SR8 remains presentation-GPU authority and visual/motion quality remains multimodal/human review.
 
 ### SPERF
 
@@ -373,4 +378,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SPP5 / #168 is the only active Sprite child. Keep it scoped to provider-neutral offline orchestration, exact provider/candidate/cardinality gates, deterministic reuse of SPP2/SPP4 -> SPP3/S1 and recorded-response structural evidence. Do not create or implement SE2E until the SPP5 PR merges green.
+SE2E / #170 is the only active Sprite child. Keep it scoped to composition of existing SPP -> canonical asset -> SA exact-frame Agent QA -> SR renderer-facing identity -> explicit capture artifact -> #98 review evidence. Do not create or implement SPERF until the SE2E PR merges green.
