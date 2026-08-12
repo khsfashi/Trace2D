@@ -200,7 +200,7 @@ Json EntityToJson(const agent::EntitySnapshot& entity)
     {
         result["bounds"] = Json{
             {"center", Json{{"x", entity.bounds->center.x}, {"y", entity.bounds->center.y}}},
-            {"extents", Json{{"x", entity.bounds.extents.x}, {"y", entity.bounds.extents.y}}},
+            {"extents", Json{{"x", entity.bounds->extents.x}, {"y", entity.bounds->extents.y}}},
         };
     }
     else
@@ -551,7 +551,7 @@ Json ToolDefinition(const std::string_view name, const std::string_view descript
     };
 }
 
-Json BuildToolList()
+Json BuildToolList(const std::span<const agent::SpriteAnimatorBinding> spriteAnimators)
 {
     Json tools = Json::array();
     tools.push_back(ToolDefinition("trace2d.inspect", "Inspect deterministic runtime and authored scene state through Trace2D::Agent.", EmptyObjectSchema()));
@@ -583,7 +583,10 @@ Json BuildToolList()
     tools.push_back(ToolDefinition("trace2d.runtime.step", "Advance the existing GameplayScenario by an explicit bounded frame count.", Json{
         {"type", "object"}, {"properties", Json{{"frames", Json{{"type", "integer"}, {"minimum", 1}, {"maximum", MaxStepFrames}}}}}, {"required", Json::array({"frames"})}, {"additionalProperties", false}}));
 
-    AppendSpriteAnimationTools(tools);
+    if (!spriteAnimators.empty())
+    {
+        AppendSpriteAnimationTools(tools);
+    }
 
     tools.push_back(ToolDefinition("trace2d.assert_float", "Run the existing deterministic gameplay float-field assertion.", Json{
         {"type", "object"}, {"properties", Json{
@@ -963,7 +966,7 @@ std::string McpServer::HandleMessage(const std::string_view message)
             {
                 return MakeJsonRpcError(id, JsonRpcInvalidParams, "Trace2D exposes one non-paginated tool page; cursor must be omitted.").dump();
             }
-            return MakeJsonRpcResult(id, BuildToolList()).dump();
+            return MakeJsonRpcResult(id, BuildToolList(spriteAnimators_)).dump();
         }
         if (method == "tools/call")
         {
