@@ -1,6 +1,7 @@
 #pragma once
 
 #include <trace2d/agent/ParticleInspection.hpp>
+#include <trace2d/agent/SpriteAnimationInspection.hpp>
 #include <trace2d/agent/UiAutomation.hpp>
 
 #include <cstdint>
@@ -254,6 +255,15 @@ public:
     [[nodiscard]] ParticleAssertionResult AssertParticle(
         const ParticleEmitterBinding& binding,
         const ParticleAssertion& assertion) const;
+
+    [[nodiscard]] SpriteAnimatorInspectionResult InspectSpriteAnimator(
+        const SpriteAnimatorBinding& binding) const;
+    [[nodiscard]] SpriteAnimationActionResult ActOnSpriteAnimator(
+        const SpriteAnimatorBinding& binding,
+        const SpriteAnimationAction& action);
+    [[nodiscard]] SpriteAnimationAssertionResult AssertSpriteAnimator(
+        const SpriteAnimatorBinding& binding,
+        const SpriteAnimationAssertion& assertion) const;
 
     [[nodiscard]] UiTreeResult InspectUi() const;
     [[nodiscard]] UiQueryResult QueryUi(const UiSelector& selector) const;
