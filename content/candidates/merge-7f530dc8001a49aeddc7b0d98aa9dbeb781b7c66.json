@@ -1,0 +1,317 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+  "source_event": "merge",
+  "event_id": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#148",
+        "url": "https://github.com/khsfashi/Trace2D/issues/148"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 147,
+        "url": "https://github.com/khsfashi/Trace2D/pull/147"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+        "authored_at": "2026-08-12T17:55:58+09:00",
+        "subject": "Sprite SA2: deterministic playback, events, loops, and transitions (#149)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-animation"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "SA2 executes the frozen SA0 crossing semantics over SA1 typed state and keeps rendering/presentation out of animation authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Exact rational speed advancement stores retained remainder and uses quotient/remainder decomposition instead of floating accumulation or unchecked delta*numerator",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Prepared authored events use numeric semantic IDs and deterministic offset/authored-ordinal ordering; runtime performs no semantic-name lookup",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "Runtime emissions are caller-owned bounded typed output separating authored events from Loop/Bounce/Completed structural markers",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "decisions-005",
+        "text": "Output-capacity failure is transactional via bounded count-only traversal before write/commit",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "decisions-006",
+        "text": "Frozen SA0 handoff validation checks SA0 remains complete/frozen without permanently pinning whichever successor is currently active",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Decision",
+            "ordinal": 6,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "No mandatory per-tick heap/filesystem/JSON/formatting/name lookup or renderer/GPU dependency",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "SA2 owns playback/events/structural transitions only; Agent/MCP verification and workloads remain SA3/SA4",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "accumulated floating-point animation progress | violates SA0 deterministic integer-time authority",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ],
+        "alternative": "accumulated floating-point animation progress",
+        "reason": "violates SA0 deterministic integer-time authority"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "modulo-only looping | loses crossed event/loop boundaries on large advances",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ],
+        "alternative": "modulo-only looping",
+        "reason": "loses crossed event/loop boundaries on large advances"
+      },
+      {
+        "id": "rejected-alternatives-003",
+        "text": "silent/truncated event output | would make gameplay side effects depend on caller capacity without an explicit failure",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Rejected",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ],
+        "alternative": "silent/truncated event output",
+        "reason": "would make gameplay side effects depend on caller capacity without an explicit failure"
+      },
+      {
+        "id": "rejected-alternatives-004",
+        "text": "non-portable __int128 as required speed arithmetic | supported Windows/MSVC path must remain portable C++20",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Rejected",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ],
+        "alternative": "non-portable __int128 as required speed arithmetic",
+        "reason": "supported Windows/MSVC path must remain portable C++20"
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "final head b5be8bc60e65fd317fa5af12d4b59f6d6f056319 CI run 31579969475 passed, including Windows MSVC and clean-clone configure/build/test",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "exact-head Sprite SA0 Contract run 31579969492, Content Evidence 31579969477, B0 Godot Agent Oracle 31579969484, and B0 Codex Wrapper 31579969485 passed",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "standalone C++20 -Wall -Wextra -Werror compile plus behavioral harness passed before branch publication",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "new local real-GPU acceptance | not required because SA2 adds no presentation-GPU behavior",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "Godot AnimatedSprite2D current official docs | ADAPT/REJECT",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "Aseprite official file format | ADOPT/ADAPT",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "#144",
+    "#146",
+    "PR #147"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
