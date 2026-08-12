@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP5 complete. SE2E — end-to-end generated/imported Sprite proof is active via #170.**
+Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP5/SE2E complete. SPERF — final reproducible Sprite performance evidence and guidance is active via #172.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -27,7 +27,8 @@ SPP2 quality/repair seam: [`SPRITE_QUALITY_REPAIR_SPP2.md`](SPRITE_QUALITY_REPAI
 SPP3 import seam: [`SPRITE_IMPORT_SPP3.md`](SPRITE_IMPORT_SPP3.md).  
 SPP4 generator-manifest seam: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).  
 SPP5 generation seam: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).  
-Active SE2E composition seam: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).
+SE2E composition seam: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).  
+Active SPERF evidence seam: [`SPRITE_PERFORMANCE_SPERF.md`](SPRITE_PERFORMANCE_SPERF.md).
 
 This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, quality/repair-result, import-result, timing, or capture state.
 
@@ -82,6 +83,8 @@ Offline processing authority begins with SPP0. Decoded pixels and explicit metad
 
 SE2E owns no new production authority. It composes the frozen SPP, SA, SR, capture and #98 WorkResult contracts into one backend-independent proof and keeps structural success separate from perceptual review. A fixture-authored capture may prove exact simulation-frame/artifact handoff, but SR8 remains real-GPU presentation truth and multimodal/human review remains perceptual truth.
 
+SPERF owns no new runtime authority. It composes the already-exposed SR7/SR8 renderer metrics/workloads, SA4 animation workloads and S1/SPP memory/complexity boundaries into explicit evidence. Engine-owned upload/capacity bytes remain distinct from driver allocation, and environment-dependent timing remains local evidence rather than portable correctness truth.
+
 ## 3. Fixed implementation order
 
 Exactly one child issue/PR is active at a time:
@@ -95,10 +98,10 @@ S0 [complete] -> S1 [complete]
  -> SA4 [complete]
  -> SPP0 [complete]
  -> SPP1 [complete] -> SPP2 [complete] -> SPP3 [complete] -> SPP4 [complete] -> SPP5 [complete]
- -> SE2E [active #170] -> SPERF
+ -> SE2E [complete #170] -> SPERF [active #172]
 ```
 
-Completed stages through SPP5 are frozen. **Do not create or begin SPERF while #170 remains open or while its hosted CI/audit/documentation gates are pending.**
+Completed stages through SE2E are frozen. **SPERF / #172 is the final active Sprite child. Do not begin #103 while #172/#59 remains open or its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -286,17 +289,19 @@ A provider failure/exception, identity mismatch, candidate-kind mismatch, malfor
 
 SPP5 is offline only: preflight/envelope checks are bounded by target/frame count, loose-frame pixel work reuses existing SPP2 costs, import reuses SPP3, manifest work reuses SPP4, repaired copies exist only for explicit SPP2 repair, no live provider/SDK/package is required by CI, and no generation/network/QA work enters fixed-step animation, normal rendering or GPU presentation.
 
-## 7. End-to-end proof
+## 7. End-to-end proof and final performance evidence
 
-### SE2E — active #170
+### SE2E — complete
 
-Concrete contract: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).
+Completed via #170 / PR #171 / squash `41536c6045b8c89831a2026f090b5be7889599f3`. Concrete contract: [`SPRITE_END_TO_END_SE2E.md`](SPRITE_END_TO_END_SE2E.md).
 
 SE2E proves request/import -> raw/generated pixels -> deterministic QA -> canonical asset -> animation -> headless exact-frame Agent verification -> renderer-facing canonical region -> explicit capture artifact -> #98-compatible deterministic/review evidence. The hosted fixture is deliberately backend-independent and never promotes fixture-authored pixels to real-GPU truth; SR8 remains presentation-GPU authority and visual/motion quality remains multimodal/human review.
 
-### SPERF
+### SPERF — active #172
 
-Publish visible/animated counts, atlas pages, compatibility transitions, draws, culling, animation/extraction CPU time, upload bytes, retained capacities, texture/page memory/utilization and capture cost with reproducible environment metadata.
+Concrete contract: [`SPRITE_PERFORMANCE_SPERF.md`](SPRITE_PERFORMANCE_SPERF.md). Machine-readable evidence contract: [`contracts/sprite-performance-sperf.json`](contracts/sprite-performance-sperf.json).
+
+SPERF publishes the final reproducible Sprite performance surface without adding normal-frame instrumentation: fixed SR8 submitted/visible/culled/quad/run structure, the current built-in vertex upload payload, retained capacity semantics, supplementary compatibility-fragmentation workloads, all three SA4 deterministic animation workloads, explicit RGBA8 page-memory arithmetic and SPP offline complexity boundaries. Optional timing remains environment-labelled local evidence; package/resource residency remains future #70/#86; generic profiling remains #91.
 
 ## 8. Frozen production integration requirements
 
@@ -378,4 +383,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SE2E / #170 is the only active Sprite child. Keep it scoped to composition of existing SPP -> canonical asset -> SA exact-frame Agent QA -> SR renderer-facing identity -> explicit capture artifact -> #98 review evidence. Do not create or implement SPERF until the SE2E PR merges green.
+SPERF / #172 is the only active Sprite child. Keep it scoped to explicit performance evidence over already-frozen SR7/SR8/SA4/S1/SPP contracts, with no new normal-frame reporting path and no driver-memory overclaim. Do not begin #103 until the SPERF PR merges green and #59 closes.
