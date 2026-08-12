@@ -15,7 +15,7 @@ namespace trace2d::render::detail
 {
 namespace
 {
-constexpr std::size_t VerticesPerSprite = 6U;
+constexpr std::size_t VerticesPerQuad = 6U;
 constexpr std::size_t BlendCompatibilityCount = 4U;
 
 struct SpriteGpuVertex final
@@ -24,6 +24,10 @@ struct SpriteGpuVertex final
     float clipY;
     float u;
     float v;
+    float sampleMinU;
+    float sampleMinV;
+    float sampleMaxU;
+    float sampleMaxV;
 };
 
 struct alignas(16) SpriteFragmentUniform final
@@ -42,12 +46,14 @@ struct VertexInput
 {
     float2 clipPosition : TEXCOORD0;
     float2 uv : TEXCOORD1;
+    float4 sampleBounds : TEXCOORD2;
 };
 
 struct VertexOutput
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD0;
+    float4 sampleBounds : TEXCOORD1;
 };
 
 VertexOutput main(VertexInput input)
@@ -55,6 +61,7 @@ VertexOutput main(VertexInput input)
     VertexOutput output;
     output.position = float4(input.clipPosition, 0.0, 1.0);
     output.uv = input.uv;
+    output.sampleBounds = input.sampleBounds;
     return output;
 }
 )";
@@ -74,11 +81,12 @@ struct FragmentInput
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD0;
+    float4 sampleBounds : TEXCOORD1;
 };
 
 float4 main(FragmentInput input) : SV_Target0
 {
-    const float2 sampleUv = clamp(input.uv, SampleBounds.xy, SampleBounds.zw);
+    const float2 sampleUv = clamp(input.uv, input.sampleBounds.xy, input.sampleBounds.zw);
     const float4 sampledStraight = SpriteTexture.Sample(SpriteSampler, sampleUv);
     const float effectiveAlpha = sampledStraight.a * Tint.a * OpacityAndPadding.x;
     const float3 premultipliedRgb = sampledStraight.rgb * Tint.rgb * effectiveAlpha;
@@ -101,11 +109,12 @@ struct FragmentInput
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD0;
+    float4 sampleBounds : TEXCOORD1;
 };
 
 float4 main(FragmentInput input) : SV_Target0
 {
-    const float2 sampleUv = clamp(input.uv, SampleBounds.xy, SampleBounds.zw);
+    const float2 sampleUv = clamp(input.uv, input.sampleBounds.xy, input.sampleBounds.zw);
     const float4 sampledStraight = SpriteTexture.Sample(SpriteSampler, sampleUv);
     const float effectiveAlpha = sampledStraight.a * Tint.a * OpacityAndPadding.x;
     clip(effectiveAlpha - 0.5);
@@ -125,7 +134,7 @@ public:
     {
         if (!SDL_ShaderCross_Init())
         {
-            throw MakeSdlError("SDL_shadercross initialization failed for Sprite SR4");
+            throw MakeSdlError("SDL_shadercross initialization failed for Sprite SR5");
         }
     }
 
@@ -152,7 +161,7 @@ public:
     void* const spirv = SDL_ShaderCross_CompileSPIRVFromHLSL(&hlslInfo, &spirvSize);
     if (spirv == nullptr)
     {
-        throw MakeSdlError("Sprite SR4 HLSL to SPIR-V compilation failed");
+        throw MakeSdlError("Sprite SR5 HLSL to SPIR-V compilation failed");
     }
 
     SDL_ShaderCross_GraphicsShaderMetadata* const metadata =
@@ -160,7 +169,7 @@ public:
     if (metadata == nullptr)
     {
         SDL_free(spirv);
-        throw MakeSdlError("Sprite SR4 SPIR-V reflection failed");
+        throw MakeSdlError("Sprite SR5 SPIR-V reflection failed");
     }
 
     SDL_ShaderCross_SPIRV_Info spirvInfo{};
@@ -177,7 +186,7 @@ public:
 
     if (shader == nullptr)
     {
-        throw MakeSdlError("Sprite SR4 SDL GPU shader compilation failed");
+        throw MakeSdlError("Sprite SR5 SDL GPU shader compilation failed");
     }
     return shader;
 }
@@ -193,7 +202,7 @@ public:
     case SpriteBlendCompatibility::Multiply:
         return SDL_GPU_BLENDFACTOR_DST_COLOR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR5 blend compatibility."};
 }
 
 [[nodiscard]] SDL_GPUBlendFactor DestinationColorFactor(const SpriteBlendCompatibility blend)
@@ -208,7 +217,7 @@ public:
     case SpriteBlendCompatibility::Screen:
         return SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_COLOR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR5 blend compatibility."};
 }
 
 [[nodiscard]] SDL_GPUFilter ResolveFilter(const SpriteSamplerCompatibility sampler)
@@ -220,7 +229,7 @@ public:
     case SpriteSamplerCompatibility::Linear:
         return SDL_GPU_FILTER_LINEAR;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR4 sampler compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR5 sampler compatibility."};
 }
 
 [[nodiscard]] std::size_t BlendIndex(const SpriteBlendCompatibility blend)
@@ -236,7 +245,7 @@ public:
     case SpriteBlendCompatibility::Screen:
         return 3U;
     }
-    throw std::invalid_argument{"Unsupported Sprite SR4 blend compatibility."};
+    throw std::invalid_argument{"Unsupported Sprite SR5 blend compatibility."};
 }
 
 [[nodiscard]] SDL_GPUTextureFormat ResolveDepthStencilTargetFormat(SDL_GPUDevice* const device)
@@ -259,25 +268,49 @@ public:
     return SDL_GPU_TEXTUREFORMAT_INVALID;
 }
 
+[[nodiscard]] std::size_t PresentationQuadCount(
+    const SpritePresentationRenderData& presentation)
+{
+    switch (presentation.geometryKind)
+    {
+    case SpritePresentationGeometryKind::Quad:
+        return 1U;
+    case SpritePresentationGeometryKind::PrimitivePatches:
+        return presentation.primitivePatches.size();
+    }
+    throw std::invalid_argument{"Unsupported Sprite SR5 presentation geometry kind."};
+}
+
 [[nodiscard]] SpriteGpuVertex BuildVertex(
     const OrthographicView& view,
-    const SpriteDrawVertex& vertex) noexcept
+    const SpriteDrawVertex& vertex,
+    const SpriteSampleBounds& sampleBounds) noexcept
 {
     const Float2 clip = WorldToClip(view, vertex.position);
-    return SpriteGpuVertex{clip.x, clip.y, vertex.uv.x, vertex.uv.y};
+    return SpriteGpuVertex{
+        clip.x,
+        clip.y,
+        vertex.uv.x,
+        vertex.uv.y,
+        sampleBounds.minimum.x,
+        sampleBounds.minimum.y,
+        sampleBounds.maximum.x,
+        sampleBounds.maximum.y,
+    };
 }
 
 void WritePresentationVertices(
     SpriteGpuVertex* const destination,
     const OrthographicView& view,
-    const SpriteDrawQuad& quad) noexcept
+    const SpriteDrawQuad& quad,
+    const SpriteSampleBounds& sampleBounds) noexcept
 {
-    destination[0] = BuildVertex(view, quad.topLeft);
-    destination[1] = BuildVertex(view, quad.topRight);
-    destination[2] = BuildVertex(view, quad.bottomRight);
-    destination[3] = BuildVertex(view, quad.topLeft);
-    destination[4] = BuildVertex(view, quad.bottomRight);
-    destination[5] = BuildVertex(view, quad.bottomLeft);
+    destination[0] = BuildVertex(view, quad.topLeft, sampleBounds);
+    destination[1] = BuildVertex(view, quad.topRight, sampleBounds);
+    destination[2] = BuildVertex(view, quad.bottomRight, sampleBounds);
+    destination[3] = BuildVertex(view, quad.topLeft, sampleBounds);
+    destination[4] = BuildVertex(view, quad.bottomRight, sampleBounds);
+    destination[5] = BuildVertex(view, quad.bottomLeft, sampleBounds);
 }
 
 [[nodiscard]] const char* OrderMaskErrorMessage(const SpriteOrderMaskError error) noexcept
@@ -285,25 +318,25 @@ void WritePresentationVertices(
     switch (error)
     {
     case SpriteOrderMaskError::None:
-        return "Sprite SR4 order/mask resolution unexpectedly reported success.";
+        return "Sprite SR5 order/mask resolution unexpectedly reported success.";
     case SpriteOrderMaskError::InvalidSourceIndex:
-        return "Sprite SR4 order scratch contains an invalid source index.";
+        return "Sprite SR5 order scratch contains an invalid source index.";
     case SpriteOrderMaskError::InvalidStableOrder:
-        return "Sprite SR4 order contains the reserved invalid stable order.";
+        return "Sprite SR5 order contains the reserved invalid stable order.";
     case SpriteOrderMaskError::InvalidSortingGroup:
-        return "Sprite SR4 sorting-group state is malformed.";
+        return "Sprite SR5 sorting-group state is malformed.";
     case SpriteOrderMaskError::InconsistentSortingGroup:
-        return "Sprite SR4 sorting-group identity resolves to inconsistent anchors.";
+        return "Sprite SR5 sorting-group identity resolves to inconsistent anchors.";
     case SpriteOrderMaskError::InvalidMask:
-        return "Sprite SR4 mask state is malformed.";
+        return "Sprite SR5 mask state is malformed.";
     case SpriteOrderMaskError::MaskTesterWithoutWriter:
-        return "Sprite SR4 mask tester has no active preceding writer.";
+        return "Sprite SR5 mask tester has no active preceding writer.";
     case SpriteOrderMaskError::MaskWriterAfterTester:
-        return "Sprite SR4 mask writer appears after a tester in the same mask phase.";
+        return "Sprite SR5 mask writer appears after a tester in the same mask phase.";
     case SpriteOrderMaskError::MaskPhaseReentry:
-        return "Sprite SR4 mask phase re-enters an identity after another writer replaced it.";
+        return "Sprite SR5 mask phase re-enters an identity after another writer replaced it.";
     }
-    return "Sprite SR4 order/mask resolution failed.";
+    return "Sprite SR5 order/mask resolution failed.";
 }
 } // namespace
 
@@ -314,14 +347,14 @@ SpriteGpuBackend::SpriteGpuBackend(
 {
     if (device_ == nullptr || colorTargetFormat_ == SDL_GPU_TEXTUREFORMAT_INVALID)
     {
-        throw std::invalid_argument{"Sprite SR4 GPU backend requires a valid device and color target."};
+        throw std::invalid_argument{"Sprite SR5 GPU backend requires a valid device and color target."};
     }
 
     depthStencilTargetFormat_ = ResolveDepthStencilTargetFormat(device_);
     if (depthStencilTargetFormat_ == SDL_GPU_TEXTUREFORMAT_INVALID)
     {
         throw std::runtime_error{
-            "SDL GPU backend does not expose a Sprite SR4 stencil-capable depth target format."};
+            "SDL GPU backend does not expose a Sprite SR5 stencil-capable depth target format."};
     }
 
     try
@@ -394,7 +427,7 @@ void SpriteGpuBackend::CreateSamplers()
         SDL_GPUSampler* const created = SDL_CreateGPUSampler(device_, &samplerInfo);
         if (created == nullptr)
         {
-            throw MakeSdlError("SDL GPU Sprite SR4 sampler creation failed");
+            throw MakeSdlError("SDL GPU Sprite SR5 sampler creation failed");
         }
         ++metrics_.samplerCreations;
         return created;
@@ -431,7 +464,7 @@ void SpriteGpuBackend::CreatePipelines()
         bufferDescriptions[0].pitch = sizeof(SpriteGpuVertex);
         bufferDescriptions[0].input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
 
-        std::array<SDL_GPUVertexAttribute, 2U> attributes{};
+        std::array<SDL_GPUVertexAttribute, 3U> attributes{};
         attributes[0].location = 0U;
         attributes[0].buffer_slot = 0U;
         attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
@@ -440,6 +473,10 @@ void SpriteGpuBackend::CreatePipelines()
         attributes[1].buffer_slot = 0U;
         attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
         attributes[1].offset = static_cast<Uint32>(offsetof(SpriteGpuVertex, u));
+        attributes[2].location = 2U;
+        attributes[2].buffer_slot = 0U;
+        attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
+        attributes[2].offset = static_cast<Uint32>(offsetof(SpriteGpuVertex, sampleMinU));
 
         const auto createPipeline =
             [this, vertexShader, fragmentShader, maskWriterFragmentShader, &bufferDescriptions, &attributes](
@@ -528,7 +565,7 @@ void SpriteGpuBackend::CreatePipelines()
                 SDL_CreateGPUGraphicsPipeline(device_, &pipelineInfo);
             if (created == nullptr)
             {
-                throw MakeSdlError("SDL GPU Sprite SR4 graphics-pipeline creation failed");
+                throw MakeSdlError("SDL GPU Sprite SR5 graphics-pipeline creation failed");
             }
             ++metrics_.pipelineCreations;
             return created;
@@ -576,34 +613,34 @@ void SpriteGpuBackend::CreatePipelines()
     SDL_ReleaseGPUShader(device_, maskWriterFragmentShader);
 }
 
-void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
+void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredQuadSlots)
 {
-    if (requiredSprites == 0U || requiredSprites <= vertexCapacitySprites_)
+    if (requiredQuadSlots == 0U || requiredQuadSlots <= vertexCapacitySprites_)
     {
         return;
     }
 
-    constexpr std::uint64_t BytesPerSprite =
-        static_cast<std::uint64_t>(VerticesPerSprite * sizeof(SpriteGpuVertex));
-    constexpr std::uint64_t MaxSprites =
-        static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()) / BytesPerSprite;
-    if (static_cast<std::uint64_t>(requiredSprites) > MaxSprites)
+    constexpr std::uint64_t BytesPerQuad =
+        static_cast<std::uint64_t>(VerticesPerQuad * sizeof(SpriteGpuVertex));
+    constexpr std::uint64_t MaxQuadSlots =
+        static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()) / BytesPerQuad;
+    if (static_cast<std::uint64_t>(requiredQuadSlots) > MaxQuadSlots)
     {
-        throw std::length_error{"Sprite SR4 vertex upload exceeds SDL GPU buffer limits."};
+        throw std::length_error{"Sprite SR5 vertex upload exceeds SDL GPU buffer limits."};
     }
 
     std::uint64_t replacementCapacity = vertexCapacitySprites_ == 0U ? 1U : vertexCapacitySprites_;
-    while (replacementCapacity < static_cast<std::uint64_t>(requiredSprites))
+    while (replacementCapacity < static_cast<std::uint64_t>(requiredQuadSlots))
     {
-        if (replacementCapacity > MaxSprites / 2U)
+        if (replacementCapacity > MaxQuadSlots / 2U)
         {
-            replacementCapacity = MaxSprites;
+            replacementCapacity = MaxQuadSlots;
             break;
         }
         replacementCapacity *= 2U;
     }
 
-    const Uint32 replacementBytes = static_cast<Uint32>(replacementCapacity * BytesPerSprite);
+    const Uint32 replacementBytes = static_cast<Uint32>(replacementCapacity * BytesPerQuad);
 
     SDL_GPUBufferCreateInfo bufferInfo{};
     bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
@@ -611,7 +648,7 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
     SDL_GPUBuffer* const replacementBuffer = SDL_CreateGPUBuffer(device_, &bufferInfo);
     if (replacementBuffer == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR4 vertex-buffer creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR5 vertex-buffer creation failed");
     }
 
     SDL_GPUTransferBufferCreateInfo transferInfo{};
@@ -622,7 +659,7 @@ void SpriteGpuBackend::EnsureVertexCapacity(const std::size_t requiredSprites)
     if (replacementTransfer == nullptr)
     {
         SDL_ReleaseGPUBuffer(device_, replacementBuffer);
-        throw MakeSdlError("SDL GPU Sprite SR4 transfer-buffer creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR5 transfer-buffer creation failed");
     }
 
     if (vertexTransferBuffer_ != nullptr)
@@ -646,7 +683,7 @@ void SpriteGpuBackend::EnsureMaskTarget(
 {
     if (width == 0U || height == 0U)
     {
-        throw std::invalid_argument{"Sprite SR4 mask target dimensions must be non-zero."};
+        throw std::invalid_argument{"Sprite SR5 mask target dimensions must be non-zero."};
     }
     if (maskTarget_ != nullptr && maskTargetWidth_ == width && maskTargetHeight_ == height)
     {
@@ -666,7 +703,7 @@ void SpriteGpuBackend::EnsureMaskTarget(
     SDL_GPUTexture* const replacement = SDL_CreateGPUTexture(device_, &textureInfo);
     if (replacement == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR4 mask target creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR5 mask target creation failed");
     }
 
     if (maskTarget_ != nullptr)
@@ -686,22 +723,38 @@ void SpriteGpuBackend::UploadPresentations(
 {
     maskingRequired_ = false;
     orderScratch_.clear();
+    patchOffsetScratch_.clear();
     if (presentations.empty())
     {
         return;
     }
     if (commandBuffer == nullptr)
     {
-        throw std::invalid_argument{"Sprite SR4 upload requires a command buffer."};
+        throw std::invalid_argument{"Sprite SR5 upload requires a command buffer."};
     }
     if (presentations.size() > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
     {
-        throw std::length_error{"Sprite SR4 presentation count exceeds semantic source-index range."};
+        throw std::length_error{"Sprite SR5 presentation count exceeds semantic source-index range."};
     }
 
     orderScratch_.resize(presentations.size());
+    patchOffsetScratch_.resize(presentations.size());
+
+    std::size_t requiredQuadSlots = 0U;
     for (std::size_t index = 0U; index < presentations.size(); ++index)
     {
+        const std::size_t quadCount = PresentationQuadCount(presentations[index]);
+        if (quadCount > MaximumSpritePrimitiveQuads)
+        {
+            throw std::length_error{"Sprite SR5 primitive exceeds the per-Sprite expansion limit."};
+        }
+        if (requiredQuadSlots > std::numeric_limits<std::size_t>::max() - quadCount)
+        {
+            throw std::length_error{"Sprite SR5 primitive quad count overflows host size_t."};
+        }
+
+        patchOffsetScratch_[index] = requiredQuadSlots;
+        requiredQuadSlots += quadCount;
         maskingRequired_ =
             maskingRequired_ || presentations[index].mask.mode != SpriteMaskMode::None;
         orderScratch_[index] = SpriteOrderMaskEntry2D{
@@ -717,27 +770,59 @@ void SpriteGpuBackend::UploadPresentations(
         throw std::invalid_argument{OrderMaskErrorMessage(orderStatus.error)};
     }
 
-    EnsureVertexCapacity(presentations.size());
+    if (requiredQuadSlots == 0U)
+    {
+        return;
+    }
+
+    EnsureVertexCapacity(requiredQuadSlots);
     void* const mapped = SDL_MapGPUTransferBuffer(device_, vertexTransferBuffer_, true);
     if (mapped == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR4 transfer-buffer mapping failed");
+        throw MakeSdlError("SDL GPU Sprite SR5 transfer-buffer mapping failed");
     }
 
     auto* const vertices = static_cast<SpriteGpuVertex*>(mapped);
-    for (std::size_t index = 0U; index < presentations.size(); ++index)
+    std::size_t quadSlot = 0U;
+    for (const SpritePresentationRenderData& presentation : presentations)
     {
-        WritePresentationVertices(
-            vertices + index * VerticesPerSprite,
-            view,
-            presentations[index].presentation.quad);
+        switch (presentation.geometryKind)
+        {
+        case SpritePresentationGeometryKind::Quad:
+            WritePresentationVertices(
+                vertices + quadSlot * VerticesPerQuad,
+                view,
+                presentation.presentation.quad,
+                presentation.presentation.appearance.sampleBounds);
+            ++quadSlot;
+            break;
+        case SpritePresentationGeometryKind::PrimitivePatches:
+            for (const SpritePrimitivePatch2D& patch : presentation.primitivePatches)
+            {
+                WritePresentationVertices(
+                    vertices + quadSlot * VerticesPerQuad,
+                    view,
+                    patch.quad,
+                    patch.sampleBounds);
+                ++quadSlot;
+            }
+            break;
+        default:
+            SDL_UnmapGPUTransferBuffer(device_, vertexTransferBuffer_);
+            throw std::invalid_argument{"Unsupported Sprite SR5 presentation geometry kind."};
+        }
     }
     SDL_UnmapGPUTransferBuffer(device_, vertexTransferBuffer_);
+
+    if (quadSlot != requiredQuadSlots)
+    {
+        throw std::logic_error{"Sprite SR5 upload emitted an inconsistent primitive quad count."};
+    }
 
     SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
     if (copyPass == nullptr)
     {
-        throw MakeSdlError("SDL GPU Sprite SR4 upload copy-pass creation failed");
+        throw MakeSdlError("SDL GPU Sprite SR5 upload copy-pass creation failed");
     }
 
     SDL_GPUTransferBufferLocation source{};
@@ -745,7 +830,7 @@ void SpriteGpuBackend::UploadPresentations(
     SDL_GPUBufferRegion destination{};
     destination.buffer = vertexBuffer_;
     destination.size = static_cast<Uint32>(
-        presentations.size() * VerticesPerSprite * sizeof(SpriteGpuVertex));
+        requiredQuadSlots * VerticesPerQuad * sizeof(SpriteGpuVertex));
     SDL_UploadToGPUBuffer(copyPass, &source, &destination, true);
     SDL_EndGPUCopyPass(copyPass);
 }
@@ -758,7 +843,7 @@ SDL_GPURenderPass* SpriteGpuBackend::BeginPresentationRenderPass(
 {
     if (commandBuffer == nullptr || colorTarget.texture == nullptr)
     {
-        throw std::invalid_argument{"Sprite SR4 render pass requires live command/color-target state."};
+        throw std::invalid_argument{"Sprite SR5 render pass requires live command/color-target state."};
     }
 
     if (!maskingRequired_)
@@ -789,7 +874,7 @@ std::size_t SpriteGpuBackend::OrderedSourceIndex(const std::size_t orderedIndex)
 {
     if (orderedIndex >= orderScratch_.size())
     {
-        throw std::out_of_range{"Sprite SR4 ordered presentation index is out of range."};
+        throw std::out_of_range{"Sprite SR5 ordered presentation index is out of range."};
     }
     return static_cast<std::size_t>(orderScratch_[orderedIndex].sourceIndex);
 }
@@ -812,10 +897,10 @@ SDL_GPUGraphicsPipeline* SpriteGpuBackend::ResolvePipeline(
     case SpriteMaskMode::TestOutside:
         return maskOutsidePipelines_[blendIndex];
     }
-    throw std::invalid_argument{"Unsupported Sprite SR4 mask mode."};
+    throw std::invalid_argument{"Unsupported Sprite SR5 mask mode."};
 }
 
-void SpriteGpuBackend::DrawPresentation(
+bool SpriteGpuBackend::DrawPresentation(
     SDL_GPUCommandBuffer* const commandBuffer,
     SDL_GPURenderPass* const renderPass,
     SDL_GPUTexture* const texture,
@@ -824,11 +909,22 @@ void SpriteGpuBackend::DrawPresentation(
 {
     if (commandBuffer == nullptr || renderPass == nullptr || texture == nullptr)
     {
-        throw std::invalid_argument{"Sprite SR4 draw requires live GPU command/render/texture state."};
+        throw std::invalid_argument{"Sprite SR5 draw requires live GPU command/render/texture state."};
     }
-    if (presentationIndex >= vertexCapacitySprites_)
+    if (presentationIndex >= patchOffsetScratch_.size())
     {
-        throw std::out_of_range{"Sprite SR4 draw index exceeds uploaded vertex capacity."};
+        throw std::out_of_range{"Sprite SR5 draw index exceeds current presentation scratch."};
+    }
+
+    const std::size_t quadCount = PresentationQuadCount(presentation);
+    if (quadCount == 0U)
+    {
+        return false;
+    }
+    const std::size_t firstQuad = patchOffsetScratch_[presentationIndex];
+    if (firstQuad >= vertexCapacitySprites_ || quadCount > vertexCapacitySprites_ - firstQuad)
+    {
+        throw std::out_of_range{"Sprite SR5 draw range exceeds uploaded vertex capacity."};
     }
 
     SDL_GPUSampler* sampler = nullptr;
@@ -841,7 +937,7 @@ void SpriteGpuBackend::DrawPresentation(
         sampler = linearSampler_;
         break;
     default:
-        throw std::invalid_argument{"Unsupported Sprite SR4 sampler compatibility."};
+        throw std::invalid_argument{"Unsupported Sprite SR5 sampler compatibility."};
     }
 
     SDL_GPUGraphicsPipeline* const pipeline = ResolvePipeline(
@@ -849,7 +945,7 @@ void SpriteGpuBackend::DrawPresentation(
         presentation.mask.mode);
     if (pipeline == nullptr)
     {
-        throw std::runtime_error{"Sprite SR4 required graphics pipeline is unavailable."};
+        throw std::runtime_error{"Sprite SR5 required graphics pipeline is unavailable."};
     }
 
     if (presentation.mask.mode != SpriteMaskMode::None)
@@ -890,17 +986,21 @@ void SpriteGpuBackend::DrawPresentation(
         static_cast<Uint32>(sizeof(uniform)));
 
     const std::uint64_t firstVertex64 =
-        static_cast<std::uint64_t>(presentationIndex) * VerticesPerSprite;
-    if (firstVertex64 > static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()))
+        static_cast<std::uint64_t>(firstQuad) * VerticesPerQuad;
+    const std::uint64_t vertexCount64 =
+        static_cast<std::uint64_t>(quadCount) * VerticesPerQuad;
+    if (firstVertex64 > static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()) ||
+        vertexCount64 > static_cast<std::uint64_t>(std::numeric_limits<Uint32>::max()))
     {
-        throw std::length_error{"Sprite SR4 first vertex exceeds SDL GPU draw limits."};
+        throw std::length_error{"Sprite SR5 vertex draw range exceeds SDL GPU limits."};
     }
     SDL_DrawGPUPrimitives(
         renderPass,
-        static_cast<Uint32>(VerticesPerSprite),
+        static_cast<Uint32>(vertexCount64),
         1U,
         static_cast<Uint32>(firstVertex64),
         0U);
+    return true;
 }
 
 const SpriteGpuBackendMetrics& SpriteGpuBackend::Metrics() const noexcept
@@ -917,6 +1017,7 @@ void SpriteGpuBackend::Cleanup() noexcept
 
     maskingRequired_ = false;
     orderScratch_.clear();
+    patchOffsetScratch_.clear();
 
     if (maskTarget_ != nullptr)
     {

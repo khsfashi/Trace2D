@@ -28,13 +28,13 @@ Completed Sprite stages:
 - #123 / SR0 renderer contract / canonical asset-render separation — PR #124 / squash `aa30a8e4498fd5edd6df9d2be7bb9a91bcdea5db`,
 - #125 / SR1 transform geometry and fixed-step presentation history — PR #126 / squash `7b78c7bd5f792cfcf5a9171c62e06e792b1702ac`,
 - #127 / SR2 trim/pivot/atlas/rotated-storage geometry and UV derivation — PR #128 / squash `a42e65c8a7953d38ad2d82894332c1f39da288f1`,
-- #130 / SR3 color/alpha/blend/sampling — PR #131 merged; real Windows presentation-GPU gate passed 2026-08-12.
+- #130 / SR3 color/alpha/blend/sampling — PR #131; real Windows presentation-GPU gate passed 2026-08-12,
+- #132 / SR4 painter order/sorting groups/masking — PR #133 / squash `3c843bba10be536685c0fc70306b3fd6c75ed67a`; real Windows presentation-GPU gate passed 2026-08-12,
+- #134 / SR5 9-slice and tiled/repeated Sprite primitives — completion vehicle PR #135; all hosted and owner-GPU acceptance gates passed 2026-08-12.
 
 **Active core program: #59 Complete Sprite program.**  
-**Active child: #132 / SR4 — painter order, sorting groups and Sprite masking.**  
-**Active implementation vehicle: draft PR #133 / branch `sprite-sr4-order-mask`.**  
-**SR4 is not complete until hosted validation is green and the committed real Windows presentation-GPU order/mask fixture passes.**  
-**Exact next child after SR4 merges: SR5 — 9-slice and tiled/repeated Sprite primitives. Do not create SR5 early.**
+**SR5 acceptance is complete. PR #135 is the completion/merge vehicle.**  
+**Exact next child after #135 merges: SR6 — pixel-perfect runtime presentation. Do not create SR6 in the same continuation that completes SR5.**
 
 ## #59 Sprite program
 
@@ -45,13 +45,15 @@ SR0 render seam: [`docs/SPRITE_RENDER_CONTRACT.md`](docs/SPRITE_RENDER_CONTRACT.
 SR1 transform/presentation seam: [`docs/SPRITE_TRANSFORM_PRESENTATION.md`](docs/SPRITE_TRANSFORM_PRESENTATION.md).  
 SR2 atlas/trim/UV seam: [`docs/SPRITE_ATLAS_GEOMETRY.md`](docs/SPRITE_ATLAS_GEOMETRY.md).  
 SR3 color/alpha/blend/sampling seam: [`docs/SPRITE_COLOR_SAMPLING.md`](docs/SPRITE_COLOR_SAMPLING.md).  
-SR4 painter-order/group/masking seam: [`docs/SPRITE_ORDER_MASKING.md`](docs/SPRITE_ORDER_MASKING.md).
+SR4 painter-order/group/masking seam: [`docs/SPRITE_ORDER_MASKING.md`](docs/SPRITE_ORDER_MASKING.md).  
+SR5 9-slice/tiled seam: [`docs/SPRITE_PRIMITIVES.md`](docs/SPRITE_PRIMITIVES.md).
 
 Fixed internal order:
 
 ```text
 S0 [complete] -> S1 [complete]
- -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete] -> SR4 [active #132/#133] -> SR5 -> SR6 -> SR7 -> SR8
+ -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
+ -> SR4 [complete #132/#133] -> SR5 [complete #134/#135] -> SR6 [next] -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
@@ -59,236 +61,97 @@ S0 [complete] -> S1 [complete]
 
 Exactly one child is active at a time.
 
-## #132 / SR4 — active via PR #133
+## #134 / SR5 — acceptance complete via PR #135
 
-Concrete contract: [`docs/SPRITE_ORDER_MASKING.md`](docs/SPRITE_ORDER_MASKING.md).
+SR5 extends canonical Sprite metadata and production presentation with deterministic 9-slice and tiled/repeated primitives while preserving S0-SR4 authority.
 
-SR4 extends the already-resolved SR0-SR3 presentation seam with finite semantic order/group/mask intent:
+### Canonical/runtime split
 
-```text
-SpritePresentation2D
- + SpriteOrder2D
- + SpriteMask2D
-        -> validated semantic sequence
-        -> production renderer submission in that exact order
-        -> optional bounded SDL GPU stencil masking
-```
-
-### Backend-independent ordering
-
-Current implementation adds:
-
-- signed 32-bit `layer` and `order`,
-- unsigned 64-bit stable semantic order with `UINT64_MAX` reserved invalid,
-- bounded one-level sorting-group IDs `1..255`, with ID `0` meaning canonical ungrouped state,
-- one top-level group anchor tuple `(layer, order, stableOrder)` shared by every member of a group,
-- child-local `(layer, order, stableOrder)` ordering only after the group has been placed as one top-level unit,
-- deterministic exact ties through original caller `sourceIndex`,
-- explicit rejection of malformed/inconsistent group anchors,
-- no texture/material/sampler/blend/GPU handle or allocation-address participation in the comparator.
-
-Resolution uses O(n) validation, one in-place O(n log n) `std::sort`, then O(n) mask-phase validation. Group-anchor validation uses a fixed 256-entry table; the production renderer reuses capacity-managed scratch across frames.
-
-### Bounded mask state machine
-
-Finite states are:
+Canonical `SpriteRegion` now has optional exact source-pixel border metadata:
 
 ```text
-none
-write(mask_id)
-test_inside(mask_id)
-test_outside(mask_id)
+border = [left, top, right, bottom]
 ```
 
-Mask IDs are `1..255`; ID `0` is reserved for `none`.
+Omission remains backward-compatible schema-v1 zero. Borders are validated against untrimmed source size and are never rewritten by trim or packed rotation.
 
-One mask phase is active at a time in resolved painter order:
+Runtime presentation chooses:
 
 ```text
-write(M) [write(M)...] -> tester(M) [tester(M)...]
+quad | sliced | tiled
 ```
 
-- multiple same-ID writers may union coverage before the first tester,
-- a writer after a tester in the same phase fails,
-- a different writer closes the previous mask phase,
-- a closed mask ID may not re-enter later,
-- a tester without its currently active writer fails,
-- unmasked draws do not change mask-phase state.
+with explicit target size. Resizing preserves the canonical pivot's normalized source position rather than mutating authored pivot state.
 
-This prevents the CPU semantic contract from relying on stale backend stencil contents after another identity has overwritten pixels.
+### Geometry and sampling
 
-Mask writer coverage is frozen as:
+SR5 implements:
+
+- deterministic source/target 3x3 partition,
+- proportional opposing-border compression when target size is undersized,
+- explicit repeated geometry for tiled center/edge cells,
+- partial final tiles without texture wrap authority,
+- trim intersection that preserves transparent logical gaps,
+- `none` and `cw90` arbitrary source-subrect packed mapping,
+- exact pixel-edge UV geometry plus per-patch texel-center sample bounds,
+- sub-texel partial tiles clamped to the represented texel center to avoid linear-filter atlas bleed,
+- exact count-first caller-owned patch output,
+- no partial writes on insufficient capacity,
+- hard safety bound `MaximumSpritePrimitiveQuads == 4096`.
+
+### SR4 atomicity and GPU path
+
+Primitive expansion does not create separate semantic Sprite items:
 
 ```text
-effective_alpha = sampledStraight.a * tint.a * opacity
-covered         = effective_alpha >= 0.5
+one SpritePresentationRenderData
+ -> one SR4 order/group/mask item
+ -> N contiguous SR5 quad slots
+ -> one triangle-list draw for N > 0
 ```
 
-The writer uses normal SR2 geometry and SR3 atlas-safe sampling, writes no color, and changes only derived mask coverage.
-
-### Production SDL GPU path
-
-PR #133 currently implements:
-
-- target-format-aware SR3 appearance preserved for masked testers,
-- two persistent nearest/linear samplers,
-- four color-only unmasked blend pipelines,
-- four stencil-target-compatible unmasked blend pipelines for `none` Sprites inside a masked pass,
-- four `test_inside` blend pipelines,
-- four `test_outside` blend pipelines,
-- one mask writer pipeline,
-- 17 finite persistent Sprite presentation pipelines total,
-- D24S8 then D32S8 stencil-target format probing,
-- dynamic 8-bit stencil reference from semantic mask ID,
-- writer `ALWAYS + REPLACE`, inside `EQUAL + KEEP`, outside `NOT_EQUAL + KEEP`,
-- wholly unmasked submissions use a color-only pass and create/attach/clear no mask target,
-- masked submissions clear stencil to zero and select target-compatible `none` pipelines without stencil tests,
-- reusable size-matched mask target,
-- reusable Sprite vertex and semantic-order scratch capacity,
-- no global resource sorting and no ordinary-frame explicit GPU readback/fence wait.
-
-SR7 still owns broad compatibility batching/culling. SR4 submits semantic order correctly first and optimizes only persistent/reusable finite state.
-
-### Tests and completion gate
-
-Committed backend-independent tests cover:
-
-- signed layer/order/stable ordering,
-- exact caller-order tie preservation,
-- sorting-group atomicity and local child order,
-- deterministic same-anchor group collision handling,
-- inconsistent/malformed group states,
-- writer/inside/outside phase success,
-- tester-without-writer, writer-after-tester, phase-reentry and invalid-mask failures.
-
-Committed opt-in real-GPU fixture:
-
-```text
-SpriteOrderMaskGpuSmokeTests.Sr4PainterGroupsAndMasksMatchFrozenContract
-```
-
-The fixture intentionally verifies:
-
-- semantic painter order from reversed caller input,
-- sorting-group semantics rather than caller/resource order,
-- unmasked-only presentation does not create a mask target,
-- an ordinary `none` Sprite remains valid between a writer and tester in a masked pass without changing stencil state,
-- masked `test_inside` preserves SR3 linear sampling and additive blending,
-- masked tint and opacity suppression remain identical to SR3 appearance semantics,
-- inside-mask captured coverage,
-- outside-mask inverse captured coverage,
-- persistent sampler/pipeline/mask-target/vertex-capacity reuse,
-- repeated ordinary rendering adds no explicit readback/fence waits.
-
-**Do not claim SR4 complete or merge #133 until this real Windows presentation-GPU fixture has actually passed and the result is recorded.**
-
-## #130 / SR3 — complete via PR #131
-
-SR3 adds production Sprite color, alpha, blend and sampling semantics on top of SR0 selection and SR2 exact quad geometry.
-
-### Backend-independent contract
-
-Implemented:
-
-- `SpriteAppearance2D` with linear tint RGBA, opacity, `inherit_asset|nearest|linear` sampling and `normal|additive|multiply|screen` blending,
-- strict finite `[0,1]` validation for tint/opacity,
-- canonical source alpha remains straight,
-- page `srgb|linear` resolves to finite sampled texture encoding identity,
-- atlas-safe texel-center sample bounds remain separate from SR2 canonical pixel-edge UV truth,
-- `SpritePresentation2D` transactionally combines exact SR2 `SpriteDrawQuad` geometry with resolved SR3 appearance,
-- fixed-size caller-owned O(1) extraction with no required heap allocation, semantic lookup, filesystem/TOML/image decode, GPU initialization or canonical mutation,
-- CPU conformance oracles freeze the exact straight-alpha -> premultiplied fragment and all four blend equations.
-
-Frozen fragment boundary:
-
-```text
-A = sampledStraight.a * tint.a * opacity
-P = sampledLinear.rgb * tint.rgb * A
-fragment = (P, A)
-```
-
-Frozen premultiplied blend factors:
-
-```text
-normal   : src=ONE,       dst=ONE_MINUS_SRC_ALPHA
-additive : src=ONE,       dst=ONE
-multiply : src=DST_COLOR, dst=ONE_MINUS_SRC_ALPHA
-screen   : src=ONE,       dst=ONE_MINUS_SRC_COLOR
-
-alpha for all modes:
-src=ONE, dst=ONE_MINUS_SRC_ALPHA, op=ADD
-```
-
-### Production SDL GPU path
-
-Implemented:
-
-- sRGB/linear-tagged Sprite texture creation with sampled-format support validation,
-- SR3 renderer overloads consuming `SpritePresentationRenderData`,
-- exact SR2 quad positions/UVs uploaded through reusable capacity-managed Sprite vertex resources,
-- fragment UV clamp to SR3 texel-center bounds before sampling,
-- tint/opacity plus straight -> premultiplied conversion in the built-in fragment path,
-- persistent nearest/linear samplers and built-in blend pipelines,
-- no per-Sprite/per-frame sampler/pipeline/shader creation,
-- legacy Sprite/particle resources remain separate,
-- ordinary presentation performs no explicit GPU readback or fence wait; explicit capture/conformance synchronizes only where observation requires it.
+The SDL GPU path preserves persistent sampler/pipeline/mask state, grows reusable vertex/transfer-buffer capacity geometrically, and performs no ordinary-frame explicit GPU readback or fence wait.
 
 ### Validation evidence
 
-The SR3 blocking real-GPU gate passed on **2026-08-12** from `D:\Trace2D-pr131` with `TRACE2D_RUN_GPU_SMOKE=1`:
-
-```powershell
-ctest --test-dir .\build\windows-msvc -C Debug -R "SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract" --output-on-failure
-```
-
-Observed result:
+Final implementation head before completion documentation:
 
 ```text
-Test project D:/Trace2D-pr131/build/windows-msvc
-    Start 94: SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract
-1/1 Test #94: SpriteGpuSmokeTests.Sr3ColorSamplingBlendAndCachesMatchFrozenContract ... Passed
+e05dc7158f5ea68b990f0e87f753629d6149ebab
+```
+
+Hosted checks on that head all passed:
+
+- CI run #604 — success,
+- Content Evidence — success,
+- Sprite S0 Contract — success,
+- B0 Codex Wrapper — success,
+- B0 Godot Agent Oracle — success.
+
+Blocking owner Windows presentation-GPU fixture:
+
+```text
+SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
+```
+
+First owner execution correctly exposed a real 0.5-texel partial-tile linear-filter bleed. The observed failed sample mixed red/green (`red=64`, `green=191`) instead of the intended pure green. The sample-bound calculation was corrected and locked with the backend-independent `SubTexelPartialTileClampsToRepresentedTexelCenter` regression test.
+
+The owner reran configure/build and the GPU fixture with `TRACE2D_RUN_GPU_SMOKE=1`. Final observed result:
+
+```text
+Start 120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
+1/1 Test #120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract ... Passed
 100% tests passed out of 1
-Total Test time (real) = 3.07 sec
+Total Test time (real) = 2.28 sec
 ```
 
 No renderer/driver string was captured; do not invent one.
 
-## External-reference decisions retained by SR4
+## Exact next stage: SR6
 
-Primary external authority for the active backend is current official SDL3 GPU documentation.
+SR6 owns pixel-perfect runtime presentation. It must freeze the mapping among source pixels, `pixels_per_unit`, world transforms, resolved camera/view, logical viewport and final target pixels, including interpolation/camera interaction. It must preserve SR0-SR5 canonical/derived authority and keep deterministic mapping facts machine-verifiable.
 
-**ADOPT**
-
-- explicit stencil compare/write masks,
-- dynamic stencil reference per masked draw,
-- `REPLACE` writer and `EQUAL` / `NOT_EQUAL` tester comparisons,
-- runtime query for stencil-capable depth/stencil target format,
-- persistent target-format-aware graphics pipelines,
-- explicit color-write disable for mask writer,
-- existing SR3 sRGB/linear sampled texture and premultiplied blend contract.
-
-**ADAPT**
-
-- SDL stencil reference is treated as derived mapping of a bounded semantic mask ID, never canonical asset state,
-- one finite mask phase at a time is enforced so old stencil identities cannot be relied on after another writer,
-- color-only and stencil-target-compatible unmasked pipeline sets are separated so target compatibility is explicit without taxing wholly unmasked frames,
-- reusable scratch/target capacity is owned by the renderer rather than allocated per Sprite.
-
-**REJECT**
-
-- global texture/material/pipeline sorting,
-- pointer/allocation/GPU handle tie-breakers,
-- arbitrary recursive sorting-group inference in the renderer,
-- programmable mask graphs/stencil property bags in SR4,
-- per-frame/per-Sprite persistent resource creation,
-- ordinary-frame GPU readback/fence waits.
-
-**DEFER**
-
-- recursive scene-group hierarchy to #71,
-- Material2D/custom programmable render state to #89,
-- SR5 9-slice/tiled geometry,
-- SR7 broad batching/culling/resource-run optimization.
+Do not begin SR7, animation, offline Sprite processing, or game-production foundation work before SR6 is completed in the fixed order.
 
 ## Owner-fixed core execution order
 
@@ -309,9 +172,10 @@ Content production
       -> #125 SR1 transform/history/geometry                [complete via #126]
       -> #127 SR2 atlas/trim/pivot/UV geometry              [complete via #128]
       -> #130 SR3 color/alpha/blend/sampling                [complete via #131]
-      -> #132 SR4 painter order/sorting groups/masking      [active via draft #133]
-      -> SR5 9-slice/tiled/repeated Sprite primitives       [next after SR4 merge only]
-      -> SR6..SR8 renderer
+      -> #132 SR4 painter order/sorting groups/masking      [complete via #133]
+      -> #134 SR5 9-slice/tiled/repeated primitives         [complete via #135]
+      -> SR6 pixel-perfect runtime presentation              [exact next]
+      -> SR7..SR8 renderer
       -> SA0..SA4 animation
       -> SPP0..SPP5 offline processing/generation
       -> SE2E -> SPERF
@@ -365,12 +229,12 @@ The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves th
 
 ## Continuation rule
 
-While #132 / PR #133 is active:
+SR5 acceptance is complete. The completion continuation must:
 
-1. continue only SR4 implementation, validation, review fixes, real-GPU evidence, and merge work,
-2. do not create SR5 or begin later Sprite stages,
-3. do not claim backend-conformant masking from hosted compile/CPU tests alone,
-4. once hosted validation is green, run the committed real Windows presentation-GPU SR4 fixture,
-5. record the exact observed result without inventing driver/hardware data,
-6. merge #133 and confirm #132 closed only after every SR4 gate is satisfied,
-7. stop that continuation; create exactly one SR5 child on the next `@GitHub Trace2D 다음 진행해줘`.
+1. record the hosted and owner-GPU evidence,
+2. update `docs/SPRITES.md`, `docs/SPRITE_PRIMITIVES.md` and this file,
+3. mark PR #135 ready and merge it only with the final acceptance state intact,
+4. confirm #134 closed,
+5. stop without creating SR6.
+
+The **next** `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR6 child and no later stage.

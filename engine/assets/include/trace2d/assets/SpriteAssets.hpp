@@ -67,6 +67,19 @@ struct SpritePixelRect final
     [[nodiscard]] bool operator==(const SpritePixelRect&) const noexcept = default;
 };
 
+// Exact untrimmed source-space 9-slice border metadata. The zero value means that the
+// canonical region has no authored border. SR5 presentation may still render that region as
+// a normal quad; sliced/tiled presentation validates the border against source_size.
+struct SpritePixelBorder final
+{
+    std::uint32_t left{0};
+    std::uint32_t top{0};
+    std::uint32_t right{0};
+    std::uint32_t bottom{0};
+
+    [[nodiscard]] bool operator==(const SpritePixelBorder&) const noexcept = default;
+};
+
 struct SpriteRationalPivot final
 {
     std::int64_t xNumerator{0};
@@ -97,6 +110,7 @@ struct SpriteRegion final
     SpritePixelRect packedRect{};
     SpriteRationalPivot pivot{};
     SpritePackedRotation packedRotation{SpritePackedRotation::None};
+    SpritePixelBorder border{};
 
     [[nodiscard]] bool operator==(const SpriteRegion&) const noexcept = default;
 };

@@ -455,6 +455,11 @@ void WriteRect(std::ostringstream& output, const SpritePixelRect value)
     output << '[' << value.x << ", " << value.y << ", " << value.width << ", " << value.height << ']';
 }
 
+void WriteBorder(std::ostringstream& output, const SpritePixelBorder value)
+{
+    output << '[' << value.left << ", " << value.top << ", " << value.right << ", " << value.bottom << ']';
+}
+
 void CopySourceContext(
     std::vector<SpriteAssetDiagnostic>& diagnostics,
     const std::string_view reference,
@@ -802,7 +807,7 @@ SpriteAssetLoadResult ParseSpriteAssetToml(
             ValidateKnownKeys(
                 *regionTable,
                 path,
-                {"id", "page", "source_size", "trim_offset", "trim_size", "packed_rect", "pivot", "packed_rotation"},
+                {"id", "page", "source_size", "trim_offset", "trim_size", "packed_rect", "pivot", "packed_rotation", "border"},
                 result.diagnostics);
 
             SpriteRegion region{};
@@ -814,6 +819,7 @@ SpriteAssetLoadResult ParseSpriteAssetToml(
             std::uint32_t trimOffset[2]{};
             std::uint32_t trimSize[2]{};
             std::uint32_t packedRect[4]{};
+            std::uint32_t border[4]{};
             std::int64_t pivot[3]{};
             const bool sourceValid = ReadUInt32Array(
                 *regionTable, "source_size", path + ".source_size", 2U, sourceSize, result.diagnostics);
@@ -823,6 +829,12 @@ SpriteAssetLoadResult ParseSpriteAssetToml(
                 *regionTable, "trim_size", path + ".trim_size", 2U, trimSize, result.diagnostics);
             const bool packedValid = ReadUInt32Array(
                 *regionTable, "packed_rect", path + ".packed_rect", 4U, packedRect, result.diagnostics);
+            bool borderValid = true;
+            if (regionTable->get("border") != nullptr)
+            {
+                borderValid = ReadUInt32Array(
+                    *regionTable, "border", path + ".border", 4U, border, result.diagnostics);
+            }
             const bool pivotValid = ReadInt64Array(
                 *regionTable, "pivot", path + ".pivot", 3U, pivot, result.diagnostics);
             const std::optional<std::string> packedRotation =
@@ -853,6 +865,10 @@ SpriteAssetLoadResult ParseSpriteAssetToml(
             {
                 region.packedRect = SpritePixelRect{
                     packedRect[0], packedRect[1], packedRect[2], packedRect[3]};
+            }
+            if (borderValid)
+            {
+                region.border = SpritePixelBorder{border[0], border[1], border[2], border[3]};
             }
             if (pivotValid)
             {
@@ -941,6 +957,22 @@ SpriteAssetLoadResult ParseSpriteAssetToml(
                 "packed_rect width and height must both be greater than zero.");
         }
 
+        const std::uint64_t horizontalBorder =
+            static_cast<std::uint64_t>(region.border.left) +
+            static_cast<std::uint64_t>(region.border.right);
+        const std::uint64_t verticalBorder =
+            static_cast<std::uint64_t>(region.border.top) +
+            static_cast<std::uint64_t>(region.border.bottom);
+        if (horizontalBorder > static_cast<std::uint64_t>(region.sourceSize.width) ||
+            verticalBorder > static_cast<std::uint64_t>(region.sourceSize.height))
+        {
+            AddDiagnostic(
+                result.diagnostics,
+                SpriteAssetErrorCode::SchemaError,
+                path + ".border",
+                "Opposing Sprite borders must fit inside source_size.");
+        }
+
         if (!FitsWithin(region.trimOffset.x, region.trimSize.width, region.sourceSize.width) ||
             !FitsWithin(region.trimOffset.y, region.trimSize.height, region.sourceSize.height))
         {
@@ -1026,7 +1058,10 @@ std::string SaveSpriteAssetToml(const SpriteAsset& asset)
         output << '\n';
         output << "pivot = [" << region.pivot.xNumerator << ", " << region.pivot.yNumerator
                << ", " << region.pivot.denominator << "]\n";
-        output << "packed_rotation = " << EscapeTomlString(ToString(region.packedRotation)) << "\n\n";
+        output << "packed_rotation = " << EscapeTomlString(ToString(region.packedRotation)) << '\n';
+        output << "border = ";
+        WriteBorder(output, region.border);
+        output << "\n\n";
     }
 
     return output.str();
