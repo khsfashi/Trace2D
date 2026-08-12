@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5/SR6/SR7/SR8/SA0 complete. SA1 — `SpriteAnimator2D` authoritative runtime state is active via #146 / draft PR #147.**
+Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5/SR6/SR7/SR8/SA0/SA1 complete. SA2 — deterministic playback, events, loops, and transitions is active via #148 / draft PR #149.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -17,7 +17,8 @@ SR7 production batching/hot-path seam: [`SPRITE_BATCHING_SR7.md`](SPRITE_BATCHIN
 SR8 conformance/workload seam: [`SPRITE_RENDERER_CONFORMANCE_SR8.md`](SPRITE_RENDERER_CONFORMANCE_SR8.md).  
 SA0 animation timing seam: [`SPRITE_ANIMATION_TIMING_SA0.md`](SPRITE_ANIMATION_TIMING_SA0.md).  
 Machine-readable SA0 invariants: [`contracts/sprite-animation-sa0.json`](contracts/sprite-animation-sa0.json).  
-SA1 authoritative state seam: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).
+SA1 authoritative state seam: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).  
+SA2 deterministic playback seam: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).
 
 This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer or tooling state.
 
@@ -65,7 +66,7 @@ Hard invariants:
 - #71/#86/#88/#89 attach through typed seams without replacing Sprite semantics,
 - import/generation/repair/report/capture are explicit work outside ordinary frame hot paths.
 
-SA0 extends the same authority rule to animation: integer fixed-step animation time/frame/event crossings are authoritative runtime state; renderer selection, GPU resources, pixels and observation artifacts remain derived consumers/evidence. SA1 materializes that rule as renderer-independent prepared clip data plus fixed-size typed `SpriteAnimator2DState`.
+SA0 extends the same authority rule to animation: integer fixed-step animation time/frame/event crossings are authoritative runtime state; renderer selection, GPU resources, pixels and observation artifacts remain derived consumers/evidence. SA1 materializes that rule as renderer-independent prepared clip data plus fixed-size typed `SpriteAnimator2DState`. SA2 executes that state deterministically with exact retained-rational speed progress, typed authored/structural emissions, and explicit playback transitions without moving authority into rendering or tooling.
 
 ## 3. Fixed implementation order
 
@@ -76,12 +77,12 @@ S0 [complete] -> S1 [complete]
  -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
  -> SR4 [complete] -> SR5 [complete] -> SR6 [complete] -> SR7 [complete]
  -> SR8 [complete]
- -> SA0 [complete] -> SA1 [active #146/#147] -> SA2 -> SA3 -> SA4
+ -> SA0 [complete] -> SA1 [complete] -> SA2 [active #148/#149] -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Completed renderer stages through SR8 and SA0 timing semantics are frozen. **Do not create or begin SA2 while #146/PR #147 remains open or while its hosted CI/audit gates are pending.**
+Completed renderer stages through SR8 plus SA0 timing/event semantics and SA1 typed authoritative state are frozen. **Do not create or begin SA3 while #148/PR #149 remains open or while its hosted CI/audit gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -175,9 +176,9 @@ Primary-source decisions are recorded in the SA0 contract: Aseprite per-frame in
 
 SA0 merged only after `Sprite SA0 Contract` and normal repository CI/audits were green on the final head. No new GPU behavior was introduced, so SA0 added no real-GPU gate.
 
-### SA1 — `SpriteAnimator2D` authoritative state — active #146 / draft PR #147
+### SA1 — `SpriteAnimator2D` authoritative state — complete
 
-Concrete contract: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).
+Completed via #146/#147, squash `dc8909b24dc5f67e8bec2506263d7b433c6fb2f4`. Concrete contract: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).
 
 SA1 implements the renderer-independent typed state that SA0 deferred:
 
@@ -185,7 +186,7 @@ SA1 implements the renderer-independent typed state that SA0 deferred:
 - frame durations and cached cumulative boundaries use exact integer nanoseconds,
 - failed preparation preserves the previous prepared output,
 - arbitrary time-to-frame lookup uses cached boundaries in O(log frame_count),
-- `SpriteAnimator2DState` holds clip/time/frame/playback/loop/direction/completion/exact speed state only,
+- `SpriteAnimator2DState` holds clip/time/frame/playback/loop/direction/completion/exact speed state,
 - exact speed is a canonical reduced non-negative rational magnitude; direction is explicit and separate,
 - `SpriteAnimator2DState` is trivially copyable and owns no heap container/string/renderer resource,
 - `ValidateSpriteAnimator2DState` rejects time/frame mismatch, invalid enums/speed and invalid completion state,
@@ -195,15 +196,29 @@ SA1 implements the renderer-independent typed state that SA0 deferred:
 
 The prepared clip pointer is non-owning and must outlive animator states referencing it. This deliberately avoids per-state shared-ownership/reference-count work in the fixed-step hot state; #86 may later generalize resource lifetime without changing animation authority.
 
-SA1 does **not** implement fixed-step time advancement, retained fractional speed remainder, play/pause/stop/restart/seek commands, loop/ping-pong execution, authored event emission/output buffers, transitions, Agent/MCP actions or workloads.
+SA1 deliberately left fixed-step time advancement, retained fractional speed remainder, playback commands, loop/ping-pong execution, authored event emission/output buffers and structural transitions to SA2.
 
-Current primary-source review: Godot's explicit animation/frame/playing/speed state is adapted while float progress/speed is rejected as authority; Aseprite's explicit per-frame duration/direction metadata is adopted/adapted without creating a runtime dependency.
+Final implementation head `56a8cab7c7cb3030762e618151a0620e3163685e` passed hosted CI run `31574714328` plus the SA0/S0/content/B0 checks before merge. SA1 introduced no presentation-GPU behavior and required no new local real-GPU gate.
 
-PR #147 may merge only when focused runtime tests and normal hosted CI/audits are green on the same final head and documentation agrees with the implementation. SA1 introduces no new presentation-GPU behavior, so it adds no new local real-GPU gate.
+### SA2 — deterministic playback/events/loops/transitions — active #148 / draft PR #149
 
-### SA2 — playback/events/transitions
+Concrete contract: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).
 
-Implement deterministic play/restart/pause/resume/stop/reset, loops, completion, exact speed advancement with retained remainder, authored event traversal/output and bounded transitions while preserving SA0 event-crossing rules and SA1 state invariants. **Do not begin before SA1 merges green.**
+SA2 executes SA0/SA1 deterministically:
+
+- prepared clips accept typed authored events with numeric semantic IDs, integer offsets and stable authored ordinals,
+- events are validated/sorted once by `(offset, authoredOrdinal)` and reused,
+- authoritative state adds retained rational speed remainder,
+- exact speed advancement uses checked quotient/remainder decomposition rather than float accumulation, unchecked wide multiplication, or a required non-portable `__int128`,
+- `Play`, `Pause`, `Stop`, `Reset`, `Restart`, `Seek`, `SetSpeed`, and `SetDirection` have explicit state semantics,
+- forward/reverse `Once`, `Loop`, and `PingPong` traversal preserve SA0 boundary/event rules,
+- runtime output distinguishes `AuthoredEvent`, `Loop`, `Bounce`, and `Completed`,
+- caller-owned bounded output is transactional: insufficient capacity returns explicit failure without state mutation or partial authoritative output,
+- ordinary advancement performs no mandatory heap/filesystem/JSON/formatting/semantic-name/GPU work.
+
+Current reference decisions: Godot explicit playback and separate loop/finish notification precedent is adapted while float progress/speed and signal-only authority are rejected; Aseprite integer durations/direction/repeat metadata is adopted/adapted as authoring precedent without adding a runtime dependency.
+
+PR #149 remains draft until focused runtime tests and normal hosted CI/audits are green on the same final head and documentation agrees. SA2 introduces no new presentation-GPU behavior, so it adds no new local real-GPU gate.
 
 ### SA3 — Agent/MCP verification
 
@@ -280,4 +295,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SA1 / #146 / draft PR #147 is the only active Sprite child. Keep its PR scoped to prepared clip data plus `SpriteAnimator2D` authoritative state/validation/observation. Do not create/implement SA2 until SA1 merges green. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
+SA2 / #148 / draft PR #149 is the only active Sprite child. Keep its PR scoped to deterministic playback controls, exact retained-remainder advancement, authored event traversal/output and `Once|Loop|PingPong` structural transitions. Do not create/implement SA3 until SA2 merges green. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.

@@ -15,6 +15,7 @@ struct SpriteAsset;
 namespace trace2d::runtime
 {
 using SpriteAnimationTime2D = std::chrono::nanoseconds;
+using SpriteAnimationEventId2D = std::uint32_t;
 
 struct SpriteAnimationFrame2D final
 {
@@ -24,15 +25,27 @@ struct SpriteAnimationFrame2D final
     [[nodiscard]] bool operator==(const SpriteAnimationFrame2D&) const noexcept = default;
 };
 
+struct SpriteAnimationEvent2D final
+{
+    SpriteAnimationEventId2D eventId{0};
+    SpriteAnimationTime2D offset{0};
+    std::uint32_t authoredOrdinal{0};
+
+    [[nodiscard]] bool operator==(const SpriteAnimationEvent2D&) const noexcept = default;
+};
+
 enum class SpriteAnimationClipError : std::uint8_t
 {
     None = 0,
     NullSpriteAsset,
     EmptyFrames,
     TooManyFrames,
+    TooManyEvents,
     RegionIndexOutOfRange,
     NonPositiveFrameDuration,
     DurationOverflow,
+    EventOffsetOutOfRange,
+    DuplicateEventOrdinal,
     NotPrepared,
     TimeOutOfRange,
 };
@@ -41,6 +54,7 @@ struct SpriteAnimationClipStatus final
 {
     SpriteAnimationClipError error{SpriteAnimationClipError::None};
     std::uint32_t frameIndex{0};
+    std::uint32_t eventIndex{0};
 
     [[nodiscard]] bool Succeeded() const noexcept
     {
@@ -66,13 +80,22 @@ public:
         std::span<const SpriteAnimationFrame2D> frames,
         SpriteAnimationClip2D& outClip);
 
+    [[nodiscard]] static SpriteAnimationClipStatus Prepare(
+        const assets::SpriteAsset* spriteAsset,
+        std::uint32_t spriteRegionCount,
+        std::span<const SpriteAnimationFrame2D> frames,
+        std::span<const SpriteAnimationEvent2D> events,
+        SpriteAnimationClip2D& outClip);
+
     [[nodiscard]] bool Prepared() const noexcept;
     [[nodiscard]] const assets::SpriteAsset* SpriteAsset() const noexcept;
     [[nodiscard]] std::uint32_t SpriteRegionCount() const noexcept;
     [[nodiscard]] std::uint32_t FrameCount() const noexcept;
+    [[nodiscard]] std::uint32_t EventCount() const noexcept;
     [[nodiscard]] SpriteAnimationTime2D Duration() const noexcept;
     [[nodiscard]] std::span<const SpriteAnimationFrame2D> Frames() const noexcept;
     [[nodiscard]] std::span<const SpriteAnimationTime2D> FrameBoundaries() const noexcept;
+    [[nodiscard]] std::span<const SpriteAnimationEvent2D> Events() const noexcept;
 
     [[nodiscard]] SpriteAnimationClipStatus ResolveFrameIndex(
         SpriteAnimationTime2D time,
@@ -83,6 +106,7 @@ private:
     std::uint32_t spriteRegionCount_{0};
     std::vector<SpriteAnimationFrame2D> frames_{};
     std::vector<SpriteAnimationTime2D> frameBoundaries_{};
+    std::vector<SpriteAnimationEvent2D> events_{};
     SpriteAnimationTime2D duration_{0};
     bool prepared_{false};
 };
@@ -138,6 +162,7 @@ struct SpriteAnimator2DState final
     SpriteAnimationDirection direction{SpriteAnimationDirection::Forward};
     bool completed{false};
     SpriteAnimationSpeed2D speed{};
+    std::uint32_t speedRemainder{0};
 
     [[nodiscard]] bool operator==(const SpriteAnimator2DState&) const noexcept = default;
 };
@@ -145,6 +170,7 @@ struct SpriteAnimator2DState final
 enum class SpriteAnimator2DError : std::uint8_t
 {
     None = 0,
+    NoState,
     NullClip,
     UnpreparedClip,
     TimeOutOfRange,
@@ -153,7 +179,12 @@ enum class SpriteAnimator2DError : std::uint8_t
     InvalidLoopMode,
     InvalidDirection,
     InvalidSpeed,
+    InvalidSpeedRemainder,
     InvalidCompletionState,
+    InvalidPlaybackTransition,
+    NegativeDelta,
+    AdvanceOverflow,
+    OutputCapacityExceeded,
 };
 
 struct SpriteAnimator2DStatus final
@@ -167,6 +198,38 @@ struct SpriteAnimator2DStatus final
     }
 
     [[nodiscard]] bool operator==(const SpriteAnimator2DStatus&) const noexcept = default;
+};
+
+enum class SpriteAnimationEmissionKind : std::uint8_t
+{
+    AuthoredEvent = 0,
+    Loop,
+    Bounce,
+    Completed,
+};
+
+struct SpriteAnimationEmission2D final
+{
+    SpriteAnimationEmissionKind kind{SpriteAnimationEmissionKind::AuthoredEvent};
+    SpriteAnimationEventId2D eventId{0};
+    std::uint32_t authoredOrdinal{0};
+    SpriteAnimationTime2D time{0};
+    SpriteAnimationDirection direction{SpriteAnimationDirection::Forward};
+
+    [[nodiscard]] bool operator==(const SpriteAnimationEmission2D&) const noexcept = default;
+};
+
+struct SpriteAnimationAdvanceResult2D final
+{
+    SpriteAnimator2DError error{SpriteAnimator2DError::None};
+    std::size_t emissionCount{0};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return error == SpriteAnimator2DError::None;
+    }
+
+    [[nodiscard]] bool operator==(const SpriteAnimationAdvanceResult2D&) const noexcept = default;
 };
 
 [[nodiscard]] SpriteAnimator2DStatus MakeSpriteAnimator2DState(
@@ -187,6 +250,19 @@ class SpriteAnimator2D final
 public:
     [[nodiscard]] SpriteAnimator2DStatus RestoreState(const SpriteAnimator2DState& state) noexcept;
 
+    [[nodiscard]] SpriteAnimator2DStatus Play() noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus Pause() noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus Stop() noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus Reset() noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus Restart() noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus Seek(SpriteAnimationTime2D time) noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus SetSpeed(SpriteAnimationSpeed2D speed) noexcept;
+    [[nodiscard]] SpriteAnimator2DStatus SetDirection(SpriteAnimationDirection direction) noexcept;
+
+    [[nodiscard]] SpriteAnimationAdvanceResult2D Advance(
+        SpriteAnimationTime2D delta,
+        std::span<SpriteAnimationEmission2D> output) noexcept;
+
     [[nodiscard]] bool HasState() const noexcept;
     [[nodiscard]] const SpriteAnimator2DState& State() const noexcept;
     [[nodiscard]] const SpriteAnimationFrame2D* CurrentFrame() const noexcept;
@@ -198,7 +274,9 @@ private:
 };
 
 static_assert(std::is_trivially_copyable_v<SpriteAnimationFrame2D>);
+static_assert(std::is_trivially_copyable_v<SpriteAnimationEvent2D>);
 static_assert(std::is_trivially_copyable_v<SpriteAnimationRegionSelection2D>);
 static_assert(std::is_trivially_copyable_v<SpriteAnimationSpeed2D>);
 static_assert(std::is_trivially_copyable_v<SpriteAnimator2DState>);
+static_assert(std::is_trivially_copyable_v<SpriteAnimationEmission2D>);
 } // namespace trace2d::runtime
