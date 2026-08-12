@@ -24,7 +24,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_sprite_animation_workload_list
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "steady_loop_rational.*dense_event_ping_pong.*large_step_multi_wrap.*\"status\":\"ok\""
+            PASS_REGULAR_EXPRESSION "\"status\":\"ok\".*steady_loop_rational.*dense_event_ping_pong.*large_step_multi_wrap"
     )
 
     foreach(workload IN ITEMS steady_loop_rational dense_event_ping_pong large_step_multi_wrap)
