@@ -243,7 +243,7 @@ TEST(SpriteGpuSmokeTests, Sr3ColorSamplingBlendAndCachesMatchFrozenContract)
     renderer.RenderFrame(camera, destination);
     const render::RenderMetrics afterFirstNormalFrame = renderer.Metrics();
     ASSERT_EQ(afterFirstNormalFrame.spriteSamplerCreations, 2U);
-    ASSERT_EQ(afterFirstNormalFrame.spritePipelineCreations, 13U);
+    ASSERT_EQ(afterFirstNormalFrame.spritePipelineCreations, 17U);
     ASSERT_GE(afterFirstNormalFrame.spriteVertexCapacitySprites, 1U);
     EXPECT_EQ(afterFirstNormalFrame.explicitGpuReadbacks, 0U);
     EXPECT_EQ(afterFirstNormalFrame.explicitGpuFenceWaits, 0U);
@@ -251,7 +251,7 @@ TEST(SpriteGpuSmokeTests, Sr3ColorSamplingBlendAndCachesMatchFrozenContract)
     renderer.RenderFrame(camera, destination);
     const render::RenderMetrics afterSecondNormalFrame = renderer.Metrics();
     EXPECT_EQ(afterSecondNormalFrame.spriteSamplerCreations, 2U);
-    EXPECT_EQ(afterSecondNormalFrame.spritePipelineCreations, 13U);
+    EXPECT_EQ(afterSecondNormalFrame.spritePipelineCreations, 17U);
     EXPECT_EQ(
         afterSecondNormalFrame.spriteVertexCapacitySprites,
         afterFirstNormalFrame.spriteVertexCapacitySprites);
@@ -402,7 +402,7 @@ TEST(SpriteGpuSmokeTests, Sr3ColorSamplingBlendAndCachesMatchFrozenContract)
 
     const render::RenderMetrics finalMetrics = renderer.Metrics();
     EXPECT_EQ(finalMetrics.spriteSamplerCreations, 2U);
-    EXPECT_EQ(finalMetrics.spritePipelineCreations, 13U);
+    EXPECT_EQ(finalMetrics.spritePipelineCreations, 17U);
     EXPECT_GE(finalMetrics.spriteVertexCapacitySprites, 2U);
     EXPECT_GE(finalMetrics.spritePresentationDrawCalls, 13U);
     EXPECT_GE(finalMetrics.spritePresentationSprites, 13U);
