@@ -52,22 +52,22 @@ canonical .sprite.toml CPU truth
 
 B1 consumes those public contracts. It does not create a benchmark-only asset model or hidden answer API.
 
-## Current B1 gate — strongest Godot baseline before task freeze
+## B1 strongest Godot baseline — selected and frozen
 
-#100 requires the strongest credible pinned Godot Agent workflow to be refreshed and qualified on a **non-scored** fixture before B1 task membership is frozen.
+#100 required the strongest credible pinned Godot Agent workflow to be refreshed and qualified on a **non-scored** fixture before B1 scored task membership could be frozen. That gate is complete.
 
-The current primary-source refresh found:
+Frozen comparison evidence: workflow `31622618958`.
 
-- B0-selected `@satelliteoflove/godot-mcp@4.1.0` remains a current candidate with its previously qualified deterministic runtime/control strengths.
-- `hi-godot/godot-ai` has materially advanced to reviewed release `v3.0.6` and exposes dedicated animation/particle authoring relevant to B1.
-- `godot-mcp-runtime@3.2.1` remains a carry-forward fallback candidate.
+- `hi-godot/godot-ai` at `v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a` completed the matched animation/particle authoring fixture, save/readback, presentation-capture handoff, independent known-good acceptance and known-bad rejection in job `94200960755`.
+- `@satelliteoflove/godot-mcp@4.1.0` installed, connected, and reached method-event authoring in job `94200960753`, but its pinned Godot addon invokes nonexistent `Animation.method_track_add_key()` on Godot 4.7.1 and cannot complete the preregistered exact-event task through that public animation authoring path.
+- `godot-mcp-runtime@3.2.1` remains an unselected fallback, not the B1 strongest-agent lane.
 
-Therefore B1 intentionally starts in `baseline_qualification`, not `scored`.
+Selected B1 `godot.agent`: **`hi-godot/godot-ai v3.0.6` at exact commit `f3d99dfbd38c9e095edf1467f85bee507ace2c3a`**.
 
-Machine-readable gate: [`benchmarks/b1/baseline-qualification.json`](benchmarks/b1/baseline-qualification.json).  
-Selection rationale: [`benchmarks/b1/BASELINES.md`](benchmarks/b1/BASELINES.md).
+Machine-readable decision: [`benchmarks/b1/baseline-qualification.json`](benchmarks/b1/baseline-qualification.json).  
+Comparison rationale: [`benchmarks/b1/qualification/SELECTION.md`](benchmarks/b1/qualification/SELECTION.md).
 
-The gate forbids committing `benchmarks/b1/suite.json` until non-scored qualification evidence selects and pins the B1 `godot.agent` lane.
+The scored-suite freeze gate is now open. Future hosted qualification revalidates only the selected pin; the historical two-candidate comparison remains immutable evidence.
 
 ## B1 required task classes
 
@@ -80,7 +80,7 @@ The preregistered B1 task taxonomy remains:
 5. exact-frame/headless evidence separated from presentation review,
 6. diagnosis and repair of at least one intentionally seeded content defect.
 
-After the Godot Agent baseline is selected, freeze matched lane mappings, budgets, known-good/known-bad fixtures and verifier dispatch **before** observing scored comparative outcomes.
+The exact next step is to freeze `benchmarks/b1/suite.json`, matched lane mappings, budgets, verifier dispatch, and known-good/known-bad fixtures **before** observing any scored comparative outcome.
 
 ## Performance / fairness boundary
 
@@ -98,16 +98,15 @@ Independent verifier evidence remains authoritative for deterministic acceptance
 
 ## Current validation gate
 
-For the baseline-qualification stage:
+For the selected-baseline stage:
 
 - `python3 scripts/benchmark_b1.py validate-contract`,
 - `python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'`,
-- exact external candidate pins/source rationale are committed,
-- no scored B1 suite exists before qualification,
-- the eventual non-scored fixture proves install/start, content authoring, save/readback, headless/runtime verification, capture handoff, known-good acceptance and known-bad rejection.
-
-Once that evidence is committed, select the strongest credible B1 Godot Agent lane and only then freeze the scored suite.
+- selected `godot.agent` identity and exact source pin are committed,
+- comparison workflow/job IDs and the satellite rejection reason are committed,
+- future hosted qualification must re-pass the selected hi-godot content fixture,
+- no scored B1 result may be observed until suite/task/budget/verifier/fixture freeze is committed.
 
 ## Continuation rule
 
-Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should implement/run the **non-scored B1 Godot Agent content-capability qualification** and record the selected baseline. Do not begin #69 until B1 has comparable multi-run scored evidence and the #103 acceptance gate is complete.
+Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should freeze the **matched scored B1 suite** and verifier dispatch using the selected hi-godot pin, then qualify known-good/known-bad fixtures before any scored cohort run. Do not begin #69 until B1 has comparable multi-run scored evidence and the #103 acceptance gate is complete.
