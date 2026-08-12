@@ -1,11 +1,11 @@
 # Sprite S1 Canonical Asset Format
 
-Status: **implemented by #121 / S1**  
+Status: **S1 implemented by #121; schema-v1 optional SR5 border extension active in #134 / PR #135**  
 Umbrella: #59  
 Architecture predecessor: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md)  
-Next Sprite child after S1: **SR0 — renderer contract and asset/render separation**
+Primitive consumer: [`SPRITE_PRIMITIVES.md`](SPRITE_PRIMITIVES.md)
 
-S1 defines the first concrete canonical Trace2D Sprite authored/imported representation. It is CPU-side project truth and is deliberately usable without renderer or GPU initialization.
+S1 defines the concrete canonical Trace2D Sprite authored/imported representation. It is CPU-side project truth and is deliberately usable without renderer or GPU initialization. SR5 extends the same schema version with one backward-compatible optional source-space border field; old v1 files retain identical meaning.
 
 ## 1. Canonical file identity
 
@@ -45,9 +45,19 @@ Every region records:
 - `trim_size` — trimmed logical content extent,
 - `packed_rect` — exact stored rectangle on the referenced page,
 - `pivot` — exact rational coordinate in untrimmed source space,
-- `packed_rotation` — storage orientation only.
+- `packed_rotation` — storage orientation only,
+- optional `border` — exact `[left, top, right, bottom]` source-pixel 9-slice metadata added by SR5.
 
 Trim must fit inside `source_size`. `packed_rect` must fit inside its page. Drawable source, trim and packed extents are positive.
+
+For `border`:
+
+```text
+left + right <= source_size.width
+top + bottom <= source_size.height
+```
+
+Each component is a non-negative `uint32` source-pixel distance. Omitted `border` means `[0, 0, 0, 0]`; trim and packed rotation never rewrite it. This optional zero default is why the field remains a schema-v1 extension rather than creating a second asset version.
 
 ## 3. Exact rational pivot
 
@@ -67,6 +77,8 @@ Examples:
 ```
 
 A finite representable pivot is allowed outside source bounds and is never silently clamped. This keeps alignment/anchor decisions authored rather than importer-dependent and avoids binary-float drift in canonical metadata.
+
+SR5 resized `sliced`/`tiled` presentation preserves this canonical pivot's normalized source position in the target rectangle; it does not mutate the stored pivot.
 
 ## 4. Atlas pages
 
@@ -89,42 +101,46 @@ Schema v1 supports:
 
 The page `size` is exact imported pixel metadata. `SpriteAssetCache` decodes the referenced texture through the existing CPU `TextureAssetCache` and rejects a page whose declared dimensions do not match decoded dimensions.
 
-S1 does **not** put these future/derived facts into `SpriteAsset`:
+Canonical Sprite assets do **not** put these derived facts into `SpriteAsset`:
 
 - SDL/GPU texture handles,
 - normalized UVs,
+- generated 9-slice/tile patches,
 - mip chains,
 - package/compression formats,
 - GPU residency,
 - sampler/pipeline objects,
 - upload offsets/buffer addresses.
 
-SR3 owns final runtime alpha/blend conversion semantics. #70 owns package format policy. #86 later generalizes common resource lifetime/residency without replacing this authored schema.
+SR3 owns final runtime alpha/blend conversion semantics. SR5 owns derived primitive geometry from canonical border/source/trim metadata. #70 owns package format policy. #86 later generalizes common resource lifetime/residency without replacing this authored schema.
 
-## 5. Regions and packed rotation
+## 5. Regions, border and packed rotation
 
-A normal region:
+A region with SR5 border metadata:
 
 ```toml
 [[regions]]
-id = "idle_0"
+id = "panel"
 page = "main"
 source_size = [32, 32]
 trim_offset = [2, 1]
 trim_size = [28, 30]
 packed_rect = [0, 0, 28, 30]
-pivot = [16, 28, 1]
+pivot = [16, 16, 1]
 packed_rotation = "none"
+border = [6, 6, 6, 6]
 ```
 
-Schema v1 supports exactly:
+A legacy/schema-v1 region may omit `border`; the parser resolves that to the canonical zero border and the serializer writes the zero value explicitly.
+
+Schema v1 supports exactly these packed storage rotations:
 
 - `none`,
 - `cw90` — the trimmed logical pixels are stored 90 degrees clockwise on the atlas page.
 
 For `none`, packed width/height equal trim width/height. For `cw90`, packed width/height equal trim height/width.
 
-Packed rotation never changes logical pivot, trim/source coordinates, gameplay rotation, or animation alignment. SR2 later derives UV/vertex mapping that undoes storage rotation.
+Packed rotation never changes logical pivot, border, trim/source coordinates, gameplay rotation, or animation alignment. SR2 and SR5 derive UV/vertex mapping that undoes storage rotation.
 
 ## 6. Deterministic parser and serializer
 
@@ -136,7 +152,11 @@ The parser is strict:
 - missing page references fail,
 - unknown enums fail,
 - invalid integer ranges and rational denominator fail,
-- malformed trim/packed bounds fail.
+- malformed trim/packed bounds fail,
+- malformed `border` arrays fail,
+- opposing borders that exceed `source_size` fail.
+
+`border` is the one optional region field currently accepted by schema v1. Its omission has an exact zero meaning; other required fields remain required.
 
 Diagnostics contain stable error category plus asset reference, field path and parser source location where available.
 
@@ -146,10 +166,11 @@ Canonical serialization:
 - preserves explicit page order,
 - preserves explicit region order,
 - writes reduced rational pivots,
+- writes explicit four-component border metadata, including the zero default,
 - is independent of hash-container iteration order,
 - round-trips back to the same canonical `SpriteAsset`.
 
-Serialization and parsing are explicit setup/tooling work. Future normal frames do not parse TOML or rebuild these representations.
+Serialization and parsing are explicit setup/tooling work. Normal frames do not parse TOML or rebuild these representations.
 
 ## 7. Cache and ownership
 
@@ -178,7 +199,7 @@ Allowed during explicit load/import/serialization:
 - image decode for page-dimension validation,
 - diagnostic/report allocations.
 
-Forbidden as a requirement of ordinary future Sprite rendering:
+Forbidden as a requirement of ordinary Sprite rendering:
 
 - TOML parsing,
 - filesystem discovery,
@@ -188,17 +209,18 @@ Forbidden as a requirement of ordinary future Sprite rendering:
 - canonical serialization,
 - full inspection/report generation.
 
-SR0 must consume already-canonical CPU asset data and derive renderer-facing data outside the steady-state draw hot path.
+SR0+ consumes already-canonical CPU asset data. SR5 primitive expansion receives a pre-resolved region and caller-owned scratch; it does not add semantic-ID lookup or asset parsing to the render hot path.
 
 ## 9. Verification boundary
 
-S1 facts are deterministic/machine-owned:
+Canonical asset facts are deterministic/machine-owned:
 
 - schema/version,
 - normalized asset/page references,
 - page dimensions,
 - source/trim/packed rectangles,
 - exact pivot,
+- exact optional/zero-default border,
 - packed rotation,
 - page/region references,
 - color/alpha/sampling intent,
@@ -206,16 +228,17 @@ S1 facts are deterministic/machine-owned:
 - texture dimension agreement,
 - cache structural counters.
 
-No screenshot or multimodal review is required to prove these facts. Perceptual review begins only when later presentation stages produce genuinely visual questions.
+No screenshot or multimodal review is required to prove these facts. Perceptual review begins only when presentation stages produce genuinely visual questions.
 
-## 10. SR0 handoff
+## 10. Render-stage handoff
 
-After S1 merges green, SR0 may introduce backend-independent derived render vocabulary, but it must preserve:
+The authority chain remains:
 
 ```text
 canonical SpriteAsset CPU truth
-        -> derived render extraction
+        -> pre-resolved region selection
+        -> derived render geometry / appearance / primitive patches
         -> renderer/backend resources
 ```
 
-SR0 may not move normalized UVs/GPU handles into the authored asset or turn render preparation into gameplay/asset authority. SR2 consumes exact trim/rotation metadata; SR3 consumes explicit color/alpha/sampling intent; #86 later takes over generalized resource lifetime without changing the S1 canonical schema.
+Renderer stages may not move normalized UVs, generated patches or GPU handles into authored asset truth. SR2 consumes exact trim/rotation metadata; SR3 consumes explicit color/alpha/sampling intent; SR5 consumes optional border metadata while preserving source-space authority; #86 later takes over generalized resource lifetime without changing the canonical Sprite schema.
