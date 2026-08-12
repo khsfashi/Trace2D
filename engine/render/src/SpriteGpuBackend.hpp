@@ -16,6 +16,8 @@ struct SpriteGpuBackendMetrics final
 {
     std::uint64_t samplerCreations{0U};
     std::uint64_t pipelineCreations{0U};
+    // Compatibility name retained from SR3/SR4. SR5 counts reusable six-vertex quad slots;
+    // one primitive Sprite may occupy multiple slots while still issuing one top-level draw.
     std::uint64_t vertexCapacitySprites{0U};
     std::uint64_t maskTargetCreations{0U};
 };
@@ -51,7 +53,9 @@ public:
 
     [[nodiscard]] std::size_t OrderedSourceIndex(std::size_t orderedIndex) const;
 
-    void DrawPresentation(
+    // Returns true when at least one GPU triangle-list primitive was encoded. A valid SR5
+    // PrimitivePatches item may contain zero visible patches after trim/undersized resolution.
+    [[nodiscard]] bool DrawPresentation(
         SDL_GPUCommandBuffer* commandBuffer,
         SDL_GPURenderPass* renderPass,
         SDL_GPUTexture* texture,
@@ -63,7 +67,7 @@ public:
 private:
     void CreateSamplers();
     void CreatePipelines();
-    void EnsureVertexCapacity(std::size_t requiredSprites);
+    void EnsureVertexCapacity(std::size_t requiredQuadSlots);
     void EnsureMaskTarget(std::uint32_t width, std::uint32_t height);
     void Cleanup() noexcept;
 
@@ -89,6 +93,8 @@ private:
     std::uint32_t maskTargetHeight_{0U};
     bool maskingRequired_{false};
     std::vector<SpriteOrderMaskEntry2D> orderScratch_{};
+    // Source-index keyed first quad-slot offset for the current frame. Capacity is retained.
+    std::vector<std::size_t> patchOffsetScratch_{};
     SpriteGpuBackendMetrics metrics_{};
 };
 } // namespace trace2d::render::detail
