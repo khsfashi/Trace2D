@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5/SR6/SR7/SR8/SA0/SA1/SA2 complete. SA3 — Agent/MCP inspection, actions, and exact-frame assertions is active via #150 / draft PR #151.**
+Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5/SR6/SR7/SR8/SA0/SA1/SA2/SA3 complete. SA4 — animation conformance, determinism, and workloads is active via #152 / draft PR #153.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -13,15 +13,16 @@ SR3 color/sampling seam: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).
 SR4 order/masking seam: [`SPRITE_ORDER_MASKING.md`](SPRITE_ORDER_MASKING.md).  
 SR5 9-slice/tiled seam: [`SPRITE_PRIMITIVES.md`](SPRITE_PRIMITIVES.md).  
 SR6 pixel-perfect seam: [`SPRITE_PIXEL_PERFECT.md`](SPRITE_PIXEL_PERFECT.md).  
-SR7 production batching/hot-path seam: [`SPRITE_BATCHING_SR7.md`](SPRITE_BATCHING_SR7.md).  
+SR7 batching/hot-path seam: [`SPRITE_BATCHING_SR7.md`](SPRITE_BATCHING_SR7.md).  
 SR8 conformance/workload seam: [`SPRITE_RENDERER_CONFORMANCE_SR8.md`](SPRITE_RENDERER_CONFORMANCE_SR8.md).  
-SA0 animation timing seam: [`SPRITE_ANIMATION_TIMING_SA0.md`](SPRITE_ANIMATION_TIMING_SA0.md).  
+SA0 timing seam: [`SPRITE_ANIMATION_TIMING_SA0.md`](SPRITE_ANIMATION_TIMING_SA0.md).  
 Machine-readable SA0 invariants: [`contracts/sprite-animation-sa0.json`](contracts/sprite-animation-sa0.json).  
-SA1 authoritative state seam: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).  
-SA2 deterministic playback seam: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).  
-SA3 Agent/MCP verification seam: [`SPRITE_ANIMATION_AGENT_SA3.md`](SPRITE_ANIMATION_AGENT_SA3.md).
+SA1 state seam: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).  
+SA2 playback seam: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).  
+SA3 Agent/MCP seam: [`SPRITE_ANIMATION_AGENT_SA3.md`](SPRITE_ANIMATION_AGENT_SA3.md).  
+Active SA4 conformance/workload seam: [`SPRITE_ANIMATION_CONFORMANCE_SA4.md`](SPRITE_ANIMATION_CONFORMANCE_SA4.md).
 
-This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer or tooling state.
+This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, timing, or capture state.
 
 ## 1. Product goal
 
@@ -48,6 +49,7 @@ external source/generation
  -> deterministic import
  -> canonical SpriteAsset CPU truth
  -> authoritative SpriteRenderer2D / SpriteAnimator2D / transform semantics
+ -> explicit Agent inspection / deterministic workload evidence
  -> backend-independent extraction
  -> derived presentation
  -> renderer/backend resources
@@ -65,9 +67,9 @@ Hard invariants:
 - exact-frame presentation uses authoritative current state,
 - semantic painter order cannot be changed by resource/material sorting,
 - #71/#86/#88/#89 attach through typed seams without replacing Sprite semantics,
-- import/generation/repair/report/capture are explicit work outside ordinary frame hot paths.
+- import/generation/repair/report/capture/workload/timing are explicit work outside ordinary frame hot paths.
 
-SA0 extends the same authority rule to animation: integer fixed-step animation time/frame/event crossings are authoritative runtime state; renderer selection, GPU resources, pixels and observation artifacts remain derived consumers/evidence. SA1 materializes that rule as renderer-independent prepared clip data plus fixed-size typed `SpriteAnimator2DState`. SA2 executes that state deterministically with exact retained-rational speed progress, typed authored/structural emissions, and explicit playback transitions without moving authority into rendering or tooling. SA3 exposes that same runtime authority to coding agents through explicit inspection/action/assertion calls; MCP remains serialization only and never becomes a second animation state machine.
+Animation authority is the SA0-SA4 chain: integer fixed-step animation time/frame/event crossings are authoritative runtime state; SA1 materializes renderer-independent prepared clip/state; SA2 executes exact retained-rational playback and typed emissions; SA3 exposes that existing authority to agents without duplicating it; SA4 validates/replays/measures it explicitly. MCP serialization, workload digests, timing samples, GPU resources and pixels never become a second animation state machine.
 
 ## 3. Fixed implementation order
 
@@ -78,191 +80,144 @@ S0 [complete] -> S1 [complete]
  -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
  -> SR4 [complete] -> SR5 [complete] -> SR6 [complete] -> SR7 [complete]
  -> SR8 [complete]
- -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [active #150/#151] -> SA4
+ -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
+ -> SA4 [active #152/#153]
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Completed renderer stages through SR8 plus SA0-SA2 deterministic animation authority are frozen. **Do not create or begin SA4 while #150/PR #151 remains open or while its hosted CI/audit gates are pending.**
+Completed stages through SA3 are frozen. **Do not create or begin SPP0 while #152/PR #153 remains open or while its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
 ### S0 — architecture / authority — complete
 
-Frozen by #119/#120 and `SPRITE_ARCHITECTURE.md`: authority/ownership, exact coordinates, pivot/trim/rotation storage semantics, fixed-step presentation history, exact-frame capture semantics, typed resource/view/material seams, painter-order invariant, #97-#99 verification authority and hot-path/offline-tooling separation.
+#119/#120 froze authority/ownership, exact coordinates, pivot/trim/rotation semantics, fixed-step presentation history, exact-frame capture, typed future resource/view/material seams, painter-order invariants and hot-path/offline-tool separation.
 
 ### S1 — canonical Sprite asset/import — complete
 
-Merged via #121/#122. Canonical `.sprite.toml` v1 owns ordered pages/regions, exact source/trim/packed rectangles, reduced rational pivot, `none|cw90` packed rotation, color/alpha/sampling intent and source-pixel border metadata consumed by SR5. No normalized UV or GPU handle is canonical asset state.
+#121/#122 established canonical `.sprite.toml` v1 with ordered pages/regions, exact source/trim/packed rectangles, reduced rational pivot, `none|cw90` packing, color/alpha/sampling intent and source-pixel border metadata. Normalized UVs and GPU handles are never canonical asset state.
 
 ### SR0 — asset/render separation — complete
 
-Merged via #123/#124. Setup-time region resolution produces fixed-size renderer-facing contract data; steady-state extraction is O(1) and allocation-free.
+#123/#124 made setup-time region resolution produce fixed-size renderer-facing data; steady-state extraction is O(1) and allocation-free.
 
 ### SR1 — transform/history/geometry — complete
 
-Merged via #125/#126. Reuses `scene::Transform2D`, preserves exact rational pivot and untrimmed source geometry, applies semantic flip/scale/rotation/translation once, and separates authoritative fixed state from presentation history.
+#125/#126 reused `scene::Transform2D`, preserved exact rational pivot/untrimmed source geometry, and separated authoritative fixed state from presentation history.
 
 ### SR2 — atlas/trim/pivot/rotated packing — complete
 
-Merged via #127/#128. Trim remains embedded in untrimmed logical source space; packed storage never controls logical placement; UV geometry is exact pixel-edge truth and `cw90` changes storage mapping only.
+#127/#128 kept trim in untrimmed logical source space and made `cw90` a storage/UV mapping concern only.
 
 ### SR3 — color/alpha/blend/sampling — complete
 
-Completed via #130/#131. Canonical source alpha remains straight. Sampling is nearest/linear with atlas-safe texel-center guards, sRGB/linear page intent is explicit, and built-in fragment output is premultiplied immediately before blending. Persistent samplers/pipelines and capacity-managed Sprite vertex resources are reused. Required owner Windows presentation-GPU evidence passed before merge.
+#130/#131 froze straight canonical source alpha, nearest/linear atlas-safe sampling, explicit sRGB/linear page intent, premultiplied output immediately before blending, and persistent sampler/pipeline/vertex-resource reuse. Required owner GPU evidence passed.
 
 ### SR4 — painter order/sorting groups/masking — complete
 
-Completed via #132/#133, squash `3c843bba10be536685c0fc70306b3fd6c75ed67a`. SR4 freezes signed layer/order, explicit stable semantic order, bounded one-level sorting groups, no resource identity in semantic ordering, bounded stencil mask identities/phases, persistent stencil-compatible pipelines/mask target, and no ordinary-frame explicit GPU readback/fence wait.
+#132/#133 froze stable semantic painter order independent of resource identity, bounded one-level sorting groups, bounded stencil masks and persistent stencil-compatible resources.
 
 ### SR5 — 9-slice and tiled/repeated primitives — complete
 
-Completed via #134/#135, squash `6d84ada945774d54c089d1a5bec3b63e17a43334`. Concrete contract: [`SPRITE_PRIMITIVES.md`](SPRITE_PRIMITIVES.md).
-
-SR5 adds exact source-pixel borders, `quad|sliced|tiled` runtime intent, deterministic 9-slice partition/compression, bounded tiled expansion, partial-final-tile geometry, trim-gap and `cw90` subrect mapping, per-patch atlas-safe sample bounds, bounded caller-owned patch output, top-level SR4 semantic atomicity and persistent GPU reuse. The owner GPU fixture exposed and then locked a real sub-texel partial-tile linear-filter bleed regression before merge.
+#134/#135 added exact source-pixel borders, deterministic sliced/tiled expansion, bounded caller-owned patch output, trim-gap/`cw90` subrect mapping and atlas-safe partial-tile sampling while preserving SR4 semantic atomicity.
 
 ### SR6 — pixel-perfect runtime presentation — complete
 
-Completed via #136/#137, squash `3fd6e5a439a1e327bd89797f5d5a5a9dae69dace`. Concrete contract: [`SPRITE_PIXEL_PERFECT.md`](SPRITE_PIXEL_PERFECT.md).
-
-SR6 freezes integer logical-viewport mapping, centered letterbox/pillarbox, exact source-pixel grid eligibility/snap, authoritative-current vs interpolated presentation selection, nearest exact pixel presentation, GPU viewport/scissor use, SR4/SR5 preservation, and no intermediate upscale texture or ordinary-frame explicit readback/fence wait.
+#136/#137 froze integer logical viewport mapping, letterbox/pillarbox, exact source-grid snap, current-vs-interpolated presentation selection and nearest exact pixel presentation without an intermediate upscale texture.
 
 ### SR7 — production batching/resource reuse/hot-path metrics — complete
 
-Completed via #138/#139, squash `9adc9f0e1aab714392b08d068c3ee9ebbad46dbb`. Concrete contract: [`SPRITE_BATCHING_SR7.md`](SPRITE_BATCHING_SR7.md).
-
-SR7 preserves painter order, culls against the resolved presentation view, compacts only visible geometry and merges only compatible contiguous work. Compatibility includes resolved resources/material/pipeline/sampler/blend/mask identity. Retained capacities/resources are reused and metrics distinguish semantic submissions, culling, quads/uploads and actual batch draws.
+#138/#139 preserved painter order, culled against the resolved presentation view, compacted visible geometry only, merged only contiguous compatible work and exposed structural metrics while reusing retained capacities/resources.
 
 ### SR8 — renderer conformance / capture QA / reproducible workloads — complete
 
-Completed via #142/#143, squash `2108122dad5ac2dcbb964f7ada0e80f7afa21003`. Concrete contract: [`SPRITE_RENDERER_CONFORMANCE_SR8.md`](SPRITE_RENDERER_CONFORMANCE_SR8.md).
+#142/#143 added backend-independent composition coverage, the fixed 1,024-submission structural workload, owner real-GPU fixtures/evidence, deterministic CPU facts vs bounded GPU pixel tolerances and exact-head final evidence. Captured pixels remain derived evidence and shared-runner wall-clock time is not a correctness threshold.
 
-SR8 adds validation/evidence without changing normal renderer semantics:
-
-- backend-independent composition coverage spanning SR1/SR2 geometry, `cw90`, SR6 presentation-time selection and SR7 batching,
-- fixed 1,024-submission structural workload with exact expectations: 768 visible, 256 culled, 960 visible quads, 7 contiguous compatibility runs,
-- real-GPU SR2 trim/pivot/`cw90` presentation fixture,
-- reuse of SR3-SR7 GPU fixtures through the trusted #140/#141 owner GPU gate,
-- exact deterministic CPU facts vs fixture-owned bounded GPU pixel tolerances,
-- exact-head `trace2d.sprite-renderer-final-gate.v1` evidence binding CPU conformance, workload facts, GPU evidence, hashes and Git commit.
-
-Final implementation head `74b5b82c9df961baeaeb84e80169e7e621535cfb` passed hosted CI run `31569822039` and trusted owner GPU Gate run `31569818936`; the uploaded exact-head artifact digest is `sha256:dcd0014191cc7bb0fdead133a38acb466e2d156bf866d171b2baa5804177163d`.
-
-Captured pixels remain derived evidence, there is no automatic golden-image update path, no shared-runner wall-clock correctness threshold, no SR8-only per-frame reporting/heap work, and no new ordinary-frame explicit GPU readback/fence wait.
-
-## 5. Deterministic Sprite animation — active
+## 5. Deterministic Sprite animation
 
 ### SA0 — timing/frame/event contract — complete
 
-Completed via #144/#145, squash `d9955d4c987a627f0009a018b9b5293c6f3d8e73`. Concrete contract: [`SPRITE_ANIMATION_TIMING_SA0.md`](SPRITE_ANIMATION_TIMING_SA0.md). Machine-readable invariants: [`contracts/sprite-animation-sa0.json`](contracts/sprite-animation-sa0.json).
+Completed via #144/#145. SA0 freezes:
 
-SA0 freezes the timeline semantics that SA1-SA4 must reuse:
+- integer nanoseconds as authoritative animation time,
+- positive integer frame durations and checked exact clip duration,
+- frame ownership `[boundary_i,boundary_i+1)`,
+- explicit non-loop completion at `t == duration`,
+- stable authored ordinal for equal event offsets,
+- forward crossing `a < event_time <= b`,
+- reverse crossing `b <= event_time < a`,
+- lossless deterministic large-advance traversal,
+- ordered loop/ping-pong segments with one offset-zero emission on forward loop entry,
+- no historical event replay from seek/reset/inspection,
+- no wall-clock/presentation/GPU/pixel authority,
+- no mandatory per-tick heap/filesystem/JSON/string/name-lookup work and no silent event loss.
 
-- integer nanoseconds are authoritative animation time, matching the existing `FixedStepRuntime` time domain,
-- frame durations are positive integers and clip duration is a checked exact sum,
-- frame `i` owns `[boundary_i, boundary_i+1)`,
-- non-loop terminal `t == duration` is explicit completion while the final authored frame remains presented,
-- authored events live in `[0, duration)` with stable authored ordinal for equal offsets,
-- forward crossing uses `a < event_time <= b`, reverse crossing uses `b <= event_time < a`,
-- large advances preserve every crossed event in deterministic traversal order,
-- loop/ping-pong traversal composes ordered segments rather than modulo/sampling shortcuts,
-- forward loop entry emits offset-zero events once after the loop marker and the following `(0,b]` segment excludes zero,
-- seek/reset/inspection do not replay historical events,
-- wall-clock render time, presentation alpha, GPU state and pixels never advance/replace animation truth,
-- steady-state update has no mandatory per-tick heap/filesystem/JSON/string/name-lookup work and cannot silently drop events on output-capacity exhaustion.
-
-SA0 is a contract stage. It does not implement the full `SpriteAnimator2D`, playback commands, transitions, MCP actions or animation workloads.
-
-Primary-source decisions are recorded in the SA0 contract: Aseprite per-frame integer durations are adopted/adapted to Trace2D integer nanoseconds; Godot variable-duration/reverse/loop/ping-pong semantics are adapted where useful while float progress is rejected as authoritative deterministic time; fixed-timestep vs rendered-presentation separation is retained.
-
-SA0 merged only after `Sprite SA0 Contract` and normal repository CI/audits were green on the final head. No new GPU behavior was introduced, so SA0 added no real-GPU gate.
+Aseprite per-frame integer duration/direction precedent is adopted/adapted; Godot variable duration/loop/reverse/ping-pong behavior is adapted while float progress is rejected as Trace2D deterministic authority.
 
 ### SA1 — `SpriteAnimator2D` authoritative state — complete
 
-Completed via #146/#147, squash `dc8909b24dc5f67e8bec2506263d7b433c6fb2f4`. Concrete contract: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).
-
-SA1 implements the renderer-independent typed state that SA0 deferred:
-
-- `SpriteAnimationClip2D::Prepare` validates ordered frame records and setup-resolved canonical Sprite region indices,
-- frame durations and cached cumulative boundaries use exact integer nanoseconds,
-- failed preparation preserves the previous prepared output,
-- arbitrary time-to-frame lookup uses cached boundaries in O(log frame_count),
-- `SpriteAnimator2DState` holds clip/time/frame/playback/loop/direction/completion/exact speed state,
-- exact speed is a canonical reduced non-negative rational magnitude; direction is explicit and separate,
-- `SpriteAnimator2DState` is trivially copyable and owns no heap container/string/renderer resource,
-- `ValidateSpriteAnimator2DState` rejects time/frame mismatch, invalid enums/speed and invalid completion state,
-- `RestoreState` validates before commit and preserves prior state on failure,
-- current frame/region observation is O(1) over the prepared clip,
-- ordinary state access has no filesystem/JSON/formatting/semantic-name lookup/renderer/GPU initialization or mandatory heap allocation.
-
-The prepared clip pointer is non-owning and must outlive animator states referencing it. This deliberately avoids per-state shared-ownership/reference-count work in the fixed-step hot state; #86 may later generalize resource lifetime without changing animation authority.
-
-SA1 deliberately left fixed-step time advancement, retained fractional speed remainder, playback commands, loop/ping-pong execution, authored event emission/output buffers and structural transitions to SA2.
-
-Final implementation head `56a8cab7c7cb3030762e618151a0620e3163685e` passed hosted CI run `31574714328` plus the SA0/S0/content/B0 checks before merge. SA1 introduced no presentation-GPU behavior and required no new local real-GPU gate.
+Completed via #146/#147. SA1 adds prepared renderer-independent clip data and fixed-size typed state, cached checked integer boundaries, O(log frame_count) arbitrary lookup, O(1) current-frame/region observation, canonical non-negative rational speed magnitude, explicit direction/completion validation and transactional restore. The prepared clip pointer is non-owning and must outlive states referencing it.
 
 ### SA2 — deterministic playback/events/loops/transitions — complete
 
-Completed via #148/#149, squash `7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66`. Concrete contract: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).
+Completed via #148/#149. SA2 adds prepared numeric authored events, retained rational speed remainder, explicit play/pause/stop/reset/restart/seek/speed/direction operations, deterministic `Once|Loop|PingPong` traversal and caller-owned bounded `AuthoredEvent|Loop|Bounce|Completed` output. Capacity failure is explicit and transactional. Ordinary advancement adds no mandatory heap/filesystem/JSON/formatting/name/GPU work.
 
-SA2 executes SA0/SA1 deterministically:
+### SA3 — Agent/MCP verification — complete
 
-- prepared clips accept typed authored events with numeric semantic IDs, integer offsets and stable authored ordinals,
-- events are validated/sorted once by `(offset, authoredOrdinal)` and reused,
-- authoritative state adds retained rational speed remainder,
-- exact speed advancement uses checked quotient/remainder decomposition rather than float accumulation, unchecked wide multiplication, or a required non-portable `__int128`,
-- `Play`, `Pause`, `Stop`, `Reset`, `Restart`, `Seek`, `SetSpeed`, and `SetDirection` have explicit state semantics,
-- forward/reverse `Once`, `Loop`, and `PingPong` traversal preserve SA0 boundary/event rules,
-- runtime output distinguishes `AuthoredEvent`, `Loop`, `Bounce`, and `Completed`,
-- caller-owned bounded output is transactional: insufficient capacity returns explicit failure without state mutation or partial authoritative output,
-- ordinary advancement performs no mandatory heap/filesystem/JSON/formatting/semantic-name/GPU work.
+Completed via #150/#151, squash `d7a509ca03f851436d495183503f798c8afb8c2a`. SA3 exposes the existing SA0-SA2 authority through explicit non-owning entity bindings, exact scalar inspection, direct runtime actions and finite typed assertions. Explicit Agent advance materializes ordered emissions only on request and remains bounded/transactional. MCP exposes `trace2d.sprite_animation.inspect|action|assert` as serialization only. Ordinary animation stepping receives no Agent snapshot/reporting cost.
 
-Reference decisions: Godot explicit playback and separate loop/finish notification precedent is adapted while float progress/speed and signal-only authority are rejected; Aseprite integer durations/direction/repeat metadata is adopted/adapted as authoring precedent without adding a runtime dependency.
+### SA4 — conformance, determinism, and workloads — active #152 / draft PR #153
 
-SA2 merged green without adding presentation-GPU behavior, so it required no new local real-GPU gate.
+Concrete contract: [`SPRITE_ANIMATION_CONFORMANCE_SA4.md`](SPRITE_ANIMATION_CONFORMANCE_SA4.md).
 
-### SA3 — Agent/MCP verification — active #150 / draft PR #151
+SA4 is validation over the frozen runtime, not new playback semantics.
 
-Concrete contract: [`SPRITE_ANIMATION_AGENT_SA3.md`](SPRITE_ANIMATION_AGENT_SA3.md).
+Committed structural workloads:
 
-SA3 exposes SA0-SA2 authority without duplicating it:
+- `steady_loop_rational`: 6,000 fixed steps, exact `2/3` speed, forward looping, offset-zero/event boundaries,
+- `dense_event_ping_pong`: dense and equal-time authored events, exact `5/4` speed, repeated bounces,
+- `large_step_multi_wrap`: reverse loop with advances larger than three clip durations.
 
-- explicit non-owning `SpriteAnimatorBinding` maps stable entity semantic ID to the existing `SpriteAnimator2D`,
-- Agent inspection returns exact clip/time/frame/region/playback/loop/direction/completion/speed/remainder scalar state,
-- Agent actions delegate directly to SA2 `Play|Pause|Stop|Reset|Restart|Seek|SetSpeed|SetDirection|Advance`,
-- explicit advance uses integer nanoseconds and returns exact ordered `AuthoredEvent|Loop|Bounce|Completed` evidence,
-- Agent emission materialization is explicit-request work and bounded to 4096 entries,
-- insufficient output capacity preserves SA2 transactional no-state-mutation semantics,
-- finite typed assertions compare one current authoritative field immediately with no implicit retry/step/wait,
-- mismatch diagnostics return exact expected/observed values plus bounded current-state context,
-- MCP exposes only `trace2d.sprite_animation.inspect|action|assert` and delegates behavior to Agent,
-- MCP servers without configured Sprite animator bindings preserve the pre-SA3 tool catalog,
-- ordinary animation stepping receives no Agent snapshot/JSON/string/filesystem/name-lookup/renderer/GPU work.
+`trace2d_sprite_animation_workload` executes the selected workload twice from fresh state. A mismatch fails. Machine-readable evidence reports exact frame/event/step/emission/final-state facts plus a stable FNV-1a digest over explicit numeric/enumerated semantic fields only. Pointers, addresses, wall-clock values, renderer/GPU state and platform object bytes are excluded from replay identity.
 
-Primary-source decisions are recorded in the SA3 contract: MCP `2026-07-28` stateless/cacheable discovery and full JSON Schema inputs are adapted; structured machine-readable tool output is retained with text compatibility; tool annotations remain hints; retrying assertion patterns are rejected for exact animation state because assertions must not move simulation implicitly.
+Focused SA4 tests cover long-running replay, split-vs-aggregate equivalence where SA0 semantics permit it, long-run rational quotient/remainder, large multi-bounce ping-pong traversal, transactional capacity failure and restart/seek future-transcript repeatability.
 
-PR #151 remains draft until focused Agent/MCP tests and normal hosted CI/audits are green on the same final head and documentation agrees. SA3 changes no presentation/GPU path and adds no local real-GPU gate.
+Optional local Release timing:
 
-### SA4 — conformance/workloads
+- prepares state outside each measured window,
+- discards explicit warmups,
+- repeats measured advance windows,
+- reports average/median/p95 plus OS/compiler/build/machine metadata,
+- never becomes a hosted/shared-CI wall-clock correctness gate.
 
-Prove fixed-step frame/event sequences and measure animation update independently from rendering.
+SA4 adds no reporting/hash/timing/JSON/filesystem/Agent/renderer/GPU work to ordinary `SpriteAnimator2D::Advance`.
+
+Current reference decisions: FoundationDB deterministic replay is adopted/adapted as a correctness technique; Google Benchmark warmup/repetition/statistics practice is adapted without adding the dependency or CI time thresholds; Godot loop/reverse/ping-pong cases are adapted without float authority; Aseprite duration/direction/repeat metadata remains authoring precedent.
+
+No new presentation/GPU behavior is introduced, so SA4 has no new real-GPU acceptance gate.
 
 ## 6. Offline Sprite processing / generation
 
 ### SPP0 — processing/QA report
-Machine-readable raw measurements for dimensions, frame count, alpha/edge residue, trim, pivot/jitter, grid/palette, identity/motion warnings and atlas utilization.
+
+Define deterministic machine-readable raw measurements for dimensions, frame count, alpha/edge residue, trim, pivot/jitter, grid/palette, identity/motion warnings and atlas utilization. Reporting is explicit offline/tool work and must not enter normal runtime hot paths.
 
 ### SPP1 — alpha/background/frame extraction
-Deterministic explicit cleanup/segmentation modes; expected-frame mismatch fails instead of inventing frames.
+
+Provide deterministic explicit cleanup/segmentation modes; expected-frame mismatch fails instead of silently inventing frames.
 
 ### SPP2 — pixel-grid/palette/pivot/identity/motion QA and repair
-Offline deterministic or explicitly labelled heuristic analysis/repair with reviewable raw evidence.
+
+Add offline deterministic or explicitly labelled heuristic analysis/repair with reviewable raw evidence.
 
 ### SPP3 — Aseprite/generic importers
-Convert supported external formats into canonical Trace2D Sprite assets; no source-tool runtime dispatch.
+
+Convert supported external formats into canonical Trace2D Sprite assets; never dispatch source-tool runtime code from the engine.
 
 ### SPP4 — sprite-gen / PerfectPixel-style interoperability
-Consume useful external manifests through conversion/validation without runtime dependencies.
+
+Consume useful external manifests through conversion/validation without turning those tools into runtime dependencies.
 
 ### SPP5 — provider-neutral generation orchestration
 
@@ -279,10 +234,12 @@ Live provider calls are not deterministic CI dependencies.
 ## 7. End-to-end proof
 
 ### SE2E
+
 Prove request/import -> raw/generated pixels -> deterministic QA -> canonical asset -> animation -> headless exact-frame verification -> renderer/capture -> perceptual/human review.
 
 ### SPERF
-Publish visible/animated counts, atlas pages, compatibility transitions, draws, culling, animation/extraction CPU time, upload bytes, retained capacities, texture/page memory/utilization and capture cost.
+
+Publish visible/animated counts, atlas pages, compatibility transitions, draws, culling, animation/extraction CPU time, upload bytes, retained capacities, texture/page memory/utilization and capture cost with reproducible environment metadata.
 
 ## 8. Verification/review authority
 
@@ -314,4 +271,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SA3 / #150 / draft PR #151 is the only active Sprite child. Keep its PR scoped to protocol-independent authoritative animator inspection/actions/exact assertions plus a thin MCP adapter. Do not create/implement SA4 until SA3 merges green. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
+SA4 / #152 / draft PR #153 is the only active Sprite child. Keep it scoped to deterministic animation conformance, explicit workloads and environment-labelled local timing evidence. Do not create or implement SPP0 until SA4 merges green. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.

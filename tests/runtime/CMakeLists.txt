@@ -3,6 +3,7 @@ add_executable(trace2d_runtime_tests
     MonotonicClockTests.cpp
     SpriteAnimator2DTests.cpp
     SpriteAnimatorPlaybackSA2Tests.cpp
+    SpriteAnimationConformanceSA4Tests.cpp
 )
 
 target_link_libraries(trace2d_runtime_tests
