@@ -22,7 +22,7 @@ $selectedTests = @()
 $headSha = "unavailable"
 $testLogPath = $null
 try {
-    if (-not $IsWindows) {
+    if ($env:OS -ne "Windows_NT") {
         throw "The real-GPU gate requires Windows."
     }
     if ([string]::IsNullOrWhiteSpace($env:VCPKG_ROOT)) {
@@ -107,9 +107,9 @@ finally {
         $cmakeVersion = "unavailable"
         try { $cmakeVersion = ((& cmake --version | Select-Object -First 1) -as [string]).Trim() } catch {}
         $vcpkgCommit = "unavailable"
-        try {
-            $vcpkgCommit = (& git -C $env:VCPKG_ROOT rev-parse HEAD).Trim()
-        } catch {}
+        if (-not [string]::IsNullOrWhiteSpace($env:VCPKG_ROOT)) {
+            try { $vcpkgCommit = (& git -C $env:VCPKG_ROOT rev-parse HEAD).Trim() } catch {}
+        }
 
         $logHash = $null
         if ($testLogPath -and (Test-Path $testLogPath -PathType Leaf)) {
