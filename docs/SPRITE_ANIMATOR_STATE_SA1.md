@@ -2,6 +2,7 @@
 
 Status: **active implementation contract for #146 under #59**.  
 Predecessor: SA0 / #144 / PR #145 / squash `d9955d4c987a627f0009a018b9b5293c6f3d8e73`.  
+Owning implementation: draft PR #147.  
 Exact successor after SA1 merges green: **SA2 — deterministic playback, event emission, and transitions**.
 
 SA1 implements the typed renderer-independent state that SA0 deliberately deferred. It does not advance animation time or implement playback commands/events/transitions.
@@ -13,7 +14,7 @@ SA1 implements the typed renderer-independent state that SA0 deliberately deferr
 ```text
 prepared Sprite animation clip
         + authoritative SpriteAnimator2D state
-        -> current semantic frame / Sprite region index
+        -> current semantic (SpriteAsset identity, region index)
         -> later renderer extraction consumes the selection
 ```
 
@@ -21,17 +22,29 @@ The animator does not require a renderer, SDL object, OS window, GPU resource, w
 
 ## 2. Prepared clip ownership
 
-`SpriteAnimationClip2D::Prepare` is an explicit setup-time operation. It accepts already-resolved numeric Sprite region indices and ordered frame durations, validates them, and caches:
+`SpriteAnimationClip2D::Prepare` is an explicit setup-time operation. It accepts:
 
+- one non-null canonical `SpriteAsset` identity as a non-owning pointer,
+- that asset's already-resolved canonical region count,
+- ordered frame records containing numeric region indices and integer-nanosecond durations.
+
+It validates the inputs and caches:
+
+- the canonical `SpriteAsset` identity,
+- the canonical region count used for validation,
 - the frame records,
 - cumulative frame boundaries,
 - the checked exact clip duration.
+
+The runtime header forward-declares `assets::SpriteAsset`; `Trace2D::Runtime` does not link the Assets implementation merely to preserve semantic identity. No importer/filesystem behavior enters runtime animation state.
+
+A region index alone is not a complete semantic identity because region `N` in two different Sprite assets is not the same Sprite. The prepared clip therefore retains both the canonical asset pointer and numeric region index so later render extraction cannot accidentally treat an index as globally unique.
 
 Setup is O(frame_count) and may allocate. A failed preparation leaves the previous prepared output unchanged so callers can safely cache/reuse a valid clip.
 
 Every frame duration is a strictly positive `std::chrono::nanoseconds` value. Total duration is checked for `nanoseconds::rep` overflow. Region indices must be less than the setup-supplied canonical Sprite region count, so ordinary animation state never performs semantic region-name lookup.
 
-`SpriteAnimationClip2D` is movable but intentionally non-copyable. Runtime owners should prepare/cache a clip once and keep its address stable while animator states reference it.
+`SpriteAnimationClip2D` is movable but intentionally non-copyable. Runtime owners should prepare/cache a clip once and keep its address stable while animator states reference it. The referenced canonical `SpriteAsset` must also remain alive for the lifetime of the prepared clip/selection; current `SpriteAssetCache` shared ownership is an appropriate higher-level owner, but shared ownership is not duplicated into every animator state.
 
 ## 3. Frozen frame lookup
 
@@ -69,6 +82,8 @@ The state is trivially copyable. It owns no container, string, shared ownership 
 
 The clip pointer is deliberately non-owning: the prepared clip must outlive every animator state that references it. This avoids per-state reference-count traffic and hidden ownership work in the fixed-step hot path. Future #86 may generalize resource lifetime without changing animation-time authority.
 
+`SpriteAnimationRegionSelection2D` is also trivially copyable and returns the current canonical `SpriteAsset*` plus numeric region index as the complete renderer-independent semantic frame selection.
+
 ## 5. Exact speed representation
 
 SA1 freezes only the state representation needed for deterministic SA2 advancement:
@@ -98,6 +113,8 @@ No floating-point progress or speed accumulator is authoritative. SA2 still owns
 - completed loop/ping-pong state,
 - completed `Once` state away from its directional endpoint.
 
+Clip preparation separately rejects a null canonical `SpriteAsset`, invalid region index, empty clip, non-positive duration and duration overflow.
+
 A forward completed `Once` state is at `duration`; a reverse completed `Once` state is at `0`.
 
 `completed == false` may still exist at an endpoint. SA1 does not invent SA2 command semantics for whether a newly started, paused, restored or just-arrived state immediately transitions there.
@@ -109,7 +126,7 @@ A forward completed `Once` state is at `duration`; a reverse completed `Once` st
 After clip preparation:
 
 - current state access: O(1), no allocation,
-- current frame / region index access: O(1), no allocation,
+- current frame / `(SpriteAsset, region)` selection access: O(1), no allocation,
 - arbitrary time -> frame lookup: O(log frame_count), no allocation,
 - state validation: O(log frame_count), no allocation.
 
@@ -160,18 +177,19 @@ Those remain SA2, SA3 and SA4 in the fixed Sprite lane.
 
 Focused `SpriteAnimator2DTests` lock:
 
+- prepared canonical `SpriteAsset` identity plus region-index selection,
 - cached variable-duration boundaries,
 - exact internal/terminal frame selection,
-- empty/zero-duration/out-of-range-region/duration-overflow rejection,
+- null-asset/empty/zero-duration/out-of-range-region/duration-overflow rejection,
 - exact rational speed normalization/validation,
-- typed authoritative state creation and current region selection,
+- typed authoritative state creation and current semantic region selection,
 - mismatched frame rejection with prior-state preservation,
 - explicit directional completion endpoint validation,
 - invalid enum/speed/unprepared-clip rejection.
 
 SA1 is backend-independent and introduces no new presentation-GPU behavior, so it has no new local real-GPU acceptance gate.
 
-SA1 is complete only after the final implementation head is green in normal hosted CI/audits, documentation agrees with the implementation, PR #147 (or the actual owning PR number if different) merges, and #146 closes.
+SA1 is complete only after the final implementation head is green in normal hosted CI/audits, documentation agrees with the implementation, PR #147 merges, and #146 closes.
 
 After merge:
 
