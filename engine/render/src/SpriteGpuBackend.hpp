@@ -53,10 +53,9 @@ public:
 
     [[nodiscard]] std::size_t OrderedSourceIndex(std::size_t orderedIndex) const;
 
-    // A valid SR5 PrimitivePatches item may contain zero visible patches after trim/undersized
-    // resolution; in that case the semantic top-level Sprite is retained but no GPU primitive is
-    // encoded for that item.
-    void DrawPresentation(
+    // Returns whether a GPU primitive was emitted. Existing Renderer call sites may intentionally
+    // ignore this until metrics distinguish semantic Sprite submissions from zero-patch draws.
+    bool DrawPresentation(
         SDL_GPUCommandBuffer* commandBuffer,
         SDL_GPURenderPass* renderPass,
         SDL_GPUTexture* texture,
