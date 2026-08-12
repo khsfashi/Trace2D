@@ -15,6 +15,7 @@ add_executable(trace2d_agent_tests
 target_link_libraries(trace2d_agent_tests
     PRIVATE
         Trace2D::Agent
+        Trace2D::Assets
         GTest::gtest_main
 )
 
