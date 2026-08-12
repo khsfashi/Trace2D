@@ -1,6 +1,6 @@
 # Benchmark B1 — Sprite / animation / particle authoring
 
-Status: **baseline qualification active; scored task freeze is intentionally blocked.**  
+Status: **strongest Godot Agent selected; scored-suite freeze gate open.**  
 Parent: #100  
 Issue: #103  
 Predecessors: #59 Complete Sprite and #102 Benchmark B0 are complete.
@@ -14,21 +14,20 @@ B1 extends the matched benchmark into content authoring that is expensive to jud
 - retain exact-frame/headless evidence separately from presentation review,
 - diagnose and repair at least one seeded content defect.
 
-## Current gate
+## Frozen baseline decision
 
-`baseline-qualification.json` is the machine-readable preregistration for the B1 strongest-baseline refresh.
+`baseline-qualification.json` is the machine-readable B1 baseline contract.
 
-No `benchmarks/b1/suite.json` may be committed while the manifest remains in
-`baseline_qualification` with `scored_suite_allowed = false`.
+The preregistered non-scored qualification is complete. `hi-godot/godot-ai` is selected at exact pin `v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a`. The comparison evidence and rejection rationale for the other leading candidate are frozen in [`qualification/SELECTION.md`](qualification/SELECTION.md).
 
-That ordering is deliberate:
+The required ordering is now:
 
 ```text
-current primary-source refresh
- -> non-scored Godot Agent capability qualification
- -> selected/pinned strongest credible Godot lane
- -> freeze matched B1 tasks + budgets + known-good/known-bad fixtures
- -> run scored cohort with the same pinned coding agent
+current primary-source refresh                 complete
+ -> non-scored Godot Agent qualification       complete
+ -> select/pin strongest credible Godot lane   complete
+ -> freeze matched B1 tasks + budgets + fixtures   NEXT
+ -> run scored cohort with same coding agent
  -> independent verification / aggregate report
  -> presentation + multimodal/human review evidence
 ```
@@ -47,4 +46,4 @@ The benchmark is not permission to add a benchmark-shaped asset model, hidden an
 
 ## Next implementation step
 
-Qualify the reviewed Godot Agent candidates on one non-scored content fixture. Record the selected candidate and exact pin before adding the scored B1 suite or looking at comparative results.
+Freeze `benchmarks/b1/suite.json`, matched lane mappings, budgets, verifier dispatch, and known-good/known-bad fixtures before observing any scored comparative result. The selected `godot.agent` pin may not change after that point without invalidating the cohort.
