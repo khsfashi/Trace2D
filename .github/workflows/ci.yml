@@ -233,6 +233,23 @@ jobs:
       - name: Test
         run: ctest --preset ci-windows-debug
 
+      - name: Validate SPERF deterministic evidence gate
+        shell: pwsh
+        run: |
+          ./scripts/sprite_performance_final_gate.ps1 `
+            -OutputDirectory "$env:RUNNER_TEMP/sprite-performance-final-gate" `
+            -CtestPreset ci-windows-debug `
+            -RendererWorkloadTool "build/ci-windows-msvc/tools/renderer_workload/Debug/trace2d_renderer_workload.exe" `
+            -AnimationWorkloadTool "build/ci-windows-msvc/tools/sprite_animation_workload/Debug/trace2d_sprite_animation_workload.exe"
+
+      - name: Upload SPERF deterministic evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprite-performance-deterministic-evidence
+          path: ${{ runner.temp }}/sprite-performance-final-gate
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Qualify Trace2D B0 gold and known-bad fixtures
         shell: pwsh
         run: |

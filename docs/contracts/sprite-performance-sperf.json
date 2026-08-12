@@ -1,0 +1,87 @@
+{
+  "schema": "trace2d.sprite-performance.v1",
+  "stage": "SPERF",
+  "issue": 172,
+  "parent_issue": 59,
+  "renderer": {
+    "structural_schema": "trace2d.sprite-renderer-workload.v1",
+    "sr8_committed_workload": {
+      "submitted_sprites": 1024,
+      "visible_sprites": 768,
+      "culled_sprites": 256,
+      "visible_quads": 960,
+      "contiguous_runs": 7,
+      "metric_source": "deterministic_structure"
+    },
+    "built_in_vertex_payload": {
+      "vertices_per_quad": 6,
+      "bytes_per_vertex": 48,
+      "bytes_per_visible_quad": 288,
+      "sr8_visible_vertex_upload_bytes": 276480,
+      "meaning": "Trace2D-owned Sprite vertex payload submitted for the frozen SR8 structural workload; not driver allocation or total GPU memory."
+    },
+    "retained_capacity": {
+      "metric": "RenderMetrics.spriteVertexCapacityBytes",
+      "unit": "bytes",
+      "meaning": "High-water reusable Trace2D Sprite vertex-buffer capacity. It is separate from per-frame uploaded bytes and does not claim driver-side allocation size."
+    },
+    "supplementary_workloads": [
+      {
+        "name": "dense_single_texture",
+        "authored_sprites": 400,
+        "visible_sprites": 400,
+        "culled_sprites": 0,
+        "contiguous_texture_runs": 1
+      },
+      {
+        "name": "alternating_two_textures",
+        "authored_sprites": 400,
+        "visible_sprites": 400,
+        "culled_sprites": 0,
+        "contiguous_texture_runs": 400
+      },
+      {
+        "name": "interleaved_culling",
+        "authored_sprites": 600,
+        "visible_sprites": 400,
+        "culled_sprites": 200,
+        "contiguous_texture_runs": 1
+      }
+    ]
+  },
+  "animation": {
+    "structural_schema": "trace2d.sprite-animation-workload.v1",
+    "workloads": [
+      "steady_loop_rational",
+      "dense_event_ping_pong",
+      "large_step_multi_wrap"
+    ],
+    "timing_scope": "sprite_animator_advance_window",
+    "timing_policy": "optional_environment_labelled_release_evidence_only"
+  },
+  "memory": {
+    "rgba8_page_byte_formula": "width * height * 4",
+    "canonical_metadata_is_separate_from_pixel_storage": true,
+    "driver_gpu_allocation_is_not_inferred": true,
+    "package_and_resource_lifetime_owners": [70, 86]
+  },
+  "offline_processing": {
+    "normal_frame_cost": "none",
+    "timing_live_generation_provider_required": false,
+    "authority": "SPP0-SPP5 stage-local complexity contracts"
+  },
+  "timing": {
+    "shared_ci_threshold": false,
+    "requires_environment_metadata": true,
+    "warmup_and_repetition": true,
+    "portable_correctness_source": "deterministic_structural_evidence"
+  },
+  "hot_path": {
+    "new_runtime_instrumentation": false,
+    "new_per_frame_allocation": false,
+    "new_per_frame_string_or_json": false,
+    "new_per_frame_filesystem": false,
+    "new_per_frame_wall_clock": false,
+    "new_per_frame_gpu_readback": false
+  }
+}
