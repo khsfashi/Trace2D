@@ -58,17 +58,19 @@ enum class SpritePresentationGeometryKind : std::uint8_t
 // Primitive patches stay one atomic top-level SR4 item and are consumed only for the duration of
 // RenderFrame/CaptureFrame. `pixelPerfectViewport` is optional caller-owned frame-level SR6 state;
 // when any submitted Sprite enables it, every Sprite in that frame must provide an equal mapping.
-// Texture handles and all GPU resources remain derived renderer state.
+// Texture handles and all GPU resources remain derived renderer state. The SR7 material field is
+// appended after the pre-SR7 fields so existing positional aggregate initialization keeps its field
+// meaning while omitted material state naturally selects the built-in pipeline.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
     TextureHandle texture{InvalidTextureHandle};
-    SpriteMaterialPipelineIdentity materialPipeline{BuiltInSpriteMaterialPipelineIdentity};
     SpriteOrder2D order{};
     SpriteMask2D mask{};
     SpritePresentationGeometryKind geometryKind{SpritePresentationGeometryKind::Quad};
     std::span<const SpritePrimitivePatch2D> primitivePatches{};
     const SpritePixelPerfectViewport2D* pixelPerfectViewport{nullptr};
+    SpriteMaterialPipelineIdentity materialPipeline{BuiltInSpriteMaterialPipelineIdentity};
 };
 
 struct RenderMetrics
