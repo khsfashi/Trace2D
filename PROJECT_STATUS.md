@@ -67,20 +67,21 @@ Selected B1 `godot.agent`: **`hi-godot/godot-ai v3.0.6` at exact commit `f3d99df
 Machine-readable decision: [`benchmarks/b1/baseline-qualification.json`](benchmarks/b1/baseline-qualification.json).  
 Comparison rationale: [`benchmarks/b1/qualification/SELECTION.md`](benchmarks/b1/qualification/SELECTION.md).
 
-The scored-suite freeze gate is now open. Future hosted qualification revalidates only the selected pin; the historical two-candidate comparison remains immutable evidence.
+## B1 scored suite — frozen before scoring
 
-## B1 required task classes
+`benchmarks/b1/suite.json` now freezes the B1 task membership, budgets, matched lane mappings and fixture paths. `benchmarks/b1/verifiers.json` freezes verifier identities, authority seams and deterministic check sets.
 
-The preregistered B1 task taxonomy remains:
+The three scored scenarios cover every preregistered #103 class exactly once:
 
-1. Sprite import/normalization,
-2. trim/pivot/alignment repair,
-3. deterministic animation with exact semantic event timing,
-4. particle authoring/repair under structural and performance constraints,
-5. exact-frame/headless evidence separated from presentation review,
-6. diagnosis and repair of at least one intentionally seeded content defect.
+1. `b1-sprite-normalize-repair` — Sprite import/normalization + trim/pivot/alignment repair,
+2. `b1-animation-exact-event` — exact deterministic animation event + exact-frame/headless/presentation evidence separation,
+3. `b1-particle-budget-repair` — particle structural/performance budget + seeded-defect diagnosis/repair.
 
-The exact next step is to freeze `benchmarks/b1/suite.json`, matched lane mappings, budgets, verifier dispatch, and known-good/known-bad fixtures **before** observing any scored comparative outcome.
+The B0 Agent budget is reused without expansion for every task: 300 seconds, 80 tool calls, 100k input tokens, 20k output tokens and zero human interventions.
+
+`godot.generic` and `godot.agent` are locked to identical Godot starter/known-good/known-bad fixture paths and the same independent verifier identity. The selected hi-godot bridge changes only the interaction adapter. `trace2d.agent` uses semantically matched native Trace2D fixtures and public production authorities.
+
+Scored execution is still **disabled**. No scored comparative outcome has been observed on this branch.
 
 ## Performance / fairness boundary
 
@@ -98,15 +99,16 @@ Independent verifier evidence remains authoritative for deterministic acceptance
 
 ## Current validation gate
 
-For the selected-baseline stage:
+For the suite-freeze stage:
 
 - `python3 scripts/benchmark_b1.py validate-contract`,
+- `python3 scripts/benchmark_b1.py validate-suite`,
 - `python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'`,
-- selected `godot.agent` identity and exact source pin are committed,
-- comparison workflow/job IDs and the satellite rejection reason are committed,
-- future hosted qualification must re-pass the selected hi-godot content fixture,
-- no scored B1 result may be observed until suite/task/budget/verifier/fixture freeze is committed.
+- selected `godot.agent` identity and exact source pin remain frozen,
+- all three task IDs/class bindings/budgets/lane mappings/fixture paths/verifier IDs are frozen,
+- Godot generic/Agent fixtures are identical by contract,
+- scoring eligibility remains gated by independent `benchmarks/b1/fixture-qualification.json` evidence; the frozen suite and verifier registry must not mutate.
 
 ## Continuation rule
 
-Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should freeze the **matched scored B1 suite** and verifier dispatch using the selected hi-godot pin, then qualify known-good/known-bad fixtures before any scored cohort run. Do not begin #69 until B1 has comparable multi-run scored evidence and the #103 acceptance gate is complete.
+Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should implement/run **fixture qualification only**: every frozen known-good fixture must pass and every frozen known-bad fixture must fail through the frozen verifier dispatch on the pinned engine/tool sources. Do not run the scored Agent cohort and do not begin #69 yet.

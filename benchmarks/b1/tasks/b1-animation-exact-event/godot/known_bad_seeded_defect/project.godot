@@ -1,0 +1,11 @@
+[application]
+config/name="Trace2D B1 Fixture"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=64
+window/size/viewport_height=64
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

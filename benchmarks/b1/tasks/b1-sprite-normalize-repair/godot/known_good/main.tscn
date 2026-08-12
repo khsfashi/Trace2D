@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_sheet"]
+width = 16
+height = 16
+
+[node name="Root" type="Node2D"]
+
+[node name="Hero" type="Sprite2D" parent="."]
+texture_filter = 1
+texture = SubResource("GradientTexture2D_sheet")
+region_enabled = true
+region_rect = Rect2(2, 1, 12, 14)
+offset = Vector2(0, 0)
