@@ -11,6 +11,8 @@ add_executable(trace2d_render_tests
     SpriteGpuSmokeTests.cpp
     SpriteOrderMask2DTests.cpp
     SpriteOrderMaskGpuSmokeTests.cpp
+    SpritePixelPerfect2DTests.cpp
+    SpritePixelPerfectGpuSmokeTests.cpp
     SpritePresentation2DTests.cpp
     SpritePrimitive2DTests.cpp
     SpritePrimitiveGpuSmokeTests.cpp
