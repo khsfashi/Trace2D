@@ -22,70 +22,62 @@ Completed Sprite chain:
 S0 -> S1
  -> SR0..SR8
  -> SA0..SA4
- -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4
+ -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
 ```
 
 Frozen milestone references retained for contract continuity:
 
-- #144 / SA0 — deterministic Sprite animation timing/frame/event contract, frozen and complete.
-- #164 / PR #165 / `926993ace6d020e00e3d4565d0ffacff866ee252` — SPP3 external sheet/import conversion, frozen and complete.
-- #166 / PR #167 / `e195afb2a9dc7c80f49d71abff32c920e3e850c4` — SPP4 generator-manifest interoperability, frozen and complete.
+- #142 / SR8 — production Sprite renderer conformance and trusted presentation-GPU evidence, frozen and complete.
+- #152 / SA4 — deterministic Sprite animation conformance, frozen and complete.
+- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration, frozen and complete.
 
-Current child: **#168 / SPP5 — provider-neutral generation orchestration with deterministic post-generation validation**.  
-Current draft PR: **#169**.  
-Current branch: `agent/sprite-spp5-generation-orchestration`.  
-Exact next child after SPP5 merges green: **SE2E — end-to-end generated/imported Sprite proof**.
+Current child: **#170 / SE2E — end-to-end generated/imported Sprite proof**.  
+Current branch: `agent/sprite-se2e-end-to-end-proof`.  
+Exact next child after SE2E merges green: **SPERF — final reproducible Sprite performance evidence**.
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SPP5 contract: [`docs/SPRITE_GENERATION_SPP5.md`](docs/SPRITE_GENERATION_SPP5.md).  
-SPP4 frozen contract: [`docs/SPRITE_GENERATOR_INTEROP_SPP4.md`](docs/SPRITE_GENERATOR_INTEROP_SPP4.md).  
+SE2E contract: [`docs/SPRITE_END_TO_END_SE2E.md`](docs/SPRITE_END_TO_END_SE2E.md).  
+SPP5 frozen contract: [`docs/SPRITE_GENERATION_SPP5.md`](docs/SPRITE_GENERATION_SPP5.md).  
 Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
 
-## SPP5 authority
+## SE2E authority
+
+SE2E composes existing authorities rather than introducing another production layer:
 
 ```text
-provider-neutral request + deterministic post-process plan
- -> replaceable external SpriteGenerationProvider
- -> nondeterministic owned candidate response
- -> deterministic SPP5 candidate validation
- -> loose frames: SPP2 -> SPP3 -> S1
- -> manifest atlas: SPP4 -> SPP3 -> S1
- -> canonical SpriteAsset only after every required gate passes
+recorded request/provider response
+ -> SPP deterministic cleanup / QA / canonical import
+ -> canonical SpriteAsset
+ -> SA deterministic animation
+ -> SA3 headless exact-frame Agent inspection/assertion
+ -> SR0 renderer-facing canonical region selection
+ -> explicit capture artifact handoff
+ -> #98 WorkResult deterministic evidence + review_needed presentation evidence
 ```
 
-Generation/provider output is external nondeterministic input. SPP5 does not make provider/model state, request retries, network state or generated pixels into engine runtime truth. Determinism begins from one concrete recorded response and explicit post-process plan.
+Deterministic verification remains separate from perceptual review. A test-authored capture fixture proves exact-frame artifact packaging only; it is not GPU presentation truth. SR8 remains the authority for real-GPU rendering/capture behavior, while multimodal or human review owns visual/motion judgment.
 
-Baseline scope in PR #169:
+Baseline scope in #170:
 
-- protocol/network-independent `SpriteGenerationProvider` with one explicit generation call,
-- preflight validation before provider execution so invalid plans cause zero provider calls,
-- provider-neutral loose-frame output where caller-owned targets define canonical page/region/texture identity and optional exact pivot,
-- exact positive-dimension RGBA8 byte validation and expected-frame gates,
-- existing SPP2 quality/repair followed by SPP3 loose-frame import and S1 validation,
-- explicit SPP4 generator-manifest atlas path without format auto-detection,
-- provider failure/exception/request-identity/candidate-kind rejection,
-- no canonical output exposure after failed post-generation validation,
-- deterministic schema-versioned structural JSON for the same recorded response,
-- fake/recorded providers only in CI; no live/paid generation service is required,
-- focused backend-independent tests.
-
-Provider SDKs, HTTP/auth/secrets, retries/backoff, background workers, prompt routing/optimization, runtime generation, learned/VLM quality judgment as deterministic truth and automatic semantic/pivot inference are outside SPP5.
+- backend-independent `tests/e2e` integration only; no new production SE2E module,
+- recorded/fake SPP5 provider data; no live/paid provider dependency,
+- exact canonical asset pointer and region identity preserved into animation and render-facing extraction,
+- authored frame-boundary advance observed through the existing SA3 Agent surface,
+- existing SR0 O(1) index resolver/extraction used after animation selection,
+- explicit capture artifact bound to the same logical simulation-frame id,
+- #98 `WorkResult` remains the machine-readable result/review boundary,
+- perceptual visual/motion quality remains `review_needed`,
+- invalid generation plans expose no canonical/downstream authority.
 
 ## Performance boundary
 
-- request/plan/envelope validation: `O(frame target count)`,
-- loose candidate shape checks: `O(frame count)`,
-- loose pixel processing reuses existing SPP2 cost and SPP3 `O(frame count)` import,
-- manifest processing reuses SPP4 `O(manifest bytes + frame count)` plus SPP3/S1 validation,
-- generated buffers are owned by the provider response and viewed by downstream APIs where possible,
-- repaired RGBA8 copies occur only for explicit SPP2 repair,
-- no SPP5 work enters fixed-step animation, normal rendering or GPU presentation,
-- no new package is introduced.
+SE2E changes test/tooling code only. It adds no normal-frame production cost: no provider calls, verification polling, filesystem work, capture/readback, reporting allocation, parsing, serialization, or new caches in gameplay/render loops. Existing SPP, SA, SR, and capture complexity/ownership remain authoritative.
 
 ## Current validation gate
 
-Required on the final exact PR #169 head:
+Required on the final exact SE2E PR head:
 
+- focused `trace2d_sprite_e2e_tests`,
 - Project State Contract,
 - Sprite S0 Contract,
 - Sprite SA0 Contract,
@@ -93,10 +85,8 @@ Required on the final exact PR #169 head:
 - Windows MSVC configure/build/full CTest,
 - clean-clone README configure/build/full CTest.
 
-No local full-build claim is made for this execution because the implementation container cannot resolve `github.com`. Hosted exact-head CI is the integration authority for this continuation.
-
-No new real-GPU gate is required because SPP5 changes no presentation behavior.
+No new real-GPU gate is introduced by SE2E. SR8 already owns trusted presentation-GPU conformance; SE2E must not create a competing GPU truth model.
 
 ## Continuation rule
 
-Keep #169 draft until the final exact head has green hosted integration/audit evidence and stage documentation agrees with #168/implementation. Repair only SPP5 issues exposed by code review or CI. After #169 is ready and merged and #168 closes, stop. Do **not** start SE2E in the same completion continuation.
+Keep the SE2E PR draft until its exact head has green hosted integration/audit evidence and stage documentation agrees with #170. Repair only SE2E issues exposed by review or CI. After the SE2E PR is ready, merged, and #170 closes, stop. The following `@GitHub Trace2D 다음 진행해줘` continuation creates exactly one SPERF child.
