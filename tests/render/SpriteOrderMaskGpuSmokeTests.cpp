@@ -101,7 +101,8 @@ void ExpectPrimaryNear(
 
 [[nodiscard]] trace2d::render::SpritePresentation2D BuildPresentation(
     const trace2d::assets::SpriteAsset& asset,
-    const trace2d::scene::Vector2 scale = {1.0F, 1.0F})
+    const trace2d::scene::Vector2 scale = {1.0F, 1.0F},
+    const trace2d::render::SpriteAppearance2D appearance = {})
 {
     using namespace trace2d;
 
@@ -117,7 +118,7 @@ void ExpectPrimaryNear(
         selection,
         pose,
         1.0F,
-        render::SpriteAppearance2D{},
+        appearance,
         presentation).Succeeded());
     return presentation;
 }
@@ -173,11 +174,26 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     const render::SpritePresentation2D leftHalf =
         BuildPresentation(asset, scene::Vector2{0.5F, 1.0F});
 
+    render::SpriteAppearance2D additiveAppearance{};
+    additiveAppearance.sampling = render::SpriteAppearanceSampling::Linear;
+    additiveAppearance.blend = render::SpriteBlendMode::Additive;
+    const render::SpritePresentation2D additiveFull =
+        BuildPresentation(asset, scene::Vector2{1.0F, 1.0F}, additiveAppearance);
+
+    render::SpriteAppearance2D tintSuppressedAppearance = additiveAppearance;
+    tintSuppressedAppearance.tint.green = 0.0F;
+    const render::SpritePresentation2D tintSuppressedFull =
+        BuildPresentation(asset, scene::Vector2{1.0F, 1.0F}, tintSuppressedAppearance);
+
+    render::SpriteAppearance2D opacitySuppressedAppearance = additiveAppearance;
+    opacitySuppressedAppearance.opacity = 0.0F;
+    const render::SpritePresentation2D opacitySuppressedFull =
+        BuildPresentation(asset, scene::Vector2{1.0F, 1.0F}, opacitySuppressedAppearance);
+
     constexpr std::array<std::uint8_t, 4U> Red{255U, 0U, 0U, 255U};
     constexpr std::array<std::uint8_t, 4U> Green{0U, 255U, 0U, 255U};
     constexpr std::array<std::uint8_t, 4U> Blue{0U, 0U, 255U, 255U};
     constexpr std::array<std::uint8_t, 4U> White{255U, 255U, 255U, 255U};
-    constexpr std::array<std::uint8_t, 4U> Transparent{0U, 0U, 0U, 0U};
 
     const render::TextureHandle redTexture = renderer.CreateSpriteTextureRgba8(
         render::Rgba8TextureData{1U, 1U, Red},
@@ -190,9 +206,6 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
         render::SpriteTextureEncoding::Linear);
     const render::TextureHandle whiteTexture = renderer.CreateSpriteTextureRgba8(
         render::Rgba8TextureData{1U, 1U, White},
-        render::SpriteTextureEncoding::Linear);
-    const render::TextureHandle transparentTexture = renderer.CreateSpriteTextureRgba8(
-        render::Rgba8TextureData{1U, 1U, Transparent},
         render::SpriteTextureEncoding::Linear);
 
     const std::filesystem::path temp = std::filesystem::temp_directory_path();
@@ -244,16 +257,18 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     writer.order.stableOrder = 0U;
     writer.mask = render::SpriteMask2D{render::SpriteMaskMode::Write, 3U};
 
-    // Transparent but otherwise ordinary Sprite proves `None` remains valid inside a masked pass.
-    // It must use the stencil-target-compatible unmasked pipeline without changing stencil state.
-    render::SpritePresentationRenderData unmaskedInMaskedPass{full, transparentTexture};
+    // Ordinary `None` presentation inside a masked submission proves painter order remains usable
+    // with the stencil target attached while leaving stencil contents unchanged.
+    render::SpritePresentationRenderData unmaskedInMaskedPass{full, redTexture};
     unmaskedInMaskedPass.order.stableOrder = 1U;
 
-    render::SpritePresentationRenderData inside{full, greenTexture};
-    inside.order.stableOrder = 2U;
-    inside.mask = render::SpriteMask2D{render::SpriteMaskMode::TestInside, 3U};
+    // Additive green over opaque red must become yellow only inside the mask. This also exercises
+    // the resolved linear sampler on a masked tester.
+    render::SpritePresentationRenderData insideAdditive{additiveFull, greenTexture};
+    insideAdditive.order.stableOrder = 2U;
+    insideAdditive.mask = render::SpriteMask2D{render::SpriteMaskMode::TestInside, 3U};
     const std::array<render::SpritePresentationRenderData, 3U> insideDraws{
-        inside,
+        insideAdditive,
         unmaskedInMaskedPass,
         writer,
     };
@@ -264,8 +279,44 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
         insideDraws,
         insidePath,
         102U);
-    ExpectPrimaryNear(PixelAt(insideCapture, 24U, 32U), 0U, 255U, 0U);
-    ExpectPrimaryNear(PixelAt(insideCapture, 40U, 32U), 0U, 0U, 0U);
+    ExpectPrimaryNear(PixelAt(insideCapture, 24U, 32U), 255U, 255U, 0U);
+    ExpectPrimaryNear(PixelAt(insideCapture, 40U, 32U), 255U, 0U, 0U);
+
+    // A zero green tint must suppress the masked additive source completely.
+    render::SpritePresentationRenderData tintSuppressed{tintSuppressedFull, greenTexture};
+    tintSuppressed.order.stableOrder = 2U;
+    tintSuppressed.mask = render::SpriteMask2D{render::SpriteMaskMode::TestInside, 3U};
+    const std::array<render::SpritePresentationRenderData, 3U> tintDraws{
+        tintSuppressed,
+        unmaskedInMaskedPass,
+        writer,
+    };
+    const std::filesystem::path tintPath = temp / "trace2d_sprite_sr4_mask_tint.bmp";
+    const render::CapturedFrame tintCapture = Capture(
+        renderer,
+        camera,
+        tintDraws,
+        tintPath,
+        103U);
+    ExpectPrimaryNear(PixelAt(tintCapture, 24U, 32U), 255U, 0U, 0U);
+
+    // Zero opacity must likewise suppress the masked source without changing the writer/tester state.
+    render::SpritePresentationRenderData opacitySuppressed{opacitySuppressedFull, greenTexture};
+    opacitySuppressed.order.stableOrder = 2U;
+    opacitySuppressed.mask = render::SpriteMask2D{render::SpriteMaskMode::TestInside, 3U};
+    const std::array<render::SpritePresentationRenderData, 3U> opacityDraws{
+        opacitySuppressed,
+        unmaskedInMaskedPass,
+        writer,
+    };
+    const std::filesystem::path opacityPath = temp / "trace2d_sprite_sr4_mask_opacity.bmp";
+    const render::CapturedFrame opacityCapture = Capture(
+        renderer,
+        camera,
+        opacityDraws,
+        opacityPath,
+        104U);
+    ExpectPrimaryNear(PixelAt(opacityCapture, 24U, 32U), 255U, 0U, 0U);
 
     render::SpritePresentationRenderData outside{full, blueTexture};
     outside.order.stableOrder = 2U;
@@ -281,8 +332,8 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
         camera,
         outsideDraws,
         outsidePath,
-        103U);
-    ExpectPrimaryNear(PixelAt(outsideCapture, 24U, 32U), 0U, 0U, 0U);
+        105U);
+    ExpectPrimaryNear(PixelAt(outsideCapture, 24U, 32U), 255U, 0U, 0U);
     ExpectPrimaryNear(PixelAt(outsideCapture, 40U, 32U), 0U, 0U, 255U);
 
     // Warm resources must remain stable and normal rendering must not introduce observation stalls.
@@ -303,13 +354,18 @@ TEST(SpriteOrderMaskGpuSmokeTests, Sr4PainterGroupsAndMasksMatchFrozenContract)
     EXPECT_EQ(secondWarmMetrics.explicitGpuReadbacks, readbacksBeforeNormalRepeat);
     EXPECT_EQ(secondWarmMetrics.explicitGpuFenceWaits, waitsBeforeNormalRepeat);
 
-    renderer.DestroyTexture(transparentTexture);
     renderer.DestroyTexture(whiteTexture);
     renderer.DestroyTexture(blueTexture);
     renderer.DestroyTexture(greenTexture);
     renderer.DestroyTexture(redTexture);
 
-    for (const std::filesystem::path& path : {painterPath, groupPath, insidePath, outsidePath})
+    for (const std::filesystem::path& path : {
+             painterPath,
+             groupPath,
+             insidePath,
+             tintPath,
+             opacityPath,
+             outsidePath})
     {
         RemoveFile(path);
     }
