@@ -1,0 +1,55 @@
+name: Benchmark B1 Scored Policy
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "benchmarks/b0/scored-cohort-v1.json"
+      - "benchmarks/b1/**"
+      - "scripts/benchmark_b1.py"
+      - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_scored_policy.py"
+      - ".github/workflows/benchmark-b1-scored-policy.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "benchmarks/b0/scored-cohort-v1.json"
+      - "benchmarks/b1/**"
+      - "scripts/benchmark_b1.py"
+      - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_scored_policy.py"
+      - ".github/workflows/benchmark-b1-scored-policy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  scored-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Revalidate frozen B1 suite
+        run: |
+          python3 scripts/benchmark_b1.py validate-contract
+          python3 scripts/benchmark_b1.py validate-suite
+
+      - name: Validate preregistered 27-slot scored policy
+        run: python3 scripts/benchmark_b1_scored_policy.py --print-schedule
+
+      - name: Run scored-policy regression tests
+        run: python3 -m unittest scripts.test_benchmark_b1_scored_policy
+
+      - name: Syntax-check scored-policy tooling
+        run: python3 -m py_compile scripts/benchmark_b1_scored_policy.py scripts/test_benchmark_b1_scored_policy.py
