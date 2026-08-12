@@ -89,6 +89,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "animation_name": ANIMATION,
                 "track_index": track_index,
                 "time": 0.375,
+                "value": 0,
                 "method_name": "queue_redraw",
                 "args": [],
             },
