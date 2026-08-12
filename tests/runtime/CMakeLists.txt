@@ -2,6 +2,7 @@ add_executable(trace2d_runtime_tests
     FixedStepRuntimeTests.cpp
     MonotonicClockTests.cpp
     SpriteAnimator2DTests.cpp
+    SpriteAnimatorPlaybackSA2Tests.cpp
 )
 
 target_link_libraries(trace2d_runtime_tests
