@@ -4,6 +4,8 @@ add_executable(trace2d_runtime_tests
     SpriteAnimator2DTests.cpp
     SpriteAnimatorPlaybackSA2Tests.cpp
     SpriteAnimationConformanceSA4Tests.cpp
+    reference/SpriteAnimatorReferenceModel.cpp
+    SpriteAnimatorReferenceOracleTests.cpp
 )
 
 target_link_libraries(trace2d_runtime_tests
