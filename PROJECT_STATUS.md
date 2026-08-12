@@ -32,6 +32,15 @@ The B1 work starts from two completed foundations:
 - #59 Complete Sprite: S0/S1, SR0-SR8, SA0-SA4, SPP0-SPP5, SE2E and SPERF are frozen.
 - #102 Benchmark B0: matched lane schema, trial isolation, append-only traces, independent verification, known-good/known-bad qualification, retry/exclusion policy and raw metric vocabulary are frozen methodology to reuse rather than fork.
 
+Frozen Sprite milestone references retained for contract continuity:
+
+- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract, frozen and complete.
+- #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 renderer conformance and trusted presentation-GPU evidence.
+- #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
+- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
+- #170 / PR #171 / `41536c6045b8c89831a2026f090b5be7889599f3` — SE2E generated/imported Sprite proof.
+- #172 / PR #173 / `31712ca419efb232d292680661caea51d8a318e4` — SPERF final reproducible Sprite performance evidence.
+
 Relevant Sprite production authorities already exist:
 
 ```text
