@@ -113,15 +113,14 @@ class SpriteAnimationSa0ContractTests(unittest.TestCase):
         self.assertIn("REJECT", self.timing)
         self.assertIn("Do **not** implement SA1", self.timing)
 
-    def test_program_handoff_keeps_sa0_frozen_and_marks_sa1_active(self) -> None:
+    def test_program_handoff_keeps_sa0_frozen_after_successors_advance(self) -> None:
         self.assertIn("SR8 [complete]", self.sprites)
         self.assertIn("SA0 [complete]", self.sprites)
-        self.assertIn("SA1 [active #146/#147]", self.sprites)
+        self.assertNotIn("SA0 [active", self.sprites)
+        self.assertRegex(self.sprites, r"SA0 \[complete\]\s*-> SA1 \[")
         self.assertIn("#144", self.status)
-        self.assertIn("#146", self.status)
         self.assertIn("SA0", self.status)
-        self.assertIn("SA1", self.status)
-        self.assertIn("SA2", self.status)
+        self.assertNotIn("Only active Sprite child: #144", self.status)
 
 
 if __name__ == "__main__":
