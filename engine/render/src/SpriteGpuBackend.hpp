@@ -69,6 +69,10 @@ private:
     void CreatePipelines();
     void EnsureVertexCapacity(std::size_t requiredQuadSlots);
     void EnsureMaskTarget(std::uint32_t width, std::uint32_t height);
+    void ApplyPixelPerfectRasterState(
+        SDL_GPURenderPass* renderPass,
+        std::uint32_t targetWidth,
+        std::uint32_t targetHeight) const;
     void Cleanup() noexcept;
 
     [[nodiscard]] SDL_GPUGraphicsPipeline* ResolvePipeline(
@@ -92,6 +96,8 @@ private:
     std::uint32_t maskTargetWidth_{0U};
     std::uint32_t maskTargetHeight_{0U};
     bool maskingRequired_{false};
+    SpritePixelPerfectViewport2D pixelPerfectViewport_{};
+    bool pixelPerfectViewportEnabled_{false};
     std::vector<SpriteOrderMaskEntry2D> orderScratch_{};
     // Source-index keyed first quad-slot offset for the current frame. Capacity is retained.
     std::vector<std::size_t> patchOffsetScratch_{};

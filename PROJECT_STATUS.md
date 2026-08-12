@@ -30,11 +30,11 @@ Completed Sprite stages:
 - #127 / SR2 trim/pivot/atlas/rotated-storage geometry and UV derivation — PR #128 / squash `a42e65c8a7953d38ad2d82894332c1f39da288f1`,
 - #130 / SR3 color/alpha/blend/sampling — PR #131; real Windows presentation-GPU gate passed 2026-08-12,
 - #132 / SR4 painter order/sorting groups/masking — PR #133 / squash `3c843bba10be536685c0fc70306b3fd6c75ed67a`; real Windows presentation-GPU gate passed 2026-08-12,
-- #134 / SR5 9-slice and tiled/repeated Sprite primitives — completion vehicle PR #135; all hosted and owner-GPU acceptance gates passed 2026-08-12.
+- #134 / SR5 9-slice and tiled/repeated Sprite primitives — PR #135 merged as `6d84ada945774d54c089d1a5bec3b63e17a43334`; all hosted and owner-GPU acceptance gates passed 2026-08-12.
 
 **Active core program: #59 Complete Sprite program.**  
-**SR5 acceptance is complete. PR #135 is the completion/merge vehicle.**  
-**Exact next child after #135 merges: SR6 — pixel-perfect runtime presentation. Do not create SR6 in the same continuation that completes SR5.**
+**Only active Sprite child: #136 / draft PR #137 — SR6 pixel-perfect runtime presentation.**  
+**Blocking before SR6 completion: current hosted checks green + owner-local real Windows presentation-GPU fixture pass. SR7 must not start before that PR merges.**
 
 ## #59 Sprite program
 
@@ -46,14 +46,16 @@ SR1 transform/presentation seam: [`docs/SPRITE_TRANSFORM_PRESENTATION.md`](docs/
 SR2 atlas/trim/UV seam: [`docs/SPRITE_ATLAS_GEOMETRY.md`](docs/SPRITE_ATLAS_GEOMETRY.md).  
 SR3 color/alpha/blend/sampling seam: [`docs/SPRITE_COLOR_SAMPLING.md`](docs/SPRITE_COLOR_SAMPLING.md).  
 SR4 painter-order/group/masking seam: [`docs/SPRITE_ORDER_MASKING.md`](docs/SPRITE_ORDER_MASKING.md).  
-SR5 9-slice/tiled seam: [`docs/SPRITE_PRIMITIVES.md`](docs/SPRITE_PRIMITIVES.md).
+SR5 9-slice/tiled seam: [`docs/SPRITE_PRIMITIVES.md`](docs/SPRITE_PRIMITIVES.md).  
+SR6 pixel-perfect presentation seam: [`docs/SPRITE_PIXEL_PERFECT.md`](docs/SPRITE_PIXEL_PERFECT.md).
 
 Fixed internal order:
 
 ```text
 S0 [complete] -> S1 [complete]
  -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
- -> SR4 [complete #132/#133] -> SR5 [complete #134/#135] -> SR6 [next] -> SR7 -> SR8
+ -> SR4 [complete #132/#133] -> SR5 [complete #134/#135]
+ -> SR6 [active #136/#137] -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
@@ -61,97 +63,80 @@ S0 [complete] -> S1 [complete]
 
 Exactly one child is active at a time.
 
-## #134 / SR5 — acceptance complete via PR #135
+## #136 / SR6 — pixel-perfect runtime presentation — active via draft PR #137
 
-SR5 extends canonical Sprite metadata and production presentation with deterministic 9-slice and tiled/repeated primitives while preserving S0-SR4 authority.
+SR6 adds presentation-only pixel mapping while preserving S0-SR5 canonical/runtime authority.
 
-### Canonical/runtime split
+### Backend-independent mapping
 
-Canonical `SpriteRegion` now has optional exact source-pixel border metadata:
-
-```text
-border = [left, top, right, bottom]
-```
-
-Omission remains backward-compatible schema-v1 zero. Borders are validated against untrimmed source size and are never rewritten by trim or packed rotation.
-
-Runtime presentation chooses:
+`SpritePixelPerfectViewport2D` owns fixed-size derived presentation facts:
 
 ```text
-quad | sliced | tiled
+logical reference size
+ + acquired final target size
+ -> integer contain scale
+ -> centered exact content pixel rectangle
+ -> logical-aspect OrthographicView
 ```
 
-with explicit target size. Resizing preserves the canonical pivot's normalized source position rather than mutating authored pivot state.
+Frozen rules:
 
-### Geometry and sampling
+- `integer_scale = min(target_width / logical_width, target_height / logical_height)`,
+- no fractional fallback; a target smaller than the logical reference is an explicit failure,
+- odd unused pixels use floor placement on left/top and the remainder on right/bottom,
+- target dimensions are bounded so viewport/scissor integers remain exactly representable by the GPU float viewport contract,
+- the resolved `OrthographicView` uses logical aspect, not final target aspect,
+- validation is O(1), fixed-size and allocation-free.
 
-SR5 implements:
+### Pixel-grid authority and snapping
 
-- deterministic source/target 3x3 partition,
-- proportional opposing-border compression when target size is undersized,
-- explicit repeated geometry for tiled center/edge cells,
-- partial final tiles without texture wrap authority,
-- trim intersection that preserves transparent logical gaps,
-- `none` and `cw90` arbitrary source-subrect packed mapping,
-- exact pixel-edge UV geometry plus per-patch texel-center sample bounds,
-- sub-texel partial tiles clamped to the represented texel center to avoid linear-filter atlas bleed,
-- exact count-first caller-owned patch output,
-- no partial writes on insufficient capacity,
-- hard safety bound `MaximumSpritePrimitiveQuads == 4096`.
+The stable snap anchor is the transformed **untrimmed source pixel-edge origin `(0,0)`** obtained through the existing SR1/SR2 geometry contract. Pivot, trim and packed rotation do not replace that authority.
 
-### SR4 atomicity and GPU path
+`ResolveSpritePixelPerfectPose`:
 
-Primitive expansion does not create separate semantic Sprite items:
+- selects either authoritative `currentFixed` or the existing SR1 interpolation path,
+- records presentation-time mode and effective interpolation alpha as deterministic evidence,
+- converts the source origin and one-source-pixel basis vectors through the same logical view used by rendering,
+- accepts only finite axis-aligned integer logical-pixel bases, including semantic flips, integer magnification and quarter-turn axis swaps,
+- rejects fractional magnification and arbitrary-angle rotation instead of claiming exactness,
+- snaps source origin with `floor(x + 0.5)`, so integer logical-pixel translations preserve snap phase,
+- applies the resulting delta only to the derived presentation pose,
+- never mutates canonical Sprite metadata or authoritative `SpritePoseHistory2D`.
+
+### Production SDL GPU path
+
+`SpritePresentationRenderData` may carry a caller-owned SR6 viewport mapping for the current frame. The production Sprite GPU backend:
+
+- requires one equal SR6 mapping for every Sprite when exact SR6 mode is enabled,
+- requires nearest sampling for exact source-texel presentation,
+- uses the SR6 logical view for Sprite vertex conversion,
+- validates target/mapping state before beginning a GPU render pass,
+- clears the full existing color target, then restricts drawing with the deterministic integer SDL GPU viewport and scissor,
+- preserves SR4 painter order/sorting-group/mask semantics,
+- preserves SR5 primitive atomicity and persistent vertex/transfer/sampler/pipeline/mask resource reuse,
+- introduces no intermediate SR6 upscale texture,
+- introduces no ordinary-frame explicit GPU readback or fence wait.
+
+### Validation state
+
+Committed backend-independent tests cover integer scale/centering, odd remainder placement, corrupt/too-small/inexact target rejection, 1x/integer source-pixel bases, flips, quarter turns, fractional/arbitrary rotation rejection, trim/pivot independence, authoritative-current vs interpolation selection/evidence, common camera/Sprite translation phase, history immutability and repeated caller-owned mapping reuse.
+
+Committed owner GPU fixture:
 
 ```text
-one SpritePresentationRenderData
- -> one SR4 order/group/mask item
- -> N contiguous SR5 quad slots
- -> one triangle-list draw for N > 0
+SpritePixelPerfectGpuSmokeTests.Sr6IntegerViewportNearestMaskPrimitiveAndReuseMatchContract
 ```
 
-The SDL GPU path preserves persistent sampler/pipeline/mask state, grows reusable vertex/transfer-buffer capacity geometrically, and performs no ordinary-frame explicit GPU readback or fence wait.
+It proves on a real presentation GPU:
 
-### Validation evidence
+- centered integer viewport/scissor and untouched clear bars,
+- nearest source texels occupying exact integer final-pixel blocks,
+- SR4 stencil masking under the SR6 raster state,
+- SR5 tiled primitive submission under the same raster state,
+- persistent resource reuse,
+- no additional ordinary-frame explicit readback/fence wait.
 
-Final implementation head before completion documentation:
-
-```text
-e05dc7158f5ea68b990f0e87f753629d6149ebab
-```
-
-Hosted checks on that head all passed:
-
-- CI run #604 — success,
-- Content Evidence — success,
-- Sprite S0 Contract — success,
-- B0 Codex Wrapper — success,
-- B0 Godot Agent Oracle — success.
-
-Blocking owner Windows presentation-GPU fixture:
-
-```text
-SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
-```
-
-First owner execution correctly exposed a real 0.5-texel partial-tile linear-filter bleed. The observed failed sample mixed red/green (`red=64`, `green=191`) instead of the intended pure green. The sample-bound calculation was corrected and locked with the backend-independent `SubTexelPartialTileClampsToRepresentedTexelCenter` regression test.
-
-The owner reran configure/build and the GPU fixture with `TRACE2D_RUN_GPU_SMOKE=1`. Final observed result:
-
-```text
-Start 120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract
-1/1 Test #120: SpritePrimitiveGpuSmokeTests.Sr5TiledLinearMaskAndCapacityReuseMatchContract ... Passed
-100% tests passed out of 1
-Total Test time (real) = 2.28 sec
-```
-
-No renderer/driver string was captured; do not invent one.
-
-## Exact next stage: SR6
-
-SR6 owns pixel-perfect runtime presentation. It must freeze the mapping among source pixels, `pixels_per_unit`, world transforms, resolved camera/view, logical viewport and final target pixels, including interpolation/camera interaction. It must preserve SR0-SR5 canonical/derived authority and keep deterministic mapping facts machine-verifiable.
-
-Do not begin SR7, animation, offline Sprite processing, or game-production foundation work before SR6 is completed in the fixed order.
+An earlier SR6 implementation head passed hosted Windows MSVC configure/build/CTest and clean-clone validation on 2026-08-12. The current PR head is still required to pass its fresh hosted checks after the final contract/safety edits. The owner-local GPU fixture above is also still required before PR #137 can leave draft/completion state. Do not invent owner GPU evidence.
 
 ## Owner-fixed core execution order
 
@@ -174,7 +159,7 @@ Content production
       -> #130 SR3 color/alpha/blend/sampling                [complete via #131]
       -> #132 SR4 painter order/sorting groups/masking      [complete via #133]
       -> #134 SR5 9-slice/tiled/repeated primitives         [complete via #135]
-      -> SR6 pixel-perfect runtime presentation              [exact next]
+      -> #136 SR6 pixel-perfect runtime presentation        [active via draft #137]
       -> SR7..SR8 renderer
       -> SA0..SA4 animation
       -> SPP0..SPP5 offline processing/generation
@@ -229,12 +214,13 @@ The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves th
 
 ## Continuation rule
 
-SR5 acceptance is complete. The completion continuation must:
+SR6 is the only active child. The current continuation must:
 
-1. record the hosted and owner-GPU evidence,
-2. update `docs/SPRITES.md`, `docs/SPRITE_PRIMITIVES.md` and this file,
-3. mark PR #135 ready and merge it only with the final acceptance state intact,
-4. confirm #134 closed,
-5. stop without creating SR6.
+1. keep #136 / draft PR #137 scoped only to SR6,
+2. require the current hosted checks to pass,
+3. require owner-local `TRACE2D_RUN_GPU_SMOKE=1` evidence for `SpritePixelPerfectGpuSmokeTests.Sr6IntegerViewportNearestMaskPrimitiveAndReuseMatchContract`,
+4. keep PR #137 draft/not merged until both gates are satisfied,
+5. after both gates pass, record exact evidence, mark ready/merge #137, confirm #136 closed, and stop,
+6. not create SR7 in that completion continuation.
 
-The **next** `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR6 child and no later stage.
+Only the **following** `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR7 child.

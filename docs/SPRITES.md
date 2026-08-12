@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5 complete. Exact next stage: SR6 — pixel-perfect runtime presentation.**
+Status: **S0/S1/SR0/SR1/SR2/SR3/SR4/SR5 complete. SR6 — pixel-perfect runtime presentation is active via #136 / draft PR #137. SR7 must not begin before SR6 merges green.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -11,7 +11,8 @@ SR1 transform/presentation seam: [`SPRITE_TRANSFORM_PRESENTATION.md`](SPRITE_TRA
 SR2 atlas/trim/UV seam: [`SPRITE_ATLAS_GEOMETRY.md`](SPRITE_ATLAS_GEOMETRY.md).  
 SR3 color/alpha/blend/sampling seam: [`SPRITE_COLOR_SAMPLING.md`](SPRITE_COLOR_SAMPLING.md).  
 SR4 painter-order/group/masking seam: [`SPRITE_ORDER_MASKING.md`](SPRITE_ORDER_MASKING.md).  
-SR5 9-slice/tiled seam: [`SPRITE_PRIMITIVES.md`](SPRITE_PRIMITIVES.md).
+SR5 9-slice/tiled seam: [`SPRITE_PRIMITIVES.md`](SPRITE_PRIMITIVES.md).  
+SR6 pixel-perfect presentation seam: [`SPRITE_PIXEL_PERFECT.md`](SPRITE_PIXEL_PERFECT.md).
 
 This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer or tooling state.
 
@@ -66,13 +67,14 @@ Exactly one child issue/PR is active at a time:
 ```text
 S0 [complete] -> S1 [complete]
  -> SR0 [complete] -> SR1 [complete] -> SR2 [complete] -> SR3 [complete]
- -> SR4 [complete #132/#133] -> SR5 [complete #134/#135] -> SR6 [next] -> SR7 -> SR8
+ -> SR4 [complete #132/#133] -> SR5 [complete #134/#135]
+ -> SR6 [active #136/#137] -> SR7 -> SR8
  -> SA0 -> SA1 -> SA2 -> SA3 -> SA4
  -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Completed renderer stages through SR5 are frozen. **Do not create or begin SR6 in the same continuation that completes SR5.** The next `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR6 child.
+Completed renderer stages through SR5 are frozen. **Do not create or begin SR7 while #136 / #137 remains open or while the required owner Windows presentation-GPU gate is pending.**
 
 ## 4. Completed foundation
 
@@ -167,9 +169,28 @@ The first owner run exposed real linear-filter bleed on a 0.5-texel partial tile
 
 ## 5. Remaining production Sprite renderer stages
 
-### SR6 — pixel-perfect runtime presentation — exact next
+### SR6 — pixel-perfect runtime presentation — active
 
-Freeze mapping among source pixels, `pixels_per_unit`, world transforms, resolved camera/view, logical viewport and final target pixels, including interpolation/camera interaction. Verification must distinguish deterministic pixel-mapping facts from genuinely perceptual review.
+Active vehicle: **#136 / draft PR #137**. Concrete contract: [`SPRITE_PIXEL_PERFECT.md`](SPRITE_PIXEL_PERFECT.md).
+
+SR6 freezes and implements:
+
+- explicit logical reference viewport -> final target integer-contain mapping,
+- deterministic centered letterbox/pillarbox rectangle with floor-to-left/top remainder placement,
+- logical-aspect `OrthographicView` reused by CPU mapping and production Sprite GPU vertex conversion,
+- source-grid authority at the transformed untrimmed source pixel-edge origin `(0,0)`, independent of trim/pivot/packed rotation,
+- exact-grid eligibility only for finite axis-aligned integer source-pixel bases, including flips and quarter-turn axis swaps,
+- structured rejection of fractional scaling/arbitrary rotation instead of a false exactness claim,
+- presentation-only nearest-edge snapping using `floor(x + 0.5)` with no mutation of authoritative SR1 pose history,
+- explicit authoritative-current vs existing SR1-interpolated presentation-time evidence,
+- exact nearest-sampling requirement for the SR6 production GPU path,
+- full-target clear followed by deterministic SDL GPU viewport + scissor restriction to the integer content rectangle,
+- preservation of SR4 painter/mask semantics and SR5 primitive atomicity/resource reuse,
+- no intermediate SR6 upscale texture and no ordinary-frame explicit GPU readback/fence wait,
+- O(1), fixed-size, allocation-free backend-independent mapping/validation APIs,
+- target bounds that keep final viewport integers exactly representable by the GPU viewport float contract.
+
+Backend-independent CPU coverage and the opt-in `SpritePixelPerfectGpuSmokeTests.Sr6IntegerViewportNearestMaskPrimitiveAndReuseMatchContract` fixture are committed. A prior implementation head passed hosted Windows MSVC configure/build/CTest and clean-clone validation on 2026-08-12; the current head must also be green before completion. The owner-local real Windows presentation-GPU fixture remains a blocking acceptance gate. Until that evidence is supplied, #137 stays draft and SR7 stays inactive.
 
 ### SR7 — production batching/resource reuse
 
@@ -263,4 +284,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SR5 satisfies its acceptance gates. Complete/merge #135, confirm #134 closed, and **stop this continuation**. On the next continuation only, create exactly one SR6 child. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
+SR6 is the only active Sprite child. **Do not merge #137 until the current hosted checks are green and the owner-local `SpritePixelPerfectGpuSmokeTests.Sr6IntegerViewportNearestMaskPrimitiveAndReuseMatchContract` run passes with `TRACE2D_RUN_GPU_SMOKE=1`.** After merge, close/confirm #136 and stop that continuation. Only the following `@GitHub Trace2D 다음 진행해줘` continuation may create exactly one SR7 child. After the complete #59 program, the exact next core item remains **#103 Benchmark B1** before #69 game-production work.
