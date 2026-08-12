@@ -1,0 +1,306 @@
+name: Benchmark B1 Godot Content Qualification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "scripts/qualify_b1_*.py"
+      - ".github/workflows/benchmark-b1-godot-content-qualify.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "scripts/qualify_b1_*.py"
+      - ".github/workflows/benchmark-b1-godot-content-qualify.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B1_GODOT_VERSION: 4.7.1-stable
+  TRACE2D_B1_SATELLITE_PACKAGE: "@satelliteoflove/godot-mcp@4.1.0"
+  TRACE2D_B1_NODE_VERSION: 22.18.0
+  TRACE2D_B1_GODOT_AI_REF: v3.0.6
+  TRACE2D_B1_GODOT_AI_COMMIT: f3d99dfbd38c9e095edf1467f85bee507ace2c3a
+
+jobs:
+  satellite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Trace2D
+        uses: actions/checkout@v6
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.TRACE2D_B1_NODE_VERSION }}
+
+      - name: Download and verify pinned official Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B1_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_B1_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Ensure Xvfb
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Install exact satellite bridge and fixture addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/b1-satellite-mcp"
+          fixture="$RUNNER_TEMP/b1-satellite-fixture"
+          evidence="$RUNNER_TEMP/b1-satellite-evidence"
+          cp -a benchmarks/b1/qualification/godot_content_fixture "$fixture"
+          mkdir -p "$prefix" "$evidence"
+          npm install --prefix "$prefix" --no-audit --no-fund "$TRACE2D_B1_SATELLITE_PACKAGE"
+          server="$prefix/node_modules/.bin/godot-mcp"
+          test -x "$server"
+          test "$("$server" --version)" = "4.1.0"
+          integrity="$(npm view "$TRACE2D_B1_SATELLITE_PACKAGE" dist.integrity)"
+          test -n "$integrity"
+          "$server" --install-addon "$fixture"
+          cat >> "$fixture/project.godot" <<'EOF'
+
+          [editor_plugins]
+          enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+          EOF
+          echo "TRACE2D_B1_SATELLITE_SERVER=$server" >> "$GITHUB_ENV"
+          echo "TRACE2D_B1_SATELLITE_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B1_SATELLITE_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          echo "TRACE2D_B1_SATELLITE_INTEGRITY=$integrity" >> "$GITHUB_ENV"
+
+      - name: Launch satellite qualification editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a "$TRACE2D_B1_GODOT_BIN" \
+            --editor \
+            --path "$TRACE2D_B1_SATELLITE_FIXTURE" \
+            --rendering-method gl_compatibility \
+            >"$TRACE2D_B1_SATELLITE_EVIDENCE/godot-editor.log" 2>&1 &
+          echo $! > "$TRACE2D_B1_SATELLITE_EVIDENCE/editor.pid"
+          sleep 3
+          kill -0 "$(cat "$TRACE2D_B1_SATELLITE_EVIDENCE/editor.pid")"
+
+      - name: Author matched B1 content with satellite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/qualify_b1_satellite_live.py \
+            --server "$TRACE2D_B1_SATELLITE_SERVER" \
+            --project "$TRACE2D_B1_SATELLITE_FIXTURE" \
+            --source-fixture benchmarks/b1/qualification/godot_content_fixture \
+            --evidence "$TRACE2D_B1_SATELLITE_EVIDENCE/provider.json" \
+            --mcp-stderr "$TRACE2D_B1_SATELLITE_EVIDENCE/godot-mcp.stderr.log"
+
+      - name: Stop satellite qualification editor
+        if: always()
+        shell: bash
+        run: |
+          pid_file="${TRACE2D_B1_SATELLITE_EVIDENCE:-$RUNNER_TEMP/b1-satellite-evidence}/editor.pid"
+          if [[ -f "$pid_file" ]]; then
+            kill "$(cat "$pid_file")" 2>/dev/null || true
+          fi
+
+      - name: Independently verify known-good and known-bad
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_SATELLITE_FIXTURE" --script res://verify_content.gd \
+            >"$TRACE2D_B1_SATELLITE_EVIDENCE/verifier-good.log" 2>&1
+          cp "$TRACE2D_B1_SATELLITE_FIXTURE/main.tscn" "$TRACE2D_B1_SATELLITE_EVIDENCE/main.good.tscn"
+          "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_SATELLITE_FIXTURE" --script res://mutate_known_bad.gd \
+            >"$TRACE2D_B1_SATELLITE_EVIDENCE/mutator.log" 2>&1
+          if "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_SATELLITE_FIXTURE" --script res://verify_content.gd \
+            >"$TRACE2D_B1_SATELLITE_EVIDENCE/verifier-known-bad.log" 2>&1; then
+            echo "known-bad fixture unexpectedly passed" >&2
+            exit 1
+          fi
+          cp "$TRACE2D_B1_SATELLITE_EVIDENCE/main.good.tscn" "$TRACE2D_B1_SATELLITE_FIXTURE/main.tscn"
+          python3 - "$TRACE2D_B1_SATELLITE_EVIDENCE/provider.json" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          data = json.loads(path.read_text(encoding="utf-8"))
+          data["checks"]["independent_known_good_acceptance"] = True
+          data["checks"]["independent_known_bad_rejection"] = True
+          path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload satellite evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1-satellite-qualification
+          path: ${{ runner.temp }}/b1-satellite-evidence
+          if-no-files-found: error
+
+  hi-godot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Trace2D
+        uses: actions/checkout@v6
+
+      - name: Checkout exact hi-godot release
+        uses: actions/checkout@v6
+        with:
+          repository: hi-godot/godot-ai
+          ref: ${{ env.TRACE2D_B1_GODOT_AI_REF }}
+          path: vendor/godot-ai
+
+      - name: Verify hi-godot source pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C vendor/godot-ai rev-parse HEAD)" = "$TRACE2D_B1_GODOT_AI_COMMIT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install exact hi-godot source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/b1-godot-ai-venv"
+          "$RUNNER_TEMP/b1-godot-ai-venv/bin/python" -m pip install --disable-pip-version-check ./vendor/godot-ai
+          test "$("$RUNNER_TEMP/b1-godot-ai-venv/bin/python" -c 'import godot_ai; print(godot_ai.__version__)')" = "3.0.6"
+          "$RUNNER_TEMP/b1-godot-ai-venv/bin/python" -m pip freeze > "$RUNNER_TEMP/b1-godot-ai-freeze.txt"
+          echo "TRACE2D_B1_GODOT_AI_PYTHON=$RUNNER_TEMP/b1-godot-ai-venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Download and verify pinned official Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B1_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_B1_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Ensure Xvfb
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Install hi-godot addon into matched fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/b1-godot-ai-fixture"
+          evidence="$RUNNER_TEMP/b1-godot-ai-evidence"
+          cp -a benchmarks/b1/qualification/godot_content_fixture "$fixture"
+          mkdir -p "$fixture/addons" "$evidence"
+          cp -a vendor/godot-ai/plugin/addons/godot_ai "$fixture/addons/godot_ai"
+          cat >> "$fixture/project.godot" <<'EOF'
+
+          [editor_plugins]
+          enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
+          EOF
+          cp "$RUNNER_TEMP/b1-godot-ai-freeze.txt" "$evidence/python-freeze.txt"
+          echo "TRACE2D_B1_GODOT_AI_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B1_GODOT_AI_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+
+      - name: Launch hi-godot server and editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B1_GODOT_AI_PYTHON" -m godot_ai --transport streamable-http --port 8000 \
+            >"$TRACE2D_B1_GODOT_AI_EVIDENCE/godot-ai-server.log" 2>&1 &
+          echo $! > "$TRACE2D_B1_GODOT_AI_EVIDENCE/server.pid"
+          xvfb-run -a "$TRACE2D_B1_GODOT_BIN" \
+            --editor \
+            --path "$TRACE2D_B1_GODOT_AI_FIXTURE" \
+            --rendering-method gl_compatibility \
+            >"$TRACE2D_B1_GODOT_AI_EVIDENCE/godot-editor.log" 2>&1 &
+          echo $! > "$TRACE2D_B1_GODOT_AI_EVIDENCE/editor.pid"
+          sleep 3
+          kill -0 "$(cat "$TRACE2D_B1_GODOT_AI_EVIDENCE/server.pid")"
+          kill -0 "$(cat "$TRACE2D_B1_GODOT_AI_EVIDENCE/editor.pid")"
+
+      - name: Author matched B1 content with hi-godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B1_GODOT_AI_PYTHON" scripts/qualify_b1_godot_ai_live.py \
+            --evidence "$TRACE2D_B1_GODOT_AI_EVIDENCE/provider.json"
+
+      - name: Stop hi-godot qualification processes
+        if: always()
+        shell: bash
+        run: |
+          for pid_file in \
+            "${TRACE2D_B1_GODOT_AI_EVIDENCE:-$RUNNER_TEMP/b1-godot-ai-evidence}/editor.pid" \
+            "${TRACE2D_B1_GODOT_AI_EVIDENCE:-$RUNNER_TEMP/b1-godot-ai-evidence}/server.pid"; do
+            if [[ -f "$pid_file" ]]; then
+              kill "$(cat "$pid_file")" 2>/dev/null || true
+            fi
+          done
+
+      - name: Independently verify known-good and known-bad
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_GODOT_AI_FIXTURE" --script res://verify_content.gd \
+            >"$TRACE2D_B1_GODOT_AI_EVIDENCE/verifier-good.log" 2>&1
+          cp "$TRACE2D_B1_GODOT_AI_FIXTURE/main.tscn" "$TRACE2D_B1_GODOT_AI_EVIDENCE/main.good.tscn"
+          "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_GODOT_AI_FIXTURE" --script res://mutate_known_bad.gd \
+            >"$TRACE2D_B1_GODOT_AI_EVIDENCE/mutator.log" 2>&1
+          if "$TRACE2D_B1_GODOT_BIN" --headless --path "$TRACE2D_B1_GODOT_AI_FIXTURE" --script res://verify_content.gd \
+            >"$TRACE2D_B1_GODOT_AI_EVIDENCE/verifier-known-bad.log" 2>&1; then
+            echo "known-bad fixture unexpectedly passed" >&2
+            exit 1
+          fi
+          cp "$TRACE2D_B1_GODOT_AI_EVIDENCE/main.good.tscn" "$TRACE2D_B1_GODOT_AI_FIXTURE/main.tscn"
+          python3 - "$TRACE2D_B1_GODOT_AI_EVIDENCE/provider.json" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          data = json.loads(path.read_text(encoding="utf-8"))
+          data["checks"]["independent_known_good_acceptance"] = True
+          data["checks"]["independent_known_bad_rejection"] = True
+          path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload hi-godot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: b1-hi-godot-qualification
+          path: ${{ runner.temp }}/b1-godot-ai-evidence
+          if-no-files-found: error
