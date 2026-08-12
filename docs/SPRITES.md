@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP3 complete. SPP4 — deterministic sprite-gen / PerfectPixel manifest interoperability is active via #166.**
+Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0-SPP4 complete. SPP5 — provider-neutral generation orchestration is active via #168.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -25,7 +25,8 @@ SPP0 processing/QA seam: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_S
 SPP1 extraction seam: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).  
 SPP2 quality/repair seam: [`SPRITE_QUALITY_REPAIR_SPP2.md`](SPRITE_QUALITY_REPAIR_SPP2.md).  
 SPP3 import seam: [`SPRITE_IMPORT_SPP3.md`](SPRITE_IMPORT_SPP3.md).  
-Active SPP4 generator-manifest seam: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).
+SPP4 generator-manifest seam: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).  
+Active SPP5 generation seam: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).
 
 This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, quality/repair-result, import-result, timing, or capture state.
 
@@ -76,7 +77,7 @@ Hard invariants:
 
 Animation authority is the completed SA0-SA4 chain: integer fixed-step animation time/frame/event crossings are authoritative runtime state; SA1 materializes renderer-independent prepared clip/state; SA2 executes exact retained-rational playback and typed emissions; SA3 exposes that existing authority to agents without duplicating it; SA4 validates/replays/measures it explicitly. MCP serialization, workload digests, timing samples, GPU resources and pixels never become a second animation state machine.
 
-Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary. SPP2 adds exact structural quality evidence plus only caller-selected bounded repairs; threshold/policy findings remain advisory and successful repairs are re-analyzed through SPP0. SPP3 converts only explicit external interchange into canonical S1 `SpriteAsset` data plus ordered offline import evidence, then reuses the existing S1 serializer/parser as the final canonical validation authority. SPP4 adapts explicit maintained generator manifests into that existing SPP3 generic-import seam; provider formats, editor state and generation state never become runtime truth.
+Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary. SPP2 adds exact structural quality evidence plus only caller-selected bounded repairs; threshold/policy findings remain advisory and successful repairs are re-analyzed through SPP0. SPP3 converts only explicit external interchange into canonical S1 `SpriteAsset` data plus ordered offline import evidence, then reuses the existing S1 serializer/parser as the final canonical validation authority. SPP4 adapts explicit maintained generator manifests into that existing SPP3 generic-import seam; provider formats, editor state and generation state never become runtime truth. SPP5 owns only provider-neutral offline orchestration: live provider execution remains nondeterministic external input, while one concrete response is accepted only after explicit candidate/cardinality validation and existing SPP2/SPP4 -> SPP3 -> S1 deterministic validation. Provider SDK/network/model state never becomes canonical Sprite or runtime authority.
 
 ## 3. Fixed implementation order
 
@@ -90,11 +91,11 @@ S0 [complete] -> S1 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
  -> SA4 [complete]
  -> SPP0 [complete]
- -> SPP1 [complete] -> SPP2 [complete] -> SPP3 [complete] -> SPP4 [active #166] -> SPP5
+ -> SPP1 [complete] -> SPP2 [complete] -> SPP3 [complete] -> SPP4 [complete] -> SPP5 [active #168]
  -> SE2E -> SPERF
 ```
 
-Completed stages through SPP3 are frozen. **Do not create or begin SPP5 while #166 remains open or while its hosted CI/audit/documentation gates are pending.**
+Completed stages through SPP4 are frozen. **Do not create or begin SE2E while #168 remains open or while its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -253,9 +254,9 @@ Generic sheets require explicit ordered rectangles or a fully explicit row/colum
 
 SPP3 is offline only: Aseprite conversion is `O(manifest bytes + frames + tags)`, generic/loose conversion is `O(frame count)`, decoded pixel buffers are viewed for byte/dimension validation rather than recopied, the existing `nlohmann-json` dependency is reused, and no runtime/renderer/GPU path is changed.
 
-### SPP4 — sprite-gen / PerfectPixel manifest interoperability — active #166
+### SPP4 — sprite-gen / PerfectPixel manifest interoperability — complete
 
-Concrete contract: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).
+Completed via #166 / PR #167 / squash `e195afb2a9dc7c80f49d71abff32c920e3e850c4`. Concrete contract: [`SPRITE_GENERATOR_INTEROP_SPP4.md`](SPRITE_GENERATOR_INTEROP_SPP4.md).
 
 SPP4 exposes an explicit finite adapter kind for maintained sprite-gen component-row runtime manifests and PerfectPixel `perfectpixel.sprite/2` manifests. It never auto-detects a provider, invokes generation, imports editor state, or owns canonical SpriteAsset construction.
 
@@ -267,17 +268,20 @@ PerfectPixel imports explicit sheet identity/cell dimensions plus per-animation 
 
 SPP4 is offline only: parse/planning is `O(manifest bytes + frames)`, row ordering is `O(animation count log animation count)`, lowering is existing SPP3 `O(frame count)`, decoded atlas bytes are viewed for validation, no new dependency is added, and no runtime/renderer/GPU/provider path is changed.
 
-### SPP5 — provider-neutral generation orchestration
+### SPP5 — provider-neutral generation orchestration — active #168
 
-```text
-sprite request
- -> replaceable external generation provider
- -> raw output
- -> deterministic Trace2D processing + QA
- -> canonical asset after validation
-```
+Concrete contract: [`SPRITE_GENERATION_SPP5.md`](SPRITE_GENERATION_SPP5.md).
 
-Live provider calls are not deterministic CI dependencies.
+SPP5 introduces a protocol/network-independent `SpriteGenerationProvider` seam. The provider call itself may be nondeterministic; deterministic Trace2D authority begins only from one concrete owned response plus an explicit post-process plan. Invalid request/plan state fails before provider execution.
+
+Two finite candidate kinds are supported:
+
+- provider-neutral loose RGBA8 frames, with canonical page/region/texture IDs and optional exact pivots supplied by the caller before generation; these pass through exact shape/cardinality checks, SPP2 quality/repair, then SPP3 loose-frame import and S1 validation,
+- one explicit SPP4 generator-manifest atlas, which passes through exact atlas validation, the selected SPP4 adapter, SPP3/S1 validation and a final exact expected-frame-count gate.
+
+A provider failure/exception, identity mismatch, candidate-kind mismatch, malformed RGBA8 output, frame-count mismatch or downstream deterministic validation failure prevents canonical output from being exposed as a successful SPP5 result. The same recorded response/request/plan emits byte-identical schema-versioned structural evidence; different live provider invocations are not required to reproduce pixels.
+
+SPP5 is offline only: preflight/envelope checks are bounded by target/frame count, loose-frame pixel work reuses existing SPP2 costs, import reuses SPP3, manifest work reuses SPP4, repaired copies exist only for explicit SPP2 repair, no live provider/SDK/package is required by CI, and no generation/network/QA work enters fixed-step animation, normal rendering or GPU presentation.
 
 ## 7. End-to-end proof
 
@@ -369,4 +373,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SPP4 / #166 is the only active Sprite child. Keep it scoped to explicit sprite-gen/PerfectPixel manifest adaptation, exact row/frame/duration/pivot/trim evidence, deterministic lowering through SPP3/S1 and structural serialization. Do not create or implement SPP5 until the SPP4 PR merges green.
+SPP5 / #168 is the only active Sprite child. Keep it scoped to provider-neutral offline orchestration, exact provider/candidate/cardinality gates, deterministic reuse of SPP2/SPP4 -> SPP3/S1 and recorded-response structural evidence. Do not create or implement SE2E until the SPP5 PR merges green.
