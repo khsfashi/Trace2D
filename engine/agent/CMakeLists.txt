@@ -4,6 +4,7 @@ add_library(trace2d_agent STATIC
     src/Inspection.cpp
     src/ParticleInspection.cpp
     src/Query.cpp
+    src/SpriteAnimationInspection.cpp
     src/UiAutomation.cpp
     src/WorkResult.cpp
     src/WorkSpec.cpp

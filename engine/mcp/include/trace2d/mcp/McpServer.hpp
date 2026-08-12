@@ -1,7 +1,9 @@
 #pragma once
 
+#include <trace2d/agent/SpriteAnimationInspection.hpp>
 #include <trace2d/testing/GameplayScenario.hpp>
 
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -20,7 +22,8 @@ public:
     McpServer(
         agent::AgentFacade& agent,
         testing::GameplayScenario& scenario,
-        testing::GameplayFrameUpdate frameUpdate = {});
+        testing::GameplayFrameUpdate frameUpdate = {},
+        std::span<const agent::SpriteAnimatorBinding> spriteAnimators = {});
 
     [[nodiscard]] std::string HandleMessage(std::string_view message);
 
@@ -28,5 +31,6 @@ private:
     agent::AgentFacade& agent_;
     testing::GameplayScenario& scenario_;
     testing::GameplayFrameUpdate frameUpdate_{};
+    std::span<const agent::SpriteAnimatorBinding> spriteAnimators_{};
 };
 } // namespace trace2d::mcp

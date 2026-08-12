@@ -2,10 +2,12 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(trace2d_mcp_tests
     McpServerTests.cpp
+    SpriteAnimationMcpTests.cpp
 )
 
 target_link_libraries(trace2d_mcp_tests
     PRIVATE
+        Trace2D::Assets
         Trace2D::Mcp
         Trace2D::Ui
         nlohmann_json::nlohmann_json
