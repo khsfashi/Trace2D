@@ -1,5 +1,6 @@
 param(
-    [string]$OutputDirectory = "artifacts/sprite-renderer-final-gate"
+    [string]$OutputDirectory = "artifacts/sprite-renderer-final-gate",
+    [string]$ExistingGpuEvidenceDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,13 +16,24 @@ try {
         throw "Unable to resolve the current Trace2D commit."
     }
 
-    # Reuse the trusted generic GPU gate instead of creating a second hardware/runner contract.
-    $gpuOutputDirectory = Join-Path $resolvedOutput "gpu"
-    & (Join-Path $PSScriptRoot "gpu_gate.ps1") `
-        -OutputDirectory $gpuOutputDirectory `
-        -GpuTestRegex "Sprite.*Gpu(Smoke|Conformance)Tests"
+    # Reuse already-produced trusted GPU evidence when the workflow supplies it. Standalone owner
+    # execution keeps the convenient behavior of running the generic GPU gate itself.
+    $gpuEvidenceMode = "delegated"
+    if ([string]::IsNullOrWhiteSpace($ExistingGpuEvidenceDirectory)) {
+        $gpuEvidenceDirectory = Join-Path $resolvedOutput "gpu"
+        & (Join-Path $PSScriptRoot "gpu_gate.ps1") `
+            -OutputDirectory $gpuEvidenceDirectory `
+            -GpuTestRegex "Sprite.*Gpu(Smoke|Conformance)Tests"
+    }
+    else {
+        if (-not (Test-Path $ExistingGpuEvidenceDirectory -PathType Container)) {
+            throw "Existing GPU evidence directory was not found: $ExistingGpuEvidenceDirectory"
+        }
+        $gpuEvidenceDirectory = (Resolve-Path $ExistingGpuEvidenceDirectory).Path
+        $gpuEvidenceMode = "reused"
+    }
 
-    $gpuManifestPath = Join-Path $gpuOutputDirectory "manifest.json"
+    $gpuManifestPath = Join-Path $gpuEvidenceDirectory "manifest.json"
     if (-not (Test-Path $gpuManifestPath -PathType Leaf)) {
         throw "Sprite GPU gate did not produce manifest.json."
     }
@@ -115,6 +127,7 @@ try {
     $rendererWorkloadPath = Join-Path $resolvedOutput "renderer-workloads.json"
     $rendererWorkloadText | Set-Content -Path $rendererWorkloadPath -Encoding utf8
 
+    $gpuManifestRelativePath = [IO.Path]::GetRelativePath($resolvedOutput, $gpuManifestPath).Replace('\\', '/')
     $manifest = [ordered]@{
         schema = "trace2d.sprite-renderer-final-gate.v1"
         generated_utc = [DateTime]::UtcNow.ToString("o")
@@ -136,8 +149,9 @@ try {
             count = @($rendererWorkloads.workloads).Count
         }
         real_gpu = [ordered]@{
+            evidence_mode = $gpuEvidenceMode
             delegated_schema = $gpuManifest.schema
-            manifest_path = "gpu/manifest.json"
+            manifest_path = $gpuManifestRelativePath
             manifest_sha256 = (Get-FileHash -Algorithm SHA256 -Path $gpuManifestPath).Hash.ToLowerInvariant()
             selected_test_count = $gpuManifest.selected_test_count
             required_suites = $requiredGpuSuites
