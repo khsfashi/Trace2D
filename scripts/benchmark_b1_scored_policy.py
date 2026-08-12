@@ -2,8 +2,9 @@
 """Validate the preregistered Benchmark B1 scored-cohort execution policy.
 
 The B1 suite, task fixtures, verifier registry, and freeze manifest are already
-frozen. This module validates only the execution schedule layered on top of that
-frozen content. It deliberately does not mutate or regenerate frozen inputs.
+frozen. This module validates only the execution schedule and exact selected
+Agent environment layered on top of that frozen content. It deliberately does
+not mutate or regenerate frozen inputs.
 """
 from __future__ import annotations
 
@@ -20,6 +21,11 @@ EXPECTED_KIND = "trace2d_b1_scored_cohort_policy"
 EXPECTED_COHORT = "trace2d-b1-content-authoring-scored-v1"
 EXPECTED_REPETITIONS = 3
 EXPECTED_TOTAL = 27
+EXPECTED_GODOT_AI_COMMIT = "f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+EXPECTED_GODOT_AI_QUALIFICATION_RUN = 31622618958
+EXPECTED_GODOT_AI_QUALIFICATION_ARTIFACT = 9151863240
+EXPECTED_GODOT_AI_QUALIFICATION_ARTIFACT_SHA256 = "799fb557100c3c39b4421b8fe4abc85dbe79693826083089780a607c333b6cb2"
+EXPECTED_GODOT_AI_FREEZE_SHA256 = "75ae3394599cefe2426e3921403b6d2448463e7aa3ec3272b15313bccf6eb73e"
 
 
 class ScoredPolicyError(ValueError):
@@ -48,6 +54,14 @@ def _canonical_sha256(value: Any) -> str:
         separators=(",", ":"),
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def expand_schedule(policy: dict[str, Any]) -> list[dict[str, Any]]:
@@ -139,6 +153,29 @@ def validate_policy_data(
         "agent profile canonical SHA-256 changed after preregistration",
     )
 
+    godot_python = policy.get("godot_agent_python_environment")
+    _require(isinstance(godot_python, dict), "selected Godot Agent Python environment must be frozen")
+    _require(
+        godot_python.get("qualification_workflow_run_id") == EXPECTED_GODOT_AI_QUALIFICATION_RUN,
+        "selected Godot Agent qualification workflow changed",
+    )
+    _require(
+        godot_python.get("qualification_artifact_id") == EXPECTED_GODOT_AI_QUALIFICATION_ARTIFACT,
+        "selected Godot Agent qualification artifact changed",
+    )
+    _require(
+        godot_python.get("qualification_artifact_sha256") == EXPECTED_GODOT_AI_QUALIFICATION_ARTIFACT_SHA256,
+        "selected Godot Agent qualification artifact digest changed",
+    )
+    _require(
+        godot_python.get("freeze_sha256") == EXPECTED_GODOT_AI_FREEZE_SHA256,
+        "selected Godot Agent Python freeze digest changed",
+    )
+    _require(
+        godot_python.get("selected_source_commit") == EXPECTED_GODOT_AI_COMMIT,
+        "selected Godot Agent source commit changed",
+    )
+
     budget = policy.get("budget")
     _require(isinstance(budget, dict), "policy budget must be an object")
     _require(profile.get("budget") == budget, "B1 policy budget must exactly match the frozen Agent profile")
@@ -216,6 +253,24 @@ def validate_policy_data(
     return schedule
 
 
+def validate_selected_agent_freeze(policy: dict[str, Any], repo_root: Path) -> Path:
+    environment = policy.get("godot_agent_python_environment")
+    _require(isinstance(environment, dict), "selected Godot Agent Python environment must be frozen")
+    relative = environment.get("freeze")
+    _require(isinstance(relative, str) and relative, "Godot Agent Python freeze path is required")
+    path = (repo_root / relative).resolve()
+    root = repo_root.resolve()
+    _require(path == root or root in path.parents, "Godot Agent Python freeze must stay inside repository root")
+    _require(path.is_file(), f"Godot Agent Python freeze does not exist: {relative}")
+    observed = _file_sha256(path)
+    expected = str(environment.get("freeze_sha256", ""))
+    _require(observed == expected, f"Godot Agent Python freeze SHA-256 mismatch: expected {expected}, got {observed}")
+    text = path.read_text(encoding="utf-8")
+    _require("godot-ai @ file://" in text, "qualification freeze must retain the original local selected-source install record")
+    _require("fastmcp==3.4.7" in text and "mcp==1.29.0" in text, "qualification freeze lost selected bridge transport dependencies")
+    return path
+
+
 def load_and_validate_policy(policy_path: Path, repo_root: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     policy = _load_json(policy_path)
 
@@ -243,6 +298,7 @@ def load_and_validate_policy(policy_path: Path, repo_root: Path) -> tuple[dict[s
         profile=profile,
         b0_policy=b0_policy,
     )
+    validate_selected_agent_freeze(policy, repo_root)
     return policy, schedule
 
 
