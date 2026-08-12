@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+  "source_event": "merge",
+  "event_id": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#144",
+        "url": "https://github.com/khsfashi/Trace2D/issues/144"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 143,
+        "url": "https://github.com/khsfashi/Trace2D/pull/143"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+        "authored_at": "2026-08-12T15:58:34+09:00",
+        "subject": "Sprite SA0: freeze deterministic animation timing and events (#145)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "sprite-animation"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "Authoritative Sprite animation time uses integer nanoseconds aligned with FixedStepRuntime; accumulated floating seconds and presentation wall time are not animation truth",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Frame ownership is half-open [bi,b(i+1)); non-loop terminal duration is explicit completion that still presents the last authored frame",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Forward event crossing is a<e<=b; reverse crossing is b<=e<a; equal-time events preserve authored ordinal",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "Loop/ping-pong execution composes ordered traversal segments; forward wrap emits offset-zero events exactly once after the loop marker",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Steady-state animation update has no mandatory per-tick heap/filesystem/JSON/formatting/name-lookup work and cannot silently drop crossed events",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "SA0 is contract-only; SpriteAnimator2D state/playback/MCP/workloads remain SA1-SA4",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "accumulated floating-point timeline cursor | long-running deterministic frame/event boundaries can drift by update history/platform representation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ],
+        "alternative": "accumulated floating-point timeline cursor",
+        "reason": "long-running deterministic frame/event boundaries can drift by update history/platform representation"
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "modulo-only loop resolution | erases crossed event/loop boundaries on large advances",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ],
+        "alternative": "modulo-only loop resolution",
+        "reason": "erases crossed event/loop boundaries on large advances"
+      },
+      {
+        "id": "rejected-alternatives-003",
+        "text": "reversed duplicate clip | one canonical timeline and frame-duration table remains authoritative",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Rejected",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ],
+        "alternative": "reversed duplicate clip",
+        "reason": "one canonical timeline and frame-duration table remains authoritative"
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "SA1 is the exact next Sprite child and must be created only on the following Trace2D continuation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "Sprite SA0 Contract run 31571600229 passed on exact head a0e219e5877ee31b8ceba039027f55ed7dfa6b9d",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "tested-002",
+        "text": "CI run 31571600168 passed on exact head, including Windows MSVC configure/build/test/B0 qualification and clean-clone README configure/build/test",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Tested",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      },
+      {
+        "id": "tested-003",
+        "text": "Sprite S0 Contract, Content Evidence, B0 Codex Wrapper and B0 Godot Agent Oracle passed on exact head",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Tested",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "local connector-host clone execution | github.com DNS unavailable in connector container; hosted final-head CI supplied the required validation",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+          }
+        ]
+      }
+    ],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "Aseprite official file format | ADOPT/ADAPT | integer per-frame durations and directional tags",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+        }
+      ]
+    },
+    {
+      "id": "reference-002",
+      "text": "Godot SpriteFrames/AnimatedSprite2D | ADOPT/ADAPT/REJECT | useful variable-duration/reverse/loop/ping-pong semantics, float progress rejected as authority",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "d9955d4c987a627f0009a018b9b5293c6f3d8e73",
+          "trailer": "Reference",
+          "ordinal": 2,
+          "url": "https://github.com/khsfashi/Trace2D/commit/d9955d4c987a627f0009a018b9b5293c6f3d8e73"
+        }
+      ]
+    }
+  ],
+  "related": [
+    "#59",
+    "PR #143"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
