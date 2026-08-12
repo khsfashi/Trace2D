@@ -1,6 +1,6 @@
 # Sprite Pipeline Contract
 
-Status: **S0/S1/SR0-SR8/SA0-SA4 complete. SPP0 — deterministic offline processing / QA report is active via #154 / draft PR #155.**
+Status: **S0/S1/SR0-SR8/SA0-SA4/SPP0 complete. SPP1 — deterministic alpha/background/frame extraction is active via #156 / draft PR #157.**
 
 Operational umbrella: GitHub Issue #59.  
 Frozen S0 architecture: [`SPRITE_ARCHITECTURE.md`](SPRITE_ARCHITECTURE.md).  
@@ -21,9 +21,10 @@ SA1 state seam: [`SPRITE_ANIMATOR_STATE_SA1.md`](SPRITE_ANIMATOR_STATE_SA1.md).
 SA2 playback seam: [`SPRITE_ANIMATOR_PLAYBACK_SA2.md`](SPRITE_ANIMATOR_PLAYBACK_SA2.md).  
 SA3 Agent/MCP seam: [`SPRITE_ANIMATION_AGENT_SA3.md`](SPRITE_ANIMATION_AGENT_SA3.md).  
 SA4 conformance/workload seam: [`SPRITE_ANIMATION_CONFORMANCE_SA4.md`](SPRITE_ANIMATION_CONFORMANCE_SA4.md).  
-Active SPP0 processing/QA seam: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_SPP0.md).
+SPP0 processing/QA seam: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_SPP0.md).  
+Active SPP1 extraction seam: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
 
-This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, timing, or capture state.
+This document owns the fixed Sprite stage order and capability target. Stage-local documents refine implementation details but cannot silently replace canonical authored/runtime truth with renderer, Agent, workload, processing-report, extraction-result, timing, or capture state.
 
 ## 1. Product goal
 
@@ -72,7 +73,7 @@ Hard invariants:
 
 Animation authority is the completed SA0-SA4 chain: integer fixed-step animation time/frame/event crossings are authoritative runtime state; SA1 materializes renderer-independent prepared clip/state; SA2 executes exact retained-rational playback and typed emissions; SA3 exposes that existing authority to agents without duplicating it; SA4 validates/replays/measures it explicitly. MCP serialization, workload digests, timing samples, GPU resources and pixels never become a second animation state machine.
 
-Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state.
+Offline processing authority begins with SPP0. Decoded pixels and explicit metadata are inputs; deterministic measurements and findings are derived evidence. SPP0 reports do not mutate source pixels or become canonical Sprite state. SPP1 may create derived cleaned/extracted pixels only from explicit deterministic rules, preserves exact source rectangles, requires expected frame count, and feeds those outputs back through SPP0 rather than creating a second QA vocabulary.
 
 ## 3. Fixed implementation order
 
@@ -85,12 +86,12 @@ S0 [complete] -> S1 [complete]
  -> SR8 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
  -> SA4 [complete]
- -> SPP0 [active #154/#155]
- -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SPP0 [complete]
+ -> SPP1 [active #156/#157] -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
-Completed stages through SA4 are frozen. **Do not create or begin SPP1 while #154/PR #155 remains open or while its hosted CI/audit/documentation gates are pending.**
+Completed stages through SPP0 are frozen. **Do not create or begin SPP2 while #156/PR #157 remains open or while its hosted CI/audit/documentation gates are pending.**
 
 ## 4. Completed renderer foundation
 
@@ -162,9 +163,9 @@ Completed stages through SA4 are frozen. **Do not create or begin SPP1 while #15
 
 ## 6. Offline Sprite processing / generation
 
-### SPP0 — deterministic processing / QA report — active #154 / draft PR #155
+### SPP0 — deterministic processing / QA report — complete
 
-Concrete contract: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_SPP0.md).
+Completed via #154 / PR #155 / squash `54d13db3c0547311afdbab25854212edc8226116`. Concrete contract: [`SPRITE_PROCESSING_QA_SPP0.md`](SPRITE_PROCESSING_QA_SPP0.md).
 
 SPP0 defines the first protocol-independent offline evidence surface over immutable decoded RGBA8 frame views and explicit frame/page metadata.
 
@@ -203,11 +204,27 @@ Performance boundary:
 
 Current reference decisions: W3C PNG alpha semantics are adopted/adapted over decoded RGBA8; Godot `Image.get_used_rect()` is adapted as a useful non-zero-alpha-bounds precedent; Aseprite frame/palette/grid metadata is adopted/adapted as explicit authoring precedent; Aseprite importing remains SPP3 and silent grid/frame inference is rejected.
 
-No new presentation/GPU behavior is introduced, so SPP0 has no new real-GPU acceptance gate.
+No new presentation/GPU behavior was introduced, so SPP0 required no new real-GPU acceptance gate.
 
-### SPP1 — alpha/background/frame extraction
+### SPP1 — deterministic alpha/background/frame extraction — active #156 / draft PR #157
 
-Provide deterministic explicit cleanup/segmentation modes; expected-frame mismatch fails instead of silently inventing frames. SPP1 begins only after SPP0 merges green and must consume the SPP0 measurement/diagnostic vocabulary rather than creating a second QA truth model.
+Concrete contract: [`SPRITE_EXTRACTION_SPP1.md`](SPRITE_EXTRACTION_SPP1.md).
+
+SPP1 consumes decoded RGBA8 sheet pixels plus an explicit extraction specification and produces owned derived frame pixels with exact source rectangles. It supports only deterministic caller-selected cleanup: exact RGB color key, explicit alpha cutoff, optional transparent-RGB zeroing, and optional non-zero-alpha trim.
+
+Extraction geometry is one of:
+
+- caller-ordered explicit rectangles,
+- fully explicit uniform grid with origin/cell/rows/columns/spacing/order,
+- deterministic 4-connected post-cleanup alpha components with row-major component seeds.
+
+Every mode requires `expectedFrameCount > 0`. Count mismatch fails without partial output; SPP1 does not silently merge, split, drop or invent frames. Alpha components are geometry evidence only, not a semantic claim that every connected region is an authored frame.
+
+Successful outputs are passed to the existing SPP0 `AnalyzeSpriteProcessing` API, so SPP0 remains the alpha/bounds/color/identity/motion/finding vocabulary. SPP1 adds no parallel QA truth model.
+
+Fuzzy color matching, learned/VLM background removal and perceptual segmentation are rejected from SPP1. They may only appear in a later explicitly heuristic/perceptual stage with reviewable evidence.
+
+SPP1 is explicit offline work: component discovery is linear in source pixels, output copy is proportional to extracted pixels, visitation storage is bounded to the source operation, and no runtime/animation/render/GPU path changes.
 
 ### SPP2 — pixel-grid/palette/pivot/identity/motion QA and repair
 
@@ -323,4 +340,4 @@ Every Sprite child PR must:
 4. preserve enough structured evidence to continue without chat history,
 5. avoid beginning the next child until the current PR merges green.
 
-SPP0 / #154 / draft PR #155 is the only active Sprite child. Keep it scoped to deterministic offline Sprite measurements/findings/serialization/tooling. Do not create or implement SPP1 until PR #155 merges green.
+SPP1 / #156 / draft PR #157 is the only active Sprite child. Keep it scoped to explicit deterministic cleanup/extraction, expected-frame gates, exact source geometry, SPP0 QA reuse and deterministic structural evidence. Do not create or implement SPP2 until PR #157 merges green.

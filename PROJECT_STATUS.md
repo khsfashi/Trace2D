@@ -43,17 +43,22 @@ Completed Sprite animation stages:
 - #150 / SA3 Agent/MCP exact verification — PR #151 / squash `d7a509ca03f851436d495183503f798c8afb8c2a`,
 - #152 / SA4 animation conformance/deterministic workloads — PR #153 / squash `c5952c0e905c46816b0a182b7d91143bf54b188b`.
 
-Trusted owner real-GPU automation from #140/#141 remains the presentation-GPU gate. SR8 final real-GPU evidence remains accepted. SA0-SA4 and the active SPP0 stage add no presentation/GPU behavior and therefore do not create a new real-GPU acceptance gate.
+Completed Sprite offline-processing predecessor:
+
+- #154 / SPP0 deterministic offline processing / QA report — PR #155 / squash `54d13db3c0547311afdbab25854212edc8226116`.
+
+Trusted owner real-GPU automation from #140/#141 remains the presentation-GPU gate. SR8 final real-GPU evidence remains accepted. SA0-SA4, SPP0 and active SPP1 add no presentation/GPU behavior and therefore do not create a new real-GPU acceptance gate.
 
 **Active core program: #59 Complete Sprite program.**  
-**Only active Sprite child: #154 / draft PR #155 — SPP0 deterministic offline processing / QA report.**  
-**Active branch: `agent/sprite-spp0-processing-qa`.**  
-**Exact next child after SPP0 merges green: SPP1 — deterministic alpha/background/frame extraction.**
+**Only active Sprite child: #156 / draft PR #157 — SPP1 deterministic alpha/background/frame extraction.**  
+**Active branch: `agent/sprite-spp1-extraction`.**  
+**Exact next child after SPP1 merges green: SPP2 — pixel-grid/palette/pivot/identity/motion QA and repair.**
 
 ## #59 Sprite program
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SPP0 contract: [`docs/SPRITE_PROCESSING_QA_SPP0.md`](docs/SPRITE_PROCESSING_QA_SPP0.md).
+SPP0 contract: [`docs/SPRITE_PROCESSING_QA_SPP0.md`](docs/SPRITE_PROCESSING_QA_SPP0.md).  
+Active SPP1 contract: [`docs/SPRITE_EXTRACTION_SPP1.md`](docs/SPRITE_EXTRACTION_SPP1.md).
 
 Fixed internal order:
 
@@ -64,89 +69,92 @@ S0 [complete] -> S1 [complete]
  -> SR8 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
  -> SA4 [complete]
- -> SPP0 [active #154/#155]
- -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SPP0 [complete]
+ -> SPP1 [active #156/#157]
+ -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
 Exactly one Sprite child is active at a time.
 
-## #154 / SPP0 — deterministic offline processing / QA report — active via draft PR #155
+## #156 / SPP1 — deterministic alpha/background/frame extraction — active via draft PR #157
 
-SPP0 establishes the deterministic evidence surface used by later Sprite extraction, repair, import and generation stages.
+SPP1 converts decoded RGBA8 source sheets into owned derived frame pixels only through explicit deterministic rules, then passes those outputs through the existing SPP0 analyzer.
 
 Authority:
 
 ```text
-decoded RGBA8 pixels + explicit frame/page metadata
- -> deterministic raw measurements
- -> typed rule-based findings
- -> later SPP1/SPP2 processing decisions
- -> canonical SpriteAsset only after explicit validation
+decoded RGBA8 sheet + explicit extraction spec
+ -> exact deterministic cleanup
+ -> explicit rectangles / explicit uniform grid / alpha components
+ -> exact expected-frame-count gate
+ -> owned extracted RGBA8 frames + exact source rectangles
+ -> existing SPP0 deterministic QA report
+ -> later SPP2 repair/perceptual decisions
+ -> canonical SpriteAsset only after later validation/import
 ```
 
-The report is derived evidence. It does not mutate source pixels, infer missing frames, auto-repair content or become runtime/render/animation truth.
+The extraction result is offline derived content/evidence. It does not become runtime/render/animation truth.
 
-### Implemented scope in draft PR #155
+### Implemented scope in draft PR #157
 
-The protocol-independent in-memory analyzer measures:
+The protocol-independent in-memory extraction API adds:
 
-- dimensions and exact pixel counts,
-- transparent/partial/opaque alpha counts,
-- visible-alpha bounds using `alpha > 0`,
-- empty frames and visible edge contact,
-- transparent pixels carrying non-zero RGB residue,
-- unique RGBA and visible-RGB color counts,
-- explicit pivot and dimension histograms,
-- exact byte-identical frame groups,
-- adjacent equal-dimension changed-pixel counts,
-- visible-bounds origin displacement,
-- explicit grid evidence without segmentation inference,
-- atlas page area, packed-area utilization as exact integer numerator/denominator, out-of-bounds rectangles and overlap pairs.
+- optional exact RGB background key -> transparent black,
+- optional explicit alpha cutoff -> transparent black,
+- optional zeroing of RGB for already-transparent pixels,
+- ordered explicit rectangle extraction with stable unique IDs,
+- explicit grid extraction with origin/cell/rows/columns/spacing and row-major/column-major order,
+- deterministic 4-connected post-cleanup alpha-component extraction with row-major component seeding,
+- mandatory `expectedFrameCount > 0` for every mode,
+- hard expected-count mismatch failure with no partial authoritative output,
+- optional non-zero-alpha trim preserving the final absolute source rectangle,
+- structured trim-to-empty failure,
+- owned output RGBA8 buffers plus schema-versioned deterministic structural JSON,
+- direct reuse of `AnalyzeSpriteProcessing` so SPP0 remains the QA vocabulary.
 
-Findings are typed and kept separate from raw facts. Bounds-displacement and low-utilization findings require explicit thresholds rather than hidden defaults.
-
-`trace2d_sprite_process` is an explicit offline CLI adapter over the existing `TextureAssetCache`; the core analyzer itself requires no filesystem, renderer or GPU.
+SPP1 deliberately excludes fuzzy RGB matching, learned/VLM background removal, flood-fill tolerance and perceptual segmentation. Alpha components are geometry evidence only, not a semantic claim that every connected region is an authored frame.
 
 ### Determinism / performance boundary
 
-- frame measurement scans each frame in `O(pixel_count)`,
-- exact duplicate identity confirms full dimensions + RGBA8 equality; no probabilistic hash is authoritative,
-- adjacent diff is `O(pixel_count)` per adjacent comparable pair,
-- atlas overlap is deliberately explicit offline `O(rect_count^2)`,
-- JSON is schema-versioned explicit tool output,
-- identical input/options must emit field/byte-identical JSON,
-- source pixel buffers are viewed rather than copied merely for analysis,
-- no SPP0 work enters `SpriteAnimator2D::Advance`, render extraction, normal frame submission or gameplay fixed-step execution.
+- explicit/grid planning is `O(frame_count)`,
+- alpha-component discovery is `O(source_pixel_count)`,
+- trim scans only the planned source rectangle,
+- output copy cost is proportional to extracted pixels,
+- visitation storage is bounded to the source operation,
+- extracted output capacity is reserved from the expected frame count where practical,
+- no SPP1 work enters `SpriteAnimator2D::Advance`, render extraction, normal frame submission or gameplay fixed-step execution,
+- no renderer/GPU readback, background worker framework, global extraction cache or new external dependency is introduced.
 
 ### External-reference decisions — 2026-08-12
 
-- W3C PNG Specification Third Edition — **ADOPT/ADAPT** alpha-zero / positive-alpha semantics over decoded RGBA8,
-- Godot `Image` current stable docs — **ADAPT** non-zero-alpha used-rectangle precedent; **REJECT** Godot runtime/resource architecture,
-- Aseprite official file format/docs — **ADOPT/ADAPT** explicit dimensions/frame/palette/grid metadata; importer remains deferred to SPP3,
-- Aseprite sprite-sheet docs — **ADAPT** explicit frame size/offset/padding/order precedent; **REJECT** silent SPP0 segmentation inference.
+- W3C PNG Specification Third Edition — **ADOPT/ADAPT** decoded alpha and exact transparent-color semantics; deliberately removed pixels normalize to transparent black,
+- SDL3 `SDL_SetSurfaceColorKey` — **ADOPT/ADAPT** exact color-key transparency; **REJECT** SDL surface state as Trace2D processing authority,
+- Aseprite CLI / sprite-sheet export — **ADAPT** explicit trim/crop/rows/columns/order/padding controls; **REJECT** hidden layout inference,
+- Godot `Image` stable API — **ADAPT** explicit region copying and non-zero-alpha used-rectangle semantics; **REJECT** Godot resource/runtime ownership.
 
 No new runtime dependency is introduced.
 
 ### Current validation state
 
-The implementation container cannot resolve `github.com`, so a full local checkout/integration build is unavailable. Draft PR #155 is published and GitHub Actions on the exact branch head are the integration compile/test authority.
+Draft PR #157 was published from branch `agent/sprite-spp1-extraction`.
 
-Required before readiness:
+Before publication, the new extraction source was standalone C++20 syntax-compiled with `-Wall -Wextra -Werror` against the existing public SPP0 API shape. Focused GTest coverage is committed for exact cleanup, explicit rectangles, grid order, 4-connected component behavior, expected-count failure, trim behavior, SPP0 QA reuse and deterministic serialization.
 
-1. focused `SpriteProcessingTests` compile and pass,
-2. `trace2d_sprite_process --help` CTest passes,
-3. normal Windows MSVC configure/build/full CTest passes,
-4. clean-clone README configure/build/full CTest passes,
-5. repository/content/release/benchmark/contract workflows remain green,
-6. `docs/SPRITE_PROCESSING_QA_SPP0.md`, `docs/SPRITES.md`, this file, #154 and implementation agree,
-7. no Sprite runtime/animation/render hot-path processing/report work is introduced.
+Full repository integration remains owned by GitHub Actions on the final exact PR head. Required before readiness:
 
-No new local real-GPU gate is required because SPP0 changes no presentation/GPU path.
+1. focused `SpriteExtractionTests` compile and pass,
+2. normal Windows MSVC configure/build/full CTest passes,
+3. clean-clone README configure/build/full CTest passes,
+4. repository/content/release/benchmark/contract workflows remain green,
+5. `docs/SPRITE_EXTRACTION_SPP1.md`, `docs/SPRITES.md`, this file, #156 and implementation agree,
+6. no Sprite runtime/animation/render hot-path extraction/report work is introduced.
 
-### SPP0 completion gate
+No new local real-GPU gate is required because SPP1 changes no presentation/GPU path.
 
-PR #155 must remain draft/unmerged until one final exact head satisfies all acceptance items above. After all gates pass, record exact-head validation evidence, mark PR #155 ready, merge it, confirm #154 closes, and stop. **Do not create or implement SPP1 in that same completion continuation.**
+### SPP1 completion gate
+
+PR #157 must remain draft/unmerged until one final exact head satisfies all acceptance items above. After all gates pass, record exact-head validation evidence, mark PR #157 ready, merge it, confirm #156 closes, and stop. **Do not create or implement SPP2 in that same completion continuation.**
 
 ## Owner-fixed core execution order
 
@@ -163,8 +171,9 @@ Content production
  -> #59 complete Sprite program                             [active]
       -> S0/S1/SR0..SR8                                    [complete]
       -> SA0..SA4                                           [complete]
-      -> #154 SPP0                                          [active via draft #155]
-      -> SPP1..SPP5 offline processing/generation
+      -> #154 SPP0                                          [complete]
+      -> #156 SPP1                                          [active via draft #157]
+      -> SPP2..SPP5 offline processing/generation
       -> SE2E -> SPERF
  -> #103 Benchmark B1 Sprite/animation/particle matched tasks
 
@@ -188,7 +197,7 @@ Sprite authority remains:
 
 ```text
 external/generation input
- -> deterministic offline processing/import evidence
+ -> deterministic offline processing/extraction/import evidence
  -> canonical authored Sprite metadata
  -> authoritative typed runtime/animation state
  -> explicit Agent inspection / deterministic workloads
@@ -196,19 +205,19 @@ external/generation input
  -> backend renderer resources
 ```
 
-SPP0 reports, Agent/MCP snapshots, workload hashes, timing samples, GPU resources, pixels and review artifacts never become canonical Sprite/gameplay truth.
+SPP0 reports, SPP1 extraction outputs/manifests, Agent/MCP snapshots, workload hashes, timing samples, GPU resources, pixels and review artifacts never become canonical Sprite/gameplay truth by themselves.
 
 The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves the matched methodology/evidence loop, not broad engine superiority.
 
 ## Continuation rule
 
-SPP0 / #154 / draft PR #155 is the only active Sprite child. The current continuation must:
+SPP1 / #156 / draft PR #157 is the only active Sprite child. The current continuation must:
 
-1. keep PR #155 scoped to deterministic offline Sprite measurement/reporting and its CLI/test/docs surface,
-2. keep raw measurements separate from rule findings and later perceptual judgment,
-3. repair only SPP0 implementation/test/documentation issues exposed by review or CI,
+1. keep PR #157 scoped to deterministic offline Sprite cleanup/extraction, expected-count gates, exact source geometry, SPP0 QA reuse and its tests/docs surface,
+2. keep deterministic cleanup/extraction facts separate from later heuristic/perceptual repair judgment,
+3. repair only SPP1 implementation/test/documentation issues exposed by review or CI,
 4. require normal hosted CI/audits on the final PR head,
-5. keep #155 draft/unmerged until those gates are green,
-6. require no new real-GPU gate because SPP0 introduces no presentation-GPU behavior,
-7. after all gates pass, record exact validation evidence, mark ready/merge #155, confirm #154 closes, and stop,
-8. not create or implement SPP1 in that completion continuation.
+5. keep #157 draft/unmerged until those gates are green,
+6. require no new real-GPU gate because SPP1 introduces no presentation-GPU behavior,
+7. after all gates pass, record exact validation evidence, mark ready/merge #157, confirm #156 closes, and stop,
+8. not create or implement SPP2 in that completion continuation.
