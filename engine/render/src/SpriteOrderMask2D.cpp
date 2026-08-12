@@ -32,7 +32,7 @@ struct SortingGroupValidationState final
     case SpriteMaskMode::Write:
     case SpriteMaskMode::TestInside:
     case SpriteMaskMode::TestOutside:
-        return mask.id >= MinSpriteMaskId && mask.id <= MaxSpriteMaskId;
+        return mask.id != NoSpriteMaskId;
     }
     return false;
 }
