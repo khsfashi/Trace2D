@@ -35,28 +35,25 @@ Completed Sprite foundation/renderer stages:
 - #138 / SR7 — PR #139,
 - #142 / SR8 — PR #143 / squash `2108122dad5ac2dcbb964f7ada0e80f7afa21003`.
 
-Completed Sprite animation predecessors:
+Completed Sprite animation stages:
 
 - #144 / SA0 deterministic timing/frame/event contract — PR #145 / squash `d9955d4c987a627f0009a018b9b5293c6f3d8e73`,
 - #146 / SA1 `SpriteAnimator2D` authoritative state — PR #147 / squash `dc8909b24dc5f67e8bec2506263d7b433c6fb2f4`,
 - #148 / SA2 deterministic playback/events/loops/transitions — PR #149 / squash `7f530dc8001a49aeddc7b0d98aa9dbeb781b7c66`,
-- #150 / SA3 Agent/MCP exact verification — PR #151 / squash `d7a509ca03f851436d495183503f798c8afb8c2a`.
+- #150 / SA3 Agent/MCP exact verification — PR #151 / squash `d7a509ca03f851436d495183503f798c8afb8c2a`,
+- #152 / SA4 animation conformance/deterministic workloads — PR #153 / squash `c5952c0e905c46816b0a182b7d91143bf54b188b`.
 
-Trusted owner real-GPU automation from #140/#141 remains the presentation-GPU gate. SR8 final real-GPU evidence remains accepted; SA0-SA4 do not add presentation/GPU behavior and therefore do not create a new GPU acceptance gate.
+Trusted owner real-GPU automation from #140/#141 remains the presentation-GPU gate. SR8 final real-GPU evidence remains accepted. SA0-SA4 and the active SPP0 stage add no presentation/GPU behavior and therefore do not create a new real-GPU acceptance gate.
 
 **Active core program: #59 Complete Sprite program.**  
-**Only active Sprite child: #152 / draft PR #153 — SA4 animation conformance, determinism, and workloads.**  
-**Active branch: `agent/sprite-sa4-conformance-workloads`.**  
-**Exact next child after SA4 merges green: SPP0 — deterministic Sprite processing/QA report contract.**
+**Only active Sprite child: #154 / draft PR #155 — SPP0 deterministic offline processing / QA report.**  
+**Active branch: `agent/sprite-spp0-processing-qa`.**  
+**Exact next child after SPP0 merges green: SPP1 — deterministic alpha/background/frame extraction.**
 
 ## #59 Sprite program
 
 Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SA0 timing/event contract: [`docs/SPRITE_ANIMATION_TIMING_SA0.md`](docs/SPRITE_ANIMATION_TIMING_SA0.md).  
-SA1 authoritative-state contract: [`docs/SPRITE_ANIMATOR_STATE_SA1.md`](docs/SPRITE_ANIMATOR_STATE_SA1.md).  
-SA2 playback contract: [`docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md`](docs/SPRITE_ANIMATOR_PLAYBACK_SA2.md).  
-SA3 Agent/MCP verification contract: [`docs/SPRITE_ANIMATION_AGENT_SA3.md`](docs/SPRITE_ANIMATION_AGENT_SA3.md).  
-Active SA4 conformance/workload contract: [`docs/SPRITE_ANIMATION_CONFORMANCE_SA4.md`](docs/SPRITE_ANIMATION_CONFORMANCE_SA4.md).
+SPP0 contract: [`docs/SPRITE_PROCESSING_QA_SPP0.md`](docs/SPRITE_PROCESSING_QA_SPP0.md).
 
 Fixed internal order:
 
@@ -66,76 +63,90 @@ S0 [complete] -> S1 [complete]
  -> SR4 [complete] -> SR5 [complete] -> SR6 [complete] -> SR7 [complete]
  -> SR8 [complete]
  -> SA0 [complete] -> SA1 [complete] -> SA2 [complete] -> SA3 [complete]
- -> SA4 [active #152/#153]
- -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
+ -> SA4 [complete]
+ -> SPP0 [active #154/#155]
+ -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
  -> SE2E -> SPERF
 ```
 
 Exactly one Sprite child is active at a time.
 
-## #152 / SA4 — animation conformance, determinism, and workloads — active via draft PR #153
+## #154 / SPP0 — deterministic offline processing / QA report — active via draft PR #155
 
-SA4 closes the deterministic Sprite-animation runtime phase without changing SA0-SA3 runtime semantics.
+SPP0 establishes the deterministic evidence surface used by later Sprite extraction, repair, import and generation stages.
 
-The PR adds an explicit `trace2d_sprite_animation_workload` tool with three committed workloads:
+Authority:
 
-- `steady_loop_rational` — 6,000 fixed advances at exact `2/3` speed with forward looping and offset-zero/event boundaries,
-- `dense_event_ping_pong` — dense/equal-time events, exact `5/4` speed and repeated ping-pong bounces,
-- `large_step_multi_wrap` — reverse looping with advances larger than three clip durations.
+```text
+decoded RGBA8 pixels + explicit frame/page metadata
+ -> deterministic raw measurements
+ -> typed rule-based findings
+ -> later SPP1/SPP2 processing decisions
+ -> canonical SpriteAsset only after explicit validation
+```
 
-Structural mode runs a selected workload twice from fresh state and requires identical semantic summaries. Evidence includes exact state/emission counts and a stable FNV-1a digest over explicit numeric/enumerated semantics only. Pointers, wall-clock values, renderer/GPU state and platform object bytes are excluded.
+The report is derived evidence. It does not mutate source pixels, infer missing frames, auto-repair content or become runtime/render/animation truth.
 
-Focused SA4 tests cover:
+### Implemented scope in draft PR #155
 
-- long-running exact replay,
-- split-step versus aggregate-step state/transcript equivalence where SA0 semantics define equivalence,
-- long-run retained-rational quotient/remainder behavior,
-- large ping-pong bounce/event replay,
-- transactional output-capacity failure under multi-wrap stress,
-- restart/seek future-transcript repeatability without historical event replay.
+The protocol-independent in-memory analyzer measures:
 
-Optional timing mode is local Release evidence only:
+- dimensions and exact pixel counts,
+- transparent/partial/opaque alpha counts,
+- visible-alpha bounds using `alpha > 0`,
+- empty frames and visible edge contact,
+- transparent pixels carrying non-zero RGB residue,
+- unique RGBA and visible-RGB color counts,
+- explicit pivot and dimension histograms,
+- exact byte-identical frame groups,
+- adjacent equal-dimension changed-pixel counts,
+- visible-bounds origin displacement,
+- explicit grid evidence without segmentation inference,
+- atlas page area, packed-area utilization as exact integer numerator/denominator, out-of-bounds rectangles and overlap pairs.
 
-- setup and report serialization are outside measured windows,
-- warmup is explicit and discarded,
-- repeated windows report average/median/p95,
-- OS/compiler/build/machine metadata is emitted,
-- hosted/shared CI never fails on wall-clock timing thresholds.
+Findings are typed and kept separate from raw facts. Bounds-displacement and low-utilization findings require explicit thresholds rather than hidden defaults.
 
-Ordinary `SpriteAnimator2D::Advance` receives no new mandatory allocation, hash, transcript, JSON/string, filesystem, Agent/MCP, wall-clock, renderer or GPU work. All new measurement/reporting cost is explicit tooling/test work.
+`trace2d_sprite_process` is an explicit offline CLI adapter over the existing `TextureAssetCache`; the core analyzer itself requires no filesystem, renderer or GPU.
 
-### External-reference decisions
+### Determinism / performance boundary
 
-The required current primary-source pass for #152 was refreshed on 2026-08-12:
+- frame measurement scans each frame in `O(pixel_count)`,
+- exact duplicate identity confirms full dimensions + RGBA8 equality; no probabilistic hash is authoritative,
+- adjacent diff is `O(pixel_count)` per adjacent comparable pair,
+- atlas overlap is deliberately explicit offline `O(rect_count^2)`,
+- JSON is schema-versioned explicit tool output,
+- identical input/options must emit field/byte-identical JSON,
+- source pixel buffers are viewed rather than copied merely for analysis,
+- no SPP0 work enters `SpriteAnimator2D::Advance`, render extraction, normal frame submission or gameplay fixed-step execution.
 
-- FoundationDB Simulation — **ADOPT/ADAPT** deterministic replay as a correctness amplifier and separate correctness from performance testing,
-- Google Benchmark user guide — **ADAPT** warmup/repetitions/statistics/context; **REJECT** shared-CI timing gates and a new dependency for this bounded runner,
-- Godot `SpriteFrames` / `AnimatedSprite2D` — **ADAPT** loop/reverse/ping-pong comparison cases while retaining Trace2D integer/rational authority,
-- Aseprite official file format — **ADOPT/ADAPT** per-frame duration and animation direction/repeat precedent.
+### External-reference decisions — 2026-08-12
 
-No external runtime dependency is introduced.
+- W3C PNG Specification Third Edition — **ADOPT/ADAPT** alpha-zero / positive-alpha semantics over decoded RGBA8,
+- Godot `Image` current stable docs — **ADAPT** non-zero-alpha used-rectangle precedent; **REJECT** Godot runtime/resource architecture,
+- Aseprite official file format/docs — **ADOPT/ADAPT** explicit dimensions/frame/palette/grid metadata; importer remains deferred to SPP3,
+- Aseprite sprite-sheet docs — **ADAPT** explicit frame size/offset/padding/order precedent; **REJECT** silent SPP0 segmentation inference.
+
+No new runtime dependency is introduced.
 
 ### Current validation state
 
-Draft PR #153 targets `main@d7a509ca03f851436d495183503f798c8afb8c2a`.
+The implementation container cannot resolve `github.com`, so a full local checkout/integration build is unavailable. Draft PR #155 is published and GitHub Actions on the exact branch head are the integration compile/test authority.
 
-The implementation environment cannot resolve `github.com` for a full checkout, so local integration build evidence is unavailable. New C++ sources were syntax-checked with C++20 `-Wall -Wextra -Werror` against API-shape stubs before publication. Hosted GitHub Actions on the exact PR head are the integration compile/test authority and must be green before readiness.
+Required before readiness:
 
-SA4 introduces no presentation/GPU behavior; no new local real-GPU acceptance gate is required.
+1. focused `SpriteProcessingTests` compile and pass,
+2. `trace2d_sprite_process --help` CTest passes,
+3. normal Windows MSVC configure/build/full CTest passes,
+4. clean-clone README configure/build/full CTest passes,
+5. repository/content/release/benchmark/contract workflows remain green,
+6. `docs/SPRITE_PROCESSING_QA_SPP0.md`, `docs/SPRITES.md`, this file, #154 and implementation agree,
+7. no Sprite runtime/animation/render hot-path processing/report work is introduced.
 
-### SA4 completion gates
+No new local real-GPU gate is required because SPP0 changes no presentation/GPU path.
 
-PR #153 must remain draft/unmerged until one final head satisfies:
+### SPP0 completion gate
 
-1. all focused `SpriteAnimationConformanceSA4Tests` compile and pass,
-2. workload discovery and all three deterministic structural workload CTests pass,
-3. repeated fresh workload runs produce identical structural evidence,
-4. normal hosted repository CI/audits are green,
-5. `docs/SPRITE_ANIMATION_CONFORMANCE_SA4.md`, `docs/SPRITES.md`, this file, #152 and implementation agree,
-6. timing remains environment-labelled local evidence and never a hosted-CI threshold,
-7. no runtime hot-path reporting/hash/timing work or renderer/GPU dependency is introduced.
-
-After all gates pass, record exact final-head validation evidence, mark PR #153 ready, merge it, confirm #152 closes, and stop. **Do not create SPP0 in that same completion continuation.**
+PR #155 must remain draft/unmerged until one final exact head satisfies all acceptance items above. After all gates pass, record exact-head validation evidence, mark PR #155 ready, merge it, confirm #154 closes, and stop. **Do not create or implement SPP1 in that same completion continuation.**
 
 ## Owner-fixed core execution order
 
@@ -151,12 +162,9 @@ AI-operated foundation
 Content production
  -> #59 complete Sprite program                             [active]
       -> S0/S1/SR0..SR8                                    [complete]
-      -> #144 SA0                                          [complete]
-      -> #146 SA1                                          [complete]
-      -> #148 SA2                                          [complete]
-      -> #150 SA3                                          [complete]
-      -> #152 SA4                                          [active via draft #153]
-      -> SPP0..SPP5 offline processing/generation
+      -> SA0..SA4                                           [complete]
+      -> #154 SPP0                                          [active via draft #155]
+      -> SPP1..SPP5 offline processing/generation
       -> SE2E -> SPERF
  -> #103 Benchmark B1 Sprite/animation/particle matched tasks
 
@@ -179,27 +187,28 @@ WorkSpec/WorkResult/Workspace continue to enforce deterministic verification bef
 Sprite authority remains:
 
 ```text
-canonical authored Sprite metadata
- + authoritative typed runtime/animation state
-        -> explicit Agent inspection/action/assertion
-        -> explicit deterministic conformance/workloads
-        -> resolved/derived presentation
-        -> backend renderer resources
+external/generation input
+ -> deterministic offline processing/import evidence
+ -> canonical authored Sprite metadata
+ -> authoritative typed runtime/animation state
+ -> explicit Agent inspection / deterministic workloads
+ -> resolved presentation
+ -> backend renderer resources
 ```
 
-Agent/MCP snapshots, workload hashes, timing samples, GPU resources, pixels and review artifacts never become canonical Sprite/gameplay truth.
+SPP0 reports, Agent/MCP snapshots, workload hashes, timing samples, GPU resources, pixels and review artifacts never become canonical Sprite/gameplay truth.
 
 The accepted B0 cohort/raw evidence remains under `benchmarks/b0/`; B0 proves the matched methodology/evidence loop, not broad engine superiority.
 
 ## Continuation rule
 
-SA4 / #152 / draft PR #153 is the only active Sprite child. The current continuation must:
+SPP0 / #154 / draft PR #155 is the only active Sprite child. The current continuation must:
 
-1. keep PR #153 scoped to animation conformance/deterministic workloads/local timing evidence,
-2. preserve SA0-SA3 integer/rational/event/runtime authority,
-3. repair only SA4 implementation/test/documentation issues exposed by review or CI,
+1. keep PR #155 scoped to deterministic offline Sprite measurement/reporting and its CLI/test/docs surface,
+2. keep raw measurements separate from rule findings and later perceptual judgment,
+3. repair only SPP0 implementation/test/documentation issues exposed by review or CI,
 4. require normal hosted CI/audits on the final PR head,
-5. keep #153 draft/unmerged until those gates are green,
-6. require no new real-GPU gate because SA4 introduces no presentation-GPU behavior,
-7. after all gates pass, record exact validation evidence, mark ready/merge #153, confirm #152 closes, and stop,
-8. not create or implement SPP0 in that completion continuation.
+5. keep #155 draft/unmerged until those gates are green,
+6. require no new real-GPU gate because SPP0 introduces no presentation-GPU behavior,
+7. after all gates pass, record exact validation evidence, mark ready/merge #155, confirm #154 closes, and stop,
+8. not create or implement SPP1 in that completion continuation.
