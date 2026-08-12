@@ -25,6 +25,10 @@ S0 -> S1
  -> SPP0 -> SPP1 -> SPP2
 ```
 
+Frozen milestone references retained for contract continuity:
+
+- #144 / SA0 — deterministic Sprite animation timing/frame/event contract, frozen and complete.
+
 Current child: **#164 / SPP3 — deterministic Aseprite-sheet, generic sheet and loose-frame import conversion**.  
 Current draft PR: **#165**.  
 Current branch: `agent/sprite-spp3-importers`.  
@@ -72,16 +76,16 @@ Native `.ase/.aseprite` binary compositing, hidden generic layout inference, atl
 
 ## Current validation gate
 
-Initial PR head: `391aac108e27e44549b7c8c1e7496e4a925847a8`.
+Initial implementation head: `391aac108e27e44549b7c8c1e7496e4a925847a8`.
 
-At publication of that head:
+Required on the final exact head:
 
-- Project State Contract: green,
-- Sprite S0 Contract: green,
-- Sprite SA0 Contract: green,
-- repository/release/benchmark/content/Godot qualification jobs observed so far: green,
-- Windows MSVC configure/build/full CTest: still required on the final exact head,
-- clean-clone README configure/build/full CTest: still required on the final exact head.
+- Project State Contract,
+- Sprite S0 Contract,
+- Sprite SA0 Contract,
+- repository/release/benchmark/content/Godot qualification jobs,
+- Windows MSVC configure/build/full CTest,
+- clean-clone README configure/build/full CTest.
 
 No local full-build claim is made for this execution because its local checkout path could not resolve `github.com`. Hosted exact-head CI is the integration authority for this continuation.
 
