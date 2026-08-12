@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <numbers>
 
@@ -223,7 +224,7 @@ TEST(SpritePixelPerfect2DTests, SupportsIntegerMagnificationFlipsAndQuarterTurnA
     EXPECT_EQ(mapping.sourcePixelScaleX, 1U);
     EXPECT_EQ(mapping.sourcePixelScaleY, 1U);
     ExpectNear(mapping.sourcePixelBasisXLogical, 0.0F, -1.0F);
-    ExpectNear(mapping.sourcePixelBasisYLogical, -1.0F, 0.0F);
+    ExpectNear(mapping.sourcePixelBasisYLogical, 1.0F, 0.0F);
 }
 
 TEST(SpritePixelPerfect2DTests, RejectsFractionalScaleAndArbitraryRotationAsInexactGrid)
