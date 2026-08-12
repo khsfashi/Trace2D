@@ -14,83 +14,91 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Active core program: **#59 Complete Sprite**.
+Complete Sprite #59 is merged and closed through final SPERF PR #173 / main commit `31712ca419efb232d292680661caea51d8a318e4`.
 
-Completed Sprite chain:
+Active core item: **#103 Benchmark B1 — matched Sprite, animation and particle authoring tasks**.  
+Active branch: `agent/benchmark-b1-content-authoring`.
 
-```text
-S0 -> S1
- -> SR0..SR8
- -> SA0..SA4
- -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
- -> SE2E
-```
+Exact next core item after B1 completes with reviewable multi-run evidence: **#69 Scene Asset Format v1**.
 
-Frozen milestone references retained for contract continuity:
+Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).  
+Benchmark program contract: [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md).  
+B1 working contract: [`benchmarks/b1/README.md`](benchmarks/b1/README.md).
 
-- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract, frozen and complete.
-- #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 production Sprite renderer conformance, reproducible structural workloads and trusted presentation-GPU evidence.
-- #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
-- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
-- #170 / PR #171 / `41536c6045b8c89831a2026f090b5be7889599f3` — SE2E generated/imported Sprite proof, merged and complete.
+## Frozen predecessors
 
-Current child: **#172 / SPERF — final reproducible Sprite performance evidence and guidance**.  
-Current branch: `agent/sprite-sperf-final-performance-evidence`.  
-Exact next core item after SPERF merges green and #59 closes: **#103 Benchmark B1**.
+The B1 work starts from two completed foundations:
 
-Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SPERF contract: [`docs/SPRITE_PERFORMANCE_SPERF.md`](docs/SPRITE_PERFORMANCE_SPERF.md).  
-Machine-readable SPERF contract: [`docs/contracts/sprite-performance-sperf.json`](docs/contracts/sprite-performance-sperf.json).  
-Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
+- #59 Complete Sprite: S0/S1, SR0-SR8, SA0-SA4, SPP0-SPP5, SE2E and SPERF are frozen.
+- #102 Benchmark B0: matched lane schema, trial isolation, append-only traces, independent verification, known-good/known-bad qualification, retry/exclusion policy and raw metric vocabulary are frozen methodology to reuse rather than fork.
 
-## SPERF authority
-
-SPERF composes existing production evidence instead of adding another runtime subsystem:
+Relevant Sprite production authorities already exist:
 
 ```text
-SR8 production Sprite structural metrics
- + SR7 existing upload/capacity counters
- + SA4 deterministic animation workloads
- + S1/SPP memory/complexity boundaries
- -> explicit deterministic evidence collection
- -> commit-bound trace2d.sprite-performance-final-gate.v1 manifest
- -> optional machine-labelled local timing kept outside portable correctness
+canonical .sprite.toml CPU truth
+ + SpriteAnimationClip2D / SpriteAnimator2D exact ns timing and events
+ + .trace2d.particle.toml structural particle definitions
+ -> existing Agent / MCP inspection and explicit QA surfaces
 ```
 
-Key frozen interpretation:
+B1 consumes those public contracts. It does not create a benchmark-only asset model or hidden answer API.
 
-- SR8 remains real-GPU presentation authority; SPERF introduces no new GPU truth model.
-- The frozen SR8 workload is 1,024 submitted / 768 visible / 256 culled / 960 visible quads / 7 contiguous compatibility runs.
-- The current built-in Sprite vertex payload is 6 vertices per quad and 48 bytes per vertex, so the frozen workload represents exactly 276,480 Trace2D-owned uploaded vertex bytes.
-- `spritePresentationUploadedVertexBytes` and `spriteVertexCapacityBytes` are different metrics: per-frame payload versus retained reusable high-water capacity.
-- Neither engine-owned value is total graphics-driver allocation or residency.
-- SA4 structural replay/digests remain deterministic evidence; optional Release timing remains environment-labelled evidence only.
-- Decoded RGBA8 page payload may be calculated exactly as `width * height * 4` only for that explicit representation. #70/#86 own future package/resource representation and lifetime.
-- SPP0-SPP5 work stays offline and outside ordinary animation/render frame budgets.
+## Current B1 gate — strongest Godot baseline before task freeze
 
-## Performance boundary
+#100 requires the strongest credible pinned Godot Agent workflow to be refreshed and qualified on a **non-scored** fixture before B1 task membership is frozen.
 
-SPERF changes documentation/tooling only. It must add zero normal-frame production cost: no per-frame allocation, JSON/string formatting, filesystem access, wall-clock reads, hashing, capture/readback, provider work, Agent/MCP reporting, or duplicate global caches.
+The current primary-source refresh found:
 
-Generic runtime profiling remains future #91 rather than being pre-implemented inside Sprite.
+- B0-selected `@satelliteoflove/godot-mcp@4.1.0` remains a current candidate with its previously qualified deterministic runtime/control strengths.
+- `hi-godot/godot-ai` has materially advanced to reviewed release `v3.0.6` and exposes dedicated animation/particle authoring relevant to B1.
+- `godot-mcp-runtime@3.2.1` remains a carry-forward fallback candidate.
+
+Therefore B1 intentionally starts in `baseline_qualification`, not `scored`.
+
+Machine-readable gate: [`benchmarks/b1/baseline-qualification.json`](benchmarks/b1/baseline-qualification.json).  
+Selection rationale: [`benchmarks/b1/BASELINES.md`](benchmarks/b1/BASELINES.md).
+
+The gate forbids committing `benchmarks/b1/suite.json` until non-scored qualification evidence selects and pins the B1 `godot.agent` lane.
+
+## B1 required task classes
+
+The preregistered B1 task taxonomy remains:
+
+1. Sprite import/normalization,
+2. trim/pivot/alignment repair,
+3. deterministic animation with exact semantic event timing,
+4. particle authoring/repair under structural and performance constraints,
+5. exact-frame/headless evidence separated from presentation review,
+6. diagnosis and repair of at least one intentionally seeded content defect.
+
+After the Godot Agent baseline is selected, freeze matched lane mappings, budgets, known-good/known-bad fixtures and verifier dispatch **before** observing scored comparative outcomes.
+
+## Performance / fairness boundary
+
+B1 must not add normal-frame production cost or benchmark-shaped production authority.
+
+Forbidden as a benchmark shortcut:
+
+- Trace2D-only task-specific answer APIs,
+- benchmark-detection/input-specific fast paths,
+- a second Sprite/animation/particle truth model,
+- mandatory per-frame reporting, JSON/string formatting, filesystem work or screenshot capture,
+- changing competitor selection, task membership, budgets, retry policy or known-bad mutations after observing which lane wins.
+
+Independent verifier evidence remains authoritative for deterministic acceptance. Presentation captures, multimodal review and final human judgment remain separate evidence layers.
 
 ## Current validation gate
 
-Required on the final exact SPERF PR head:
+For the baseline-qualification stage:
 
-- `trace2d.sprite-performance.v1` contract parses and agrees with stage documentation,
-- `scripts/sprite_performance_final_gate.ps1` reproduces the SR8 structural marker,
-- all three supplementary renderer workload structures match their committed values,
-- all three SA4 animation workload structural runs return successful deterministic replay,
-- Project State Contract,
-- Sprite S0 Contract,
-- Sprite SA0 Contract,
-- repository/release/benchmark/content/Godot qualification jobs,
-- Windows MSVC configure/build/full CTest,
-- clean-clone README configure/build/full CTest.
+- `python3 scripts/benchmark_b1.py validate-contract`,
+- `python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'`,
+- exact external candidate pins/source rationale are committed,
+- no scored B1 suite exists before qualification,
+- the eventual non-scored fixture proves install/start, content authoring, save/readback, headless/runtime verification, capture handoff, known-good acceptance and known-bad rejection.
 
-No new real-GPU acceptance gate is introduced because SPERF changes no renderer behavior and SR8 already owns trusted presentation-GPU evidence. Optional timing is local Release evidence and is never a shared-CI threshold.
+Once that evidence is committed, select the strongest credible B1 Godot Agent lane and only then freeze the scored suite.
 
 ## Continuation rule
 
-Keep the SPERF PR scoped to #172 and repair only evidence/contract/tooling issues exposed by review or CI. After the exact SPERF head is green, merge it, close #172 and close #59. Stop. The following `@GitHub Trace2D 다음 진행해줘` continuation begins **#103 Benchmark B1**.
+Keep #103 and `agent/benchmark-b1-content-authoring` active. The next continuation should implement/run the **non-scored B1 Godot Agent content-capability qualification** and record the selected baseline. Do not begin #69 until B1 has comparable multi-run scored evidence and the #103 acceptance gate is complete.

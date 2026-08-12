@@ -1,0 +1,36 @@
+name: Benchmark B1 Contract
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "scripts/benchmark_b1.py"
+      - "scripts/test_benchmark_b1.py"
+      - "PROJECT_STATUS.md"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "scripts/benchmark_b1.py"
+      - "scripts/test_benchmark_b1.py"
+      - "PROJECT_STATUS.md"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate B1 strongest-baseline gate
+        run: python3 scripts/benchmark_b1.py validate-contract
+
+      - name: Test B1 preregistration invariants
+        run: python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'
