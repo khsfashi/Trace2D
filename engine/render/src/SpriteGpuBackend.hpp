@@ -86,6 +86,7 @@ private:
     SDL_GPUTexture* maskTarget_{nullptr};
     std::uint32_t maskTargetWidth_{0U};
     std::uint32_t maskTargetHeight_{0U};
+    bool maskingRequired_{false};
     std::vector<SpriteOrderMaskEntry2D> orderScratch_{};
     SpriteGpuBackendMetrics metrics_{};
 };
