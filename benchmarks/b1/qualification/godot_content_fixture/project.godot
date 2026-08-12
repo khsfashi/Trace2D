@@ -1,3 +1,5 @@
+config_version=5
+
 [application]
 config/name="Trace2D B1 Content Qualification"
 run/main_scene="res://main.tscn"
