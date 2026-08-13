@@ -17,7 +17,8 @@ Verification rule:
 Complete Sprite #59 is merged and closed through final SPERF PR #173 / main commit `31712ca419efb232d292680661caea51d8a318e4`.
 
 Active core item: **#103 Benchmark B1 — matched Sprite, animation and particle authoring tasks**.  
-Active branch: `agent/benchmark-b1-content-authoring`.
+Active branch: `agent/benchmark-b1-content-authoring`.  
+Active PR: **#174**, intentionally draft until scored multi-run evidence is reviewable.
 
 Exact next core item after B1 completes with reviewable multi-run evidence: **#69 Scene Asset Format v1**.
 
@@ -95,6 +96,35 @@ Qualification source head: `557c7edf9ee30fd9dca0cc33379731887e79f29a`.
 
 Fixture qualification enables scoring; it is not a scored result.
 
+## B1 scored cohort policy and harness — prepared before scoring
+
+`benchmarks/b1/scored-cohort-v1.json` now preregisters the complete scored cohort **before any scored B1 result is observed**:
+
+- 3 frozen tasks × 3 frozen lanes × 3 repetitions = **27 exact scheduled attempts**,
+- B0's frozen lane rotation reused exactly,
+- deterministic rotating task order across repetitions,
+- zero automatic retries,
+- zero infrastructure replacement trials,
+- no early stopping,
+- every scheduled outcome preserved,
+- no best-of-N or weighted composite result.
+
+The selected `hi-godot/godot-ai` Python dependency graph from qualification workflow `31622618958` / artifact `9151863240` is frozen in [`benchmarks/b1/godot-ai-python-freeze.txt`](benchmarks/b1/godot-ai-python-freeze.txt), so scored execution cannot silently resolve the same source tag against newer dependencies.
+
+Owner-local scored infrastructure is implemented by:
+
+- `scripts/benchmark_b1_codex_windows_acl_wrapper.py`,
+- `scripts/benchmark_b1_scored_harness.py`,
+- `scripts/verify_benchmark_b1_candidate.py`,
+- `scripts/package_benchmark_b1_evidence.py`,
+- `scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`.
+
+The harness retains the B0 Codex 0.144.6 / `gpt-5.5` / Windows NTFS ACL / raw usage-accounting semantics. The `godot.agent` adapter reproduces the selected `hi-godot/godot-ai` loopback streamable-HTTP MCP + editor-addon lifecycle. The `trace2d.agent` lane exposes frozen public Trace2D authoring/analysis binaries and deliberately does not inject a benchmark-only scene merely to fit the scene-bound Trace2D MCP executable.
+
+Trace2D animation candidate verification now links an arbitrary preserved candidate through the same already-qualified verifier driver and production `Assets` / `Runtime` authority; held-out verifier behavior is not exposed to the Agent as an authoring shortcut.
+
+The scoring Agent wall budget remains exactly **300 seconds**. A separate **600-second orchestration envelope** only allows the post-turn held-out verifier/evidence path to complete and is not a model/scoring budget expansion.
+
 ## Performance / fairness boundary
 
 B1 must not add normal-frame production cost or benchmark-shaped production authority.
@@ -111,16 +141,37 @@ Independent verifier evidence remains authoritative for deterministic acceptance
 
 ## Current validation gate
 
-For the frozen B1 contract and completed fixture qualification:
+Current GitHub validation on PR #174 has passed the B1-specific prerequisites required before owner-local scoring:
+
+- Benchmark B1 Scored Policy,
+- Benchmark B1 Contract,
+- Benchmark B1 Fixture Qualification,
+- Benchmark B1 Selected Godot Agent Qualification,
+- B0 Codex Wrapper and B0 Godot Agent Oracle reuse gates,
+- repository contract / benchmark contract / full-history Public Alpha release-audit checks.
+
+The scored-policy gate runs:
 
 - `python3 scripts/benchmark_b1.py validate-contract`,
 - `python3 scripts/benchmark_b1.py validate-suite`,
-- `python3 -m unittest discover -s scripts -p 'test_benchmark_b1.py'`,
-- selected `godot.agent` identity and exact source pin remain frozen,
-- all three task IDs/class bindings/budgets/lane mappings/fixture paths/verifier IDs remain frozen,
-- Godot generic/Agent fixtures remain identical by contract,
-- `benchmarks/b1/fixture-qualification.json` records successful known-good/known-bad discrimination for pinned Godot and Trace2D production-source dispatch.
+- `python3 scripts/benchmark_b1_scored_policy.py --print-schedule`,
+- B1 scored-policy / candidate-dispatch / Codex-adapter / scored-harness regression tests,
+- Python syntax checks for the complete owner-local scored tooling.
+
+General CI Windows build and clean-clone quick-start may still be running independently; they do not constitute a scored B1 result.
 
 ## Continuation rule
 
-Keep #103 and `agent/benchmark-b1-content-authoring` active. Fixture qualification is complete. The next continuation is **scored B1 cohort execution only** with the frozen suite, verifier identities, budgets, Agent pins and isolated trial rules. Preserve raw evidence before aggregation, do not alter the frozen benchmark after observing results, and do not begin #69 until B1 has reviewable multi-run acceptance evidence.
+Keep #103 and PR #174 / `agent/benchmark-b1-content-authoring` active. Do not begin #69.
+
+The **exact next external gate** is owner-local preflight only:
+
+```powershell
+python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --prepare-only
+```
+
+`--prepare-only` starts **zero scored slots**. Before any score is observed it re-proves the Codex Windows ACL boundary, official Godot identity, selected `hi-godot/godot-ai` source/dependency environment, a real Codex → Godot MCP call, the detached frozen Trace2D toolchain build, and all held-out known-good/known-bad verifier dispatches.
+
+If this preflight fails, fix only the environment/preflight defect and run it again; no scored slot has started.
+
+Only after preflight is positive, run the same script without `--prepare-only` to execute the preregistered 27-slot cohort. Once slot 1 starts, **never rerun or replace a failed scored slot**. Preserve the generated evidence ZIP, independently reverify every preserved workspace, aggregate deterministic results, then perform separate presentation/multimodal/human review before considering B1 complete or advancing to #69.
