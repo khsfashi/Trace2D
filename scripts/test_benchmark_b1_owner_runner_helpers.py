@@ -26,6 +26,17 @@ class BenchmarkB1OwnerRunnerHelperTests(unittest.TestCase):
             self.assertEqual(len(logs), 1)
             self.assertEqual(logs[0].read_text(encoding="utf-8"), "diagnostic")
 
+    def test_owner_runner_reproduces_qualified_python_freeze_exactly(self):
+        source = (
+            Path(__file__)
+            .with_name("run_benchmark_b1_codex_windows_acl_scored_cohort.py")
+            .read_text(encoding="utf-8")
+        )
+
+        self.assertIn('"--no-deps",\n                    "-r",', source)
+        self.assertIn('[str(python), "-m", "pip", "freeze", "--all"]', source)
+        self.assertIn("order_only = not missing and not extra", source)
+
 
 if __name__ == "__main__":
     unittest.main()
