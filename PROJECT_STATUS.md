@@ -98,7 +98,7 @@ Fixture qualification enables scoring; it is not a scored result.
 
 ## B1 scored cohort policy and harness — prepared before scoring
 
-`benchmarks/b1/scored-cohort-v1.json` now preregisters the complete scored cohort **before any scored B1 result is observed**:
+`benchmarks/b1/scored-cohort-v1.json` preregisters the complete scored cohort **before any scored B1 result is observed**:
 
 - 3 frozen tasks × 3 frozen lanes × 3 repetitions = **27 exact scheduled attempts**,
 - B0's frozen lane rotation reused exactly,
@@ -111,19 +111,32 @@ Fixture qualification enables scoring; it is not a scored result.
 
 The selected `hi-godot/godot-ai` Python dependency graph from qualification workflow `31622618958` / artifact `9151863240` is frozen in [`benchmarks/b1/godot-ai-python-freeze.txt`](benchmarks/b1/godot-ai-python-freeze.txt), so scored execution cannot silently resolve the same source tag against newer dependencies.
 
-Owner-local scored infrastructure is implemented by:
+Scored infrastructure is implemented by:
 
 - `scripts/benchmark_b1_codex_windows_acl_wrapper.py`,
 - `scripts/benchmark_b1_scored_harness.py`,
 - `scripts/verify_benchmark_b1_candidate.py`,
 - `scripts/package_benchmark_b1_evidence.py`,
-- `scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`.
+- `scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`,
+- `scripts/materialize_benchmark_b1_frozen_bytes.py`,
+- `.github/workflows/benchmark-b1-owner-preflight.yml`,
+- `.github/workflows/benchmark-b1-owner-scored.yml`.
 
 The harness retains the B0 Codex 0.144.6 / `gpt-5.5` / Windows NTFS ACL / raw usage-accounting semantics. The `godot.agent` adapter reproduces the selected `hi-godot/godot-ai` loopback streamable-HTTP MCP + editor-addon lifecycle. The `trace2d.agent` lane exposes frozen public Trace2D authoring/analysis binaries and deliberately does not inject a benchmark-only scene merely to fit the scene-bound Trace2D MCP executable.
 
-Trace2D animation candidate verification now links an arbitrary preserved candidate through the same already-qualified verifier driver and production `Assets` / `Runtime` authority; held-out verifier behavior is not exposed to the Agent as an authoring shortcut.
+Trace2D animation candidate verification links an arbitrary preserved candidate through the same already-qualified verifier driver and production `Assets` / `Runtime` authority; held-out verifier behavior is not exposed to the Agent as an authoring shortcut.
 
 The scoring Agent wall budget remains exactly **300 seconds**. A separate **600-second orchestration envelope** only allows the post-turn held-out verifier/evidence path to complete and is not a model/scoring budget expansion.
+
+## Owner-Windows benchmark automation
+
+The existing owner Windows self-hosted runner now owns the B1 external execution gate as well as GPU validation, but B1 itself does not invoke the GPU gate.
+
+`Benchmark B1 Owner Preflight` runs automatically on every push to `agent/benchmark-b1-content-authoring`. It is strictly zero-score and may be retried/cancelled before scoring. Before invoking the B1 runner it purges the persistent self-hosted checkout and restores every frozen benchmark file from its canonical `HEAD` Git blob only after verifying that the blob itself still matches the preregistered SHA-256. This removes Windows CRLF/stale-worktree materialization as a false freeze failure without allowing real repository drift to pass.
+
+`Benchmark B1 Owner Scored Cohort` is not push-triggered. It starts only after the owner adds the existing `github_actions` label to PR #174. Its approval job requires the exact same PR/branch, actor `khsfashi`, first workflow attempt, and a successful owner preflight for the exact head SHA. The scored Windows job then checks out that approved SHA, repeats the built-in preflights, executes exactly 27 scheduled attempts, independently reverifies every preserved workspace, aggregates the deterministic report and uploads the scrubbed evidence ZIP.
+
+Once scored slot 1 begins, do not rerun the scored workflow, remove/re-add the approval label, or replace a failed slot.
 
 ## Performance / fairness boundary
 
@@ -141,7 +154,7 @@ Independent verifier evidence remains authoritative for deterministic acceptance
 
 ## Current validation gate
 
-Current GitHub validation on PR #174 has passed the B1-specific prerequisites required before owner-local scoring:
+The normal B1-specific CI continues to gate:
 
 - Benchmark B1 Scored Policy,
 - Benchmark B1 Contract,
@@ -150,28 +163,18 @@ Current GitHub validation on PR #174 has passed the B1-specific prerequisites re
 - B0 Codex Wrapper and B0 Godot Agent Oracle reuse gates,
 - repository contract / benchmark contract / full-history Public Alpha release-audit checks.
 
-The scored-policy gate runs:
+The scored-policy gate now also tests and syntax-checks the frozen-byte materializer used by owner automation. The automatic owner-Windows preflight is the only live external prerequisite before explicit scored approval.
 
-- `python3 scripts/benchmark_b1.py validate-contract`,
-- `python3 scripts/benchmark_b1.py validate-suite`,
-- `python3 scripts/benchmark_b1_scored_policy.py --print-schedule`,
-- B1 scored-policy / candidate-dispatch / Codex-adapter / scored-harness regression tests,
-- Python syntax checks for the complete owner-local scored tooling.
-
-General CI Windows build and clean-clone quick-start may still be running independently; they do not constitute a scored B1 result.
+No scored B1 comparative result has been observed.
 
 ## Continuation rule
 
 Keep #103 and PR #174 / `agent/benchmark-b1-content-authoring` active. Do not begin #69.
 
-The **exact next external gate** is owner-local preflight only:
+The **exact next external gate** is the automatic `Benchmark B1 Owner Preflight` run for the current branch head. It starts **zero scored slots** and is safe to repair/retry while no score has been observed.
 
-```powershell
-python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --prepare-only
-```
+After that exact-head preflight passes, the owner performs one explicit approval action: add the existing `github_actions` label to PR #174. Do not add it before preflight is green.
 
-`--prepare-only` starts **zero scored slots**. Before any score is observed it re-proves the Codex Windows ACL boundary, official Godot identity, selected `hi-godot/godot-ai` source/dependency environment, a real Codex → Godot MCP call, the detached frozen Trace2D toolchain build, and all held-out known-good/known-bad verifier dispatches.
+That label starts the guarded `Benchmark B1 Owner Scored Cohort`. Once slot 1 starts, **never rerun the scored workflow, remove/re-add the approval label, or replace a failed scored slot**. Preserve the generated evidence artifact, independently reverify every preserved workspace, aggregate deterministic results, then perform separate presentation/multimodal/human review before considering B1 complete or advancing to #69.
 
-If this preflight fails, fix only the environment/preflight defect and run it again; no scored slot has started.
-
-Only after preflight is positive, run the same script without `--prepare-only` to execute the preregistered 27-slot cohort. Once slot 1 starts, **never rerun or replace a failed scored slot**. Preserve the generated evidence ZIP, independently reverify every preserved workspace, aggregate deterministic results, then perform separate presentation/multimodal/human review before considering B1 complete or advancing to #69.
+Interactive PowerShell `--prepare-only` / scored commands remain fallback-only paths if GitHub Actions is unavailable; they are no longer the normal continuation path.
