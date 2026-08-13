@@ -46,6 +46,7 @@ GODOT_VERSION = "4.7.1-stable"
 FROZEN_TRACE2D_COMMIT = "31712ca419efb232d292680661caea51d8a318e4"
 GODOT_AI_COMMIT = "f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
 GODOT_AI_VERSION = "3.0.6"
+GODOT_AI_ENV_RECIPE = "qualified-freeze-no-deps-v1"
 GODOT_RELEASE_BASE = f"https://github.com/godotengine/godot-builds/releases/download/{GODOT_VERSION}"
 GODOT_ARCHIVE_NAME = f"Godot_v{GODOT_VERSION}_win64.exe.zip"
 GODOT_EXE_NAME = f"Godot_v{GODOT_VERSION}_win64.exe"
@@ -282,8 +283,9 @@ def ensure_godot_ai(
     python = venv / "Scripts" / "python.exe"
     marker = venv / ".trace2d-b1-freeze-sha256"
     expected_hash = benchmark_b1_scored_policy.EXPECTED_GODOT_AI_FREEZE_SHA256
+    expected_marker = f"{expected_hash}:{GODOT_AI_ENV_RECIPE}"
     expected_deps = expected_python_freeze(repo_root)
-    if not python.is_file() or not marker.is_file() or marker.read_text(encoding="utf-8").strip() != expected_hash:
+    if not python.is_file() or not marker.is_file() or marker.read_text(encoding="utf-8").strip() != expected_marker:
         shutil.rmtree(venv, ignore_errors=True)
         run(python312_command() + ["-m", "venv", str(venv)], cwd=tools)
         python = require_file(python, "Godot Agent Python")
@@ -307,9 +309,9 @@ def ensure_godot_ai(
             run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-deps", str(source)], cwd=tools)
         finally:
             requirements.unlink(missing_ok=True)
-        marker.write_text(expected_hash + "\n", encoding="utf-8")
+        marker.write_text(expected_marker + "\n", encoding="utf-8")
 
-    freeze = run([str(python), "-m", "pip", "freeze", "--all"], cwd=tools).stdout.splitlines()
+    freeze = run([str(python), "-m", "pip", "freeze"], cwd=tools).stdout.splitlines()
     observed_deps = [line.strip() for line in freeze if line.strip() and not line.casefold().startswith("godot-ai @ file://")]
     if observed_deps != expected_deps:
         missing = sorted(set(expected_deps) - set(observed_deps))

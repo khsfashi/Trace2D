@@ -38,8 +38,13 @@ class BenchmarkB1OwnerRunnerHelperTests(unittest.TestCase):
             .read_text(encoding="utf-8")
         )
 
+        self.assertIn('GODOT_AI_ENV_RECIPE = "qualified-freeze-no-deps-v1"', source)
+        self.assertIn('expected_marker = f"{expected_hash}:{GODOT_AI_ENV_RECIPE}"', source)
+        self.assertIn('marker.read_text(encoding="utf-8").strip() != expected_marker', source)
+        self.assertIn('marker.write_text(expected_marker + "\\n", encoding="utf-8")', source)
         self.assertIn('"--no-deps",\n                    "-r",', source)
-        self.assertIn('[str(python), "-m", "pip", "freeze", "--all"]', source)
+        self.assertIn('[str(python), "-m", "pip", "freeze"]', source)
+        self.assertNotIn('[str(python), "-m", "pip", "freeze", "--all"]', source)
         self.assertIn("order_only = not missing and not extra", source)
 
 
