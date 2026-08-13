@@ -118,9 +118,25 @@ jobs:
             throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
           }
 
-          $nativeCodex = Join-Path $env:APPDATA 'npm\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex\codex.exe'
-          if (-not (Test-Path $nativeCodex -PathType Leaf)) {
-            throw "Frozen native Codex binary not found: $nativeCodex"
+          $vendorRelative = 'vendor\x86_64-pc-windows-msvc\codex\codex.exe'
+          $nativeCandidates = @(
+            (Join-Path $env:APPDATA "npm\node_modules\@openai\codex-win32-x64\$vendorRelative"),
+            (Join-Path $env:APPDATA "npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\$vendorRelative")
+          )
+          $nativeCodex = $nativeCandidates | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($nativeCodex)) {
+            $openAiRoot = Join-Path $env:APPDATA 'npm\node_modules\@openai'
+            $nativeCodex = Get-ChildItem -LiteralPath $openAiRoot -Filter 'codex.exe' -File -Recurse -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '(?i)\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex\.exe$' } |
+              Select-Object -ExpandProperty FullName -First 1
+          }
+          if ([string]::IsNullOrWhiteSpace($nativeCodex) -or -not (Test-Path $nativeCodex -PathType Leaf)) {
+            throw 'Frozen native Codex binary not found under the global @openai npm installation.'
+          }
+
+          $nativeVersion = (& $nativeCodex --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $nativeVersion -notmatch '(^|\s)0\.144\.6($|\s)') {
+            throw "Frozen native Codex version mismatch: $nativeVersion"
           }
 
           "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
