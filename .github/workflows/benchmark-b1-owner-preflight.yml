@@ -81,7 +81,7 @@ jobs:
 
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Avoid packaged PowerShell in Codex sandbox
+      - name: Provide sandbox-safe pwsh shim
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -92,18 +92,28 @@ jobs:
             throw "Windows PowerShell fallback not found: $fallback"
           }
 
+          $shimRoot = Join-Path $env:ProgramData 'Trace2D\b1-codex-shell'
+          New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+          $shim = Join-Path $shimRoot 'pwsh.exe'
+          if (Test-Path $shim -PathType Leaf) {
+            Remove-Item -LiteralPath $shim -Force
+          }
+          New-Item -ItemType HardLink -Path $shim -Target $fallback | Out-Null
+          & $shim -NoLogo -NoProfile -NonInteractive -Command 'exit 0'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE."
+          }
+
           $pathParts = @($env:PATH -split ';' | Where-Object {
             -not [string]::IsNullOrWhiteSpace($_) -and
             $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
           })
-          $sanitizedPath = $pathParts -join ';'
-          if ([string]::IsNullOrWhiteSpace($sanitizedPath)) {
-            throw 'Sanitized PATH unexpectedly became empty.'
-          }
+          $sanitizedPath = (@($shimRoot) + $pathParts) -join ';'
           $env:PATH = $sanitizedPath
-          $resolvedPwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
-          if ($null -ne $resolvedPwsh -and $resolvedPwsh.Source -match '(?i)\\WindowsApps\\') {
-            throw "Packaged pwsh still resolves after PATH sanitization: $($resolvedPwsh.Source)"
+          $resolved = (& where.exe pwsh.exe 2>$null | Select-Object -First 1)
+          if ([string]::IsNullOrWhiteSpace($resolved) -or
+              [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
+            throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
           }
           "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
