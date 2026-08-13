@@ -1,0 +1,66 @@
+name: Benchmark B1 Owner Preflight
+
+on:
+  push:
+    branches:
+      - agent/benchmark-b1-content-authoring
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b1-preflight
+  cancel-in-progress: true
+
+jobs:
+  owner-windows-preflight:
+    if: github.repository == 'khsfashi/Trace2D'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 180
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact B1 branch head
+        uses: actions/checkout@v6
+        with:
+          clean: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Restore canonical frozen benchmark bytes
+        shell: pwsh
+        run: |
+          python scripts/materialize_benchmark_b1_frozen_bytes.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/benchmark_b1.py validate-suite
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run zero-score owner preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\b1\runs'
+          New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
+          & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --prepare-only
+          $exitCode = $LASTEXITCODE
+          New-Item -ItemType Directory -Force -Path 'artifacts\b1-preflight' | Out-Null
+          $latest = Get-ChildItem -LiteralPath $runsRoot -Filter 'codex-chatgpt-b1-scored-*.zip' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if ($null -ne $latest) {
+            Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path 'artifacts\b1-preflight' $latest.Name) -Force
+          }
+          exit $exitCode
+
+      - name: Upload B1 preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b1-preflight-${{ github.sha }}
+          path: artifacts/b1-preflight/*.zip
+          if-no-files-found: warn
+          retention-days: 30
