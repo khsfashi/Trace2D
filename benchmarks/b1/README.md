@@ -1,6 +1,6 @@
 # Benchmark B1 — Sprite / animation / particle authoring
 
-Status: **scored suite + verifier dispatch frozen; 27-slot scored policy and owner-local harness prepared; scored execution is the next gate.**  
+Status: **scored suite + verifier dispatch frozen; 27-slot scored policy and owner-Windows Actions automation prepared; automatic zero-score preflight is the next gate.**  
 Parent: #100  
 Issue: #103  
 Predecessors: #59 Complete Sprite and #102 Benchmark B0 are complete.
@@ -66,7 +66,8 @@ current primary-source refresh                 complete
  -> freeze matched B1 tasks + budgets + fixtures   complete
  -> qualify frozen known-good/known-bad verifier dispatch   complete
  -> preregister exact 27-slot scored schedule + environment lock   complete
- -> owner-local transport/isolation/verifier preflight   NEXT (automated before slot 1)
+ -> automatic owner-Windows zero-score preflight   NEXT
+ -> one explicit owner approval on PR #174
  -> run exactly 27 scored attempts with same coding Agent
  -> independently reverify all preserved workspaces
  -> aggregate deterministic report
@@ -85,11 +86,15 @@ The frozen dispatch is qualified at source head `557c7edf9ee30fd9dca0cc333797318
 
 Machine-readable evidence: [`fixture-qualification.json`](fixture-qualification.json).
 
-## Owner-local scored execution
+## Owner-Windows Actions automation
 
-The owner-local runner is [`../../scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`](../../scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py). It performs all setup and non-scored checks **before slot 1**:
+The owner runner remains [`../../scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`](../../scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py), but routine execution is now wrapped by two GitHub Actions workflows so the owner does not need to drive the benchmark from an interactive PowerShell session.
 
-- revalidates the frozen suite, policy, qualification evidence and dependency lock,
+[`../../.github/workflows/benchmark-b1-owner-preflight.yml`](../../.github/workflows/benchmark-b1-owner-preflight.yml) automatically runs on pushes to the active B1 branch on the existing owner Windows self-hosted runner. It starts **zero scored slots** and:
+
+- purges the persistent self-hosted checkout before fetching the exact branch head,
+- restores every frozen benchmark path from its canonical `HEAD` Git blob and verifies that blob still matches the preregistered SHA-256 before materializing it,
+- revalidates the frozen suite,
 - verifies Codex CLI `0.144.6` login,
 - proves the real `CodexSandboxOffline` Windows ACL isolation boundary again,
 - downloads/caches official Godot `4.7.1-stable` and verifies the release SHA-512,
@@ -97,21 +102,38 @@ The owner-local runner is [`../../scripts/run_benchmark_b1_codex_windows_acl_sco
 - requires a real Codex → Godot MCP tool call on a non-scored fixture,
 - builds Trace2D public tooling from detached frozen production commit `31712ca...`,
 - builds the B1 native held-out verifier from the benchmark branch,
-- locally re-proves every known-good/known-bad Godot and Trace2D verifier pair.
+- locally re-proves every known-good/known-bad Godot and Trace2D verifier pair,
+- uploads the scrubbed preflight evidence ZIP.
 
-Optional preflight-only mode performs all of the above but starts zero scored slots:
+The canonical-byte materializer exists specifically for persistent Windows worktrees whose older checkout may still contain CRLF materialization. It never weakens the freeze: if the `HEAD` Git blob itself no longer matches the frozen digest, the workflow fails instead of rewriting around the drift.
+
+[`../../.github/workflows/benchmark-b1-owner-scored.yml`](../../.github/workflows/benchmark-b1-owner-scored.yml) is deliberately **not** push-triggered. Scoring can start only when the repository owner adds the existing `github_actions` label to PR #174. The approval job additionally requires:
+
+- PR #174,
+- the same-repository `agent/benchmark-b1-content-authoring` head,
+- actor `khsfashi`,
+- first workflow attempt only,
+- a successful `Benchmark B1 Owner Preflight` run for the **exact same head SHA**.
+
+Only then does the owner Windows runner check out that exact approved SHA, repeat frozen-byte validation and the built-in preflights, execute the preregistered 27-slot cohort, independently reverify the preserved workspaces, aggregate the report and upload the scored evidence ZIP.
+
+Once the scored workflow begins slot 1, do **not** rerun the workflow, remove/re-add the approval label, or replace any failed slot. Any scored failure remains evidence.
+
+### Manual fallback only
+
+If GitHub Actions is unavailable, the same runner still supports an interactive zero-score preflight:
 
 ```powershell
 python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --prepare-only
 ```
 
-The scored command re-runs those preflights and, only after they pass, executes the committed 27-slot schedule:
+After a positive preflight, the fallback scored command is:
 
 ```powershell
 python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py
 ```
 
-If setup/preflight fails before slot 1, fixing that environment-only problem and trying again does not reroll a score because no scored result has been observed. If execution fails after slot 1 begins, preserve and upload the generated evidence ZIP; **do not rerun or replace any scored slot**.
+These commands are fallback paths, not the normal owner workflow now that Actions automation exists.
 
 The runner creates isolated workspaces, append-only hash-chained `raw.jsonl`, independent reverify records, aggregate deterministic output and a scrubbed evidence ZIP. Credentials, transient Codex homes and `.godot` caches are excluded from the package.
 
@@ -131,4 +153,4 @@ The benchmark is not permission to add a benchmark-shaped production asset model
 
 ## Next implementation step
 
-Run the owner-local preflight/scored cohort without mutating the frozen benchmark. Preserve the resulting evidence ZIP, then perform aggregate deterministic review and the separately reported presentation/multimodal review. Do not begin #69 until B1 has reviewable multi-run acceptance evidence.
+Wait for the automatic exact-head owner-Windows preflight to pass. Then the owner explicitly adds `github_actions` to PR #174 once to authorize the scored cohort. Preserve the resulting evidence ZIP, perform aggregate deterministic review and the separately reported presentation/multimodal review, and do not begin #69 until B1 has reviewable multi-run acceptance evidence.
