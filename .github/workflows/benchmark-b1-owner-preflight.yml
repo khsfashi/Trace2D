@@ -33,6 +33,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up qualification Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          architecture: x64
+
       - name: Restore canonical frozen benchmark bytes
         shell: pwsh
         run: |
