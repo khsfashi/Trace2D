@@ -57,28 +57,18 @@ jobs:
           $vcpkgRoot = Join-Path $toolRoot "trace2d-vcpkg-$env:TRACE2D_VCPKG_BASELINE"
           if (-not (Test-Path (Join-Path $vcpkgRoot '.git') -PathType Container)) {
             git clone https://github.com/microsoft/vcpkg $vcpkgRoot
-            if ($LASTEXITCODE -ne 0) {
-              throw "vcpkg clone failed with exit code $LASTEXITCODE."
-            }
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg clone failed with exit code $LASTEXITCODE." }
           }
-
           git -C $vcpkgRoot fetch origin $env:TRACE2D_VCPKG_BASELINE --depth 1
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE."
-          }
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE." }
           git -C $vcpkgRoot checkout --force $env:TRACE2D_VCPKG_BASELINE
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE."
-          }
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE." }
 
           $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
           if (-not (Test-Path $vcpkgExe -PathType Leaf)) {
             & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
-            if ($LASTEXITCODE -ne 0) {
-              throw "vcpkg bootstrap failed with exit code $LASTEXITCODE."
-            }
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed with exit code $LASTEXITCODE." }
           }
-
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Provide sandbox-safe pwsh shim
@@ -89,9 +79,7 @@ jobs:
 
           $fallbackRoot = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0'
           $fallback = Join-Path $fallbackRoot 'powershell.exe'
-          if (-not (Test-Path $fallback -PathType Leaf)) {
-            throw "Windows PowerShell fallback not found: $fallback"
-          }
+          if (-not (Test-Path $fallback -PathType Leaf)) { throw "Windows PowerShell fallback not found: $fallback" }
 
           $shimRoot = Join-Path $env:ProgramData 'Trace2D\b1-codex-shell'
           New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
@@ -102,32 +90,29 @@ jobs:
             Copy-Item -LiteralPath $fallbackConfig -Destination (Join-Path $shimRoot 'pwsh.exe.config') -Force
           }
           & $shim -NoLogo -NoProfile -NonInteractive -Command 'exit 0'
-          if ($LASTEXITCODE -ne 0) {
-            throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE."
-          }
+          if ($LASTEXITCODE -ne 0) { throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE." }
 
           $pathParts = @($env:PATH -split ';' | Where-Object {
-            -not [string]::IsNullOrWhiteSpace($_) -and
-            $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
+            -not [string]::IsNullOrWhiteSpace($_) -and $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
           })
           $sanitizedPath = (@($shimRoot) + $pathParts) -join ';'
           $env:PATH = $sanitizedPath
           $resolved = (& where.exe pwsh.exe 2>$null | Select-Object -First 1)
-          if ([string]::IsNullOrWhiteSpace($resolved) -or
-              [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
+          if ([string]::IsNullOrWhiteSpace($resolved) -or [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
             throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
           }
 
-          $vendorRelative = 'vendor\x86_64-pc-windows-msvc\codex\codex.exe'
+          $vendorRelative = 'vendor\x86_64-pc-windows-msvc\bin\codex.exe'
           $nativeCandidates = @(
             (Join-Path $env:APPDATA "npm\node_modules\@openai\codex-win32-x64\$vendorRelative"),
-            (Join-Path $env:APPDATA "npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\$vendorRelative")
+            (Join-Path $env:APPDATA "npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\$vendorRelative"),
+            (Join-Path $env:APPDATA "npm\node_modules\@openai\codex\$vendorRelative")
           )
           $nativeCodex = $nativeCandidates | Where-Object { Test-Path $_ -PathType Leaf } | Select-Object -First 1
           if ([string]::IsNullOrWhiteSpace($nativeCodex)) {
             $openAiRoot = Join-Path $env:APPDATA 'npm\node_modules\@openai'
             $nativeCodex = Get-ChildItem -LiteralPath $openAiRoot -Filter 'codex.exe' -File -Recurse -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -match '(?i)\\@openai\\codex-win32-x64\\vendor\\x86_64-pc-windows-msvc\\codex\\codex\.exe$' } |
+              Where-Object { $_.FullName -match '(?i)\\vendor\\x86_64-pc-windows-msvc\\bin\\codex\.exe$' } |
               Select-Object -ExpandProperty FullName -First 1
           }
           if ([string]::IsNullOrWhiteSpace($nativeCodex) -or -not (Test-Path $nativeCodex -PathType Leaf)) {
@@ -155,9 +140,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $runsRoot = Join-Path $env:RUNNER_TEMP "trace2d-b1-preflight-$env:GITHUB_RUN_ID"
-          if (Test-Path $runsRoot) {
-            Remove-Item -LiteralPath $runsRoot -Recurse -Force
-          }
+          if (Test-Path $runsRoot) { Remove-Item -LiteralPath $runsRoot -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
           & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --runs-root $runsRoot --prepare-only
           $exitCode = $LASTEXITCODE
