@@ -20,6 +20,23 @@ try {
         $failures.Add($Message)
     }
 
+    function Remove-KnownPublicCiWorkspacePaths {
+        param([string]$Text)
+
+        # GitHub-hosted Linux runners use this documented machine-generic shape
+        # for public checkout workspaces. It contains neither a developer's home
+        # directory nor a private account identifier, but the generic /home/*/
+        # detector intentionally cannot distinguish it on its own. Normalize only
+        # this narrow CI form before the private-path scan; real /home/<user>/
+        # paths remain fully covered by the high-confidence detector below.
+        return [regex]::Replace(
+            $Text,
+            '/home/runner/work/[^/\r\n\t ]+/[^/\r\n\t ]+/',
+            '/github-actions/workspace/',
+            [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+        )
+    }
+
     Write-Host "[release-audit] Checking tracked generated/build artifacts..."
 
     $forbiddenTrackedPatterns = @(
@@ -113,8 +130,9 @@ try {
         }
 
         $content = [System.Text.Encoding]::UTF8.GetString($bytes)
+        $contentForSecretScan = Remove-KnownPublicCiWorkspacePaths $content
         foreach ($entry in $secretPatterns.GetEnumerator()) {
-            if ([regex]::IsMatch($content, $entry.Value, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+            if ([regex]::IsMatch($contentForSecretScan, $entry.Value, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
                 Add-AuditFailure "Current tree matched $($entry.Key): $path"
             }
         }
@@ -125,9 +143,10 @@ try {
         throw "git log failed while scanning repository history."
     }
     $history = [string]::Join("`n", $historyLines)
+    $historyForSecretScan = Remove-KnownPublicCiWorkspacePaths $history
 
     foreach ($entry in $secretPatterns.GetEnumerator()) {
-        if ([regex]::IsMatch($history, $entry.Value, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
+        if ([regex]::IsMatch($historyForSecretScan, $entry.Value, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)) {
             Add-AuditFailure "Git patch history matched high-confidence pattern: $($entry.Key)"
         }
     }
