@@ -87,7 +87,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
-          $fallback = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          $fallbackRoot = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0'
+          $fallback = Join-Path $fallbackRoot 'powershell.exe'
           if (-not (Test-Path $fallback -PathType Leaf)) {
             throw "Windows PowerShell fallback not found: $fallback"
           }
@@ -95,10 +96,11 @@ jobs:
           $shimRoot = Join-Path $env:ProgramData 'Trace2D\b1-codex-shell'
           New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
           $shim = Join-Path $shimRoot 'pwsh.exe'
-          if (Test-Path $shim -PathType Leaf) {
-            Remove-Item -LiteralPath $shim -Force
+          Copy-Item -LiteralPath $fallback -Destination $shim -Force
+          $fallbackConfig = Join-Path $fallbackRoot 'powershell.exe.config'
+          if (Test-Path $fallbackConfig -PathType Leaf) {
+            Copy-Item -LiteralPath $fallbackConfig -Destination (Join-Path $shimRoot 'pwsh.exe.config') -Force
           }
-          New-Item -ItemType HardLink -Path $shim -Target $fallback | Out-Null
           & $shim -NoLogo -NoProfile -NonInteractive -Command 'exit 0'
           if ($LASTEXITCODE -ne 0) {
             throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE."
