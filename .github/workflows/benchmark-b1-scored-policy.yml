@@ -12,8 +12,14 @@ on:
       - "tests/benchmark/**"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1_scored_harness.py"
+      - "scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py"
       - "scripts/verify_benchmark_b1_candidate.py"
+      - "scripts/package_benchmark_b1_evidence.py"
       - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/test_benchmark_b1_scored_harness.py"
       - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-scored-policy.yml"
   pull_request:
@@ -26,8 +32,14 @@ on:
       - "tests/benchmark/**"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1_scored_harness.py"
+      - "scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py"
       - "scripts/verify_benchmark_b1_candidate.py"
+      - "scripts/package_benchmark_b1_evidence.py"
       - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/test_benchmark_b1_scored_harness.py"
       - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-scored-policy.yml"
 
@@ -51,18 +63,26 @@ jobs:
           python3 scripts/benchmark_b1.py validate-contract
           python3 scripts/benchmark_b1.py validate-suite
 
-      - name: Validate preregistered 27-slot scored policy
+      - name: Validate preregistered 27-slot scored policy and selected Agent lock
         run: python3 scripts/benchmark_b1_scored_policy.py --print-schedule
 
-      - name: Run scored-policy and candidate-dispatch regression tests
+      - name: Run scored-harness regression tests
         run: |
           python3 -m unittest scripts.test_benchmark_b1_scored_policy
           python3 -m unittest scripts.test_verify_benchmark_b1_candidate
+          python3 -m unittest scripts.test_benchmark_b1_codex_windows_acl_wrapper
+          python3 -m unittest scripts.test_benchmark_b1_scored_harness
 
       - name: Syntax-check scored-harness tooling
         run: |
           python3 -m py_compile \
             scripts/benchmark_b1_scored_policy.py \
+            scripts/benchmark_b1_codex_windows_acl_wrapper.py \
+            scripts/benchmark_b1_scored_harness.py \
+            scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py \
             scripts/verify_benchmark_b1_candidate.py \
+            scripts/package_benchmark_b1_evidence.py \
             scripts/test_benchmark_b1_scored_policy.py \
-            scripts/test_verify_benchmark_b1_candidate.py
+            scripts/test_verify_benchmark_b1_candidate.py \
+            scripts/test_benchmark_b1_codex_windows_acl_wrapper.py \
+            scripts/test_benchmark_b1_scored_harness.py
