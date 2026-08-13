@@ -1,8 +1,13 @@
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 
-import scripts.benchmark_b0_codex_windows_acl_wrapper as windows
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+import benchmark_b0_codex_windows_acl_wrapper as windows
 
 
 class BenchmarkB1OwnerRunnerHelperTests(unittest.TestCase):
