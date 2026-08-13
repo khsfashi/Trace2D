@@ -45,14 +45,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\b1\runs'
+          $runsRoot = Join-Path $env:RUNNER_TEMP "trace2d-b1-preflight-$env:GITHUB_RUN_ID"
+          if (Test-Path $runsRoot) {
+            Remove-Item -LiteralPath $runsRoot -Recurse -Force
+          }
           New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
-          & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --prepare-only
+          & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --runs-root $runsRoot --prepare-only
           $exitCode = $LASTEXITCODE
           New-Item -ItemType Directory -Force -Path 'artifacts\b1-preflight' | Out-Null
-          $latest = Get-ChildItem -LiteralPath $runsRoot -Filter 'codex-chatgpt-b1-scored-*.zip' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-          if ($null -ne $latest) {
-            Copy-Item -LiteralPath $latest.FullName -Destination (Join-Path 'artifacts\b1-preflight' $latest.Name) -Force
+          Get-ChildItem -LiteralPath $runsRoot -Filter 'codex-chatgpt-b1-scored-*.zip' -File -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path 'artifacts\b1-preflight' $_.Name) -Force
           }
           exit $exitCode
 
