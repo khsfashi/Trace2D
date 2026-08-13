@@ -117,7 +117,14 @@ jobs:
               [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
             throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
           }
+
+          $nativeCodex = Join-Path $env:APPDATA 'npm\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex\codex.exe'
+          if (-not (Test-Path $nativeCodex -PathType Leaf)) {
+            throw "Frozen native Codex binary not found: $nativeCodex"
+          }
+
           "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TRACE2D_BENCH_CODEX_BIN=$nativeCodex" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Restore canonical frozen benchmark bytes
         shell: pwsh
