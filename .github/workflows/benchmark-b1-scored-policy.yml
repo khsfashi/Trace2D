@@ -10,6 +10,7 @@ on:
       - "benchmarks/b0/scored-cohort-v1.json"
       - "benchmarks/b1/**"
       - "tests/benchmark/**"
+      - "scripts/benchmark_b0_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
       - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
@@ -21,6 +22,7 @@ on:
       - "scripts/test_benchmark_b1_scored_policy.py"
       - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
       - "scripts/test_benchmark_b1_scored_harness.py"
+      - "scripts/test_benchmark_b1_owner_runner_helpers.py"
       - "scripts/test_materialize_benchmark_b1_frozen_bytes.py"
       - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-owner-preflight.yml"
@@ -34,6 +36,7 @@ on:
       - "benchmarks/b0/scored-cohort-v1.json"
       - "benchmarks/b1/**"
       - "tests/benchmark/**"
+      - "scripts/benchmark_b0_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b1.py"
       - "scripts/benchmark_b1_scored_policy.py"
       - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
@@ -45,6 +48,7 @@ on:
       - "scripts/test_benchmark_b1_scored_policy.py"
       - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
       - "scripts/test_benchmark_b1_scored_harness.py"
+      - "scripts/test_benchmark_b1_owner_runner_helpers.py"
       - "scripts/test_materialize_benchmark_b1_frozen_bytes.py"
       - "scripts/test_verify_benchmark_b1_candidate.py"
       - ".github/workflows/benchmark-b1-owner-preflight.yml"
@@ -80,11 +84,13 @@ jobs:
           python3 -m unittest scripts.test_verify_benchmark_b1_candidate
           python3 -m unittest scripts.test_benchmark_b1_codex_windows_acl_wrapper
           python3 -m unittest scripts.test_benchmark_b1_scored_harness
+          python3 -m unittest scripts.test_benchmark_b1_owner_runner_helpers
           python3 -m unittest scripts.test_materialize_benchmark_b1_frozen_bytes
 
       - name: Syntax-check scored-harness tooling
         run: |
           python3 -m py_compile \
+            scripts/benchmark_b0_codex_windows_acl_wrapper.py \
             scripts/benchmark_b1_scored_policy.py \
             scripts/benchmark_b1_codex_windows_acl_wrapper.py \
             scripts/benchmark_b1_scored_harness.py \
@@ -96,4 +102,5 @@ jobs:
             scripts/test_verify_benchmark_b1_candidate.py \
             scripts/test_benchmark_b1_codex_windows_acl_wrapper.py \
             scripts/test_benchmark_b1_scored_harness.py \
+            scripts/test_benchmark_b1_owner_runner_helpers.py \
             scripts/test_materialize_benchmark_b1_frozen_bytes.py
