@@ -29,8 +29,13 @@ try {
         # home detector intentionally cannot distinguish it on its own. Build the
         # known CI pattern from fragments so the audit source never self-matches.
         $githubActionsWorkspacePattern = '/ho' + 'me/runner/work/[^/\r\n\t ]+/[^/\r\n\t ]+/'
+
+        # The first hardening commit stored the CI matcher as one literal regex in
+        # patch history. Remove only that exact historical pattern before using
+        # the same value as a regex against real qualification provenance paths.
+        $normalized = $Text.Replace($githubActionsWorkspacePattern, '/github-actions/workspace-pattern/')
         $normalized = [regex]::Replace(
-            $Text,
+            $normalized,
             $githubActionsWorkspacePattern,
             '/github-actions/workspace/',
             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
