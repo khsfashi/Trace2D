@@ -54,6 +54,10 @@ WRAPPER_MODULE = "benchmark_b1_codex_windows_acl_wrapper"
 HARNESS = Path(__file__).resolve().with_name("benchmark_b1_scored_harness.py")
 PACKAGER = Path(__file__).resolve().with_name("package_benchmark_b1_evidence.py")
 VERIFIER = Path(__file__).resolve().with_name("verify_benchmark_b1_candidate.py")
+# This is orchestration slack around the frozen 300-second Agent budget plus the
+# post-turn held-out verifier. It is not an Agent/scoring budget and must not
+# truncate a valid budget-exhausted model turn before verifier evidence is saved.
+SLOT_ORCHESTRATION_TIMEOUT_SECONDS = 600
 
 
 class ScoredCohortError(RuntimeError):
@@ -745,7 +749,7 @@ def main() -> int:
                 cwd=repo_root,
                 env=lane_env,
                 check=False,
-                timeout=360,
+                timeout=SLOT_ORCHESTRATION_TIMEOUT_SECONDS,
             )
             preserve_process(logs_root, f"slot-{slot_number:02d}-{task_id}-{lane_id.replace('.', '-')}", attempt)
             exits.append(
