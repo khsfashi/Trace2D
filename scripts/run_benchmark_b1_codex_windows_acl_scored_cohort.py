@@ -282,24 +282,43 @@ def ensure_godot_ai(
     python = venv / "Scripts" / "python.exe"
     marker = venv / ".trace2d-b1-freeze-sha256"
     expected_hash = benchmark_b1_scored_policy.EXPECTED_GODOT_AI_FREEZE_SHA256
+    expected_deps = expected_python_freeze(repo_root)
     if not python.is_file() or not marker.is_file() or marker.read_text(encoding="utf-8").strip() != expected_hash:
         shutil.rmtree(venv, ignore_errors=True)
         run(python312_command() + ["-m", "venv", str(venv)], cwd=tools)
         python = require_file(python, "Godot Agent Python")
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as handle:
             requirements = Path(handle.name)
-            handle.write("\n".join(expected_python_freeze(repo_root)) + "\n")
+            handle.write("\n".join(expected_deps) + "\n")
         try:
-            run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "-r", str(requirements)], cwd=tools)
+            run(
+                [
+                    str(python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--disable-pip-version-check",
+                    "--no-deps",
+                    "-r",
+                    str(requirements),
+                ],
+                cwd=tools,
+            )
             run([str(python), "-m", "pip", "install", "--disable-pip-version-check", "--no-deps", str(source)], cwd=tools)
         finally:
             requirements.unlink(missing_ok=True)
         marker.write_text(expected_hash + "\n", encoding="utf-8")
 
-    freeze = run([str(python), "-m", "pip", "freeze"], cwd=tools).stdout.splitlines()
+    freeze = run([str(python), "-m", "pip", "freeze", "--all"], cwd=tools).stdout.splitlines()
     observed_deps = [line.strip() for line in freeze if line.strip() and not line.casefold().startswith("godot-ai @ file://")]
-    if observed_deps != expected_python_freeze(repo_root):
-        raise ScoredCohortError("local Godot Agent Python dependency graph differs from qualification freeze")
+    if observed_deps != expected_deps:
+        missing = sorted(set(expected_deps) - set(observed_deps))
+        extra = sorted(set(observed_deps) - set(expected_deps))
+        order_only = not missing and not extra
+        raise ScoredCohortError(
+            "local Godot Agent Python dependency graph differs from qualification freeze; "
+            f"missing={missing!r}; extra={extra!r}; order_only={order_only}"
+        )
     version_probe = run(
         [str(python), "-c", "import godot_ai; print(getattr(godot_ai, '__version__', 'unknown'))"],
         cwd=source,
