@@ -81,6 +81,32 @@ jobs:
 
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Avoid packaged PowerShell in Codex sandbox
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $fallback = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+          if (-not (Test-Path $fallback -PathType Leaf)) {
+            throw "Windows PowerShell fallback not found: $fallback"
+          }
+
+          $pathParts = @($env:PATH -split ';' | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and
+            $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
+          })
+          $sanitizedPath = $pathParts -join ';'
+          if ([string]::IsNullOrWhiteSpace($sanitizedPath)) {
+            throw 'Sanitized PATH unexpectedly became empty.'
+          }
+          $env:PATH = $sanitizedPath
+          $resolvedPwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+          if ($null -ne $resolvedPwsh -and $resolvedPwsh.Source -match '(?i)\\WindowsApps\\') {
+            throw "Packaged pwsh still resolves after PATH sanitization: $($resolvedPwsh.Source)"
+          }
+          "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Restore canonical frozen benchmark bytes
         shell: pwsh
         run: |
