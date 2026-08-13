@@ -110,6 +110,29 @@ class BenchmarkB1ScoredPolicyTests(unittest.TestCase):
                 b0_policy=self.b0_policy,
             )
 
+    def test_owner_actions_reapply_sandbox_safe_shell_at_execution_boundary(self) -> None:
+        helper = (self.repo_root / "scripts/prepare_benchmark_b1_owner_windows.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("CodexSandboxOffline", helper)
+        self.assertIn("WindowsApps", helper)
+        self.assertIn("$env:PATH = $sanitizedPath", helper)
+        self.assertIn("TRACE2D_BENCH_CODEX_BIN", helper)
+        self.assertIn("0\\.144\\.6", helper)
+        self.assertIn("vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe", helper)
+
+        helper_call = ". .\\scripts\\prepare_benchmark_b1_owner_windows.ps1"
+        for relative in (
+            ".github/workflows/benchmark-b1-owner-preflight.yml",
+            ".github/workflows/benchmark-b1-owner-scored.yml",
+        ):
+            workflow = (self.repo_root / relative).read_text(encoding="utf-8")
+            self.assertGreaterEqual(
+                workflow.count(helper_call),
+                2,
+                f"{relative} must prepare once and then reapply immediately before Codex execution",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

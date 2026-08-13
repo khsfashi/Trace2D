@@ -95,74 +95,24 @@ jobs:
           $vcpkgRoot = Join-Path $toolRoot "trace2d-vcpkg-$env:TRACE2D_VCPKG_BASELINE"
           if (-not (Test-Path (Join-Path $vcpkgRoot '.git') -PathType Container)) {
             git clone https://github.com/microsoft/vcpkg $vcpkgRoot
-            if ($LASTEXITCODE -ne 0) {
-              throw "vcpkg clone failed with exit code $LASTEXITCODE."
-            }
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg clone failed with exit code $LASTEXITCODE." }
           }
-
           git -C $vcpkgRoot fetch origin $env:TRACE2D_VCPKG_BASELINE --depth 1
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE."
-          }
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE." }
           git -C $vcpkgRoot checkout --force $env:TRACE2D_VCPKG_BASELINE
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE."
-          }
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE." }
 
           $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
           if (-not (Test-Path $vcpkgExe -PathType Leaf)) {
             & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
-            if ($LASTEXITCODE -ne 0) {
-              throw "vcpkg bootstrap failed with exit code $LASTEXITCODE."
-            }
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed with exit code $LASTEXITCODE." }
           }
-
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Provide sandbox-safe pwsh shim
+      - name: Prepare owner Codex shell and binary
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          Set-StrictMode -Version Latest
-
-          $fallbackRoot = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0'
-          $fallback = Join-Path $fallbackRoot 'powershell.exe'
-          if (-not (Test-Path $fallback -PathType Leaf)) {
-            throw "Windows PowerShell fallback not found: $fallback"
-          }
-
-          $shimRoot = Join-Path $env:ProgramData 'Trace2D\b1-codex-shell'
-          New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
-          $shim = Join-Path $shimRoot 'pwsh.exe'
-          Copy-Item -LiteralPath $fallback -Destination $shim -Force
-          $fallbackConfig = Join-Path $fallbackRoot 'powershell.exe.config'
-          if (Test-Path $fallbackConfig -PathType Leaf) {
-            Copy-Item -LiteralPath $fallbackConfig -Destination (Join-Path $shimRoot 'pwsh.exe.config') -Force
-          }
-          & $shim -NoLogo -NoProfile -NonInteractive -Command 'exit 0'
-          if ($LASTEXITCODE -ne 0) {
-            throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE."
-          }
-
-          $pathParts = @($env:PATH -split ';' | Where-Object {
-            -not [string]::IsNullOrWhiteSpace($_) -and
-            $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
-          })
-          $sanitizedPath = (@($shimRoot) + $pathParts) -join ';'
-          $env:PATH = $sanitizedPath
-          $resolved = (& where.exe pwsh.exe 2>$null | Select-Object -First 1)
-          if ([string]::IsNullOrWhiteSpace($resolved) -or
-              [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
-            throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
-          }
-
-          $nativeCodex = Join-Path $env:APPDATA 'npm\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex\codex.exe'
-          if (-not (Test-Path $nativeCodex -PathType Leaf)) {
-            throw "Frozen native Codex binary not found: $nativeCodex"
-          }
-
-          "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "TRACE2D_BENCH_CODEX_BIN=$nativeCodex" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1 -PersistForActions
 
       - name: Restore canonical frozen benchmark bytes
         shell: pwsh
@@ -176,10 +126,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          # Reapply immediately before Python/Codex so the scored process inherits the
+          # same sandbox-executable shell resolution that the exact-head preflight proved.
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1
           $runsRoot = Join-Path $env:RUNNER_TEMP "trace2d-b1-scored-$env:GITHUB_RUN_ID"
-          if (Test-Path $runsRoot) {
-            Remove-Item -LiteralPath $runsRoot -Recurse -Force
-          }
+          if (Test-Path $runsRoot) { Remove-Item -LiteralPath $runsRoot -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
           & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --runs-root $runsRoot
           $exitCode = $LASTEXITCODE
