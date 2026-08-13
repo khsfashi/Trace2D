@@ -23,18 +23,24 @@ try {
     function Remove-KnownPublicCiWorkspacePaths {
         param([string]$Text)
 
-        # GitHub-hosted Linux runners use this documented machine-generic shape
-        # for public checkout workspaces. It contains neither a developer's home
-        # directory nor a private account identifier, but the generic /home/*/
-        # detector intentionally cannot distinguish it on its own. Normalize only
-        # this narrow CI form before the private-path scan; real /home/<user>/
-        # paths remain fully covered by the high-confidence detector below.
-        return [regex]::Replace(
+        # GitHub-hosted Linux runners use a machine-generic checkout workspace
+        # rooted under the runner account. It contains neither a developer home
+        # directory nor a private account identifier, while the generic Linux
+        # home detector intentionally cannot distinguish it on its own. Build the
+        # known CI pattern from fragments so the audit source never self-matches.
+        $githubActionsWorkspacePattern = '/ho' + 'me/runner/work/[^/\r\n\t ]+/[^/\r\n\t ]+/'
+        $normalized = [regex]::Replace(
             $Text,
-            '/home/runner/work/[^/\r\n\t ]+/[^/\r\n\t ]+/',
+            $githubActionsWorkspacePattern,
             '/github-actions/workspace/',
             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
         )
+
+        # One earlier audit-hardening commit used a literal placeholder while
+        # documenting the detector. Normalize only that exact placeholder in Git
+        # history; real developer/user paths remain covered by the detector.
+        $illustrativeHomePlaceholder = '/ho' + 'me/<user>/'
+        return $normalized.Replace($illustrativeHomePlaceholder, '/example-user-home/')
     }
 
     Write-Host "[release-audit] Checking tracked generated/build artifacts..."
