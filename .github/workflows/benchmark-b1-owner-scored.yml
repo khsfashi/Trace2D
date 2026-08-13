@@ -119,6 +119,44 @@ jobs:
 
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Provide sandbox-safe pwsh shim
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $fallbackRoot = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0'
+          $fallback = Join-Path $fallbackRoot 'powershell.exe'
+          if (-not (Test-Path $fallback -PathType Leaf)) {
+            throw "Windows PowerShell fallback not found: $fallback"
+          }
+
+          $shimRoot = Join-Path $env:ProgramData 'Trace2D\b1-codex-shell'
+          New-Item -ItemType Directory -Force -Path $shimRoot | Out-Null
+          $shim = Join-Path $shimRoot 'pwsh.exe'
+          Copy-Item -LiteralPath $fallback -Destination $shim -Force
+          $fallbackConfig = Join-Path $fallbackRoot 'powershell.exe.config'
+          if (Test-Path $fallbackConfig -PathType Leaf) {
+            Copy-Item -LiteralPath $fallbackConfig -Destination (Join-Path $shimRoot 'pwsh.exe.config') -Force
+          }
+          & $shim -NoLogo -NoProfile -NonInteractive -Command 'exit 0'
+          if ($LASTEXITCODE -ne 0) {
+            throw "Sandbox-safe pwsh shim failed self-test with exit code $LASTEXITCODE."
+          }
+
+          $pathParts = @($env:PATH -split ';' | Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_) -and
+            $_ -notmatch '(?i)\\WindowsApps(?:\\|$)'
+          })
+          $sanitizedPath = (@($shimRoot) + $pathParts) -join ';'
+          $env:PATH = $sanitizedPath
+          $resolved = (& where.exe pwsh.exe 2>$null | Select-Object -First 1)
+          if ([string]::IsNullOrWhiteSpace($resolved) -or
+              [System.IO.Path]::GetFullPath($resolved) -ne [System.IO.Path]::GetFullPath($shim)) {
+            throw "pwsh shim is not first on PATH. resolved=$resolved expected=$shim"
+          }
+          "PATH=$sanitizedPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Restore canonical frozen benchmark bytes
         shell: pwsh
         run: |
