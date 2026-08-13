@@ -36,11 +36,13 @@ try {
             [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
         )
 
-        # One earlier audit-hardening commit used a literal placeholder while
-        # documenting the detector. Normalize only that exact placeholder in Git
-        # history; real developer/user paths remain covered by the detector.
+        # Earlier audit-hardening commits used literal illustrative placeholders
+        # while documenting the detector. Normalize only those exact placeholders
+        # in Git history; real developer/user paths remain covered.
         $illustrativeHomePlaceholder = '/ho' + 'me/<user>/'
-        return $normalized.Replace($illustrativeHomePlaceholder, '/example-user-home/')
+        $illustrativeWildcardHome = '/ho' + 'me/*/'
+        $normalized = $normalized.Replace($illustrativeHomePlaceholder, '/example-user-home/')
+        return $normalized.Replace($illustrativeWildcardHome, '/example-user-home-wildcard/')
     }
 
     Write-Host "[release-audit] Checking tracked generated/build artifacts..."
