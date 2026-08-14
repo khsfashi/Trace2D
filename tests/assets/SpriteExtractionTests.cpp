@@ -59,7 +59,7 @@ TEST(SpriteExtractionTests, AppliesOnlyExplicitExactCleanupRules)
     spec.explicitRects = rects;
     spec.expectedFrameCount = 1U;
     spec.cleanup.exactBackgroundRgb = SpriteExtractionRgbKey{10U, 20U, 30U};
-    spec.cleanup.alphaCutoff = 10U;
+    spec.cleanup.alphaCutoff = std::uint8_t{10};
     spec.cleanup.zeroTransparentRgb = true;
 
     const SpriteExtractionResult result =
