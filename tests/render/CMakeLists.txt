@@ -5,6 +5,7 @@ add_executable(trace2d_render_tests
     ParticleGpuSmokeTests.cpp
     RenderDataTests.cpp
     RendererTests.cpp
+    RendererTextureLifecycleGpuSmokeTests.cpp
     RendererWorkloadTests.cpp
     SpriteAppearance2DTests.cpp
     SpriteBatch2DTests.cpp
