@@ -58,9 +58,10 @@ enum class SpritePresentationGeometryKind : std::uint8_t
 // Primitive patches stay one atomic top-level SR4 item and are consumed only for the duration of
 // RenderFrame/CaptureFrame. `pixelPerfectViewport` is optional caller-owned frame-level SR6 state;
 // when any submitted Sprite enables it, every Sprite in that frame must provide an equal mapping.
-// Texture handles and all GPU resources remain derived renderer state. The SR7 material field is
-// appended after the pre-SR7 fields so existing positional aggregate initialization keeps its field
-// meaning while omitted material state naturally selects the built-in pipeline.
+// Texture identity is the canonical R0 generation-safe resource handle; the SDL/GPU object behind
+// that identity remains renderer-owned derived state. The SR7 material field is appended after the
+// pre-SR7 fields so existing positional aggregate initialization keeps its field meaning while
+// omitted material state naturally selects the built-in pipeline.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
@@ -118,15 +119,23 @@ public:
     Renderer(Renderer&&) = delete;
     Renderer& operator=(Renderer&&) = delete;
 
+    // Upload derived GPU residency for an already-resolved canonical R0 texture handle. Renderer
+    // never allocates texture identity; callers must publish/resolve the canonical texture first.
     // Legacy RGBA8 upload keeps linear UNORM semantics for the pre-SR3 renderer/particle path.
-    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData);
+    [[nodiscard]] TextureHandle CreateTextureRgba8(
+        TextureHandle texture,
+        const Rgba8TextureData& textureData);
 
     // SR3 texture creation preserves the canonical page color-space meaning through the matching
-    // sampled GPU encoding. The created handle is tagged and validated against each SR3+ draw.
+    // sampled GPU encoding. The canonical handle is retained as residency identity and validated
+    // against every SR3+ draw.
     [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        TextureHandle texture,
         const Rgba8TextureData& textureData,
         SpriteTextureEncoding encoding);
 
+    // Releases derived GPU residency only. Canonical ResourceRegistry ownership/unload remains an
+    // explicit resource-lifecycle operation owned by the caller/project.
     void DestroyTexture(TextureHandle texture) noexcept;
 
     [[nodiscard]] GpuParticleEmitterCreateResult CreateGpuParticleEmitter(
