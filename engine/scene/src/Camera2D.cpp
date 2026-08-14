@@ -92,17 +92,10 @@ namespace
         return false;
     }
 
-    Camera2D parsed{};
-    parsed.enabled = enabled->booleanValue;
-    parsed.priority = static_cast<std::int32_t>(priority->signedIntegerValue);
-    parsed.verticalSize = static_cast<float>(verticalSize->floatValue);
-    parsed.targetViewport = targetViewport->textValue;
-    if (!ValidateCamera(parsed, error))
-    {
-        return false;
-    }
-
-    camera = std::move(parsed);
+    camera.enabled = enabled->booleanValue;
+    camera.priority = static_cast<std::int32_t>(priority->signedIntegerValue);
+    camera.verticalSize = static_cast<float>(verticalSize->floatValue);
+    camera.targetViewport = targetViewport->textValue;
     return true;
 }
 
