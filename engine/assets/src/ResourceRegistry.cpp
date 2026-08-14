@@ -38,6 +38,8 @@ std::string_view ToString(ResourceTypeDomain value) noexcept
         return "texture";
     case ResourceTypeDomain::Sprite:
         return "sprite";
+    case ResourceTypeDomain::SceneTemplate:
+        return "scene_template";
     }
     return "unknown";
 }
@@ -164,6 +166,28 @@ ResourcePublishResult<SpriteResource> ResourceRegistry::PublishSprite(
     }
 
     return Publish<SpriteResource>(*identity, std::move(resource), strongDependencies);
+}
+
+ResourcePublishResult<SceneTemplateResource> ResourceRegistry::PublishSceneTemplate(
+    std::string_view projectRelativeReference,
+    SceneTemplateResource resource,
+    std::span<const ResourceHandleUntyped> strongDependencies)
+{
+    ResourceDiagnostic diagnostic{};
+    const auto identity = Canonicalize(ResourceTypeDomain::SceneTemplate, projectRelativeReference, diagnostic);
+    if (!identity.has_value())
+    {
+        return ResourcePublishResult<SceneTemplateResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.canonicalToml.empty())
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "scene template canonical TOML must not be empty";
+        return ResourcePublishResult<SceneTemplateResource>{{}, false, std::move(diagnostic)};
+    }
+
+    return Publish<SceneTemplateResource>(*identity, std::move(resource), strongDependencies);
 }
 
 ResourceOperationResult ResourceRegistry::RecordLoadFailure(
@@ -768,6 +792,20 @@ ResourceMemoryEvidence ResourceRegistry::MemoryOf(const Slot& slot) const
         evidence.cpuRetention = sprite->cpuRetention;
         evidence.cpuPayloadResident = true;
         evidence.retentionReason = sprite->retentionReason;
+        return evidence;
+    }
+
+    if (const SceneTemplateResource* sceneTemplate = std::get_if<SceneTemplateResource>(&slot.payload))
+    {
+        evidence.knownRetainedCpuBytes = sizeof(SceneTemplateResource) +
+                                         StringLogicalBytes(sceneTemplate->canonicalToml) +
+                                         StringLogicalBytes(sceneTemplate->retentionReason);
+        evidence.retainedContainerCapacityBytes = StringCapacityBytes(sceneTemplate->canonicalToml) +
+                                                  StringCapacityBytes(sceneTemplate->retentionReason);
+        evidence.cpuRetention = sceneTemplate->cpuRetention;
+        evidence.cpuPayloadResident = !sceneTemplate->canonicalToml.empty();
+        evidence.retentionReason = sceneTemplate->retentionReason;
+        return evidence;
     }
     return evidence;
 }
