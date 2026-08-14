@@ -1,5 +1,7 @@
 #include <trace2d/render/CameraViewport2D.hpp>
 
+#include <trace2d/scene/CameraSelection2D.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <string_view>
@@ -188,48 +190,26 @@ ActiveCameraSelectionResult2D ResolveActiveCamera2D(
     const Viewport2D& viewport) noexcept
 {
     ActiveCameraSelectionResult2D result{};
-    if (!cameraType.IsValid())
+    const scene::CameraSelection2D selection =
+        scene::ResolveCameraSelection2D(worldScene, cameraType, viewport.semanticId);
+    switch (selection.error)
     {
+    case scene::CameraSelectionError2D::None:
+        result.camera.entity = selection.entity;
+        result.camera.priority = selection.priority;
+        return result;
+    case scene::CameraSelectionError2D::InvalidCameraType:
         result.error = ActiveCameraSelectionError2D::InvalidCameraType;
         return result;
-    }
-    if (viewport.semanticId.empty())
-    {
+    case scene::CameraSelectionError2D::InvalidViewport:
         result.error = ActiveCameraSelectionError2D::InvalidViewport;
+        return result;
+    case scene::CameraSelectionError2D::NoActiveCamera:
+        result.error = ActiveCameraSelectionError2D::NoActiveCamera;
         return result;
     }
 
-    bool found = false;
-    std::string_view selectedSemanticId{};
-    worldScene.ForEachEntity([&](const scene::EntityId entityId, const scene::Entity& entity)
-    {
-        const scene::Camera2D* const camera = worldScene.TryGetComponent(entityId, cameraType);
-        if (camera == nullptr || !camera->enabled || camera->targetViewport != viewport.semanticId)
-        {
-            return;
-        }
-
-        const std::string_view semanticId = entity.SemanticId();
-        const bool stableTieBreakWins =
-            found && camera->priority == result.camera.priority &&
-            (semanticId < selectedSemanticId ||
-             (semanticId == selectedSemanticId &&
-              (entityId.index < result.camera.entity.index ||
-               (entityId.index == result.camera.entity.index &&
-                entityId.generation < result.camera.entity.generation))));
-        if (!found || camera->priority > result.camera.priority || stableTieBreakWins)
-        {
-            found = true;
-            selectedSemanticId = semanticId;
-            result.camera.entity = entityId;
-            result.camera.priority = camera->priority;
-        }
-    });
-
-    if (!found)
-    {
-        result.error = ActiveCameraSelectionError2D::NoActiveCamera;
-    }
+    result.error = ActiveCameraSelectionError2D::NoActiveCamera;
     return result;
 }
 
