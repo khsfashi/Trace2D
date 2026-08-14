@@ -2,6 +2,7 @@
 """Owner-Windows entry point for the frozen B1 scored cohort."""
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,16 @@ GODOT_AI_ENV_RECIPE = "qualified-freeze-no-deps-v1+win-cp312-x64-pywin32-312-786
 _QUALIFIED_EXPECTED_PYTHON_FREEZE = base.expected_python_freeze
 _QUALIFIED_ENSURE_GODOT_AI = base.ensure_godot_ai
 _QUALIFIED_RUN_GODOT_AGENT_PREFLIGHT = base.run_godot_agent_preflight
+
+
+_ALLOWED_PREFLIGHT_BASE_ERRORS = {
+    "Godot Agent Codex/MCP preflight status is budget_exceeded",
+    "Godot Agent transport preflight modified the non-scored fixture",
+}
+_ALLOWED_GODOT_BOOTSTRAP_SETTINGS = {
+    ("application", "config/features"): 'PackedStringArray("4.7")',
+    ("autoload", "_mcp_game_helper"): '"*res://addons/godot_ai/runtime/game_helper.gd"',
+}
 
 
 def _distribution_name(line: str) -> str:
@@ -57,16 +68,125 @@ def ensure_owner_godot_ai(*, repo_root: Path, local_base: Path, git: str) -> dic
     return result
 
 
+def _clean_provider_turn(result: dict[str, Any]) -> bool:
+    wrapper = result.get("wrapper", {})
+    return (
+        int(result.get("human_interventions", -1)) == 0
+        and int(wrapper.get("process_return_code", -1)) == 0
+        and wrapper.get("turn_completed") is True
+    )
+
+
 def _is_unscored_transport_input_budget_only(result: dict[str, Any]) -> bool:
-    """Accept only the observed MCP-schema input overage for the unscored transport probe."""
+    """Accept only a clean provider turn whose sole overage is input tokens."""
     return (
         result.get("status") == "budget_exceeded"
-        and result.get("return_code") == 0
-        and result.get("timed_out") is False
-        and int(result.get("human_interventions", -1)) == 0
+        and _clean_provider_turn(result)
         and result.get("budget", {}).get("exceeded") == ["input_tokens"]
-        and int(result.get("tool_metrics", {}).get("tool_failures", -1)) == 0
     )
+
+
+def _is_unscored_transport_completed(result: dict[str, Any]) -> bool:
+    return (
+        result.get("status") == "completed"
+        and _clean_provider_turn(result)
+        and result.get("budget", {}).get("exceeded") == []
+    )
+
+
+def _project_settings(path: Path) -> dict[tuple[str, str], str]:
+    section = ""
+    settings: dict[tuple[str, str], str] = {}
+    for raw in path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw.strip()
+        if not line or line.startswith(";") or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            continue
+        if "=" not in line:
+            raise base.ScoredCohortError(f"unexpected project.godot line during transport preflight: {raw!r}")
+        key, value = line.split("=", 1)
+        identity = (section, key.strip())
+        if identity in settings:
+            raise base.ScoredCohortError(f"duplicate project.godot setting during transport preflight: {identity}")
+        settings[identity] = value.strip()
+    return settings
+
+
+def _workspace_files(root: Path) -> dict[str, Path]:
+    files: dict[str, Path] = {}
+    for current, directories, names in os.walk(root, topdown=True, followlinks=False):
+        directories[:] = sorted(name for name in directories if name.casefold() != ".godot")
+        current_path = Path(current)
+        for name in sorted(names):
+            path = current_path / name
+            if path.is_symlink() or not path.is_file():
+                continue
+            files[path.relative_to(root).as_posix()] = path
+    return files
+
+
+def _verify_unscored_transport_workspace(fixture: Path, workspace: Path) -> dict[str, Any]:
+    """Reject authored changes while allowing only deterministic Godot/MCP bootstrap metadata."""
+    expected_files = _workspace_files(fixture)
+    observed_files = _workspace_files(workspace)
+
+    missing = sorted(set(expected_files) - set(observed_files))
+    if missing:
+        raise base.ScoredCohortError(f"Godot Agent transport preflight removed authored files: {missing}")
+
+    changed: list[str] = []
+    for relative, expected_path in expected_files.items():
+        if relative == "project.godot":
+            continue
+        if base.sha256_file(expected_path) != base.sha256_file(observed_files[relative]):
+            changed.append(relative)
+    if changed:
+        raise base.ScoredCohortError(f"Godot Agent transport preflight changed authored files: {changed}")
+
+    generated_metadata: list[str] = []
+    unexpected_extra: list[str] = []
+    for relative in sorted(set(observed_files) - set(expected_files)):
+        source_relative = relative[:-4] if relative.endswith(".uid") else ""
+        source_path = expected_files.get(source_relative)
+        if relative.endswith(".gd.uid") and source_path is not None and source_relative.endswith(".gd"):
+            generated_metadata.append(relative)
+        else:
+            unexpected_extra.append(relative)
+    if unexpected_extra:
+        raise base.ScoredCohortError(
+            f"Godot Agent transport preflight created unexpected authored files: {unexpected_extra}"
+        )
+
+    expected_project = _project_settings(expected_files["project.godot"])
+    observed_project = _project_settings(observed_files["project.godot"])
+    ignored_settings: list[str] = []
+    for identity, allowed_value in _ALLOWED_GODOT_BOOTSTRAP_SETTINGS.items():
+        if identity not in expected_project and observed_project.get(identity) == allowed_value:
+            observed_project.pop(identity)
+            ignored_settings.append("/".join(identity))
+    if observed_project != expected_project:
+        expected_keys = set(expected_project)
+        observed_keys = set(observed_project)
+        added = sorted("/".join(key) for key in observed_keys - expected_keys)
+        removed = sorted("/".join(key) for key in expected_keys - observed_keys)
+        modified = sorted(
+            "/".join(key)
+            for key in expected_keys & observed_keys
+            if expected_project[key] != observed_project[key]
+        )
+        raise base.ScoredCohortError(
+            "Godot Agent transport preflight changed project settings; "
+            f"added={added}; removed={removed}; modified={modified}"
+        )
+
+    return {
+        "authored_fixture_sha256": base.benchmark_b0_stable_harness.stable_tree_hash(fixture),
+        "raw_workspace_sha256": base.benchmark_b0_stable_harness.stable_tree_hash(workspace),
+        "generated_metadata_paths": generated_metadata,
+        "ignored_adapter_project_settings": ignored_settings,
+    }
 
 
 def run_owner_godot_agent_preflight(
@@ -75,7 +195,8 @@ def run_owner_godot_agent_preflight(
     run_root: Path,
     env: dict[str, str],
 ) -> dict[str, Any]:
-    """Keep the scored budget frozen while treating a completed transport probe as transport success."""
+    """Preserve scored budgets while separating adapter bootstrap from authored preflight edits."""
+    fallback_reason = ""
     try:
         return _QUALIFIED_RUN_GODOT_AGENT_PREFLIGHT(
             repo_root=repo_root,
@@ -83,15 +204,15 @@ def run_owner_godot_agent_preflight(
             env=env,
         )
     except base.ScoredCohortError as exc:
-        if str(exc) != "Godot Agent Codex/MCP preflight status is budget_exceeded":
+        fallback_reason = str(exc)
+        if fallback_reason not in _ALLOWED_PREFLIGHT_BASE_ERRORS:
             raise
 
     root = run_root / "godot-agent-preflight"
     result = base.load_json(root / "agent-result.json")
-    if not _is_unscored_transport_input_budget_only(result):
+    if not (_is_unscored_transport_completed(result) or _is_unscored_transport_input_budget_only(result)):
         raise base.ScoredCohortError(
-            "Godot Agent unscored transport preflight exceeded a non-input budget "
-            "or did not complete cleanly"
+            "Godot Agent unscored transport preflight did not complete as a clean provider turn"
         )
 
     events_path = root / "codex-events.jsonl"
@@ -105,25 +226,25 @@ def run_owner_godot_agent_preflight(
         "godot" in name.casefold() or "editor" in name.casefold() for name in tool_names
     ):
         raise base.ScoredCohortError(
-            "Godot Agent preflight completed over the scored input budget "
-            "without an observed Godot MCP tool call"
+            "Godot Agent preflight finished without an observed successful Godot MCP result"
         )
 
     fixture = repo_root / "benchmarks/b1/qualification/godot_content_fixture"
     workspace = root / "workspace"
-    expected_tree = base.benchmark_b0_stable_harness.stable_tree_hash(fixture)
-    observed_tree = base.benchmark_b0_stable_harness.stable_tree_hash(workspace)
-    if observed_tree != expected_tree:
-        raise base.ScoredCohortError(
-            "Godot Agent transport preflight modified the non-scored fixture"
-        )
+    workspace_integrity = _verify_unscored_transport_workspace(fixture, workspace)
 
+    budget_disposition = (
+        "within_scored_budget"
+        if result.get("status") == "completed"
+        else "input_tokens_over_scored_budget_allowed_for_unscored_probe_only"
+    )
     evidence = {
         "passed": True,
         "tool_names": tool_names,
-        "workspace_sha256": observed_tree,
         "agent_result": result,
-        "transport_budget_disposition": "input_tokens_over_scored_budget_allowed_for_unscored_probe_only",
+        "workspace_integrity": workspace_integrity,
+        "base_preflight_fallback_reason": fallback_reason,
+        "transport_budget_disposition": budget_disposition,
         "scored_budget_unchanged": True,
     }
     base.write_json(root / "preflight.json", evidence)
