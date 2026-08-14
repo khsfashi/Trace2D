@@ -19,6 +19,7 @@ enum class ResourceTypeDomain : std::uint8_t
 {
     Texture = 1,
     Sprite = 2,
+    SceneTemplate = 3,
 };
 
 [[nodiscard]] std::string_view ToString(ResourceTypeDomain value) noexcept;
@@ -107,6 +108,15 @@ struct SpriteResource final
     std::string retentionReason{"canonical sprite metadata is required for runtime lookup"};
 };
 
+// Canonical reusable scene-template source. Parsing/compilation is owned by the Scene module and
+// cached by the exact generation-safe handle; normal fixed-step code never reparses this text.
+struct SceneTemplateResource final
+{
+    std::string canonicalToml{};
+    CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Required};
+    std::string retentionReason{"canonical scene template text is required for deterministic instancing"};
+};
+
 template <>
 struct ResourceTraits<TextureResource> final
 {
@@ -117,6 +127,12 @@ template <>
 struct ResourceTraits<SpriteResource> final
 {
     static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Sprite;
+};
+
+template <>
+struct ResourceTraits<SceneTemplateResource> final
+{
+    static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::SceneTemplate;
 };
 
 enum class ResourceErrorCode : std::uint8_t
@@ -225,6 +241,10 @@ public:
         std::string_view projectRelativeReference,
         SpriteResource resource,
         std::span<const ResourceHandleUntyped> strongDependencies = {});
+    [[nodiscard]] ResourcePublishResult<SceneTemplateResource> PublishSceneTemplate(
+        std::string_view projectRelativeReference,
+        SceneTemplateResource resource,
+        std::span<const ResourceHandleUntyped> strongDependencies = {});
 
     [[nodiscard]] ResourceOperationResult RecordLoadFailure(
         ResourceTypeDomain domain,
@@ -281,7 +301,7 @@ public:
     [[nodiscard]] const std::filesystem::path& ProjectRoot() const noexcept;
 
 private:
-    using Payload = std::variant<std::monostate, TextureResource, SpriteResource>;
+    using Payload = std::variant<std::monostate, TextureResource, SpriteResource, SceneTemplateResource>;
 
     struct Slot final
     {

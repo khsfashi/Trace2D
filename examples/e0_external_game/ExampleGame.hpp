@@ -1,9 +1,11 @@
 #pragma once
 
 #include <trace2d/application/Application.hpp>
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/scene/SceneText.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 struct Health final
@@ -22,11 +24,17 @@ struct ExampleComponentTypes final
 [[nodiscard]] trace2d::scene::SceneLoadResult LoadExampleAuthoredScene(
     const trace2d::scene::ComponentRegistry& registry,
     const std::string& path);
+[[nodiscard]] trace2d::assets::ResourceHandle<trace2d::assets::SceneTemplateResource> LoadExampleSceneTemplate(
+    trace2d::assets::ResourceRegistry& resources,
+    trace2d::assets::ResourceHandle<trace2d::assets::TextureResource> sharedTexture,
+    const std::string& path);
 
 class ExampleGame final : public trace2d::application::Game
 {
 public:
-    explicit ExampleGame(ExampleComponentTypes types) noexcept;
+    explicit ExampleGame(
+        ExampleComponentTypes types,
+        std::optional<trace2d::assets::ResourceHandle<trace2d::assets::SceneTemplateResource>> enemyTemplate = std::nullopt) noexcept;
 
     void OnStart(trace2d::application::GameContext& context) override;
     void OnFixedUpdate(
@@ -37,11 +45,19 @@ public:
     [[nodiscard]] trace2d::scene::EntityId Player() const noexcept;
     [[nodiscard]] std::uint64_t FixedUpdateCount() const noexcept;
     [[nodiscard]] const std::string& ObservedWorkId() const noexcept;
+    [[nodiscard]] bool SpawnWasDeferredToSafePoint() const noexcept;
+    [[nodiscard]] bool DespawnWasDeferredToSafePoint() const noexcept;
+    [[nodiscard]] bool RuntimeDespawnInvalidatedHandle() const noexcept;
 
 private:
     ExampleComponentTypes types_{};
+    std::optional<trace2d::assets::ResourceHandle<trace2d::assets::SceneTemplateResource>> enemyTemplate_{};
     trace2d::scene::EntityId player_{};
+    std::optional<trace2d::scene::EntityId> runtimeEnemyBody_{};
     std::uint64_t fixedUpdateCount_{0};
     std::string observedWorkId_{};
     std::string observedAcceptanceId_{};
+    bool spawnWasDeferred_{false};
+    bool despawnWasDeferred_{false};
+    bool runtimeDespawnInvalidatedHandle_{false};
 };

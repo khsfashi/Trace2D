@@ -1,0 +1,40 @@
+format_version = 2
+
+[scene]
+id = "enemy-template"
+name = "Enemy Template"
+
+[[entities]]
+id = "body"
+name = "Enemy Body"
+tags = ["enemy", "fixture"]
+
+[entities.transform]
+position = [1, 0]
+rotation_radians = 0
+scale = [1, 1]
+
+[[entities.components]]
+type = "game.health"
+version = 1
+
+[entities.components.data]
+current = 80
+maximum = 100
+
+[[entities.components]]
+type = "trace2d.visibility2d"
+version = 1
+
+[entities.components.data]
+visible = true
+
+[[entities]]
+id = "weapon"
+name = "Enemy Weapon"
+parent = "body"
+
+[entities.transform]
+position = [2, 0]
+rotation_radians = 0
+scale = [1, 1]

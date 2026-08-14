@@ -48,6 +48,16 @@ const scene::Scene& GameContext::Scene() const noexcept
     return scene_;
 }
 
+scene::WorldLifecycle* GameContext::Worlds() noexcept
+{
+    return worlds_;
+}
+
+const scene::WorldLifecycle* GameContext::Worlds() const noexcept
+{
+    return worlds_;
+}
+
 const input::InputSystem& GameContext::Input() const noexcept
 {
     return input_;
@@ -99,6 +109,11 @@ void Application::BindWorkContracts(
 {
     context_.workSpec_ = workSpec;
     context_.workResult_ = workResult;
+}
+
+void Application::BindWorldLifecycle(scene::WorldLifecycle* const worlds) noexcept
+{
+    context_.worlds_ = worlds;
 }
 
 void Application::SetPresentationCallback(
@@ -170,6 +185,13 @@ void Application::StepFrames(const std::uint64_t count)
                 .simulationTime = state.simulationTime,
                 .fixedDelta = runtime_.Config().fixedTimestep,
             });
+
+        // W0 freezes the only engine-owned structural safe point immediately after the gameplay
+        // callback. Headless and windowed hosts both advance through this same StepFrames path.
+        if (context_.worlds_ != nullptr)
+        {
+            (void)context_.worlds_->CommitStructuralChanges();
+        }
     }
 }
 
@@ -238,6 +260,7 @@ ApplicationSnapshot Application::Snapshot() const noexcept
         .workSpecBound = context_.workSpec_ != nullptr,
         .workResultBound = context_.workResult_ != nullptr,
         .presentationBound = presentationCallback_ != nullptr,
+        .worldLifecycleBound = context_.worlds_ != nullptr,
     };
 }
 

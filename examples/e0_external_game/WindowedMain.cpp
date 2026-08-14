@@ -62,7 +62,7 @@ int main()
         platformConfig.mode = trace2d::platform::StartupMode::Windowed;
         platformConfig.windowWidth = 640;
         platformConfig.windowHeight = 360;
-        platformConfig.windowTitle = "Trace2D E2 External Game";
+        platformConfig.windowTitle = "Trace2D W0 External Game";
 
         trace2d::platform::Platform platform{platformConfig};
         trace2d::render::Renderer renderer{{}, platform};
@@ -82,6 +82,10 @@ int main()
             "runtime/e2-white.rgba8",
             std::move(canonicalTexture));
         if (!publishedTexture.Succeeded()) return 2;
+        const auto sceneTemplate = LoadExampleSceneTemplate(
+            resources,
+            publishedTexture.handle,
+            "content/templates/enemy.trace2d.toml");
 
         const trace2d::render::TextureHandle texture =
             renderer.CreateTextureRgba8(publishedTexture.handle, textureData);
@@ -92,14 +96,19 @@ int main()
         };
 
         trace2d::application::ApplicationConfig applicationConfig{};
-        applicationConfig.scene.semanticId = "e2.placeholder";
-        applicationConfig.scene.name = "E2 Placeholder";
+        applicationConfig.scene.semanticId = "w0.placeholder";
+        applicationConfig.scene.name = "W0 Placeholder";
         applicationConfig.uiWidth = 640;
         applicationConfig.uiHeight = 360;
 
-        ExampleGame game{componentTypes};
+        ExampleGame game{componentTypes, sceneTemplate};
         trace2d::application::Application application{game, applicationConfig};
         application.Scene() = std::move(*sceneLoad.scene);
+
+        trace2d::scene::WorldLifecycle worlds{registry, resources};
+        if (!worlds.AttachWorld({"main", "Main", 0}, application.Scene()).Succeeded()) return 2;
+        if (!worlds.CreateWorld({"arena", "Arena", 10}).Succeeded()) return 2;
+        application.BindWorldLifecycle(&worlds);
         application.SetPresentationCallback(&Present, &presentation);
         application.Start();
 
@@ -112,12 +121,17 @@ int main()
         }
         if (!quitRequested)
         {
+            // The exact same Application::StepFrames path as headless commits W0 structural work
+            // after Game::OnFixedUpdate and before presentation.
             application.StepFrames();
             static_cast<void>(application.Present());
         }
         application.Stop();
+
+        static_cast<void>(worlds.UnloadWorld("arena"));
+        static_cast<void>(resources.Unload(sceneTemplate.Untyped()));
         renderer.DestroyTexture(texture);
-        static_cast<void>(resources.Unload(texture.Untyped()));
+        static_cast<void>(resources.Unload(publishedTexture.handle.Untyped()));
         return 0;
     }
     catch (const std::exception&)
