@@ -1,5 +1,6 @@
 add_library(trace2d_input STATIC
     src/Input.cpp
+    src/ActionMap.cpp
 )
 
 add_library(Trace2D::Input ALIAS trace2d_input)

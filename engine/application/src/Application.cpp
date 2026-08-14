@@ -25,10 +25,12 @@ GameContext::GameContext(
     runtime::FixedStepRuntime& runtime,
     scene::Scene& scene,
     input::InputSystem& input,
+    input::ActionMap& actions,
     ui::UiDocument& ui) noexcept
     : runtime_{runtime}
     , scene_{scene}
     , input_{input}
+    , actions_{actions}
     , ui_{ui}
 {
 }
@@ -63,6 +65,16 @@ const input::InputSystem& GameContext::Input() const noexcept
     return input_;
 }
 
+input::ActionMap& GameContext::Actions() noexcept
+{
+    return actions_;
+}
+
+const input::ActionMap& GameContext::Actions() const noexcept
+{
+    return actions_;
+}
+
 ui::UiDocument& GameContext::Ui() noexcept
 {
     return ui_;
@@ -93,7 +105,7 @@ Application::Application(Game& game, ApplicationConfig config)
     , runtime_{config.runtime}
     , scene_{std::move(config.scene)}
     , ui_{config.uiWidth, config.uiHeight}
-    , context_{runtime_, scene_, input_, ui_}
+    , context_{runtime_, scene_, input_, actions_, ui_}
 {
     if (!ui_.HasValidSize())
     {
@@ -147,6 +159,7 @@ void Application::Start()
     try
     {
         game_.OnStart(context_);
+        actions_.Finalize();
     }
     catch (...)
     {
@@ -174,6 +187,7 @@ void Application::StepFrames(const std::uint64_t count)
             input_.ApplyEvent(event);
         }
         pendingInputEvents_.clear();
+        actions_.Resolve(input_);
 
         runtime_.Step();
 
@@ -272,6 +286,16 @@ const runtime::FixedStepRuntime& Application::Runtime() const noexcept
 const input::InputSystem& Application::Input() const noexcept
 {
     return input_;
+}
+
+input::ActionMap& Application::Actions() noexcept
+{
+    return actions_;
+}
+
+const input::ActionMap& Application::Actions() const noexcept
+{
+    return actions_;
 }
 
 scene::Scene& Application::Scene() noexcept

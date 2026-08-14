@@ -1,5 +1,6 @@
 #pragma once
 
+#include <trace2d/input/ActionMap.hpp>
 #include <trace2d/input/Input.hpp>
 #include <trace2d/runtime/FixedStepRuntime.hpp>
 #include <trace2d/scene/World.hpp>
@@ -50,6 +51,11 @@ public:
 
     [[nodiscard]] const input::InputSystem& Input() const noexcept;
 
+    // Action definitions may be authored during OnStart. Application freezes them immediately
+    // after OnStart returns, resolves them before every fixed update, and rejects later mutation.
+    [[nodiscard]] input::ActionMap& Actions() noexcept;
+    [[nodiscard]] const input::ActionMap& Actions() const noexcept;
+
     [[nodiscard]] ui::UiDocument& Ui() noexcept;
     [[nodiscard]] const ui::UiDocument& Ui() const noexcept;
 
@@ -62,11 +68,13 @@ private:
         runtime::FixedStepRuntime& runtime,
         scene::Scene& scene,
         input::InputSystem& input,
+        input::ActionMap& actions,
         ui::UiDocument& ui) noexcept;
 
     runtime::FixedStepRuntime& runtime_;
     scene::Scene& scene_;
     input::InputSystem& input_;
+    input::ActionMap& actions_;
     ui::UiDocument& ui_;
     scene::WorldLifecycle* worlds_{nullptr};
     const agent::WorkSpec* workSpec_{nullptr};
@@ -141,6 +149,8 @@ public:
 
     [[nodiscard]] const runtime::FixedStepRuntime& Runtime() const noexcept;
     [[nodiscard]] const input::InputSystem& Input() const noexcept;
+    [[nodiscard]] input::ActionMap& Actions() noexcept;
+    [[nodiscard]] const input::ActionMap& Actions() const noexcept;
 
     [[nodiscard]] scene::Scene& Scene() noexcept;
     [[nodiscard]] const scene::Scene& Scene() const noexcept;
@@ -157,6 +167,7 @@ private:
     Game& game_;
     runtime::FixedStepRuntime runtime_;
     input::InputSystem input_{};
+    input::ActionMap actions_{};
     scene::Scene scene_;
     ui::UiDocument ui_;
     GameContext context_;
