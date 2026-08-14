@@ -24,6 +24,11 @@ struct OrthographicCamera final
     Float2 center{};
     float verticalSize{10.0F};
 
+    // Presentation-only multiplier applied after the render-target aspect projection is derived.
+    // C0 uses this to encode fit/fill/stretch while keeping verticalSize as the single authoritative
+    // camera size. Default {1,1} preserves the pre-C0 renderer contract exactly.
+    Float2 presentationScale{1.0F, 1.0F};
+
     [[nodiscard]] bool operator==(const OrthographicCamera&) const noexcept = default;
 };
 
