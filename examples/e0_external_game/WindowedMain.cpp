@@ -1,5 +1,6 @@
 #include "ExampleGame.hpp"
 
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 
@@ -65,12 +66,25 @@ int main()
 
         trace2d::platform::Platform platform{platformConfig};
         trace2d::render::Renderer renderer{{}, platform};
+        trace2d::assets::ResourceRegistry resources{"."};
         constexpr std::array<std::uint8_t, 4> whitePixel{255U, 255U, 255U, 255U};
         trace2d::render::Rgba8TextureData textureData{};
         textureData.width = 1;
         textureData.height = 1;
         textureData.pixels = std::span<const std::uint8_t>{whitePixel};
-        const trace2d::render::TextureHandle texture = renderer.CreateTextureRgba8(textureData);
+
+        trace2d::assets::TextureResource canonicalTexture{};
+        canonicalTexture.width = textureData.width;
+        canonicalTexture.height = textureData.height;
+        canonicalTexture.colorSpace = trace2d::assets::TextureResourceColorSpace::Linear;
+        canonicalTexture.canonicalRgba8.assign(whitePixel.begin(), whitePixel.end());
+        const auto publishedTexture = resources.PublishTexture(
+            "runtime/e2-white.rgba8",
+            std::move(canonicalTexture));
+        if (!publishedTexture.Succeeded()) return 2;
+
+        const trace2d::render::TextureHandle texture =
+            renderer.CreateTextureRgba8(publishedTexture.handle, textureData);
         PresentationState presentation{
             .renderer = &renderer,
             .texture = texture,
@@ -103,6 +117,7 @@ int main()
         }
         application.Stop();
         renderer.DestroyTexture(texture);
+        static_cast<void>(resources.Unload(texture.Untyped()));
         return 0;
     }
     catch (const std::exception&)

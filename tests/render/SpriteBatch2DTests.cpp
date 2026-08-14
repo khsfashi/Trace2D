@@ -7,6 +7,16 @@
 
 namespace
 {
+[[nodiscard]] constexpr trace2d::render::TextureHandle TestTexture(
+    const std::uint32_t slot) noexcept
+{
+    return trace2d::render::TextureHandle{
+        slot,
+        1U,
+        trace2d::assets::ResourceTypeDomain::Texture,
+    };
+}
+
 [[nodiscard]] trace2d::render::SpriteDrawQuad MakeQuad(
     const float minimumX,
     const float minimumY,
@@ -41,10 +51,10 @@ TEST(SpriteBatch2DTests, CompatibleVisibleItemsMergeAcrossCulledGap)
     using namespace trace2d::render;
 
     const std::array<SpriteBatchItem2D, 4U> items{
-        Item(1U),
-        Item(1U, false),
-        Item(1U, true, 3U),
-        Item(1U, true, 2U),
+        Item(TestTexture(1U)),
+        Item(TestTexture(1U), false),
+        Item(TestTexture(1U), true, 3U),
+        Item(TestTexture(1U), true, 2U),
     };
 
     const SpritePresentationBatchMeasurement2D measurement =
@@ -61,9 +71,9 @@ TEST(SpriteBatch2DTests, EveryGpuCompatibilityStateBreaksAContiguousRun)
 {
     using namespace trace2d::render;
 
-    SpriteBatchItem2D base = Item(1U);
+    SpriteBatchItem2D base = Item(TestTexture(1U));
     SpriteBatchItem2D texture = base;
-    texture.compatibility.texture = 2U;
+    texture.compatibility.texture = TestTexture(2U);
     SpriteBatchItem2D material = base;
     material.compatibility.materialPipeline = BuiltInSpriteMaterialPipelineIdentity + 1U;
     SpriteBatchItem2D sampler = base;
@@ -92,9 +102,9 @@ TEST(SpriteBatch2DTests, ZeroQuadItemEmitsNothingAndDoesNotSplitRun)
     using namespace trace2d::render;
 
     const std::array<SpriteBatchItem2D, 3U> items{
-        Item(9U),
-        Item(77U, true, 0U),
-        Item(9U),
+        Item(TestTexture(9U)),
+        Item(TestTexture(77U), true, 0U),
+        Item(TestTexture(9U)),
     };
 
     const SpritePresentationBatchMeasurement2D measurement =

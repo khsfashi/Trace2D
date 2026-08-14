@@ -1,5 +1,6 @@
 #include "PublicAlphaCommand.hpp"
 
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/input/Input.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
@@ -19,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace trace2d::tools
 {
@@ -51,6 +53,16 @@ constexpr std::array<std::uint8_t, 16> MarkerPixels{
     72, 120, 220, 255,
     72, 170, 255, 255,
 };
+
+[[nodiscard]] constexpr render::TextureHandle MeasurementTextureHandle(
+    const std::uint32_t slot) noexcept
+{
+    return render::TextureHandle{
+        slot,
+        1U,
+        assets::ResourceTypeDomain::Texture,
+    };
+}
 
 std::string EscapeJson(const std::string_view value)
 {
@@ -390,7 +402,12 @@ int RunPublicAlphaCommand(const int argc, char* argv[])
 
     std::array<render::SpriteRenderData, MaxSampleSprites> measurementSprites{};
     std::size_t spriteCount = 0U;
-    if (!BuildSampleSprites(*activeScene, 1U, 2U, measurementSprites, spriteCount))
+    if (!BuildSampleSprites(
+            *activeScene,
+            MeasurementTextureHandle(0U),
+            MeasurementTextureHandle(1U),
+            measurementSprites,
+            spriteCount))
     {
         std::cerr << "Public Alpha sample exceeds its fixed sprite capacity of " << MaxSampleSprites << ".\n";
         return ExitRuntimeFailure;
@@ -425,6 +442,7 @@ int RunPublicAlphaCommand(const int argc, char* argv[])
             platformConfig.mode = platform::StartupMode::Windowed;
             platform::Platform platformInstance{platformConfig};
             render::Renderer renderer{render::RendererConfig{}, platformInstance};
+            assets::ResourceRegistry resources{"."};
 
             render::Rgba8TextureData playerTextureData{};
             playerTextureData.width = 2U;
@@ -436,8 +454,44 @@ int RunPublicAlphaCommand(const int argc, char* argv[])
             markerTextureData.height = 2U;
             markerTextureData.pixels = std::span<const std::uint8_t>{MarkerPixels};
 
-            const render::TextureHandle playerTexture = renderer.CreateTextureRgba8(playerTextureData);
-            const render::TextureHandle markerTexture = renderer.CreateTextureRgba8(markerTextureData);
+            assets::TextureResource canonicalPlayer{};
+            canonicalPlayer.width = playerTextureData.width;
+            canonicalPlayer.height = playerTextureData.height;
+            canonicalPlayer.colorSpace = assets::TextureResourceColorSpace::Linear;
+            canonicalPlayer.alphaMode = assets::TextureResourceAlphaMode::Straight;
+            canonicalPlayer.cpuRetention = assets::CpuRetentionPolicy::Reacquirable;
+            canonicalPlayer.retentionReason = "Public Alpha player pixels are built-in";
+            canonicalPlayer.canonicalRgba8.assign(PlayerPixels.begin(), PlayerPixels.end());
+            const auto playerPublished = resources.PublishTexture(
+                "runtime/public-alpha-player.rgba8",
+                std::move(canonicalPlayer));
+            if (!playerPublished.Succeeded())
+            {
+                throw std::runtime_error{"Public Alpha player texture publication failed."};
+            }
+
+            assets::TextureResource canonicalMarker{};
+            canonicalMarker.width = markerTextureData.width;
+            canonicalMarker.height = markerTextureData.height;
+            canonicalMarker.colorSpace = assets::TextureResourceColorSpace::Linear;
+            canonicalMarker.alphaMode = assets::TextureResourceAlphaMode::Straight;
+            canonicalMarker.cpuRetention = assets::CpuRetentionPolicy::Reacquirable;
+            canonicalMarker.retentionReason = "Public Alpha marker pixels are built-in";
+            canonicalMarker.canonicalRgba8.assign(MarkerPixels.begin(), MarkerPixels.end());
+            const auto markerPublished = resources.PublishTexture(
+                "runtime/public-alpha-marker.rgba8",
+                std::move(canonicalMarker));
+            if (!markerPublished.Succeeded())
+            {
+                throw std::runtime_error{"Public Alpha marker texture publication failed."};
+            }
+
+            const render::TextureHandle playerTexture = renderer.CreateTextureRgba8(
+                playerPublished.handle,
+                playerTextureData);
+            const render::TextureHandle markerTexture = renderer.CreateTextureRgba8(
+                markerPublished.handle,
+                markerTextureData);
 
             std::array<render::SpriteRenderData, MaxSampleSprites> renderSprites{};
             std::size_t renderSpriteCount = 0U;
@@ -463,6 +517,11 @@ int RunPublicAlphaCommand(const int argc, char* argv[])
             renderMetrics = renderer.Metrics();
             renderer.DestroyTexture(markerTexture);
             renderer.DestroyTexture(playerTexture);
+            if (!resources.Unload(markerTexture.Untyped()).Succeeded() ||
+                !resources.Unload(playerTexture.Untyped()).Succeeded())
+            {
+                throw std::runtime_error{"Public Alpha texture resource unload failed."};
+            }
         }
         catch (const std::exception& exception)
         {

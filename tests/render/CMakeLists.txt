@@ -5,6 +5,7 @@ add_executable(trace2d_render_tests
     ParticleGpuSmokeTests.cpp
     RenderDataTests.cpp
     RendererTests.cpp
+    RendererTextureLifecycleGpuSmokeTests.cpp
     RendererWorkloadTests.cpp
     SpriteAppearance2DTests.cpp
     SpriteBatch2DTests.cpp
@@ -32,6 +33,7 @@ target_link_libraries(trace2d_render_tests
 )
 
 target_compile_features(trace2d_render_tests PRIVATE cxx_std_20)
+target_compile_definitions(trace2d_render_tests PRIVATE TRACE2D_RENDER_TEST_TEXTURE_FACTORY=1)
 trace2d_enable_warnings(trace2d_render_tests)
 
 include(GoogleTest)

@@ -43,6 +43,24 @@ struct Rgba8TextureData final
     std::span<const std::uint8_t> pixels{};
 };
 
+#if defined(TRACE2D_RENDER_TEST_TEXTURE_FACTORY)
+namespace detail
+{
+// Existing GPU tests exercise rendering semantics rather than resource identity. Keep their
+// synthetic identities isolated to the test target so production Renderer never regains a second
+// texture-handle allocator. R0 lifecycle coverage uses a real ResourceRegistry separately.
+[[nodiscard]] inline TextureHandle AllocateSyntheticTestTextureHandle() noexcept
+{
+    static std::uint32_t nextSlot = 0U;
+    return TextureHandle{
+        nextSlot++,
+        1U,
+        assets::ResourceTypeDomain::Texture,
+    };
+}
+} // namespace detail
+#endif
+
 enum class SpritePresentationGeometryKind : std::uint8_t
 {
     Quad = 0,
@@ -58,9 +76,10 @@ enum class SpritePresentationGeometryKind : std::uint8_t
 // Primitive patches stay one atomic top-level SR4 item and are consumed only for the duration of
 // RenderFrame/CaptureFrame. `pixelPerfectViewport` is optional caller-owned frame-level SR6 state;
 // when any submitted Sprite enables it, every Sprite in that frame must provide an equal mapping.
-// Texture handles and all GPU resources remain derived renderer state. The SR7 material field is
-// appended after the pre-SR7 fields so existing positional aggregate initialization keeps its field
-// meaning while omitted material state naturally selects the built-in pipeline.
+// Texture identity is the canonical R0 generation-safe resource handle; the SDL/GPU object behind
+// that identity remains renderer-owned derived state. The SR7 material field is appended after the
+// pre-SR7 fields so existing positional aggregate initialization keeps its field meaning while
+// omitted material state naturally selects the built-in pipeline.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
@@ -118,15 +137,42 @@ public:
     Renderer(Renderer&&) = delete;
     Renderer& operator=(Renderer&&) = delete;
 
+    // Upload derived GPU residency for an already-resolved canonical R0 texture handle. Renderer
+    // never allocates texture identity; callers must publish/resolve the canonical texture first.
     // Legacy RGBA8 upload keeps linear UNORM semantics for the pre-SR3 renderer/particle path.
-    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData);
+    [[nodiscard]] TextureHandle CreateTextureRgba8(
+        TextureHandle texture,
+        const Rgba8TextureData& textureData);
 
     // SR3 texture creation preserves the canonical page color-space meaning through the matching
-    // sampled GPU encoding. The created handle is tagged and validated against each SR3+ draw.
+    // sampled GPU encoding. The canonical handle is retained as residency identity and validated
+    // against every SR3+ draw.
     [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        TextureHandle texture,
         const Rgba8TextureData& textureData,
         SpriteTextureEncoding encoding);
 
+#if defined(TRACE2D_RENDER_TEST_TEXTURE_FACTORY)
+    // Test-only source compatibility for pre-R0 GPU rendering tests. Production code never sees
+    // these overloads, so runtime texture identity remains exclusively ResourceRegistry-owned.
+    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData)
+    {
+        return CreateTextureRgba8(detail::AllocateSyntheticTestTextureHandle(), textureData);
+    }
+
+    [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        const Rgba8TextureData& textureData,
+        const SpriteTextureEncoding encoding)
+    {
+        return CreateSpriteTextureRgba8(
+            detail::AllocateSyntheticTestTextureHandle(),
+            textureData,
+            encoding);
+    }
+#endif
+
+    // Releases derived GPU residency only. Canonical ResourceRegistry ownership/unload remains an
+    // explicit resource-lifecycle operation owned by the caller/project.
     void DestroyTexture(TextureHandle texture) noexcept;
 
     [[nodiscard]] GpuParticleEmitterCreateResult CreateGpuParticleEmitter(

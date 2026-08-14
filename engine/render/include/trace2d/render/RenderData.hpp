@@ -1,13 +1,15 @@
 #pragma once
 
+#include <trace2d/assets/ResourceRegistry.hpp>
+
 #include <cstdint>
 #include <span>
 #include <type_traits>
 
 namespace trace2d::render
 {
-using TextureHandle = std::uint32_t;
-inline constexpr TextureHandle InvalidTextureHandle = 0;
+using TextureHandle = trace2d::assets::ResourceHandle<trace2d::assets::TextureResource>;
+inline constexpr TextureHandle InvalidTextureHandle{};
 
 struct Float2 final
 {
@@ -85,6 +87,7 @@ struct SpriteDrawOrderLess final
     const OrthographicView& view,
     std::span<const SpriteRenderData> sprites) noexcept;
 
+static_assert(std::is_trivially_copyable_v<TextureHandle>);
 static_assert(std::is_trivially_copyable_v<Float2>);
 static_assert(std::is_trivially_copyable_v<OrthographicCamera>);
 static_assert(std::is_trivially_copyable_v<OrthographicView>);

@@ -45,6 +45,7 @@ struct SpriteVertex final
 struct TextureResource final
 {
     SDL_GPUTexture* texture{nullptr};
+    std::uint32_t generation{0U};
     SpriteTextureEncoding spriteEncoding{SpriteTextureEncoding::Linear};
     bool hasSpriteEncoding{false};
 };
@@ -103,6 +104,12 @@ float4 main(FragmentInput input) : SV_Target0
 [[nodiscard]] std::runtime_error MakeSdlError(const char* const context)
 {
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
+}
+
+[[nodiscard]] bool IsValidTextureHandle(const TextureHandle texture) noexcept
+{
+    return texture.generation != 0U &&
+        texture.domain == assets::ResourceTypeDomain::Texture;
 }
 
 class ShaderCrossScope final
@@ -366,9 +373,12 @@ public:
         Cleanup();
     }
 
-    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData)
+    [[nodiscard]] TextureHandle CreateTextureRgba8(
+        const TextureHandle texture,
+        const Rgba8TextureData& textureData)
     {
         return CreateTextureRgba8Internal(
+            texture,
             textureData,
             SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM,
             false,
@@ -376,6 +386,7 @@ public:
     }
 
     [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        const TextureHandle texture,
         const Rgba8TextureData& textureData,
         const SpriteTextureEncoding encoding)
     {
@@ -389,27 +400,32 @@ public:
             throw std::runtime_error{
                 "SDL GPU backend does not support the required Sprite SR3 sampled texture format."};
         }
-        return CreateTextureRgba8Internal(textureData, format, true, encoding);
+        return CreateTextureRgba8Internal(texture, textureData, format, true, encoding);
     }
 
     void DestroyTexture(const TextureHandle texture) noexcept
     {
-        if (texture == InvalidTextureHandle)
+        if (!IsValidTextureHandle(texture))
         {
             return;
         }
-        const std::size_t index = static_cast<std::size_t>(texture - 1U);
+        const std::size_t index = static_cast<std::size_t>(texture.slot);
         if (index >= textures_.size())
         {
             return;
         }
 
         TextureResource& resource = textures_[index];
-        if (resource.texture != nullptr)
+        if (resource.texture == nullptr || resource.generation != texture.generation)
         {
-            SDL_ReleaseGPUTexture(device_, resource.texture);
-            resource.texture = nullptr;
+            return;
         }
+
+        SDL_ReleaseGPUTexture(device_, resource.texture);
+        resource.texture = nullptr;
+        resource.generation = 0U;
+        resource.spriteEncoding = SpriteTextureEncoding::Linear;
+        resource.hasSpriteEncoding = false;
     }
 
     [[nodiscard]] GpuParticleEmitterCreateResult CreateGpuParticleEmitter(
@@ -620,21 +636,41 @@ public:
 
 private:
     [[nodiscard]] TextureHandle CreateTextureRgba8Internal(
+        const TextureHandle textureHandle,
         const Rgba8TextureData& textureData,
         const SDL_GPUTextureFormat format,
         const bool hasSpriteEncoding,
         const SpriteTextureEncoding spriteEncoding)
     {
+        if (!IsValidTextureHandle(textureHandle))
+        {
+            throw std::invalid_argument{
+                "Renderer texture residency requires a valid canonical R0 texture handle."};
+        }
+
         const std::size_t byteCount = ExpectedRgba8ByteCount(textureData);
         if (textureData.pixels.size() != byteCount)
         {
             throw std::invalid_argument{
                 "RGBA8 texture byte count must equal width * height * 4."};
         }
-        if (textures_.size() >=
-            static_cast<std::size_t>(std::numeric_limits<TextureHandle>::max() - 1U))
+
+        const std::size_t index = static_cast<std::size_t>(textureHandle.slot);
+        if (index >= textures_.size())
         {
-            throw std::length_error{"Trace2D texture handle space exhausted."};
+            textures_.resize(index + 1U);
+        }
+
+        TextureResource& residency = textures_[index];
+        if (residency.texture != nullptr)
+        {
+            if (residency.generation == textureHandle.generation)
+            {
+                throw std::invalid_argument{
+                    "Renderer texture handle already has live GPU residency."};
+            }
+            throw std::invalid_argument{
+                "Renderer texture slot still owns a different generation; destroy old GPU residency before reuse."};
         }
 
         SDL_GPUTextureCreateInfo textureInfo{};
@@ -711,16 +747,11 @@ private:
         }
 
         SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-        try
-        {
-            textures_.push_back(TextureResource{texture, spriteEncoding, hasSpriteEncoding});
-        }
-        catch (...)
-        {
-            SDL_ReleaseGPUTexture(device_, texture);
-            throw;
-        }
-        return static_cast<TextureHandle>(textures_.size());
+        residency.texture = texture;
+        residency.generation = textureHandle.generation;
+        residency.spriteEncoding = spriteEncoding;
+        residency.hasSpriteEncoding = hasSpriteEncoding;
+        return textureHandle;
     }
 
     static void ValidateCaptureRequest(const CaptureRequest& request)
@@ -1358,17 +1389,24 @@ private:
     [[nodiscard]] const TextureResource& ResolveTextureResource(
         const TextureHandle texture) const
     {
-        if (texture == InvalidTextureHandle)
+        if (!IsValidTextureHandle(texture))
         {
             throw std::invalid_argument{"Sprite texture handle is invalid."};
         }
-        const std::size_t index = static_cast<std::size_t>(texture - 1U);
-        if (index >= textures_.size() || textures_[index].texture == nullptr)
+        const std::size_t index = static_cast<std::size_t>(texture.slot);
+        if (index >= textures_.size())
         {
             throw std::invalid_argument{
-                "Sprite texture handle does not reference a live renderer texture."};
+                "Sprite texture handle does not reference live renderer residency."};
         }
-        return textures_[index];
+
+        const TextureResource& resource = textures_[index];
+        if (resource.texture == nullptr || resource.generation != texture.generation)
+        {
+            throw std::invalid_argument{
+                "Sprite texture handle generation does not reference live renderer residency."};
+        }
+        return resource;
     }
 
     [[nodiscard]] SDL_GPUTexture* ResolveTexture(const TextureHandle texture) const
@@ -1920,6 +1958,7 @@ private:
                     SDL_ReleaseGPUTexture(device_, resource.texture);
                     resource.texture = nullptr;
                 }
+                resource.generation = 0U;
             }
 
             if (captureTransferBuffer_ != nullptr)
@@ -2009,16 +2048,19 @@ Renderer::Renderer(
 
 Renderer::~Renderer() = default;
 
-TextureHandle Renderer::CreateTextureRgba8(const Rgba8TextureData& textureData)
+TextureHandle Renderer::CreateTextureRgba8(
+    const TextureHandle texture,
+    const Rgba8TextureData& textureData)
 {
-    return impl_->CreateTextureRgba8(textureData);
+    return impl_->CreateTextureRgba8(texture, textureData);
 }
 
 TextureHandle Renderer::CreateSpriteTextureRgba8(
+    const TextureHandle texture,
     const Rgba8TextureData& textureData,
     const SpriteTextureEncoding encoding)
 {
-    return impl_->CreateSpriteTextureRgba8(textureData, encoding);
+    return impl_->CreateSpriteTextureRgba8(texture, textureData, encoding);
 }
 
 void Renderer::DestroyTexture(const TextureHandle texture) noexcept

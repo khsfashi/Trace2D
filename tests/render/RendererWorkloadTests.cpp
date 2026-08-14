@@ -7,7 +7,20 @@
 
 namespace
 {
-constexpr std::array<trace2d::render::TextureHandle, 2> TestTextures{11, 22};
+[[nodiscard]] constexpr trace2d::render::TextureHandle TestTexture(
+    const std::uint32_t slot) noexcept
+{
+    return trace2d::render::TextureHandle{
+        slot,
+        1U,
+        trace2d::assets::ResourceTypeDomain::Texture,
+    };
+}
+
+constexpr std::array<trace2d::render::TextureHandle, 2> TestTextures{
+    TestTexture(11U),
+    TestTexture(22U),
+};
 
 TEST(RendererWorkloadTests, CommittedSpecsHaveStableOrderAndDimensions)
 {
@@ -114,7 +127,7 @@ TEST(RendererWorkloadTests, ParsesOnlyCommittedWorkloadNames)
 
 TEST(RendererWorkloadTests, RejectsMissingOrInvalidTextureSlots)
 {
-    const std::array<trace2d::render::TextureHandle, 1> oneTexture{11};
+    const std::array<trace2d::render::TextureHandle, 1> oneTexture{TestTexture(11U)};
     EXPECT_THROW(
         static_cast<void>(trace2d::render::BuildRendererWorkload(
             trace2d::render::RendererWorkloadId::AlternatingTwoTextures,
@@ -122,7 +135,7 @@ TEST(RendererWorkloadTests, RejectsMissingOrInvalidTextureSlots)
         std::invalid_argument);
 
     const std::array<trace2d::render::TextureHandle, 2> invalidTextures{
-        11,
+        TestTexture(11U),
         trace2d::render::InvalidTextureHandle,
     };
     EXPECT_THROW(

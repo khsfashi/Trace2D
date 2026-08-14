@@ -8,6 +8,17 @@
 
 namespace
 {
+[[nodiscard]] constexpr trace2d::render::TextureHandle TestTexture(
+    const std::uint32_t slot,
+    const std::uint32_t generation = 1U) noexcept
+{
+    return trace2d::render::TextureHandle{
+        slot,
+        generation,
+        trace2d::assets::ResourceTypeDomain::Texture,
+    };
+}
+
 TEST(RenderDataTests, BuildsOrthographicViewFromTargetAspectRatio)
 {
     trace2d::render::OrthographicCamera camera{};
@@ -148,12 +159,12 @@ TEST(RenderDataTests, SpriteDrawOrderUsesLayerThenStableOrder)
 TEST(RenderDataTests, TextureHandleDoesNotChangeDeterministicDrawOrder)
 {
     trace2d::render::SpriteRenderData left{};
-    left.texture = 1;
+    left.texture = TestTexture(1U);
     left.layer = 3;
     left.stableOrder = 77;
 
     trace2d::render::SpriteRenderData right = left;
-    right.texture = 2;
+    right.texture = TestTexture(2U);
 
     const trace2d::render::SpriteDrawOrderLess less{};
     EXPECT_FALSE(less(left, right));
@@ -180,11 +191,11 @@ TEST(RenderDataTests, MeasuresContiguousTextureRunsWithoutReordering)
     view.halfExtents = trace2d::render::Float2{10.0F, 10.0F};
 
     std::array<trace2d::render::SpriteRenderData, 5> sprites{};
-    sprites[0].texture = 1;
-    sprites[1].texture = 1;
-    sprites[2].texture = 2;
-    sprites[3].texture = 2;
-    sprites[4].texture = 1;
+    sprites[0].texture = TestTexture(1U);
+    sprites[1].texture = TestTexture(1U);
+    sprites[2].texture = TestTexture(2U);
+    sprites[3].texture = TestTexture(2U);
+    sprites[4].texture = TestTexture(1U);
 
     const trace2d::render::SpriteBatchMeasurement measurement =
         trace2d::render::MeasureContiguousTextureBatching(view, sprites);
@@ -200,11 +211,11 @@ TEST(RenderDataTests, CulledSpritesDoNotSplitVisibleTextureRuns)
     view.halfExtents = trace2d::render::Float2{2.0F, 2.0F};
 
     std::array<trace2d::render::SpriteRenderData, 3> sprites{};
-    sprites[0].texture = 7;
+    sprites[0].texture = TestTexture(7U);
     sprites[0].center = trace2d::render::Float2{-1.0F, 0.0F};
-    sprites[1].texture = 99;
+    sprites[1].texture = TestTexture(99U);
     sprites[1].center = trace2d::render::Float2{100.0F, 0.0F};
-    sprites[2].texture = 7;
+    sprites[2].texture = TestTexture(7U);
     sprites[2].center = trace2d::render::Float2{1.0F, 0.0F};
 
     const trace2d::render::SpriteBatchMeasurement measurement =
@@ -221,9 +232,9 @@ TEST(RenderDataTests, AllCulledSpritesProduceNoTextureRuns)
     view.halfExtents = trace2d::render::Float2{1.0F, 1.0F};
 
     std::array<trace2d::render::SpriteRenderData, 2> sprites{};
-    sprites[0].texture = 1;
+    sprites[0].texture = TestTexture(1U);
     sprites[0].center = trace2d::render::Float2{10.0F, 0.0F};
-    sprites[1].texture = 2;
+    sprites[1].texture = TestTexture(2U);
     sprites[1].center = trace2d::render::Float2{-10.0F, 0.0F};
 
     const trace2d::render::SpriteBatchMeasurement measurement =

@@ -12,7 +12,7 @@ Implemented renderer capabilities:
 
 - windowed-only SDL3 GPU renderer construction; headless runtime never initializes a GPU renderer,
 - Trace2D-owned orthographic camera/view math,
-- Trace2D-owned `SpriteRenderData` and stable 32-bit `TextureHandle`,
+- Trace2D-owned `SpriteRenderData` and generation-safe typed `TextureHandle` shared with the R0 `ResourceRegistry`,
 - caller-ordered textured multi-sprite submission,
 - inclusive allocation-free AABB visibility filtering,
 - full-span texture validation independent of camera visibility,
@@ -37,13 +37,13 @@ Renderer
   owns SDL_GPUDevice
   owns sprite pipeline / unit-quad vertex buffer / sampler
   owns persistent sprite instance GPU + upload buffers
-  owns stable Trace2D texture-handle table
+  owns SDL texture residency keyed by canonical ResourceRegistry slot + generation
   owns persistent size-matched offscreen color target
   owns reusable capture download transfer buffer
   claims/releases window swapchain
   acquires/submits command buffers
   consumes derived render data
-  does not own simulation state
+  does not own canonical resource identity or simulation state
 ```
 
 Construction order must keep `Platform` alive for the complete `Renderer` lifetime. Simulation, scene, input, agent, and gameplay-testing layers remain renderer-independent.
@@ -84,7 +84,7 @@ The engine convention keeps +Y up. Invalid zero-sized targets, non-finite camera
 
 - `center` — world-space center,
 - `halfExtents` — axis-aligned world-space half size,
-- `texture` — renderer-owned `TextureHandle`,
+- `texture` — canonical R0 `TextureHandle` identifying renderer residency,
 - `layer` — primary painter-order key,
 - `stableOrder` — deterministic tie-break key within a layer.
 
@@ -161,13 +161,13 @@ This intentionally trades a few simple O(N) scans for zero per-frame visible-lis
 
 ## Texture lifetime and upload
 
-`CreateTextureRgba8` is explicit resource-creation work outside frame submission.
+`CreateTextureRgba8` and `CreateSpriteTextureRgba8` are explicit GPU-residency upload work outside frame submission. Production callers first publish or resolve a canonical `TextureResource` through `assets::ResourceRegistry`, then pass that generation-safe typed handle together with the upload bytes.
 
-For each texture it validates dimensions/byte count, creates one sampled RGBA8 `SDL_GPUTexture`, uploads source bytes through a transfer buffer/copy pass, and retains the GPU texture behind a Trace2D handle.
+The renderer never allocates texture identity. For each upload it validates the canonical texture handle plus dimensions/byte count, creates one sampled `SDL_GPUTexture`, uploads source bytes through a transfer buffer/copy pass, and records the derived GPU residency at the canonical slot with the exact canonical generation. Residency storage may grow only during this explicit setup/upload work when a higher canonical slot is introduced.
 
-`DestroyTexture` releases the resource and leaves a tombstone in the current handle table. Handles are not recycled yet. Frame-time lookup is direct indexed access; no hash/string lookup is required.
+`DestroyTexture` releases derived GPU residency only when both canonical slot and generation match. It does not unload the canonical `ResourceRegistry` entry. A stale-generation destroy is a no-op, so a retired handle cannot release a replacement texture that reused the same canonical slot with a newer generation. Canonical unload remains an explicit caller/project lifecycle operation after renderer residency is released and normal dependency/retain rules permit it.
 
-Every supplied sprite texture handle is validated before command-buffer acquisition. Actual visible run encoding resolves the run texture again through the same O(1) table instead of building a transient resolved-resource array.
+Every supplied sprite texture handle is validated before command-buffer acquisition. Frame-time lookup is direct slot bounds + generation validation followed by direct SDL texture pointer access; there is no path normalization, string/hash lookup, ownership increment/decrement, or allocation. Actual visible run encoding resolves the run texture again through that same O(1) residency table instead of building a transient resolved-resource array.
 
 ## Offscreen target and presentation
 
@@ -245,7 +245,7 @@ Offline precompiled shaders remain a later measurement-driven packaging decision
 The normal ordered multi-sprite windowed frame is:
 
 ```text
-validate every supplied texture handle
+validate every supplied canonical texture slot + generation
   -> acquire GPU command buffer
   -> wait/acquire swapchain texture and actual target size
   -> if presentation target is available:
@@ -305,19 +305,19 @@ Persistent/capacity-managed resources:
 - sprite instance GPU buffer,
 - sprite instance upload transfer buffer,
 - sampler,
-- created textures,
+- renderer-owned GPU texture residency keyed by canonical handles,
 - offscreen color target,
 - capture download transfer buffer.
 
-Steady-capacity non-capture frames do not allocate a visible-sprite container, sort sprites, compile shaders, create textures, recreate instance buffers, recreate offscreen targets, create capture buffers, wait on fences, encode images, or perform file I/O.
+Steady-capacity non-capture frames do not allocate a visible-sprite container, sort sprites, compile shaders, create textures, resize texture-residency storage, recreate instance buffers, recreate offscreen targets, create capture buffers, wait on fences, encode images, or perform file I/O.
 
-CPU submission remains O(N) direct scans. No LINQ-like abstraction, hash lookup, renderer-owned frame scene, generic frame allocator, or render graph has been introduced.
+CPU submission remains O(N) direct scans. Texture residency lookup remains O(1) slot/generation validation. No LINQ-like abstraction, per-frame path/hash lookup, shared-ownership churn, renderer-owned frame scene, generic frame allocator, or render graph has been introduced.
 
 Capture intentionally allocates its returned canonical RGBA8 byte vector and artifact conversion storage because capture is explicit QA work outside the ordinary frame hot path.
 
 ## Validation boundary
 
-GitHub Actions validates the Windows/MSVC configuration, warnings-as-errors build, and full CTest suite on clean hosted runners. GPU presentation is not a hosted-runner requirement because an interactive window/GPU backend is not reliable there.
+GitHub Actions validates the Windows/MSVC configuration, warnings-as-errors build, and full CTest suite on clean hosted runners. The owner Windows GPU gate additionally runs the committed GPU smoke/conformance surface with `TRACE2D_RUN_GPU_SMOKE=1` and treats a skipped GPU test as failure.
 
 The committed `trace2d public-alpha --windowed ... --json` command is the explicit presentation smoke surface. For the seven-sprite sample, successful renderer submission is expected to report:
 
@@ -325,6 +325,8 @@ The committed `trace2d public-alpha --windowed ... --json` command is the explic
 submitted_sprites = 7
 draw_calls        = 2
 ```
+
+R0 renderer texture lifecycle integration also has a real-GPU smoke proving that canonical slot reuse advances generation, stale-generation rendering is rejected, and stale `DestroyTexture` cannot release the live replacement generation.
 
 ## Non-goals for Public Alpha
 
