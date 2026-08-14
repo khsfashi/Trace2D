@@ -1,0 +1,17 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Trace2D is currently distributed as static C++ libraries. Private link
+# dependencies of static archives still need imported targets to be available
+# when a downstream executable links the archive.
+find_dependency(SDL3 CONFIG REQUIRED)
+find_dependency(SDL3_shadercross CONFIG REQUIRED)
+find_dependency(nlohmann_json CONFIG REQUIRED)
+find_dependency(tomlplusplus CONFIG REQUIRED)
+
+set(Trace2D_VERSION "@PROJECT_VERSION@")
+set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
+
+include("${CMAKE_CURRENT_LIST_DIR}/Trace2DTargets.cmake")
+check_required_components(Trace2D)
