@@ -2,7 +2,7 @@
 
 #include <trace2d/input/Input.hpp>
 #include <trace2d/runtime/FixedStepRuntime.hpp>
-#include <trace2d/scene/Scene.hpp>
+#include <trace2d/scene/World.hpp>
 #include <trace2d/ui/Ui.hpp>
 
 #include <chrono>
@@ -43,6 +43,11 @@ public:
     [[nodiscard]] scene::Scene& Scene() noexcept;
     [[nodiscard]] const scene::Scene& Scene() const noexcept;
 
+    // Optional W0 structural lifecycle bound by the host. Structural requests made by Game during
+    // OnFixedUpdate are committed by Application immediately after that callback returns.
+    [[nodiscard]] scene::WorldLifecycle* Worlds() noexcept;
+    [[nodiscard]] const scene::WorldLifecycle* Worlds() const noexcept;
+
     [[nodiscard]] const input::InputSystem& Input() const noexcept;
 
     [[nodiscard]] ui::UiDocument& Ui() noexcept;
@@ -63,6 +68,7 @@ private:
     scene::Scene& scene_;
     input::InputSystem& input_;
     ui::UiDocument& ui_;
+    scene::WorldLifecycle* worlds_{nullptr};
     const agent::WorkSpec* workSpec_{nullptr};
     agent::WorkResult* workResult_{nullptr};
 
@@ -99,6 +105,7 @@ struct ApplicationSnapshot final
     bool workSpecBound{false};
     bool workResultBound{false};
     bool presentationBound{false};
+    bool worldLifecycleBound{false};
 };
 
 using PresentationCallback = void (*)(const GameContext& context, void* userData);
@@ -115,6 +122,7 @@ public:
     ~Application() = default;
 
     void BindWorkContracts(const agent::WorkSpec* workSpec, agent::WorkResult* workResult) noexcept;
+    void BindWorldLifecycle(scene::WorldLifecycle* worlds) noexcept;
     void SetPresentationCallback(PresentationCallback callback, void* userData = nullptr) noexcept;
 
     // Physical/host input is retained until the next fixed frame so Pressed/Released edges remain
