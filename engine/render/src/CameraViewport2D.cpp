@@ -415,6 +415,11 @@ PresentationViewResult2D ResolvePresentationView2D(
         (targetAspect / logicalAspect) * contentToTarget.x,
         contentToTarget.y,
     };
+    rendererCamera.rasterViewport.enabled = true;
+    rendererCamera.rasterViewport.targetWidth = viewport.targetWidth;
+    rendererCamera.rasterViewport.targetHeight = viewport.targetHeight;
+    rendererCamera.rasterViewport.origin = viewport.contentRect.origin;
+    rendererCamera.rasterViewport.size = viewport.contentRect.size;
     if (!IsFinite(rendererCamera.presentationScale) || rendererCamera.presentationScale.x <= 0.0F ||
         rendererCamera.presentationScale.y <= 0.0F)
     {
