@@ -105,8 +105,8 @@ TEST(CameraViewport2DTests, CameraIsAuthoredTypedStateAndGenericInspectionSeesIt
     ASSERT_EQ(inspected[0].fields.size(), 4U);
     EXPECT_EQ(inspected[0].fields[0].name, "enabled");
     EXPECT_EQ(inspected[0].fields[1].name, "priority");
-    EXPECT_EQ(inspected[0].fields[2].name, "vertical_size");
-    EXPECT_EQ(inspected[0].fields[3].name, "target_viewport");
+    EXPECT_EQ(inspected[0].fields[2].name, "target_viewport");
+    EXPECT_EQ(inspected[0].fields[3].name, "vertical_size");
 }
 
 TEST(CameraViewport2DTests, CameraAuthoringRejectsInvalidCanonicalSize)
@@ -253,6 +253,7 @@ TEST(CameraViewport2DTests, WorldViewportPresentationRoundTripsAreBackendIndepen
         current, nullptr, resolvedViewport.viewport);
     ASSERT_TRUE(resolved.Succeeded());
 
+    EXPECT_EQ(resolved.view.presentationView, resolved.view.logicalView);
     EXPECT_EQ(trace2d::render::WorldToViewport(resolved.view, current.center), (Float2{160.0F, 90.0F}));
     EXPECT_EQ(trace2d::render::WorldToPresentation(resolved.view, current.center), (Float2{400.0F, 300.0F}));
 
@@ -293,6 +294,12 @@ TEST(CameraViewport2DTests, ResolvedRendererCameraRebuildsTheExactSamePresentati
         current, nullptr, resolvedViewport.viewport);
     ASSERT_TRUE(resolved.Succeeded());
 
+    EXPECT_TRUE(resolved.view.rendererCamera.rasterViewport.enabled);
+    EXPECT_EQ(resolved.view.rendererCamera.rasterViewport.targetWidth, 800U);
+    EXPECT_EQ(resolved.view.rendererCamera.rasterViewport.targetHeight, 600U);
+    EXPECT_EQ(resolved.view.rendererCamera.rasterViewport.origin, (Float2{0.0F, 0.0F}));
+    EXPECT_EQ(resolved.view.rendererCamera.rasterViewport.size, (Float2{800.0F, 600.0F}));
+
     trace2d::render::OrthographicView rebuilt{};
     ASSERT_TRUE(trace2d::render::TryBuildOrthographicView(
         resolved.view.rendererCamera,
@@ -300,6 +307,13 @@ TEST(CameraViewport2DTests, ResolvedRendererCameraRebuildsTheExactSamePresentati
         resolved.view.viewport.targetHeight,
         rebuilt));
     EXPECT_EQ(rebuilt, resolved.view.presentationView);
+
+    trace2d::render::OrthographicView staleTarget{};
+    EXPECT_FALSE(trace2d::render::TryBuildOrthographicView(
+        resolved.view.rendererCamera,
+        resolved.view.viewport.targetWidth + 1U,
+        resolved.view.viewport.targetHeight,
+        staleTarget));
 
     const Float2 logicalRight{
         resolved.view.logicalView.center.x + resolved.view.logicalView.halfExtents.x,
