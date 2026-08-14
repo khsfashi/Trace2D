@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+  "source_event": "merge",
+  "event_id": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+        "authored_at": "2026-08-14T14:39:27+09:00",
+        "subject": "Agent-first: make Agent complexity a product constraint (#181)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "Agent complexity is a first-class product constraint separate from runtime correctness.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Major subsystems from #69 onward must expose a compact discoverable Agent-facing projection over canonical production authority.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Do not solve Agent complexity by default with larger prompts or proliferating narrow MCP tools.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "Agent convenience must not introduce a parallel semantic authority.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      },
+      {
+        "id": "constraints-003",
+        "text": "Token thresholds remain benchmark/task-contract-specific; structural Agent complexity growth triggers design review.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Constraint",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "exact head 5fe2d2fc5a057ce0f799c52543f4e6c8a43a379c; CI #791 and all triggered repository/Sprite/B0 evidence workflows green.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9f31ac4de3add7726eb88ae94e34c9a5d89c9fcf"
+          }
+        ]
+      }
+    ],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#69 #175 #178 #179"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
