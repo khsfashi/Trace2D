@@ -118,7 +118,6 @@ inline ComponentSnapshot MakeTransformComponent(const scene::Transform2D& transf
 
 inline ComponentSnapshot MakeHierarchyComponent(
     const scene::Scene& sceneValue,
-    const scene::EntityId id,
     const scene::Entity& entity,
     const scene::Transform2D& world)
 {
@@ -206,7 +205,7 @@ inline EntitySnapshot MakeEntitySnapshot(
     snapshot.components.reserve(inspected.size() + (hasHierarchy ? 2U : 1U));
     snapshot.components.push_back(MakeTransformComponent(entity.LocalTransform()));
     if (hasHierarchy)
-        snapshot.components.push_back(MakeHierarchyComponent(sceneValue, id, entity, hasWorld ? world : entity.LocalTransform()));
+        snapshot.components.push_back(MakeHierarchyComponent(sceneValue, entity, hasWorld ? world : entity.LocalTransform()));
     for (const scene::ComponentInspectionSnapshot& component : inspected)
         snapshot.components.push_back(MakeComponentSnapshot(component));
     std::sort(snapshot.components.begin(), snapshot.components.end(), [](const ComponentSnapshot& left, const ComponentSnapshot& right)
