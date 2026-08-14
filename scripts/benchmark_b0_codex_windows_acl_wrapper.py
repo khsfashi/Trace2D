@@ -33,11 +33,64 @@ WINDOWS_SANDBOX_MODE = "elevated"
 ISOLATION_BACKEND = "windows_ntfs_acl_v1_elevated"
 SANDBOX_ACCOUNT_NAME = "CodexSandboxOffline"
 SANDBOX_IDENTITY_SOURCE = "host_local_account_translation_v1"
+ISOLATION_TIMEOUT_SECONDS = 285.0
 
 _ORIGINAL_COMMAND_TEXTS = core.command_texts
 _ORIGINAL_SETUP_CODEX_HOME = core.setup_codex_home
 _ORIGINAL_RUN_TRIAL = core.run_trial
 _PREPARED_IDENTITIES: dict[str, tuple[tuple[str, Any], tuple[str, Any]]] = {}
+
+
+def preserve_sandbox_log(codex_home: Path, destination: Path) -> None:
+    """Preserve the non-secret sandbox log before transient Codex state is removed."""
+    source = Path(codex_home) / ".sandbox" / "sandbox.log"
+    if not source.is_file():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        shutil.copy2(source, destination)
+    except OSError:
+        pass
+
+
+def sandbox_log_destination(root: Path, current_path: Path) -> Path:
+    try:
+        parts = current_path.relative_to(root).parts
+    except ValueError:
+        parts = ("external",)
+    label = "__".join(parts) if parts else "root"
+    safe = "".join(ch if ch.isalnum() or ch in {"-", "_", "."} else "_" for ch in label)
+    return root / "codex-sandbox-logs" / f"{safe}.log"
+
+
+def scrub_transient_codex_state(root: Path) -> None:
+    """Remove credential-bearing Codex homes while retaining packageable diagnostics."""
+    root = Path(root)
+    if not root.exists():
+        return
+
+    def ignore_walk_error(_error: OSError) -> None:
+        return
+
+    for current, dirnames, filenames in os.walk(root, topdown=True, onerror=ignore_walk_error):
+        current_path = Path(current)
+        for dirname in list(dirnames):
+            if dirname.casefold() != "codex-home":
+                continue
+            codex_home = current_path / dirname
+            preserve_sandbox_log(
+                codex_home,
+                sandbox_log_destination(root, current_path),
+            )
+            shutil.rmtree(codex_home, ignore_errors=True)
+            dirnames.remove(dirname)
+        for filename in filenames:
+            if filename.casefold() != "auth.json":
+                continue
+            try:
+                (current_path / filename).unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def _native_windows() -> bool:

@@ -1,0 +1,112 @@
+name: Benchmark B1 Owner Preflight
+
+on:
+  push:
+    branches:
+      - agent/benchmark-b1-content-authoring
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b1-preflight
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  owner-windows-preflight:
+    if: github.repository == 'khsfashi/Trace2D'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 180
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact B1 branch head
+        uses: actions/checkout@v6
+        with:
+          clean: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up qualification Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Prepare pinned vcpkg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $toolRoot = $env:RUNNER_TOOL_CACHE
+          if ([string]::IsNullOrWhiteSpace($toolRoot)) {
+            $toolRoot = Join-Path $env:RUNNER_TEMP 'trace2d-tool-cache'
+          }
+          New-Item -ItemType Directory -Force -Path $toolRoot | Out-Null
+
+          $vcpkgRoot = Join-Path $toolRoot "trace2d-vcpkg-$env:TRACE2D_VCPKG_BASELINE"
+          if (-not (Test-Path (Join-Path $vcpkgRoot '.git') -PathType Container)) {
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg clone failed with exit code $LASTEXITCODE." }
+          }
+          git -C $vcpkgRoot fetch origin $env:TRACE2D_VCPKG_BASELINE --depth 1
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE." }
+          git -C $vcpkgRoot checkout --force $env:TRACE2D_VCPKG_BASELINE
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE." }
+
+          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
+          if (-not (Test-Path $vcpkgExe -PathType Leaf)) {
+            & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed with exit code $LASTEXITCODE." }
+          }
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare owner Codex shell and binary
+        shell: pwsh
+        run: |
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1 -PersistForActions
+
+      - name: Restore canonical frozen benchmark bytes
+        shell: pwsh
+        run: |
+          python scripts/materialize_benchmark_b1_frozen_bytes.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/benchmark_b1.py validate-suite
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run zero-score owner preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Reapply in this exact process. Codex shell detection inherits this PATH;
+          # a prior Actions step cannot safely persist PATH ordering for the child model turn.
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1
+          $runsRoot = Join-Path $env:RUNNER_TEMP "trace2d-b1-preflight-$env:GITHUB_RUN_ID"
+          if (Test-Path $runsRoot) { Remove-Item -LiteralPath $runsRoot -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
+          & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --runs-root $runsRoot --prepare-only
+          $exitCode = $LASTEXITCODE
+          New-Item -ItemType Directory -Force -Path 'artifacts\b1-preflight' | Out-Null
+          Get-ChildItem -LiteralPath $runsRoot -Filter 'codex-chatgpt-b1-scored-*.zip' -File -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path 'artifacts\b1-preflight' $_.Name) -Force
+          }
+          exit $exitCode
+
+      - name: Upload B1 preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b1-preflight-${{ github.sha }}
+          path: artifacts/b1-preflight/*.zip
+          if-no-files-found: warn
+          retention-days: 30

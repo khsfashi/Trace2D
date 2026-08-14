@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "trace2d-b1",
+  "state": "frozen",
+  "verifiers": [
+    {
+      "id": "godot-b1-sprite-normalize-repair-v1",
+      "engine": "godot",
+      "task_id": "b1-sprite-normalize-repair",
+      "dispatch": {
+        "kind": "godot_headless_resource_inspection",
+        "authority": "Sprite2D.region_rect + Sprite2D.offset"
+      },
+      "deterministic_checks": [
+        "region_rect == Rect2(2,1,12,14)",
+        "offset == Vector2(0,0)",
+        "texture_filter is nearest"
+      ],
+      "qualification_required": true
+    },
+    {
+      "id": "trace2d-b1-sprite-normalize-repair-v1",
+      "engine": "trace2d",
+      "task_id": "b1-sprite-normalize-repair",
+      "dispatch": {
+        "kind": "trace2d_s1_parser",
+        "authority": "ParseSpriteAssetToml / canonical SpriteAsset"
+      },
+      "deterministic_checks": [
+        "source_size == 16x16",
+        "trim_offset == 2,1",
+        "trim_size == 12x14",
+        "pivot == 8/1,8/1",
+        "sampling == nearest"
+      ],
+      "qualification_required": true
+    },
+    {
+      "id": "godot-b1-animation-exact-event-v1",
+      "engine": "godot",
+      "task_id": "b1-animation-exact-event",
+      "dispatch": {
+        "kind": "godot_headless_animation_inspection",
+        "authority": "Animation resource tracks"
+      },
+      "deterministic_checks": [
+        "length == 0.5s",
+        "frame keys 0@0.0, 1@0.1, 2@0.25",
+        "queue_redraw method event at 0.25s"
+      ],
+      "qualification_required": true
+    },
+    {
+      "id": "trace2d-b1-animation-exact-event-v1",
+      "engine": "trace2d",
+      "task_id": "b1-animation-exact-event",
+      "dispatch": {
+        "kind": "trace2d_native_animation_fixture",
+        "authority": "SpriteAnimationClip2D::Prepare + SA3 inspection/assertion"
+      },
+      "deterministic_checks": [
+        "durations == 100ms,150ms,250ms",
+        "event id 7 at 250ms ordinal 0",
+        "frame index at 250ms == 2"
+      ],
+      "qualification_required": true
+    },
+    {
+      "id": "godot-b1-particle-budget-repair-v1",
+      "engine": "godot",
+      "task_id": "b1-particle-budget-repair",
+      "dispatch": {
+        "kind": "godot_headless_particle_inspection",
+        "authority": "GPUParticles2D authored properties"
+      },
+      "deterministic_checks": [
+        "amount <= 64",
+        "lifetime == 0.8s",
+        "emitting == false",
+        "one_shot == true"
+      ],
+      "qualification_required": true
+    },
+    {
+      "id": "trace2d-b1-particle-budget-repair-v1",
+      "engine": "trace2d",
+      "task_id": "b1-particle-budget-repair",
+      "dispatch": {
+        "kind": "trace2d_particle_parser_analyzer",
+        "authority": "ParticleEffectAsset + existing particle analyzer"
+      },
+      "deterministic_checks": [
+        "max_particles <= 64",
+        "periodic count <= 8",
+        "lifetime max <= 6 frames",
+        "play_on_load == false"
+      ],
+      "qualification_required": true
+    }
+  ],
+  "qualification_evidence": "benchmarks/b1/fixture-qualification.json"
+}

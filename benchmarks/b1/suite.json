@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "suite_id": "trace2d-b1",
+  "state": "frozen",
+  "description": "Matched B1 content-authoring suite frozen before any scored comparative run.",
+  "frozen_source": {
+    "trace2d_commit": "31712ca419efb232d292680661caea51d8a318e4",
+    "godot_version": "4.7.1-stable",
+    "godot_agent": {
+      "id": "hi-godot/godot-ai",
+      "pin": "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+    },
+    "baseline_contract": "benchmarks/b1/baseline-qualification.json",
+    "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json"
+  },
+  "methodology": {
+    "inherits_suite": "benchmarks/b0/suite.json",
+    "trial_isolation_reused": true,
+    "append_only_trace_reused": true,
+    "retry_exclusion_policy_reused": true,
+    "raw_metric_vocabulary_reused": true
+  },
+  "scoring_gate": {
+    "requires_fixture_qualification": true,
+    "qualification_evidence": "benchmarks/b1/fixture-qualification.json",
+    "suite_mutation_after_freeze_forbidden": true
+  },
+  "lanes": [
+    {
+      "id": "godot.generic",
+      "engine": "godot",
+      "adapter": "generic-files-cli",
+      "qualification": {
+        "required": true,
+        "evidence": "benchmarks/b1/fixture-qualification.json"
+      }
+    },
+    {
+      "id": "godot.agent",
+      "engine": "godot",
+      "adapter": "mcp",
+      "bridge": {
+        "id": "hi-godot/godot-ai",
+        "pin": "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+      },
+      "qualification": {
+        "required": true,
+        "evidence": "benchmarks/b1/fixture-qualification.json"
+      }
+    },
+    {
+      "id": "trace2d.agent",
+      "engine": "trace2d",
+      "adapter": "builtin-agent-cli-mcp",
+      "bridge": {
+        "id": "trace2d-mcp",
+        "source_commit": "31712ca419efb232d292680661caea51d8a318e4"
+      },
+      "qualification": {
+        "required": true,
+        "evidence": "benchmarks/b1/fixture-qualification.json"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "b1-sprite-normalize-repair",
+      "version": 1,
+      "state": "frozen",
+      "task_classes": [
+        "sprite_import_or_normalize",
+        "trim_pivot_alignment_repair"
+      ],
+      "prompt": "benchmarks/b1/tasks/b1-sprite-normalize-repair/PROMPT.md",
+      "budget": {
+        "wall_seconds": 300,
+        "max_tool_calls": 80,
+        "max_input_tokens": 100000,
+        "max_output_tokens": 20000,
+        "max_human_interventions": 0
+      },
+      "evidence_layers": [
+        "deterministic_assertions",
+        "presentation_artifacts",
+        "multimodal_advisory_review",
+        "human_final_judgment"
+      ],
+      "expected": {
+        "source_size": [
+          16,
+          16
+        ],
+        "trim_offset": [
+          2,
+          1
+        ],
+        "trim_size": [
+          12,
+          14
+        ],
+        "pivot_source": [
+          8,
+          8
+        ],
+        "sampling": "nearest"
+      },
+      "lanes": {
+        "godot.generic": {
+          "starter": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-sprite-normalize-repair-v1"
+        },
+        "godot.agent": {
+          "starter": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-sprite-normalize-repair-v1"
+        },
+        "trace2d.agent": {
+          "starter": "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/starter",
+          "known_good": "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/known_bad_seeded_defect"
+          ],
+          "verifier": "trace2d-b1-sprite-normalize-repair-v1"
+        }
+      }
+    },
+    {
+      "id": "b1-animation-exact-event",
+      "version": 1,
+      "state": "frozen",
+      "task_classes": [
+        "deterministic_animation_exact_event",
+        "exact_frame_headless_and_presentation_evidence"
+      ],
+      "prompt": "benchmarks/b1/tasks/b1-animation-exact-event/PROMPT.md",
+      "budget": {
+        "wall_seconds": 300,
+        "max_tool_calls": 80,
+        "max_input_tokens": 100000,
+        "max_output_tokens": 20000,
+        "max_human_interventions": 0
+      },
+      "evidence_layers": [
+        "deterministic_assertions",
+        "presentation_artifacts",
+        "multimodal_advisory_review",
+        "human_final_judgment"
+      ],
+      "expected": {
+        "frame_durations_ms": [
+          100,
+          150,
+          250
+        ],
+        "event_id": 7,
+        "event_time_ms": 250,
+        "exact_frame_index_at_event": 2,
+        "loop_mode": "loop"
+      },
+      "lanes": {
+        "godot.generic": {
+          "starter": "benchmarks/b1/tasks/b1-animation-exact-event/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-animation-exact-event-v1"
+        },
+        "godot.agent": {
+          "starter": "benchmarks/b1/tasks/b1-animation-exact-event/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-animation-exact-event-v1"
+        },
+        "trace2d.agent": {
+          "starter": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/starter",
+          "known_good": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_bad_seeded_defect"
+          ],
+          "verifier": "trace2d-b1-animation-exact-event-v1"
+        }
+      }
+    },
+    {
+      "id": "b1-particle-budget-repair",
+      "version": 1,
+      "state": "frozen",
+      "task_classes": [
+        "particle_structural_performance_budget",
+        "seeded_content_defect_diagnosis_and_repair"
+      ],
+      "prompt": "benchmarks/b1/tasks/b1-particle-budget-repair/PROMPT.md",
+      "budget": {
+        "wall_seconds": 300,
+        "max_tool_calls": 80,
+        "max_input_tokens": 100000,
+        "max_output_tokens": 20000,
+        "max_human_interventions": 0
+      },
+      "evidence_layers": [
+        "deterministic_assertions",
+        "presentation_artifacts",
+        "multimodal_advisory_review",
+        "human_final_judgment"
+      ],
+      "expected": {
+        "max_particles": 64,
+        "max_spawn_attempts_per_step": 8,
+        "max_lifetime_steps": 6,
+        "authored_non_emitting": true
+      },
+      "lanes": {
+        "godot.generic": {
+          "starter": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-particle-budget-repair-v1"
+        },
+        "godot.agent": {
+          "starter": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/starter",
+          "known_good": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_bad_seeded_defect"
+          ],
+          "verifier": "godot-b1-particle-budget-repair-v1"
+        },
+        "trace2d.agent": {
+          "starter": "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/starter",
+          "known_good": "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/known_good",
+          "known_bad": [
+            "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/known_bad_seeded_defect"
+          ],
+          "verifier": "trace2d-b1-particle-budget-repair-v1"
+        }
+      }
+    }
+  ],
+  "freeze_manifest": "benchmarks/b1/freeze-manifest.json"
+}

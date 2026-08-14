@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-13**
+Last explanatory handoff update: **2026-08-14**
 
 This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state through the repository-state tooling. Do not guess a merge or active child from this Markdown file when those sources disagree.
 
@@ -14,83 +14,154 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Active core program: **#59 Complete Sprite**.
+Complete Sprite #59 is merged and closed. Benchmark B1 #103 has now produced its first frozen 27-slot scored cohort on PR #174 / branch `agent/benchmark-b1-content-authoring`.
 
-Completed Sprite chain:
+Frozen Sprite contract continuity retained for repository checks:
+
+- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract remains frozen and complete.
+- #142 / PR #143 — SR8 renderer conformance remains the trusted presentation-GPU authority.
+- #152 / PR #153 — SA4 deterministic animation conformance/workload evidence remains frozen.
+- #172 / PR #173 — SPERF completed the production Sprite program.
+
+## Benchmark B1 frozen baseline
+
+Exact scored head: `6d6904e99ad7060341861cb3823e04591a579bf7`.
+
+Owner scored workflow run: `31763107941`.
+
+Observed aggregate result:
+
+- Godot Generic: 5/9 successful (55.6%).
+- Trace2D Agent: 3/9 successful (33.3%).
+- selected Godot Agent: 0/9 successful.
+- Trace2D by task: Sprite 1/3, animation 2/3, particle 0/3.
+- Godot Generic by task: Sprite 2/3, animation 0/3, particle 3/3.
+
+These values are frozen cohort evidence, not universal product claims. Do not rerun, replace, repair or retrospectively alter B1 scored slots.
+
+The scored workflow completed on the exact approved head and uploaded scored evidence. B1 is therefore preserved as the immutable pre-improvement baseline for future architectural comparisons.
+
+## Immediate analytical gate
+
+New roadmap gate: **#175 — Benchmark B1 postmortem: agent-surface failure taxonomy and B2 entry gate**.
+
+#175 owns the evidence-backed analysis of every unsuccessful Trace2D B1 slot. It must distinguish runtime/engine defects from Agent-facing authoring-surface defects and classify failures such as token/context exhaustion, tool-discovery errors, invalid authored output, verifier rejection, timeout and reasoning failure.
+
+The response to B1 is not to add more tools or longer prompts by default. Prefer reducing Agent-visible state and expressing authoring through smaller deterministic primitives.
+
+#175 also establishes an **Agent Complexity Budget** for future subsystem contracts, measuring at least:
+
+- input/output tokens,
+- tool calls,
+- distinct exposed concepts/resources,
+- revisions/iterations,
+- visual-feedback calls,
+- human interventions.
+
+Task-specific interpretation:
+
+- Animation 2/3 is a promising architectural signal, not proof of universal superiority. Preserve exact-event semantics, compact inspectable state, deterministic/headless verification and presentation separation where evidence supports them.
+- Sprite 1/3 requires failure-level analysis before calling Complete Sprite Agent-optimal.
+- Particle 0/3 is treated as a product-level authoring-surface problem until evidence proves otherwise; runtime capability and Agent usability are separate acceptance dimensions.
+
+## B2 rule
+
+B1 remains immutable. B2 must not be a rerun-until-win exercise.
+
+Before B2 scoring:
+
+1. #175 postmortem is complete,
+2. evidence-backed authoring-surface improvements are implemented and independently tested,
+3. B1 tasks/verifiers/results remain unchanged,
+4. B2 uses new held-out tasks or variants frozen before scoring,
+5. budgets, verifier authorities, retry/exclusion rules and baseline identities are preregistered again.
+
+## Long-range roadmap additions
+
+### #177 — Source-neutral Asset Intelligence Pipeline and Asset IR
+
+Trace2D should accept generated, imported or hand-authored images through one shared source-neutral boundary:
 
 ```text
-S0 -> S1
- -> SR0..SR8
- -> SA0..SA4
- -> SPP0 -> SPP1 -> SPP2 -> SPP3 -> SPP4 -> SPP5
- -> SE2E
+AssetSource
+  -> AssetInput
+  -> deterministic preparation / bounded semantic analysis
+  -> Trace2D Asset IR
+  -> native runtime and optional interoperability
 ```
 
-Frozen milestone references retained for contract continuity:
+ComfyUI, generated-image systems, Aseprite, Photoshop and other tools are adapters/sources only. Core AssetInput/AssetIR must not inherit ComfyUI-specific batch types, output-directory assumptions or Spine dependencies.
 
-- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract, frozen and complete.
-- #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 production Sprite renderer conformance, reproducible structural workloads and trusted presentation-GPU evidence.
-- #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
-- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
-- #170 / PR #171 / `41536c6045b8c89831a2026f090b5be7889599f3` — SE2E generated/imported Sprite proof, merged and complete.
+Deterministic analysis owns objective questions such as alpha bounds, frame geometry, trim/alignment and schema integrity. Semantic/VLM inference is limited to ambiguous tasks such as part classification, inferred pivot/hierarchy intent and aesthetic audit, and cannot silently become runtime/gameplay authority.
 
-Current child: **#172 / SPERF — final reproducible Sprite performance evidence and guidance**.  
-Current branch: `agent/sprite-sperf-final-performance-evidence`.  
-Exact next core item after SPERF merges green and #59 closes: **#103 Benchmark B1**.
-
-Program contract: [`docs/SPRITES.md`](docs/SPRITES.md).  
-SPERF contract: [`docs/SPRITE_PERFORMANCE_SPERF.md`](docs/SPRITE_PERFORMANCE_SPERF.md).  
-Machine-readable SPERF contract: [`docs/contracts/sprite-performance-sperf.json`](docs/contracts/sprite-performance-sperf.json).  
-Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).
-
-## SPERF authority
-
-SPERF composes existing production evidence instead of adding another runtime subsystem:
+The intended staged direction is:
 
 ```text
-SR8 production Sprite structural metrics
- + SR7 existing upload/capacity counters
- + SA4 deterministic animation workloads
- + S1/SPP memory/complexity boundaries
- -> explicit deterministic evidence collection
- -> commit-bound trace2d.sprite-performance-final-gate.v1 manifest
- -> optional machine-labelled local timing kept outside portable correctness
+AI0 Asset input contract
+ -> AI1 deterministic preparation
+ -> AI2 bounded semantic analysis
+ -> AI3 deterministic + visual audit split
+ -> AI4 native rig handoff
+ -> AI5 optional interoperability
+ -> AI6 closed-loop generated/imported asset workflow
 ```
 
-Key frozen interpretation:
+Heavy segmentation/VLM/export work is offline/setup work and must not leak into ordinary frame execution.
 
-- SR8 remains real-GPU presentation authority; SPERF introduces no new GPU truth model.
-- The frozen SR8 workload is 1,024 submitted / 768 visible / 256 culled / 960 visible quads / 7 contiguous compatibility runs.
-- The current built-in Sprite vertex payload is 6 vertices per quad and 48 bytes per vertex, so the frozen workload represents exactly 276,480 Trace2D-owned uploaded vertex bytes.
-- `spritePresentationUploadedVertexBytes` and `spriteVertexCapacityBytes` are different metrics: per-frame payload versus retained reusable high-water capacity.
-- Neither engine-owned value is total graphics-driver allocation or residency.
-- SA4 structural replay/digests remain deterministic evidence; optional Release timing remains environment-labelled evidence only.
-- Decoded RGBA8 page payload may be calculated exactly as `width * height * 4` only for that explicit representation. #70/#86 own future package/resource representation and lifetime.
-- SPP0-SPP5 work stays offline and outside ordinary animation/render frame budgets.
+### #176 — Native Deterministic Skeletal Animation
 
-## Performance boundary
+Trace2D will own a compact native skeleton/animation representation instead of making Spine the native architecture.
 
-SPERF changes documentation/tooling only. It must add zero normal-frame production cost: no per-frame allocation, JSON/string formatting, filesystem access, wall-clock reads, hashing, capture/readback, provider work, Agent/MCP reporting, or duplicate global caches.
+Fixed umbrella direction:
 
-Generic runtime profiling remains future #91 rather than being pre-implemented inside Sprite.
+```text
+NS0 Skeleton IR
+ -> NS1 independent reference evaluator
+ -> NS2 optimized deterministic evaluator
+ -> NS3 rigid region attachments
+ -> NS4 animation tracks + exact events
+ -> NS5 deterministic mixing/transitions
+ -> NS6 Agent inspection/headless QA
+ -> NS7 weighted Mesh2D skinning
+ -> NS8 auto-rig handoff from Asset IR
+ -> NS9 generated/imported asset -> rig -> animation -> deterministic QA -> render -> VLM audit E2E
+```
 
-## Current validation gate
+The initial MVP stays intentionally small: bones, stable hierarchy, slots, rigid region attachments, translate/rotate/scale tracks, attachment switching and exact events. IK, physics constraints, broad editor-centric state and weighted skinning are not part of the first stage unless later evidence demands them.
 
-Required on the final exact SPERF PR head:
+Normal animation evaluation should use pre-resolved stable indices and reusable contiguous buffers with no ordinary per-frame allocation, filesystem/JSON work, string lookup or hierarchy discovery. Deterministic semantic pose/event authority stays separate from GPU visual/deformed-geometry conformance.
 
-- `trace2d.sprite-performance.v1` contract parses and agrees with stage documentation,
-- `scripts/sprite_performance_final_gate.ps1` reproduces the SR8 structural marker,
-- all three supplementary renderer workload structures match their committed values,
-- all three SA4 animation workload structural runs return successful deterministic replay,
-- Project State Contract,
-- Sprite S0 Contract,
-- Sprite SA0 Contract,
-- repository/release/benchmark/content/Godot qualification jobs,
-- Windows MSVC configure/build/full CTest,
-- clean-clone README configure/build/full CTest.
+### #61 — Spine compatibility stays optional
 
-No new real-GPU acceptance gate is introduced because SPERF changes no renderer behavior and SR8 already owns trusted presentation-GPU evidence. Optional timing is local Release evidence and is never a shared-CI threshold.
+Spine remains an explicit license-gated compatibility target. Native Skeleton is core Trace2D capability; Spine may later be an optional importer/exporter/runtime adapter.
+
+Do not make native authoring semantics depend on proprietary Spine format/editor/runtime behavior and do not reimplement proprietary formats to bypass licensing.
+
+## Roadmap ordering rule
+
+The new #176/#177 umbrellas are explicit long-range plans, not authorization to skip the existing production-foundation sequence. `config/trace2d.core-lane.json` remains the continuation authority.
+
+Current ordering now begins:
+
+```text
+B1 frozen baseline
+ -> #175 B1 postmortem / Agent-surface gate
+ -> #69 external-game application
+ -> existing production-foundation sequence
+ -> #104 B2 at its registered position, subject to #175 B2 entry requirements
+ -> remaining foundation / flagship proof
+ -> #60 Mesh2D
+ -> #177 Asset Intelligence / Asset IR
+ -> #176 Native Deterministic Skeletal Animation
+ -> #61 optional Spine compatibility gate
+```
+
+Individual #177/#176 stages may only activate when their owning foundations are ready; weighted skinning specifically depends on #60.
 
 ## Continuation rule
 
-Keep the SPERF PR scoped to #172 and repair only evidence/contract/tooling issues exposed by review or CI. After the exact SPERF head is green, merge it, close #172 and close #59. Stop. The following `@GitHub Trace2D 다음 진행해줘` continuation begins **#103 Benchmark B1**.
+The following `@GitHub Trace2D 다음 진행해줘` continuation should resolve live state first.
+
+If #103 / PR #174 still needs final presentation/multimodal/human review or merge/closure bookkeeping, finish that without modifying or rerunning scored B1 evidence. Once B1 is accepted/finalized, advance to #175.
+
+#175 should perform the postmortem, create only evidence-backed Sprite/Particle authoring-surface fixes, preserve the successful animation design properties where justified, and keep future B2 held-out and preregistered.

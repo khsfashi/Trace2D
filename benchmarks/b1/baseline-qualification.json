@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "trace2d-b1",
+  "state": "baseline_selected",
+  "review_date": "2026-08-13",
+  "inherits": {
+    "godot_version": "4.7.1-stable",
+    "b0_suite": "benchmarks/b0/suite.json",
+    "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json"
+  },
+  "required_task_classes": [
+    "sprite_import_or_normalize",
+    "trim_pivot_alignment_repair",
+    "deterministic_animation_exact_event",
+    "particle_structural_performance_budget",
+    "exact_frame_headless_and_presentation_evidence",
+    "seeded_content_defect_diagnosis_and_repair"
+  ],
+  "selection_rule": {
+    "must_precede_scored_task_freeze": true,
+    "non_scored_fixture_required": true,
+    "ordinary_external_user_workflow_only": true,
+    "task_specific_solution_logic_forbidden": true,
+    "complementary_generic_coding_tools_allowed": true
+  },
+  "candidates": [
+    {
+      "id": "satelliteoflove/godot-mcp",
+      "pin": "@satelliteoflove/godot-mcp@4.1.0",
+      "source": "https://github.com/satelliteoflove/godot-mcp",
+      "review_status": "qualified_fixture_failed",
+      "capability_notes": [
+        "ordinary project authoring",
+        "animation read/edit",
+        "structured live runtime state",
+        "runtime screenshots and input",
+        "predicate-controlled deterministic stepping"
+      ],
+      "qualification_result": {
+        "qualified": false,
+        "workflow_run_id": 31622618958,
+        "job_id": 94200960753,
+        "reason_code": "godot_4_7_method_track_api_incompatible"
+      }
+    },
+    {
+      "id": "hi-godot/godot-ai",
+      "pin": "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a",
+      "source": "https://github.com/hi-godot/godot-ai",
+      "review_status": "qualified_selected",
+      "capability_notes": [
+        "scene/script/resource authoring",
+        "dedicated animation authoring",
+        "dedicated particle authoring",
+        "runtime inspection/input",
+        "editor and running-game screenshots"
+      ],
+      "qualification_result": {
+        "qualified": true,
+        "workflow_run_id": 31622618958,
+        "job_id": 94200960755,
+        "known_good_accepted": true,
+        "known_bad_rejected": true,
+        "presentation_capture_handoff": true
+      }
+    },
+    {
+      "id": "Erodenn/godot-mcp-runtime",
+      "pin": "godot-mcp-runtime@3.2.1",
+      "source": "https://github.com/Erodenn/godot-mcp-runtime",
+      "review_status": "carry_forward_fallback_candidate",
+      "capability_notes": [
+        "headless authoring",
+        "runtime screenshots and input",
+        "stock-Godot project workflow"
+      ]
+    }
+  ],
+  "qualification": {
+    "fixture_id": "b1-content-capability-qualification",
+    "status": "passed",
+    "required_evidence": [
+      "exact pinned tool and engine identity",
+      "clean-project install/start",
+      "sprite/resource authoring and save/readback",
+      "animation clip plus exact semantic event authoring",
+      "particle authoring under explicit amount/capacity constraint",
+      "runtime or headless structured verification",
+      "presentation capture handoff",
+      "known-good acceptance",
+      "meaningful known-bad rejection"
+    ],
+    "workflow_run_id": 31622618958,
+    "selection_document": "benchmarks/b1/qualification/SELECTION.md",
+    "selected_candidate_id": "hi-godot/godot-ai",
+    "selected_pin": "v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a"
+  },
+  "freeze_gate": {
+    "scored_suite_allowed": true,
+    "reason": "The preregistered non-scored strongest-baseline qualification selected and pinned hi-godot/godot-ai v3.0.6 before scored B1 task freeze."
+  }
+}

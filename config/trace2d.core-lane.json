@@ -45,6 +45,7 @@
   },
   "after_core": [
     {"id": "B1", "issue": 103},
+    {"id": "B1-postmortem-agent-surface", "issue": 175},
     {"id": "external-game-application", "issue": 69},
     {"id": "project-manifest-consumer-build-package", "issue": 70},
     {"id": "scene-hierarchy-components", "issue": 71},
@@ -66,6 +67,8 @@
     {"id": "save-migration", "issue": 79},
     {"id": "flagship-game", "issue": 12},
     {"id": "mesh2d", "issue": 60},
+    {"id": "asset-intelligence-ir", "issue": 177},
+    {"id": "native-deterministic-skeleton", "issue": 176},
     {"id": "spine-license-gate", "issue": 61}
   ]
 }

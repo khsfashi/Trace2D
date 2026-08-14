@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "trace2d-b1",
+  "state": "frozen",
+  "algorithm": "sha256",
+  "files": [
+    {
+      "path": "benchmarks/b0/agent-profile.codex-0.144.6.json",
+      "sha256": "98214589e32c927919e6de47a40f77a58ec15be6e6c8d7f12b28b7cdca05786a"
+    },
+    {
+      "path": "benchmarks/b0/suite.json",
+      "sha256": "3b31921f3f120e477e9721d3a5b70f2816ce748bcba78156e213d37ffbfb5445"
+    },
+    {
+      "path": "benchmarks/b1/baseline-qualification.json",
+      "sha256": "1b81e9a113b62af9204f3dde93b0fc7bf43c7948a09b0e56dde31cf13ba6b2cd"
+    },
+    {
+      "path": "benchmarks/b1/suite.json",
+      "sha256": "64d0eaad9854ab440341d5f81dd878f6dbd8b76beed4499e91ef7a9965a3c8db"
+    },
+    {
+      "path": "benchmarks/b1/verifiers.json",
+      "sha256": "2a5a79a6eb8a45ccc283da520bf5816ecefe80f172b4f9af49d0c54d607ba074"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/PROMPT.md",
+      "sha256": "e7a1f666d0c25f797eed1659be85f3c822932b4a4dbfa583d8e1dab5dfa4e983"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect/main.gd",
+      "sha256": "f80cb3fe0cb735f7e3619035de7b2bd4eac67d96969cccd87cab045e77009090"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect/main.tscn",
+      "sha256": "64827087f534a085b9ebb8ccba2157caa64190d2fe182aa65dd0d17ef6ccb77f"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good/main.gd",
+      "sha256": "2e3a6fcc45ace90da9c1692ba0128afa624dd6cd289fcacfc4ee719868e51efa"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good/main.tscn",
+      "sha256": "64827087f534a085b9ebb8ccba2157caa64190d2fe182aa65dd0d17ef6ccb77f"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/starter/main.gd",
+      "sha256": "d3bf731a8c81eacc334e42c0ed30c1644bc7c8fbdfd39706426e036788eb6608"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/starter/main.tscn",
+      "sha256": "64827087f534a085b9ebb8ccba2157caa64190d2fe182aa65dd0d17ef6ccb77f"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/godot/starter/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_bad_seeded_defect/animation_case.cpp",
+      "sha256": "3979eeabf7614faaf9c5a29c8d908126921e35edc9c765d48defee49dc6f45b6"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_bad_seeded_defect/animation_case.hpp",
+      "sha256": "e6588916b1076eecd1f788a5297f466110e585e3283848d0139cf8cb830e4498"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_good/animation_case.cpp",
+      "sha256": "4dcf3130e3582da146add3f39f33564e57606c22bdce5aef1ce8c3a4549476b3"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/known_good/animation_case.hpp",
+      "sha256": "e6588916b1076eecd1f788a5297f466110e585e3283848d0139cf8cb830e4498"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/starter/animation_case.cpp",
+      "sha256": "b24b0afad7288065842569d7afaa8c80b9eae34744f759d3e1b02c7a32fb0934"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-animation-exact-event/trace2d/starter/animation_case.hpp",
+      "sha256": "e6588916b1076eecd1f788a5297f466110e585e3283848d0139cf8cb830e4498"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/PROMPT.md",
+      "sha256": "93924824c5b9930bb485dd90b4c3ab805ed1b2e18bbd294a53cceb9547275b29"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_bad_seeded_defect/main.tscn",
+      "sha256": "f6935af72f024bacc5471c20ba866e63c9c2498fb9f6ed8ec3a3b0a0ea43c462"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_bad_seeded_defect/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_good/main.tscn",
+      "sha256": "3d73a7d20846fae086b6e361a098784c795261b1bcc9b670aba336c7affe4c2a"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_good/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/starter/main.tscn",
+      "sha256": "07018970385d0c8ebdcc7694358c2e925e5cdf9e9b9965737da0d45a3c1123a1"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/godot/starter/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/known_bad_seeded_defect/hit_spark.trace2d.particle.toml",
+      "sha256": "c41cecfc7aa3031d4fc179229adca5b9e64fa6747f20355222b4d7ff1ea78cdc"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/known_good/hit_spark.trace2d.particle.toml",
+      "sha256": "e2bd5bb008a58224857433ddc0f7849ff5a34f44e49613c9e03fbda6ef381892"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-particle-budget-repair/trace2d/starter/hit_spark.trace2d.particle.toml",
+      "sha256": "a2e14d7a7da4679a14bec57117714daa5957241f5bc0a51b723237e2d58a6406"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/PROMPT.md",
+      "sha256": "6e7de108bcbcbccef545707e82dcacd4796bab660c956140d06dc65ea6710a8a"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_bad_seeded_defect/main.tscn",
+      "sha256": "2038404da79c3e975ffac28eb9077ee8d1bd3d55129dcd3ab8d9662f155f54de"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_bad_seeded_defect/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_good/main.tscn",
+      "sha256": "6ccec9416a80d6dfcde7ec40a6c771c31125d8a1480b405d75214be2bdd9776a"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_good/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/starter/main.tscn",
+      "sha256": "a98f17c31686a8589afe033e55e455e4c85e43b63b7a5d63609dbf43420b5531"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/starter/project.godot",
+      "sha256": "d20f77e79dfa48d578f94e9113f5d955902cc3e6f1b4fceb63513d0678a6c17c"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/known_bad_seeded_defect/hero.sprite.toml",
+      "sha256": "77dd370443933e3b7e22d05dd090cacf8bcac6c6f2ab34b90e8fabf1b78e54b7"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/known_good/hero.sprite.toml",
+      "sha256": "3b2008b412894d7dfa89cd2028448085beea8530809e02377cbebb3fc35f61a4"
+    },
+    {
+      "path": "benchmarks/b1/tasks/b1-sprite-normalize-repair/trace2d/starter/hero.sprite.toml",
+      "sha256": "ea1ca3ea72f15828eb88a41f218a42e17ac617c2c50815b5f95e65b20e22d9d3"
+    }
+  ]
+}

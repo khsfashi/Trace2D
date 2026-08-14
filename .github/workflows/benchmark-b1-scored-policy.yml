@@ -1,0 +1,106 @@
+name: Benchmark B1 Scored Policy
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "benchmarks/b0/scored-cohort-v1.json"
+      - "benchmarks/b1/**"
+      - "tests/benchmark/**"
+      - "scripts/benchmark_b0_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1.py"
+      - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1_scored_harness.py"
+      - "scripts/materialize_benchmark_b1_frozen_bytes.py"
+      - "scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py"
+      - "scripts/verify_benchmark_b1_candidate.py"
+      - "scripts/package_benchmark_b1_evidence.py"
+      - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/test_benchmark_b1_scored_harness.py"
+      - "scripts/test_benchmark_b1_owner_runner_helpers.py"
+      - "scripts/test_materialize_benchmark_b1_frozen_bytes.py"
+      - "scripts/test_verify_benchmark_b1_candidate.py"
+      - ".github/workflows/benchmark-b1-owner-preflight.yml"
+      - ".github/workflows/benchmark-b1-owner-scored.yml"
+      - ".github/workflows/benchmark-b1-scored-policy.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "benchmarks/b0/scored-cohort-v1.json"
+      - "benchmarks/b1/**"
+      - "tests/benchmark/**"
+      - "scripts/benchmark_b0_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1.py"
+      - "scripts/benchmark_b1_scored_policy.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b1_scored_harness.py"
+      - "scripts/materialize_benchmark_b1_frozen_bytes.py"
+      - "scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py"
+      - "scripts/verify_benchmark_b1_candidate.py"
+      - "scripts/package_benchmark_b1_evidence.py"
+      - "scripts/test_benchmark_b1_scored_policy.py"
+      - "scripts/test_benchmark_b1_codex_windows_acl_wrapper.py"
+      - "scripts/test_benchmark_b1_scored_harness.py"
+      - "scripts/test_benchmark_b1_owner_runner_helpers.py"
+      - "scripts/test_materialize_benchmark_b1_frozen_bytes.py"
+      - "scripts/test_verify_benchmark_b1_candidate.py"
+      - ".github/workflows/benchmark-b1-owner-preflight.yml"
+      - ".github/workflows/benchmark-b1-owner-scored.yml"
+      - ".github/workflows/benchmark-b1-scored-policy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  scored-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Revalidate frozen B1 suite
+        run: |
+          python3 scripts/benchmark_b1.py validate-contract
+          python3 scripts/benchmark_b1.py validate-suite
+
+      - name: Validate preregistered 27-slot scored policy and selected Agent lock
+        run: python3 scripts/benchmark_b1_scored_policy.py --print-schedule
+
+      - name: Run scored-harness regression tests
+        run: |
+          python3 -m unittest scripts.test_benchmark_b1_scored_policy
+          python3 -m unittest scripts.test_verify_benchmark_b1_candidate
+          python3 -m unittest scripts.test_benchmark_b1_codex_windows_acl_wrapper
+          python3 -m unittest scripts.test_benchmark_b1_scored_harness
+          python3 -m unittest scripts.test_benchmark_b1_owner_runner_helpers
+          python3 -m unittest scripts.test_materialize_benchmark_b1_frozen_bytes
+
+      - name: Syntax-check scored-harness tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b0_codex_windows_acl_wrapper.py \
+            scripts/benchmark_b1_scored_policy.py \
+            scripts/benchmark_b1_codex_windows_acl_wrapper.py \
+            scripts/benchmark_b1_scored_harness.py \
+            scripts/materialize_benchmark_b1_frozen_bytes.py \
+            scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py \
+            scripts/verify_benchmark_b1_candidate.py \
+            scripts/package_benchmark_b1_evidence.py \
+            scripts/test_benchmark_b1_scored_policy.py \
+            scripts/test_verify_benchmark_b1_candidate.py \
+            scripts/test_benchmark_b1_codex_windows_acl_wrapper.py \
+            scripts/test_benchmark_b1_scored_harness.py \
+            scripts/test_benchmark_b1_owner_runner_helpers.py \
+            scripts/test_materialize_benchmark_b1_frozen_bytes.py

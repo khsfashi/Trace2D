@@ -1,0 +1,20 @@
+schema = "trace2d.sprite"
+version = 1
+sampling = "nearest"
+
+[[pages]]
+id = "main"
+texture = "textures/hero.png"
+size = [16, 16]
+color_space = "srgb"
+alpha_mode = "straight"
+
+[[regions]]
+id = "hero_idle"
+page = "main"
+source_size = [16, 16]
+trim_offset = [2, 1]
+trim_size = [12, 14]
+packed_rect = [0, 0, 12, 14]
+pivot = [7, 8, 1]
+packed_rotation = "none"

@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_fx"]
+gravity = Vector3(0, 0, 0)
+initial_velocity_min = 20.0
+initial_velocity_max = 30.0
+
+[node name="Root" type="Node2D"]
+
+[node name="HitSpark" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 192
+lifetime = 1.6
+one_shot = true
+process_material = SubResource("ParticleProcessMaterial_fx")

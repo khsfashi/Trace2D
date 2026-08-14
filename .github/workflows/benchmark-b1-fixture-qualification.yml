@@ -1,0 +1,155 @@
+name: Benchmark B1 Fixture Qualification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "tests/benchmark/**"
+      - "tests/CMakeLists.txt"
+      - "scripts/benchmark_b1.py"
+      - ".github/workflows/benchmark-b1-fixture-qualification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b1/**"
+      - "tests/benchmark/**"
+      - "tests/CMakeLists.txt"
+      - "scripts/benchmark_b1.py"
+      - ".github/workflows/benchmark-b1-fixture-qualification.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B1_GODOT_VERSION: 4.7.1-stable
+
+jobs:
+  godot-frozen-fixtures:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Revalidate frozen B1 contract before qualification
+        run: |
+          python3 scripts/benchmark_b1.py validate-contract
+          python3 scripts/benchmark_b1.py validate-suite
+
+      - name: Download and verify pinned official Godot
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B1_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64"
+          echo "TRACE2D_B1_GODOT_BIN=$install_dir/Godot_v${TRACE2D_B1_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+
+      - name: Verify pinned Godot version
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B1_GODOT_BIN" --version | tee "$RUNNER_TEMP/b1-godot-version.txt"
+          grep -E '^4\.7\.1\.stable' "$RUNNER_TEMP/b1-godot-version.txt"
+
+      - name: Qualify all frozen Godot known-good and known-bad fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b1-fixture-qualification"
+          mkdir -p "$evidence"
+          verifier="$GITHUB_WORKSPACE/benchmarks/b1/qualification/verify_frozen_fixture.gd"
+
+          qualify_case() {
+            local task="$1"
+            local fixture="$2"
+            local expectation="$3"
+            local name="$4"
+            local work="$RUNNER_TEMP/b1-${name}"
+            rm -rf "$work"
+            cp -a "$fixture" "$work"
+            cp "$verifier" "$work/__trace2d_b1_verify.gd"
+
+            set +e
+            "$TRACE2D_B1_GODOT_BIN" --headless --path "$work" --script res://__trace2d_b1_verify.gd -- --task "$task" \
+              >"$evidence/${name}.log" 2>&1
+            local status=$?
+            set -e
+            cat "$evidence/${name}.log"
+
+            if [[ "$expectation" == "accept" ]]; then
+              test "$status" -eq 0
+            else
+              test "$status" -eq 1
+            fi
+          }
+
+          qualify_case \
+            b1-sprite-normalize-repair \
+            benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_good \
+            accept sprite-good
+          qualify_case \
+            b1-sprite-normalize-repair \
+            benchmarks/b1/tasks/b1-sprite-normalize-repair/godot/known_bad_seeded_defect \
+            reject sprite-bad
+          qualify_case \
+            b1-animation-exact-event \
+            benchmarks/b1/tasks/b1-animation-exact-event/godot/known_good \
+            accept animation-good
+          qualify_case \
+            b1-animation-exact-event \
+            benchmarks/b1/tasks/b1-animation-exact-event/godot/known_bad_seeded_defect \
+            reject animation-bad
+          qualify_case \
+            b1-particle-budget-repair \
+            benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_good \
+            accept particle-good
+          qualify_case \
+            b1-particle-budget-repair \
+            benchmarks/b1/tasks/b1-particle-budget-repair/godot/known_bad_seeded_defect \
+            reject particle-bad
+
+          GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_SHA="$GITHUB_SHA" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path(os.environ["RUNNER_TEMP"]) / "b1-fixture-qualification" / "godot-summary.json"
+          data = {
+              "schema_version": 1,
+              "benchmark_id": "trace2d-b1",
+              "engine": "godot",
+              "godot_version": "4.7.1-stable",
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "commit": os.environ["GITHUB_SHA"],
+              "result": "passed",
+              "cases": [
+                  {"task_id": "b1-sprite-normalize-repair", "known_good_accepted": True, "known_bad_rejected": True},
+                  {"task_id": "b1-animation-exact-event", "known_good_accepted": True, "known_bad_rejected": True},
+                  {"task_id": "b1-particle-budget-repair", "known_good_accepted": True, "known_bad_rejected": True},
+              ],
+          }
+          output.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload frozen fixture qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b1-godot-fixture-qualification
+          path: ${{ runner.temp }}/b1-fixture-qualification
+          if-no-files-found: error
+          retention-days: 30

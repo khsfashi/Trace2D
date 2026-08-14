@@ -1,0 +1,150 @@
+name: Benchmark B1 Owner Scored Cohort
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b1-scored
+  cancel-in-progress: false
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  approval-gate:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.event.pull_request.number == 174 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/benchmark-b1-content-authoring' &&
+      github.event.label.name == 'github_actions' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a successful owner preflight on this exact head
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const headSha = context.payload.pull_request.head.sha;
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner,
+              repo,
+              head_sha: headSha,
+              per_page: 100,
+            });
+            const passed = runs.find((run) =>
+              run.name === 'Benchmark B1 Owner Preflight' &&
+              run.head_sha === headSha &&
+              run.conclusion === 'success'
+            );
+            if (!passed) {
+              core.setFailed(`No successful Benchmark B1 Owner Preflight exists for head ${headSha}.`);
+              return;
+            }
+            core.info(`Approved head ${headSha} after preflight run ${passed.id}.`);
+
+  owner-windows-scored:
+    needs: approval-gate
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 720
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact approved B1 head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          clean: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up qualification Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          architecture: x64
+
+      - name: Prepare pinned vcpkg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $toolRoot = $env:RUNNER_TOOL_CACHE
+          if ([string]::IsNullOrWhiteSpace($toolRoot)) {
+            $toolRoot = Join-Path $env:RUNNER_TEMP 'trace2d-tool-cache'
+          }
+          New-Item -ItemType Directory -Force -Path $toolRoot | Out-Null
+
+          $vcpkgRoot = Join-Path $toolRoot "trace2d-vcpkg-$env:TRACE2D_VCPKG_BASELINE"
+          if (-not (Test-Path (Join-Path $vcpkgRoot '.git') -PathType Container)) {
+            git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg clone failed with exit code $LASTEXITCODE." }
+          }
+          git -C $vcpkgRoot fetch origin $env:TRACE2D_VCPKG_BASELINE --depth 1
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline fetch failed with exit code $LASTEXITCODE." }
+          git -C $vcpkgRoot checkout --force $env:TRACE2D_VCPKG_BASELINE
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg baseline checkout failed with exit code $LASTEXITCODE." }
+
+          $vcpkgExe = Join-Path $vcpkgRoot 'vcpkg.exe'
+          if (-not (Test-Path $vcpkgExe -PathType Leaf)) {
+            & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+            if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed with exit code $LASTEXITCODE." }
+          }
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Prepare owner Codex shell and binary
+        shell: pwsh
+        run: |
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1 -PersistForActions
+
+      - name: Restore canonical frozen benchmark bytes
+        shell: pwsh
+        run: |
+          python scripts/materialize_benchmark_b1_frozen_bytes.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/benchmark_b1.py validate-suite
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run exact 27-slot scored cohort
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Reapply immediately before Python/Codex so the scored process inherits the
+          # same sandbox-executable shell resolution that the exact-head preflight proved.
+          . .\scripts\prepare_benchmark_b1_owner_windows.ps1
+          $runsRoot = Join-Path $env:RUNNER_TEMP "trace2d-b1-scored-$env:GITHUB_RUN_ID"
+          if (Test-Path $runsRoot) { Remove-Item -LiteralPath $runsRoot -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
+          & python scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py --runs-root $runsRoot
+          $exitCode = $LASTEXITCODE
+          New-Item -ItemType Directory -Force -Path 'artifacts\b1-scored' | Out-Null
+          Get-ChildItem -LiteralPath $runsRoot -Filter 'codex-chatgpt-b1-scored-*.zip' -File -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path 'artifacts\b1-scored' $_.Name) -Force
+          }
+          exit $exitCode
+
+      - name: Upload scored B1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b1-scored-${{ github.event.pull_request.head.sha }}
+          path: artifacts/b1-scored/*.zip
+          if-no-files-found: warn
+          retention-days: 90
