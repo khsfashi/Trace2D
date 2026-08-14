@@ -2,10 +2,13 @@
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace trace2d::platform
 {
@@ -121,6 +124,88 @@ void ReleaseSdl(const SDL_InitFlags initializedSubsystems) noexcept
         return std::nullopt;
     }
 }
+
+[[nodiscard]] std::optional<input::InputControl> TranslateGamepadButton(const SDL_GamepadButton button) noexcept
+{
+    using input::InputControl;
+
+    switch (button)
+    {
+    case SDL_GAMEPAD_BUTTON_SOUTH:
+        return InputControl::GamepadSouth;
+    case SDL_GAMEPAD_BUTTON_EAST:
+        return InputControl::GamepadEast;
+    case SDL_GAMEPAD_BUTTON_WEST:
+        return InputControl::GamepadWest;
+    case SDL_GAMEPAD_BUTTON_NORTH:
+        return InputControl::GamepadNorth;
+    case SDL_GAMEPAD_BUTTON_BACK:
+        return InputControl::GamepadBack;
+    case SDL_GAMEPAD_BUTTON_GUIDE:
+        return InputControl::GamepadGuide;
+    case SDL_GAMEPAD_BUTTON_START:
+        return InputControl::GamepadStart;
+    case SDL_GAMEPAD_BUTTON_LEFT_STICK:
+        return InputControl::GamepadLeftStick;
+    case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
+        return InputControl::GamepadRightStick;
+    case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+        return InputControl::GamepadLeftShoulder;
+    case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+        return InputControl::GamepadRightShoulder;
+    case SDL_GAMEPAD_BUTTON_DPAD_UP:
+        return InputControl::GamepadDpadUp;
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+        return InputControl::GamepadDpadDown;
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+        return InputControl::GamepadDpadLeft;
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+        return InputControl::GamepadDpadRight;
+    default:
+        return std::nullopt;
+    }
+}
+
+[[nodiscard]] std::optional<input::InputAxis> TranslateGamepadAxis(const SDL_GamepadAxis axis) noexcept
+{
+    using input::InputAxis;
+
+    switch (axis)
+    {
+    case SDL_GAMEPAD_AXIS_LEFTX:
+        return InputAxis::GamepadLeftX;
+    case SDL_GAMEPAD_AXIS_LEFTY:
+        return InputAxis::GamepadLeftY;
+    case SDL_GAMEPAD_AXIS_RIGHTX:
+        return InputAxis::GamepadRightX;
+    case SDL_GAMEPAD_AXIS_RIGHTY:
+        return InputAxis::GamepadRightY;
+    case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:
+        return InputAxis::GamepadLeftTrigger;
+    case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER:
+        return InputAxis::GamepadRightTrigger;
+    default:
+        return std::nullopt;
+    }
+}
+
+[[nodiscard]] float NormalizeGamepadAxis(const input::InputAxis axis, const Sint16 value) noexcept
+{
+    if (axis == input::InputAxis::GamepadLeftTrigger || axis == input::InputAxis::GamepadRightTrigger)
+    {
+        if (value <= 0)
+        {
+            return 0.0F;
+        }
+        return static_cast<float>(value) / 32767.0F;
+    }
+
+    if (value < 0)
+    {
+        return static_cast<float>(value) / 32768.0F;
+    }
+    return static_cast<float>(value) / 32767.0F;
+}
 } // namespace
 
 class Platform::Impl final
@@ -128,7 +213,8 @@ class Platform::Impl final
 public:
     explicit Impl(const PlatformConfig& config)
         : mode_{config.mode}
-        , initializedSubsystems_{config.mode == StartupMode::Windowed ? SDL_INIT_VIDEO : SDL_INIT_EVENTS}
+        , initializedSubsystems_{static_cast<SDL_InitFlags>(
+              SDL_INIT_EVENTS | SDL_INIT_GAMEPAD | (config.mode == StartupMode::Windowed ? SDL_INIT_VIDEO : 0U))}
     {
         if (!SDL_Init(initializedSubsystems_))
         {
@@ -159,6 +245,16 @@ public:
 
     ~Impl()
     {
+        for (OpenGamepad& gamepad : gamepads_)
+        {
+            if (gamepad.handle != nullptr)
+            {
+                SDL_CloseGamepad(gamepad.handle);
+                gamepad.handle = nullptr;
+            }
+        }
+        gamepads_.clear();
+
         if (window_ != nullptr)
         {
             SDL_DestroyWindow(window_);
@@ -192,7 +288,7 @@ public:
         return static_cast<WindowId>(SDL_GetWindowID(window_));
     }
 
-    [[nodiscard]] bool PollEvent(PlatformEvent& event) noexcept
+    [[nodiscard]] bool PollEvent(PlatformEvent& event)
     {
         event = {};
 
@@ -238,13 +334,124 @@ public:
             return true;
         }
 
+        if (sdlEvent.type == SDL_EVENT_MOUSE_MOTION)
+        {
+            event.type = PlatformEventType::Input;
+            event.input = input::InputEvent{
+                .type = input::InputEventType::PointerMotion,
+                .x = sdlEvent.motion.x,
+                .y = sdlEvent.motion.y,
+                .deltaX = sdlEvent.motion.xrel,
+                .deltaY = sdlEvent.motion.yrel,
+            };
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_MOUSE_WHEEL)
+        {
+            const float direction = sdlEvent.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0F : 1.0F;
+            event.type = PlatformEventType::Input;
+            event.input = input::InputEvent{
+                .type = input::InputEventType::PointerWheel,
+                .x = sdlEvent.wheel.mouse_x,
+                .y = sdlEvent.wheel.mouse_y,
+                .wheelX = sdlEvent.wheel.x * direction,
+                .wheelY = sdlEvent.wheel.y * direction,
+            };
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_GAMEPAD_ADDED)
+        {
+            const SDL_JoystickID id = sdlEvent.gdevice.which;
+            const auto existing = std::find_if(
+                gamepads_.begin(),
+                gamepads_.end(),
+                [id](const OpenGamepad& gamepad) { return gamepad.id == id; });
+            if (existing == gamepads_.end())
+            {
+                SDL_Gamepad* const handle = SDL_OpenGamepad(id);
+                if (handle != nullptr)
+                {
+                    gamepads_.push_back(OpenGamepad{.id = id, .handle = handle});
+                    event.type = PlatformEventType::Input;
+                    event.input = input::InputEvent{
+                        .type = input::InputEventType::DeviceConnected,
+                        .device = static_cast<input::InputDeviceId>(id),
+                    };
+                }
+            }
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_GAMEPAD_REMOVED)
+        {
+            const SDL_JoystickID id = sdlEvent.gdevice.which;
+            const auto gamepad = std::find_if(
+                gamepads_.begin(),
+                gamepads_.end(),
+                [id](const OpenGamepad& candidate) { return candidate.id == id; });
+            if (gamepad != gamepads_.end())
+            {
+                event.type = PlatformEventType::Input;
+                event.input = input::InputEvent{
+                    .type = input::InputEventType::DeviceDisconnected,
+                    .device = static_cast<input::InputDeviceId>(id),
+                };
+                SDL_CloseGamepad(gamepad->handle);
+                gamepads_.erase(gamepad);
+            }
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN || sdlEvent.type == SDL_EVENT_GAMEPAD_BUTTON_UP)
+        {
+            const std::optional<input::InputControl> control =
+                TranslateGamepadButton(static_cast<SDL_GamepadButton>(sdlEvent.gbutton.button));
+            if (control.has_value())
+            {
+                event.type = PlatformEventType::Input;
+                event.input = input::InputEvent{
+                    .control = *control,
+                    .type = sdlEvent.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN ? input::InputEventType::Press
+                                                                         : input::InputEventType::Release,
+                    .device = static_cast<input::InputDeviceId>(sdlEvent.gbutton.which),
+                };
+            }
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_GAMEPAD_AXIS_MOTION)
+        {
+            const std::optional<input::InputAxis> axis =
+                TranslateGamepadAxis(static_cast<SDL_GamepadAxis>(sdlEvent.gaxis.axis));
+            if (axis.has_value())
+            {
+                event.type = PlatformEventType::Input;
+                event.input = input::InputEvent{
+                    .type = input::InputEventType::AxisMotion,
+                    .axis = *axis,
+                    .device = static_cast<input::InputDeviceId>(sdlEvent.gaxis.which),
+                    .value = NormalizeGamepadAxis(*axis, sdlEvent.gaxis.value),
+                };
+            }
+            return true;
+        }
+
         return true;
     }
 
 private:
+    struct OpenGamepad final
+    {
+        SDL_JoystickID id{0};
+        SDL_Gamepad* handle{nullptr};
+    };
+
     StartupMode mode_{StartupMode::Headless};
     SDL_InitFlags initializedSubsystems_{0};
     SDL_Window* window_{nullptr};
+    std::vector<OpenGamepad> gamepads_{};
 };
 
 Platform::Platform(const PlatformConfig& config)
@@ -269,7 +476,7 @@ WindowId Platform::WindowIdValue() const noexcept
     return impl_->WindowIdValue();
 }
 
-bool Platform::PollEvent(PlatformEvent& event) noexcept
+bool Platform::PollEvent(PlatformEvent& event)
 {
     return impl_->PollEvent(event);
 }

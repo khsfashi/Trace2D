@@ -16,9 +16,11 @@ using trace2d::application::Game;
 using trace2d::application::GameContext;
 using trace2d::input::Axis1DActionId;
 using trace2d::input::ButtonActionId;
+using trace2d::input::InputAxis;
 using trace2d::input::InputControl;
 using trace2d::input::InputEvent;
 using trace2d::input::InputEventType;
+using trace2d::input::PointerState;
 
 struct FrameObservation final
 {
@@ -88,6 +90,84 @@ TEST(InputActionApplicationTests, ApplicationResolvesActionsBeforeEveryFixedUpda
     EXPECT_FALSE(game.observations[2].jumpHeld);
     EXPECT_FALSE(game.observations[2].jumpPressed);
     EXPECT_TRUE(game.observations[2].jumpReleased);
+}
+
+struct DeviceFrameObservation final
+{
+    std::uint64_t frame{0};
+    float moveX{0.0F};
+    bool attackPressed{false};
+    PointerState pointer{};
+};
+
+class DeviceInputGame final : public Game
+{
+public:
+    void OnStart(GameContext& context) override
+    {
+        attack_ = context.Actions().AddButtonAction("attack");
+        context.Actions().BindButton(attack_, InputControl::GamepadSouth);
+        moveX_ = context.Actions().AddAxis1DAction("move_x");
+        context.Actions().BindAxis1DAnalog(moveX_, InputAxis::GamepadLeftX, 0.2F);
+    }
+
+    void OnFixedUpdate(GameContext& context, const FixedUpdate& update) override
+    {
+        observations.push_back(DeviceFrameObservation{
+            .frame = update.frame,
+            .moveX = context.Actions().Axis1D(moveX_),
+            .attackPressed = context.Actions().Pressed(attack_),
+            .pointer = context.Input().Pointer(),
+        });
+    }
+
+    std::vector<DeviceFrameObservation> observations{};
+
+private:
+    ButtonActionId attack_{};
+    Axis1DActionId moveX_{};
+};
+
+TEST(InputActionApplicationTests, HostDeviceEventsConvergeBeforeTheSameFixedUpdate)
+{
+    DeviceInputGame game{};
+    Application application{game};
+    application.Start();
+
+    application.ApplyInput(InputEvent{.type = InputEventType::DeviceConnected, .device = 42U});
+    application.ApplyInput(InputEvent{
+        .control = InputControl::GamepadSouth,
+        .type = InputEventType::Press,
+        .device = 42U,
+    });
+    application.ApplyInput(InputEvent{
+        .type = InputEventType::AxisMotion,
+        .axis = InputAxis::GamepadLeftX,
+        .device = 42U,
+        .value = 0.6F,
+    });
+    application.ApplyInput(InputEvent{
+        .type = InputEventType::PointerMotion,
+        .x = 120.0F,
+        .y = 80.0F,
+        .deltaX = 4.0F,
+        .deltaY = -2.0F,
+    });
+
+    application.StepFrames(1U);
+
+    ASSERT_EQ(game.observations.size(), 1U);
+    EXPECT_EQ(game.observations[0].frame, 1U);
+    EXPECT_NEAR(game.observations[0].moveX, 0.5F, 0.00001F);
+    EXPECT_TRUE(game.observations[0].attackPressed);
+    EXPECT_EQ(
+        game.observations[0].pointer,
+        (PointerState{
+            .x = 120.0F,
+            .y = 80.0F,
+            .deltaX = 4.0F,
+            .deltaY = -2.0F,
+        }));
 }
 
 class InvalidSemanticInputGame final : public Game

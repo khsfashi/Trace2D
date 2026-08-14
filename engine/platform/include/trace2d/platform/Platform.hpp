@@ -52,7 +52,7 @@ public:
     [[nodiscard]] StartupMode Mode() const noexcept;
     [[nodiscard]] bool HasWindow() const noexcept;
     [[nodiscard]] WindowId WindowIdValue() const noexcept;
-    [[nodiscard]] bool PollEvent(PlatformEvent& event) noexcept;
+    [[nodiscard]] bool PollEvent(PlatformEvent& event);
 
 private:
     class Impl;
