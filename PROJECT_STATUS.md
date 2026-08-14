@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-13**
+Last explanatory handoff update: **2026-08-14**
 
 This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state through the repository-state tooling. Do not guess a merge or active child from this Markdown file when those sources disagree.
 
@@ -14,167 +14,147 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Complete Sprite #59 is merged and closed through final SPERF PR #173 / main commit `31712ca419efb232d292680661caea51d8a318e4`.
+Complete Sprite #59 is merged and closed. Benchmark B1 #103 has now produced its first frozen 27-slot scored cohort on PR #174 / branch `agent/benchmark-b1-content-authoring`.
 
-Active core item: **#103 Benchmark B1 — matched Sprite, animation and particle authoring tasks**.  
-Active branch: `agent/benchmark-b1-content-authoring`.  
-Active PR: **#174**, intentionally draft until scored multi-run evidence is reviewable.
+## Benchmark B1 frozen baseline
 
-Exact next core item after B1 completes with reviewable multi-run evidence: **#69 Scene Asset Format v1**.
+Exact scored head: `6d6904e99ad7060341861cb3823e04591a579bf7`.
 
-Repository-state authority/rationale: [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md).  
-Benchmark program contract: [`docs/AUTONOMOUS_BENCHMARK.md`](docs/AUTONOMOUS_BENCHMARK.md).  
-B1 working contract: [`benchmarks/b1/README.md`](benchmarks/b1/README.md).
+Owner scored workflow run: `31763107941`.
 
-## Frozen predecessors
+Observed aggregate result:
 
-The B1 work starts from two completed foundations:
+- Godot Generic: 5/9 successful (55.6%).
+- Trace2D Agent: 3/9 successful (33.3%).
+- selected Godot Agent: 0/9 successful.
+- Trace2D by task: Sprite 1/3, animation 2/3, particle 0/3.
+- Godot Generic by task: Sprite 2/3, animation 0/3, particle 3/3.
 
-- #59 Complete Sprite: S0/S1, SR0-SR8, SA0-SA4, SPP0-SPP5, SE2E and SPERF are frozen.
-- #102 Benchmark B0: matched lane schema, trial isolation, append-only traces, independent verification, known-good/known-bad qualification, retry/exclusion policy and raw metric vocabulary are frozen methodology to reuse rather than fork.
+These values are frozen cohort evidence, not universal product claims. Do not rerun, replace, repair or retrospectively alter B1 scored slots.
 
-Frozen Sprite milestone references retained for contract continuity:
+The scored workflow completed on the exact approved head and uploaded scored evidence. B1 is therefore preserved as the immutable pre-improvement baseline for future architectural comparisons.
 
-- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract, frozen and complete.
-- #142 / PR #143 / `2108122dad5ac2dcbb964f7ada0e80f7afa21003` — SR8 renderer conformance and trusted presentation-GPU evidence.
-- #152 / PR #153 / `c5952c0e905c46816b0a182b7d91143bf54b188b` — SA4 deterministic animation conformance and workload runner.
-- #168 / PR #169 / `c3bcac89ca8c7ca21a9130b1b16cf7ece9e31c1a` — SPP5 provider-neutral generation orchestration.
-- #170 / PR #171 / `41536c6045b8c89831a2026f090b5be7889599f3` — SE2E generated/imported Sprite proof.
-- #172 / PR #173 / `31712ca419efb232d292680661caea51d8a318e4` — SPERF final reproducible Sprite performance evidence.
+## Immediate analytical gate
 
-Relevant Sprite production authorities already exist:
+New roadmap gate: **#175 — Benchmark B1 postmortem: agent-surface failure taxonomy and B2 entry gate**.
+
+#175 owns the evidence-backed analysis of every unsuccessful Trace2D B1 slot. It must distinguish runtime/engine defects from Agent-facing authoring-surface defects and classify failures such as token/context exhaustion, tool-discovery errors, invalid authored output, verifier rejection, timeout and reasoning failure.
+
+The response to B1 is not to add more tools or longer prompts by default. Prefer reducing Agent-visible state and expressing authoring through smaller deterministic primitives.
+
+#175 also establishes an **Agent Complexity Budget** for future subsystem contracts, measuring at least:
+
+- input/output tokens,
+- tool calls,
+- distinct exposed concepts/resources,
+- revisions/iterations,
+- visual-feedback calls,
+- human interventions.
+
+Task-specific interpretation:
+
+- Animation 2/3 is a promising architectural signal, not proof of universal superiority. Preserve exact-event semantics, compact inspectable state, deterministic/headless verification and presentation separation where evidence supports them.
+- Sprite 1/3 requires failure-level analysis before calling Complete Sprite Agent-optimal.
+- Particle 0/3 is treated as a product-level authoring-surface problem until evidence proves otherwise; runtime capability and Agent usability are separate acceptance dimensions.
+
+## B2 rule
+
+B1 remains immutable. B2 must not be a rerun-until-win exercise.
+
+Before B2 scoring:
+
+1. #175 postmortem is complete,
+2. evidence-backed authoring-surface improvements are implemented and independently tested,
+3. B1 tasks/verifiers/results remain unchanged,
+4. B2 uses new held-out tasks or variants frozen before scoring,
+5. budgets, verifier authorities, retry/exclusion rules and baseline identities are preregistered again.
+
+## Long-range roadmap additions
+
+### #177 — Source-neutral Asset Intelligence Pipeline and Asset IR
+
+Trace2D should accept generated, imported or hand-authored images through one shared source-neutral boundary:
 
 ```text
-canonical .sprite.toml CPU truth
- + SpriteAnimationClip2D / SpriteAnimator2D exact ns timing and events
- + .trace2d.particle.toml structural particle definitions
- -> existing Agent / MCP inspection and explicit QA surfaces
+AssetSource
+  -> AssetInput
+  -> deterministic preparation / bounded semantic analysis
+  -> Trace2D Asset IR
+  -> native runtime and optional interoperability
 ```
 
-B1 consumes those public contracts. It does not create a benchmark-only asset model or hidden answer API.
+ComfyUI, generated-image systems, Aseprite, Photoshop and other tools are adapters/sources only. Core AssetInput/AssetIR must not inherit ComfyUI-specific batch types, output-directory assumptions or Spine dependencies.
 
-## B1 strongest Godot baseline — selected and frozen
+Deterministic analysis owns objective questions such as alpha bounds, frame geometry, trim/alignment and schema integrity. Semantic/VLM inference is limited to ambiguous tasks such as part classification, inferred pivot/hierarchy intent and aesthetic audit, and cannot silently become runtime/gameplay authority.
 
-#100 required the strongest credible pinned Godot Agent workflow to be refreshed and qualified on a **non-scored** fixture before B1 scored task membership could be frozen. That gate is complete.
+The intended staged direction is:
 
-Frozen comparison evidence: workflow `31622618958`.
+```text
+AI0 Asset input contract
+ -> AI1 deterministic preparation
+ -> AI2 bounded semantic analysis
+ -> AI3 deterministic + visual audit split
+ -> AI4 native rig handoff
+ -> AI5 optional interoperability
+ -> AI6 closed-loop generated/imported asset workflow
+```
 
-- `hi-godot/godot-ai` at `v3.0.6@f3d99dfbd38c9e095edf1467f85bee507ace2c3a` completed the matched animation/particle authoring fixture, save/readback, presentation-capture handoff, independent known-good acceptance and known-bad rejection in job `94200960755`.
-- `@satelliteoflove/godot-mcp@4.1.0` installed, connected, and reached method-event authoring in job `94200960753`, but its pinned Godot addon invokes nonexistent `Animation.method_track_add_key()` on Godot 4.7.1 and cannot complete the preregistered exact-event task through that public animation authoring path.
-- `godot-mcp-runtime@3.2.1` remains an unselected fallback, not the B1 strongest-agent lane.
+Heavy segmentation/VLM/export work is offline/setup work and must not leak into ordinary frame execution.
 
-Selected B1 `godot.agent`: **`hi-godot/godot-ai v3.0.6` at exact commit `f3d99dfbd38c9e095edf1467f85bee507ace2c3a`**.
+### #176 — Native Deterministic Skeletal Animation
 
-Machine-readable decision: [`benchmarks/b1/baseline-qualification.json`](benchmarks/b1/baseline-qualification.json).  
-Comparison rationale: [`benchmarks/b1/qualification/SELECTION.md`](benchmarks/b1/qualification/SELECTION.md).
+Trace2D will own a compact native skeleton/animation representation instead of making Spine the native architecture.
 
-## B1 scored suite — frozen before scoring
+Fixed umbrella direction:
 
-`benchmarks/b1/suite.json` freezes the B1 task membership, budgets, matched lane mappings and fixture paths. `benchmarks/b1/verifiers.json` freezes verifier identities, authority seams and deterministic check sets.
+```text
+NS0 Skeleton IR
+ -> NS1 independent reference evaluator
+ -> NS2 optimized deterministic evaluator
+ -> NS3 rigid region attachments
+ -> NS4 animation tracks + exact events
+ -> NS5 deterministic mixing/transitions
+ -> NS6 Agent inspection/headless QA
+ -> NS7 weighted Mesh2D skinning
+ -> NS8 auto-rig handoff from Asset IR
+ -> NS9 generated/imported asset -> rig -> animation -> deterministic QA -> render -> VLM audit E2E
+```
 
-The three scored scenarios cover every preregistered #103 class exactly once:
+The initial MVP stays intentionally small: bones, stable hierarchy, slots, rigid region attachments, translate/rotate/scale tracks, attachment switching and exact events. IK, physics constraints, broad editor-centric state and weighted skinning are not part of the first stage unless later evidence demands them.
 
-1. `b1-sprite-normalize-repair` — Sprite import/normalization + trim/pivot/alignment repair,
-2. `b1-animation-exact-event` — exact deterministic animation event + exact-frame/headless/presentation evidence separation,
-3. `b1-particle-budget-repair` — particle structural/performance budget + seeded-defect diagnosis/repair.
+Normal animation evaluation should use pre-resolved stable indices and reusable contiguous buffers with no ordinary per-frame allocation, filesystem/JSON work, string lookup or hierarchy discovery. Deterministic semantic pose/event authority stays separate from GPU visual/deformed-geometry conformance.
 
-The B0 Agent budget is reused without expansion for every task: 300 seconds, 80 tool calls, 100k input tokens, 20k output tokens and zero human interventions.
+### #61 — Spine compatibility stays optional
 
-`godot.generic` and `godot.agent` are locked to identical Godot starter/known-good/known-bad fixture paths and the same independent verifier identity. The selected hi-godot bridge changes only the interaction adapter. `trace2d.agent` uses semantically matched native Trace2D fixtures and public production authorities.
+Spine remains an explicit license-gated compatibility target. Native Skeleton is core Trace2D capability; Spine may later be an optional importer/exporter/runtime adapter.
 
-No scored comparative outcome has been observed on this branch yet.
+Do not make native authoring semantics depend on proprietary Spine format/editor/runtime behavior and do not reimplement proprietary formats to bypass licensing.
 
-## B1 frozen fixture qualification — passed
+## Roadmap ordering rule
 
-The prerequisite fixture/verifier discrimination gate is complete and recorded in [`benchmarks/b1/fixture-qualification.json`](benchmarks/b1/fixture-qualification.json). The frozen suite and verifier registry were not changed to obtain the result.
+The new #176/#177 umbrellas are explicit long-range plans, not authorization to skip the existing production-foundation sequence. `config/trace2d.core-lane.json` remains the continuation authority.
 
-Qualification source head: `557c7edf9ee30fd9dca0cc33379731887e79f29a`.
+Current ordering now begins:
 
-- Godot official `4.7.1.stable.official.a13da4feb`: all three known-good fixtures accepted and all three seeded known-bad fixtures rejected in workflow `31651157113` / job `94295573573`. The evidence artifact is `benchmark-b1-godot-fixture-qualification` / artifact `9162609754`.
-- Trace2D native dispatch: six `benchmark_b1_fixture_qualification` CTests passed in workflow `31651157103` / job `94295573606`, exercising the real Sprite parser, animation runtime types and particle parser/compiler.
-- The same frozen Godot fixture/verifier dispatch qualifies both `godot.generic` and `godot.agent`; Agent bridge behavior itself remains part of scored execution rather than fixture qualification.
+```text
+B1 frozen baseline
+ -> #175 B1 postmortem / Agent-surface gate
+ -> #69 external-game application
+ -> existing production-foundation sequence
+ -> #104 B2 at its registered position, subject to #175 B2 entry requirements
+ -> remaining foundation / flagship proof
+ -> #60 Mesh2D
+ -> #177 Asset Intelligence / Asset IR
+ -> #176 Native Deterministic Skeletal Animation
+ -> #61 optional Spine compatibility gate
+```
 
-Fixture qualification enables scoring; it is not a scored result.
-
-## B1 scored cohort policy and harness — prepared before scoring
-
-`benchmarks/b1/scored-cohort-v1.json` preregisters the complete scored cohort **before any scored B1 result is observed**:
-
-- 3 frozen tasks × 3 frozen lanes × 3 repetitions = **27 exact scheduled attempts**,
-- B0's frozen lane rotation reused exactly,
-- deterministic rotating task order across repetitions,
-- zero automatic retries,
-- zero infrastructure replacement trials,
-- no early stopping,
-- every scheduled outcome preserved,
-- no best-of-N or weighted composite result.
-
-The selected `hi-godot/godot-ai` Python dependency graph from qualification workflow `31622618958` / artifact `9151863240` is frozen in [`benchmarks/b1/godot-ai-python-freeze.txt`](benchmarks/b1/godot-ai-python-freeze.txt), so scored execution cannot silently resolve the same source tag against newer dependencies.
-
-Scored infrastructure is implemented by:
-
-- `scripts/benchmark_b1_codex_windows_acl_wrapper.py`,
-- `scripts/benchmark_b1_scored_harness.py`,
-- `scripts/verify_benchmark_b1_candidate.py`,
-- `scripts/package_benchmark_b1_evidence.py`,
-- `scripts/run_benchmark_b1_codex_windows_acl_scored_cohort.py`,
-- `scripts/materialize_benchmark_b1_frozen_bytes.py`,
-- `.github/workflows/benchmark-b1-owner-preflight.yml`,
-- `.github/workflows/benchmark-b1-owner-scored.yml`.
-
-The harness retains the B0 Codex 0.144.6 / `gpt-5.5` / Windows NTFS ACL / raw usage-accounting semantics. The `godot.agent` adapter reproduces the selected `hi-godot/godot-ai` loopback streamable-HTTP MCP + editor-addon lifecycle. The `trace2d.agent` lane exposes frozen public Trace2D authoring/analysis binaries and deliberately does not inject a benchmark-only scene merely to fit the scene-bound Trace2D MCP executable.
-
-Trace2D animation candidate verification links an arbitrary preserved candidate through the same already-qualified verifier driver and production `Assets` / `Runtime` authority; held-out verifier behavior is not exposed to the Agent as an authoring shortcut.
-
-The scoring Agent wall budget remains exactly **300 seconds**. A separate **600-second orchestration envelope** only allows the post-turn held-out verifier/evidence path to complete and is not a model/scoring budget expansion.
-
-## Owner-Windows benchmark automation
-
-The existing owner Windows self-hosted runner now owns the B1 external execution gate as well as GPU validation, but B1 itself does not invoke the GPU gate.
-
-`Benchmark B1 Owner Preflight` runs automatically on every push to `agent/benchmark-b1-content-authoring`. It is strictly zero-score and may be retried/cancelled before scoring. Before invoking the B1 runner it purges the persistent self-hosted checkout and restores every frozen benchmark file from its canonical `HEAD` Git blob only after verifying that the blob itself still matches the preregistered SHA-256. This removes Windows CRLF/stale-worktree materialization as a false freeze failure without allowing real repository drift to pass.
-
-`Benchmark B1 Owner Scored Cohort` is not push-triggered. It starts only after the owner adds the existing `github_actions` label to PR #174. Its approval job requires the exact same PR/branch, actor `khsfashi`, first workflow attempt, and a successful owner preflight for the exact head SHA. The scored Windows job then checks out that approved SHA, repeats the built-in preflights, executes exactly 27 scheduled attempts, independently reverifies every preserved workspace, aggregates the deterministic report and uploads the scrubbed evidence ZIP.
-
-Once scored slot 1 begins, do not rerun the scored workflow, remove/re-add the approval label, or replace a failed slot.
-
-## Performance / fairness boundary
-
-B1 must not add normal-frame production cost or benchmark-shaped production authority.
-
-Forbidden as a benchmark shortcut:
-
-- Trace2D-only task-specific answer APIs,
-- benchmark-detection/input-specific fast paths,
-- a second Sprite/animation/particle truth model,
-- mandatory per-frame reporting, JSON/string formatting, filesystem work or screenshot capture,
-- changing competitor selection, task membership, budgets, retry policy or known-bad mutations after observing which lane wins.
-
-Independent verifier evidence remains authoritative for deterministic acceptance. Presentation captures, multimodal review and final human judgment remain separate evidence layers.
-
-## Current validation gate
-
-The normal B1-specific CI continues to gate:
-
-- Benchmark B1 Scored Policy,
-- Benchmark B1 Contract,
-- Benchmark B1 Fixture Qualification,
-- Benchmark B1 Selected Godot Agent Qualification,
-- B0 Codex Wrapper and B0 Godot Agent Oracle reuse gates,
-- repository contract / benchmark contract / full-history Public Alpha release-audit checks.
-
-The scored-policy gate now also tests and syntax-checks the frozen-byte materializer used by owner automation. The automatic owner-Windows preflight is the only live external prerequisite before explicit scored approval.
-
-No scored B1 comparative result has been observed.
+Individual #177/#176 stages may only activate when their owning foundations are ready; weighted skinning specifically depends on #60.
 
 ## Continuation rule
 
-Keep #103 and PR #174 / `agent/benchmark-b1-content-authoring` active. Do not begin #69.
+The following `@GitHub Trace2D 다음 진행해줘` continuation should resolve live state first.
 
-The **exact next external gate** is the automatic `Benchmark B1 Owner Preflight` run for the current branch head. It starts **zero scored slots** and is safe to repair/retry while no score has been observed.
+If #103 / PR #174 still needs final presentation/multimodal/human review or merge/closure bookkeeping, finish that without modifying or rerunning scored B1 evidence. Once B1 is accepted/finalized, advance to #175.
 
-After that exact-head preflight passes, the owner performs one explicit approval action: add the existing `github_actions` label to PR #174. Do not add it before preflight is green.
-
-That label starts the guarded `Benchmark B1 Owner Scored Cohort`. Once slot 1 starts, **never rerun the scored workflow, remove/re-add the approval label, or replace a failed scored slot**. Preserve the generated evidence artifact, independently reverify every preserved workspace, aggregate deterministic results, then perform separate presentation/multimodal/human review before considering B1 complete or advancing to #69.
-
-Interactive PowerShell `--prepare-only` / scored commands remain fallback-only paths if GitHub Actions is unavailable; they are no longer the normal continuation path.
+#175 should perform the postmortem, create only evidence-backed Sprite/Particle authoring-surface fixes, preserve the successful animation design properties where justified, and keep future B2 held-out and preregistered.
