@@ -207,25 +207,47 @@ struct PresentationViewResult2D final
     PresentationSamplingMode2D samplingMode = PresentationSamplingMode2D::AuthoritativeCurrent,
     float interpolationAlpha = 1.0F) noexcept;
 
+enum class CoordinateConversionError2D : std::uint8_t
+{
+    None = 0,
+    InvalidResolvedView,
+    NonFiniteInput,
+};
+
+[[nodiscard]] std::string_view ToString(CoordinateConversionError2D error) noexcept;
+
+struct CoordinateConversionResult2D final
+{
+    CoordinateConversionError2D error{CoordinateConversionError2D::None};
+    Float2 value{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return error == CoordinateConversionError2D::None;
+    }
+};
+
 // Continuous pixel-edge convention: logical (0,0) is the top-left viewport edge and
 // (logicalWidth, logicalHeight) is the bottom-right edge. Presentation coordinates use the same
 // convention against the target. Integer pixel-center policy remains the narrower SR6 contract.
+// Forward transforms consume an already-resolved view. Inverse transforms return structured errors
+// for invalid/non-invertible resolved state or non-finite input instead of dividing through it.
 [[nodiscard]] Float2 WorldToViewport(
     const ResolvedPresentationView2D& view,
     Float2 worldPosition) noexcept;
-[[nodiscard]] Float2 ViewportToWorld(
+[[nodiscard]] CoordinateConversionResult2D ViewportToWorld(
     const ResolvedPresentationView2D& view,
     Float2 viewportPosition) noexcept;
 [[nodiscard]] Float2 ViewportToPresentation(
     const ResolvedPresentationView2D& view,
     Float2 viewportPosition) noexcept;
-[[nodiscard]] Float2 PresentationToViewport(
+[[nodiscard]] CoordinateConversionResult2D PresentationToViewport(
     const ResolvedPresentationView2D& view,
     Float2 presentationPosition) noexcept;
 [[nodiscard]] Float2 WorldToPresentation(
     const ResolvedPresentationView2D& view,
     Float2 worldPosition) noexcept;
-[[nodiscard]] Float2 PresentationToWorld(
+[[nodiscard]] CoordinateConversionResult2D PresentationToWorld(
     const ResolvedPresentationView2D& view,
     Float2 presentationPosition) noexcept;
 
