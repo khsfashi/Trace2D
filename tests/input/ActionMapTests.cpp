@@ -120,8 +120,10 @@ TEST(ActionMapTests, SetupRejectsAmbiguousOrInvalidDefinitions)
     ActionMap actions{};
     const ButtonActionId jump = actions.AddButtonAction("jump");
 
-    EXPECT_THROW(actions.AddButtonAction("jump"), std::invalid_argument);
-    EXPECT_THROW(actions.AddAxis1DAction("jump", InputControl::KeyA, InputControl::KeyD), std::invalid_argument);
+    EXPECT_THROW((void)actions.AddButtonAction("jump"), std::invalid_argument);
+    EXPECT_THROW(
+        (void)actions.AddAxis1DAction("jump", InputControl::KeyA, InputControl::KeyD),
+        std::invalid_argument);
     EXPECT_THROW(actions.BindButton(jump, InputControl::Unknown), std::invalid_argument);
 
     actions.BindButton(jump, InputControl::Space);
@@ -130,7 +132,7 @@ TEST(ActionMapTests, SetupRejectsAmbiguousOrInvalidDefinitions)
         actions.BindButton(ButtonActionId{.value = 99U}, InputControl::Enter),
         std::out_of_range);
     EXPECT_THROW(
-        actions.AddAxis1DAction("move", InputControl::KeyA, InputControl::KeyA),
+        (void)actions.AddAxis1DAction("move", InputControl::KeyA, InputControl::KeyA),
         std::invalid_argument);
 }
 
@@ -146,10 +148,10 @@ TEST(ActionMapTests, FinalizationFreezesBindingsAndRequiresButtonBindings)
     actions.Finalize();
     EXPECT_TRUE(actions.IsFinalized());
 
-    EXPECT_THROW(actions.AddButtonAction("attack"), std::logic_error);
+    EXPECT_THROW((void)actions.AddButtonAction("attack"), std::logic_error);
     EXPECT_THROW(actions.BindButton(jump, InputControl::Enter), std::logic_error);
     EXPECT_THROW(
-        actions.AddAxis1DAction("move", InputControl::KeyA, InputControl::KeyD),
+        (void)actions.AddAxis1DAction("move", InputControl::KeyA, InputControl::KeyD),
         std::logic_error);
 }
 
@@ -199,7 +201,7 @@ TEST(ActionMapTests, InvalidResolvedIdsAreRejected)
     actions.Finalize();
     actions.Resolve(input);
 
-    EXPECT_THROW(actions.ButtonState(ButtonActionId{.value = 99U}), std::out_of_range);
-    EXPECT_THROW(actions.Axis1D(Axis1DActionId{.value = 99U}), std::out_of_range);
+    EXPECT_THROW((void)actions.ButtonState(ButtonActionId{.value = 99U}), std::out_of_range);
+    EXPECT_THROW((void)actions.Axis1D(Axis1DActionId{.value = 99U}), std::out_of_range);
 }
 } // namespace
