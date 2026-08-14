@@ -1,5 +1,6 @@
 #include <trace2d/scene/Scene.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <utility>
@@ -8,6 +9,14 @@ namespace trace2d::scene
 {
 namespace
 {
+struct Linear2D final
+{
+    double m00{1.0};
+    double m01{0.0};
+    double m10{0.0};
+    double m11{1.0};
+};
+
 [[nodiscard]] bool IsFiniteTransform(const Transform2D& transform) noexcept
 {
     return std::isfinite(transform.position.x) && std::isfinite(transform.position.y) &&
@@ -15,22 +24,81 @@ namespace
            std::isfinite(transform.scale.y);
 }
 
+[[nodiscard]] Linear2D MakeLinear(const Transform2D& transform) noexcept
+{
+    const double cosine = std::cos(static_cast<double>(transform.rotationRadians));
+    const double sine = std::sin(static_cast<double>(transform.rotationRadians));
+    return Linear2D{
+        .m00 = cosine * static_cast<double>(transform.scale.x),
+        .m01 = -sine * static_cast<double>(transform.scale.y),
+        .m10 = sine * static_cast<double>(transform.scale.x),
+        .m11 = cosine * static_cast<double>(transform.scale.y),
+    };
+}
+
+[[nodiscard]] Linear2D MultiplyLinear(const Linear2D& left, const Linear2D& right) noexcept
+{
+    return Linear2D{
+        .m00 = left.m00 * right.m00 + left.m01 * right.m10,
+        .m01 = left.m00 * right.m01 + left.m01 * right.m11,
+        .m10 = left.m10 * right.m00 + left.m11 * right.m10,
+        .m11 = left.m10 * right.m01 + left.m11 * right.m11,
+    };
+}
+
+[[nodiscard]] bool TryExtractScaleAtRotation(
+    const Linear2D& linear,
+    const double rotation,
+    Vector2& outScale) noexcept
+{
+    const double cosine = std::cos(rotation);
+    const double sine = std::sin(rotation);
+
+    const double scaleX = cosine * linear.m00 + sine * linear.m10;
+    const double offDiagonal01 = cosine * linear.m01 + sine * linear.m11;
+    const double offDiagonal10 = -sine * linear.m00 + cosine * linear.m10;
+    const double scaleY = -sine * linear.m01 + cosine * linear.m11;
+
+    const double magnitude = std::max({
+        1.0,
+        std::abs(linear.m00),
+        std::abs(linear.m01),
+        std::abs(linear.m10),
+        std::abs(linear.m11),
+        std::abs(scaleX),
+        std::abs(scaleY),
+    });
+    const double tolerance = magnitude * 1.0e-6;
+    if (std::abs(offDiagonal01) > tolerance || std::abs(offDiagonal10) > tolerance) return false;
+
+    const double maximum = static_cast<double>(std::numeric_limits<float>::max());
+    if (!std::isfinite(scaleX) || !std::isfinite(scaleY) ||
+        scaleX < -maximum || scaleX > maximum || scaleY < -maximum || scaleY > maximum)
+        return false;
+
+    outScale = Vector2{static_cast<float>(scaleX), static_cast<float>(scaleY)};
+    return true;
+}
+
 [[nodiscard]] bool ComposeTransforms(
     const Transform2D& parent,
     const Transform2D& local,
     Transform2D& outTransform) noexcept
 {
-    const double cosine = std::cos(static_cast<double>(parent.rotationRadians));
-    const double sine = std::sin(static_cast<double>(parent.rotationRadians));
-    const double scaledX = static_cast<double>(local.position.x) * static_cast<double>(parent.scale.x);
-    const double scaledY = static_cast<double>(local.position.y) * static_cast<double>(parent.scale.y);
+    const Linear2D parentLinear = MakeLinear(parent);
+    const Linear2D composedLinear = MultiplyLinear(parentLinear, MakeLinear(local));
 
     Transform2D result{};
-    result.position.x = static_cast<float>(static_cast<double>(parent.position.x) + cosine * scaledX - sine * scaledY);
-    result.position.y = static_cast<float>(static_cast<double>(parent.position.y) + sine * scaledX + cosine * scaledY);
+    result.position.x = static_cast<float>(
+        static_cast<double>(parent.position.x) +
+        parentLinear.m00 * static_cast<double>(local.position.x) +
+        parentLinear.m01 * static_cast<double>(local.position.y));
+    result.position.y = static_cast<float>(
+        static_cast<double>(parent.position.y) +
+        parentLinear.m10 * static_cast<double>(local.position.x) +
+        parentLinear.m11 * static_cast<double>(local.position.y));
     result.rotationRadians = parent.rotationRadians + local.rotationRadians;
-    result.scale.x = parent.scale.x * local.scale.x;
-    result.scale.y = parent.scale.y * local.scale.y;
+    if (!TryExtractScaleAtRotation(composedLinear, static_cast<double>(result.rotationRadians), result.scale)) return false;
     if (!IsFiniteTransform(result)) return false;
     outTransform = result;
     return true;
@@ -43,17 +111,27 @@ namespace
 {
     if (parentWorld.scale.x == 0.0F || parentWorld.scale.y == 0.0F) return false;
 
+    const double parentRotation = static_cast<double>(parentWorld.rotationRadians);
+    const double cosine = std::cos(parentRotation);
+    const double sine = std::sin(parentRotation);
+    const double inverseScaleX = 1.0 / static_cast<double>(parentWorld.scale.x);
+    const double inverseScaleY = 1.0 / static_cast<double>(parentWorld.scale.y);
+    const Linear2D parentInverse{
+        .m00 = cosine * inverseScaleX,
+        .m01 = sine * inverseScaleX,
+        .m10 = -sine * inverseScaleY,
+        .m11 = cosine * inverseScaleY,
+    };
+    const Linear2D localLinear = MultiplyLinear(parentInverse, MakeLinear(world));
+
     const double dx = static_cast<double>(world.position.x) - static_cast<double>(parentWorld.position.x);
     const double dy = static_cast<double>(world.position.y) - static_cast<double>(parentWorld.position.y);
-    const double cosine = std::cos(static_cast<double>(parentWorld.rotationRadians));
-    const double sine = std::sin(static_cast<double>(parentWorld.rotationRadians));
 
     Transform2D local{};
-    local.position.x = static_cast<float>((cosine * dx + sine * dy) / static_cast<double>(parentWorld.scale.x));
-    local.position.y = static_cast<float>((-sine * dx + cosine * dy) / static_cast<double>(parentWorld.scale.y));
+    local.position.x = static_cast<float>((cosine * dx + sine * dy) * inverseScaleX);
+    local.position.y = static_cast<float>((-sine * dx + cosine * dy) * inverseScaleY);
     local.rotationRadians = world.rotationRadians - parentWorld.rotationRadians;
-    local.scale.x = world.scale.x / parentWorld.scale.x;
-    local.scale.y = world.scale.y / parentWorld.scale.y;
+    if (!TryExtractScaleAtRotation(localLinear, static_cast<double>(local.rotationRadians), local.scale)) return false;
     if (!IsFiniteTransform(local)) return false;
     outLocal = local;
     return true;
@@ -270,8 +348,10 @@ HierarchyResult Scene::SetParent(
     {
         Transform2D parentWorld{};
         if (!TryGetWorldTransform(*parent, parentWorld)) return HierarchyResult::InvalidWorldTransform;
-        if (!MakeLocalFromWorld(parentWorld, preservedWorld, newLocal))
+        if (parentWorld.scale.x == 0.0F || parentWorld.scale.y == 0.0F)
             return HierarchyResult::NonInvertibleParentTransform;
+        if (!MakeLocalFromWorld(parentWorld, preservedWorld, newLocal))
+            return HierarchyResult::InvalidWorldTransform;
     }
     else if (mode == ReparentMode::KeepWorld)
     {
