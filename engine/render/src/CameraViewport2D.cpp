@@ -13,6 +13,18 @@ namespace
     return std::isfinite(value.x) && std::isfinite(value.y);
 }
 
+[[nodiscard]] bool IsValidScaleMode(const ViewportScaleMode2D mode) noexcept
+{
+    switch (mode)
+    {
+    case ViewportScaleMode2D::Fit:
+    case ViewportScaleMode2D::Fill:
+    case ViewportScaleMode2D::Stretch:
+        return true;
+    }
+    return false;
+}
+
 [[nodiscard]] bool IsValidFrameState(const CameraFrameState2D& state) noexcept
 {
     return state.entity.IsValid() && IsFinite(state.center) && std::isfinite(state.verticalSize) &&
@@ -23,6 +35,7 @@ namespace
 {
     return viewport.logicalWidth != 0U && viewport.logicalHeight != 0U &&
         viewport.targetWidth != 0U && viewport.targetHeight != 0U &&
+        IsValidScaleMode(viewport.scaleMode) &&
         IsFinite(viewport.contentRect.origin) && IsFinite(viewport.contentRect.size) &&
         viewport.contentRect.size.x > 0.0F && viewport.contentRect.size.y > 0.0F &&
         IsFinite(viewport.viewportToPresentationScale) &&
@@ -170,7 +183,7 @@ std::string_view ToString(const ActiveCameraSelectionError2D error) noexcept
 }
 
 ActiveCameraSelectionResult2D ResolveActiveCamera2D(
-    const scene::Scene& scene,
+    const scene::Scene& worldScene,
     const scene::ComponentTypeHandle<scene::Camera2D> cameraType,
     const Viewport2D& viewport) noexcept
 {
@@ -188,9 +201,9 @@ ActiveCameraSelectionResult2D ResolveActiveCamera2D(
 
     bool found = false;
     std::string_view selectedSemanticId{};
-    scene.ForEachEntity([&](const scene::EntityId entityId, const scene::Entity& entity)
+    worldScene.ForEachEntity([&](const scene::EntityId entityId, const scene::Entity& entity)
     {
-        const scene::Camera2D* const camera = scene.TryGetComponent(entityId, cameraType);
+        const scene::Camera2D* const camera = worldScene.TryGetComponent(entityId, cameraType);
         if (camera == nullptr || !camera->enabled || camera->targetViewport != viewport.semanticId)
         {
             return;
@@ -241,7 +254,7 @@ std::string_view ToString(const CameraFrameStateError2D error) noexcept
 }
 
 CameraFrameStateResult2D ResolveCameraFrameState2D(
-    const scene::Scene& scene,
+    const scene::Scene& worldScene,
     const scene::ComponentTypeHandle<scene::Camera2D> cameraType,
     const ActiveCamera2D activeCamera) noexcept
 {
@@ -257,7 +270,7 @@ CameraFrameStateResult2D ResolveCameraFrameState2D(
         return result;
     }
 
-    const scene::Camera2D* const camera = scene.TryGetComponent(activeCamera.entity, cameraType);
+    const scene::Camera2D* const camera = worldScene.TryGetComponent(activeCamera.entity, cameraType);
     if (camera == nullptr)
     {
         result.error = CameraFrameStateError2D::StaleSelection;
@@ -275,7 +288,7 @@ CameraFrameStateResult2D ResolveCameraFrameState2D(
     }
 
     scene::Transform2D world{};
-    if (!scene.TryGetWorldTransform(activeCamera.entity, world) ||
+    if (!worldScene.TryGetWorldTransform(activeCamera.entity, world) ||
         !std::isfinite(world.position.x) || !std::isfinite(world.position.y))
     {
         result.error = CameraFrameStateError2D::InvalidWorldTransform;
