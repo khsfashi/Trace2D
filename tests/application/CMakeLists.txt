@@ -1,5 +1,6 @@
 add_executable(trace2d_application_tests
     ApplicationTests.cpp
+    InputActionApplicationTests.cpp
 )
 
 target_link_libraries(trace2d_application_tests
