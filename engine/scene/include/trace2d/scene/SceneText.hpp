@@ -22,27 +22,20 @@ struct SceneLoadResult final
 {
     std::optional<Scene> scene{};
     std::vector<SceneTextDiagnostic> diagnostics{};
-
-    [[nodiscard]] bool Succeeded() const noexcept
-    {
-        return scene.has_value() && diagnostics.empty();
-    }
+    [[nodiscard]] bool Succeeded() const noexcept { return scene.has_value() && diagnostics.empty(); }
 };
 
 struct SceneSaveResult final
 {
     std::string text{};
     std::vector<SceneTextDiagnostic> diagnostics{};
-
-    [[nodiscard]] bool Succeeded() const noexcept
-    {
-        return diagnostics.empty();
-    }
+    [[nodiscard]] bool Succeeded() const noexcept { return diagnostics.empty(); }
 };
 
+[[nodiscard]] SceneLoadResult LoadSceneToml(std::string_view text, std::string_view sourceName = {});
 [[nodiscard]] SceneLoadResult LoadSceneToml(
     std::string_view text,
+    const ComponentRegistry& registry,
     std::string_view sourceName = {});
-
 [[nodiscard]] SceneSaveResult SaveSceneToml(const Scene& scene);
 } // namespace trace2d::scene

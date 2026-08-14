@@ -1,5 +1,48 @@
-format_version = 1
+format_version = 2
 
 [scene]
-id = "e0.main"
-name = "E0 External Game"
+id = "e2.main"
+name = "E2 External Authored Game"
+
+[[entities]]
+id = "game.player"
+name = "Player"
+tags = ["player", "hero"]
+
+[entities.transform]
+position = [0, 0]
+rotation_radians = 0
+scale = [1, 1]
+
+[[entities.components]]
+type = "trace2d.visibility2d"
+version = 1
+
+[entities.components.data]
+visible = true
+
+[[entities.components]]
+type = "game.health"
+version = 1
+
+[entities.components.data]
+current = 100
+maximum = 100
+
+[[entities]]
+id = "game.weapon"
+name = "Weapon"
+tags = ["equipment"]
+parent = "game.player"
+
+[entities.transform]
+position = [1, 0]
+rotation_radians = 0
+scale = [1, 1]
+
+[[entities.components]]
+type = "trace2d.visibility2d"
+version = 1
+
+[entities.components.data]
+visible = true

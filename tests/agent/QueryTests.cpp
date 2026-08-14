@@ -40,6 +40,23 @@ TEST(AgentQueryTests, SelectsAuthoredIdExactly)
     EXPECT_EQ(result.matches[0].name, "Player");
 }
 
+TEST(AgentQueryTests, QueryOneResolvesCanonicalDottedSemanticId)
+{
+    trace2d::scene::Scene scene{{.semanticId = "arena", .name = "Arena"}};
+    const auto player = scene.CreateEntity(MakeEntity("game.player", "Player"));
+    const auto weapon = scene.CreateEntity(MakeEntity("game.weapon", "Weapon"));
+    ASSERT_EQ(scene.SetParent(weapon, player), trace2d::scene::HierarchyResult::Success);
+
+    const trace2d::agent::AgentFacade facade{nullptr, &scene};
+    const trace2d::agent::QueryOneResult result = facade.QueryOne("#game.weapon");
+
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.match.has_value());
+    EXPECT_EQ(result.match->semanticId, "game.weapon");
+    ASSERT_TRUE(result.match->parentSemanticId.has_value());
+    EXPECT_EQ(*result.match->parentSemanticId, "game.player");
+}
+
 TEST(AgentQueryTests, SelectsNameAndComponentTypeExactly)
 {
     trace2d::scene::Scene scene{{.semanticId = "arena", .name = "Arena"}};

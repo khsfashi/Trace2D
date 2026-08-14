@@ -1,0 +1,86 @@
+# E2 Deterministic Scene Composition
+
+Issue: **#71**
+
+E2 turns `Scene` from identity + `Transform2D` into the single authoritative authored world model shared by game code and Agent inspection.
+
+## Authority model
+
+- `Scene` owns entity identity, hierarchy, local transforms and attached component instances.
+- `Transform()` remains local authoritative state; world transforms are derived.
+- A `ComponentRegistry` is setup/lifecycle state. It is frozen before authored loading.
+- Stable text component IDs and schema versions are authored identity. Resolved numeric indices are runtime access keys. C++ RTTI names, allocation addresses and registration order are not semantic identity.
+- Agent snapshots are explicit tooling allocations. No component snapshot/JSON/TOML work occurs automatically in a fixed step.
+
+## Typed component boundary
+
+A user type registers explicit typed callbacks for authored parse, validation, canonical serialization and optional semantic inspection. Runtime-only types may omit authored callbacks. The engine type-erases storage only behind the registry; game code retrieves the original C++ type through `ComponentTypeHandle<T>`.
+
+Baseline storage is one instance/type/entity. Component objects are explicitly owned and destroyed; no tracing GC, mandatory atomic shared ownership or generic reflection/ECS is introduced. Type strings are resolved during authored setup or explicit Agent queries, not ordinary gameplay access.
+
+The initial engine-authored registered component is `trace2d.visibility2d` (schema 1). The external consumer registers `game.health` (schema 1) from `examples/e0_external_game`, outside `engine/`, proving installed-SDK composition.
+
+## Hierarchy semantics
+
+- parent/child mutation rejects missing IDs, self-parenting and cycles before commit,
+- child observation order is deterministic,
+- `KeepLocal` and `KeepWorld` reparenting are explicit,
+- world TRS is derived from exact 2x2 affine linear composition plus translation rather than component-wise scale multiplication,
+- if non-uniform scale + rotation introduces shear that cannot be represented by `Transform2D`, world TRS resolution fails explicitly instead of returning an approximation,
+- `KeepWorld` rejects a reparent before mutation when the requested local state would require shear; zero-scale parents remain explicitly non-invertible,
+- subtree destruction invalidates descendant generations before slot reuse can alias stale handles.
+
+World transform resolution is allocation-free O(depth). No hidden world cache is maintained in E2 because direct mutable local transforms remain a supported API; workload evidence should precede adding dirty propagation/caching complexity.
+
+Agent snapshots mirror the same boundary: `worldTransform` is optional, and `Hierarchy2D.world_trs_available` is false when the canonical hierarchy cannot be represented as TRS. Tooling must not substitute the local transform and label it as world state.
+
+## Authored lifecycle
+
+Version-2 TOML follows the frozen order:
+
+```text
+create stable entities
+ -> construct registered authored components in source order
+ -> typed parse/validate
+ -> resolve semantic parent references
+ -> establish hierarchy/world transforms
+ -> publish the completed Scene
+```
+
+Canonical output sorts entities and components by their stable semantic IDs, so serialization does not depend on slot allocation or registration order.
+
+The authored TOML adapter checks the actual TOML node type before conversion. This preserves bool/integer/float/string distinctions for typed component adapters instead of relying on permissive cross-type conversion.
+
+## Agent semantic inspection boundary
+
+Registered component inspection uses the bounded semantic vocabulary already defined by E2:
+
+- bool,
+- signed/unsigned integer,
+- finite scalar,
+- text,
+- float2 / float4,
+- stable entity reference,
+- stable resource reference,
+- enum identifier.
+
+The Agent projection preserves these kinds instead of stringifying vectors/references/enums. It still reuses `Inspect`, `Query` and `QueryOne`; E2 does not add a component-specific Agent tool or a generic reflection/property database.
+
+## External proof
+
+The existing external E0/E1 game fixture is upgraded without moving game code into `engine/`:
+
+- `content/scenes/main.trace2d.toml` authors `game.player` + child `game.weapon`,
+- both use the engine `trace2d.visibility2d` component,
+- the external project registers and authors `game.health`,
+- fixed-step game logic accesses `Health` with a resolved typed handle,
+- the windowed host reads world transform + visibility from the same `Scene`,
+- the headless host performs save/load/save canonical round-trip and verifies `type:game.health`, hierarchy and world transform through the existing Agent query surface.
+
+This deliberately reuses `Query`/`QueryOne` instead of adding an E2-specific Agent tool, preserving the Agent Complexity Budget introduced after B1.
+
+## Performance boundary
+
+Normal frame work added by E2 is limited to game-requested component access and hierarchy/world-transform queries. There is no mandatory per-frame filesystem parsing, semantic type-name lookup, TOML/JSON serialization, Agent snapshot construction, GPU readback or shared-ownership churn.
+
+Component instances currently use explicit per-instance allocation at structural setup/lifecycle boundaries. This is not a frame-loop allocation path. If representative world workloads show that representation is material, storage pooling/chunking can be introduced behind the same typed-handle contract without changing authored identity.

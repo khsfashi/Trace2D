@@ -4,6 +4,7 @@
 #include <trace2d/agent/SpriteAnimationInspection.hpp>
 #include <trace2d/agent/UiAutomation.hpp>
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -42,6 +43,11 @@ enum class FieldValueKind
     UnsignedInteger,
     Float,
     String,
+    Float2,
+    Float4,
+    EntityReference,
+    ResourceReference,
+    EnumName,
 };
 
 [[nodiscard]] std::string_view ToString(FieldValueKind kind) noexcept;
@@ -53,6 +59,7 @@ struct FieldValue final
     std::int64_t signedIntegerValue{0};
     std::uint64_t unsignedIntegerValue{0};
     float floatValue{0.0F};
+    std::array<float, 4> vectorValue{};
     std::string stringValue{};
 
     [[nodiscard]] bool operator==(const FieldValue&) const noexcept = default;
@@ -69,6 +76,8 @@ struct ComponentFieldSnapshot final
 struct ComponentSnapshot final
 {
     std::string type{};
+    std::uint32_t schemaVersion{0};
+    bool authored{false};
     std::vector<ComponentFieldSnapshot> fields{};
 
     [[nodiscard]] bool operator==(const ComponentSnapshot&) const noexcept = default;
@@ -113,7 +122,12 @@ struct EntitySnapshot final
     std::string semanticId{};
     std::string name{};
     std::vector<std::string> tags{};
+    std::optional<EntityHandleSnapshot> parentHandle{};
+    std::optional<std::string> parentSemanticId{};
+    std::vector<EntityHandleSnapshot> childHandles{};
+    std::vector<std::string> childSemanticIds{};
     Transform2DSnapshot transform{};
+    std::optional<Transform2DSnapshot> worldTransform{};
     std::optional<Bounds2DSnapshot> bounds{};
     std::vector<ComponentSnapshot> components{};
 
