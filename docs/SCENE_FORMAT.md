@@ -37,6 +37,24 @@ current = 75
 maximum = 100
 
 [[entities]]
+id = "main_camera"
+
+[entities.transform]
+position = [0.0, 0.0]
+rotation_radians = 0.0
+scale = [1.0, 1.0]
+
+[[entities.components]]
+type = "trace2d.camera2d"
+version = 1
+
+[entities.components.data]
+enabled = true
+priority = 0
+target_viewport = "main"
+vertical_size = 10.0
+
+[[entities]]
 id = "weapon"
 parent = "player"
 
@@ -73,6 +91,19 @@ The baseline is one instance of a component type per entity. Runtime-only compon
 The generic scene boundary only transports a bounded semantic authoring vocabulary (bool, signed/unsigned integer, finite scalar, text, float2, float4 and stable reference/enum text). The **typed adapter** owns field names, validation and conversion into the game/engine C++ type. There is no generic `map<string, Variant>` runtime truth model.
 
 The loader determines the concrete TOML node kind before extracting its value, so authored integers remain integers and booleans remain booleans at the typed adapter boundary.
+
+### Built-in authored types
+
+`RegisterSceneComponents` registers the baseline engine-authored types, including:
+
+- `trace2d.visibility2d` version 1: boolean `visible`,
+- `trace2d.camera2d` version 1:
+  - boolean `enabled`,
+  - signed integer `priority`,
+  - non-empty text `target_viewport`,
+  - finite positive float `vertical_size`.
+
+`Camera2D` position is not duplicated inside component data; it comes from the owning entity/world transform. `vertical_size` is the canonical orthographic size/zoom truth. Active-camera selection and logical/presentation viewport semantics are documented in `CAMERA_VIEWPORT_2D.md`.
 
 ## Deterministic load lifecycle
 
