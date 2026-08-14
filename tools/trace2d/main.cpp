@@ -1,6 +1,7 @@
 #include "AgentCommands.hpp"
 #include "PublicAlphaCommand.hpp"
 
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/core/Version.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
@@ -15,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 
 namespace
 {
@@ -233,6 +235,7 @@ int RunRuntime(const int argc, char* argv[])
     {
         trace2d::platform::Platform platform{platformConfig};
         trace2d::runtime::FixedStepRuntime runtime{runtimeConfig};
+        trace2d::assets::ResourceRegistry resources{"."};
         std::unique_ptr<trace2d::render::Renderer> renderer{};
         trace2d::render::OrthographicCamera sampleCamera{};
         trace2d::render::SpriteRenderData sampleSprite{};
@@ -246,7 +249,25 @@ int RunRuntime(const int argc, char* argv[])
             sampleTextureData.height = 2;
             sampleTextureData.pixels = SampleSpritePixels;
 
-            sampleSprite.texture = renderer->CreateTextureRgba8(sampleTextureData);
+            trace2d::assets::TextureResource canonicalTexture{};
+            canonicalTexture.width = sampleTextureData.width;
+            canonicalTexture.height = sampleTextureData.height;
+            canonicalTexture.colorSpace = trace2d::assets::TextureResourceColorSpace::Linear;
+            canonicalTexture.alphaMode = trace2d::assets::TextureResourceAlphaMode::Straight;
+            canonicalTexture.cpuRetention = trace2d::assets::CpuRetentionPolicy::Reacquirable;
+            canonicalTexture.retentionReason = "CLI sample texture can be regenerated from built-in pixels";
+            canonicalTexture.canonicalRgba8.assign(SampleSpritePixels.begin(), SampleSpritePixels.end());
+            const auto publishedTexture = resources.PublishTexture(
+                "runtime/cli-sample.rgba8",
+                std::move(canonicalTexture));
+            if (!publishedTexture.Succeeded())
+            {
+                throw std::runtime_error{"Trace2D CLI could not publish its sample texture resource."};
+            }
+
+            sampleSprite.texture = renderer->CreateTextureRgba8(
+                publishedTexture.handle,
+                sampleTextureData);
             sampleSprite.halfExtents = trace2d::render::Float2{1.5F, 1.5F};
             sampleCamera.verticalSize = 6.0F;
         }
@@ -276,6 +297,13 @@ int RunRuntime(const int argc, char* argv[])
             else
             {
                 renderer->RenderFrame(sampleCamera, sampleSprite);
+            }
+
+            renderer->DestroyTexture(sampleSprite.texture);
+            const auto unloadResult = resources.Unload(sampleSprite.texture.Untyped());
+            if (!unloadResult.Succeeded())
+            {
+                throw std::runtime_error{"Trace2D CLI could not unload its sample texture resource."};
             }
         }
 
