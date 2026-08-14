@@ -19,6 +19,7 @@ include(CTest)
 
 add_subdirectory(engine)
 add_subdirectory(tools)
+add_subdirectory(examples)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

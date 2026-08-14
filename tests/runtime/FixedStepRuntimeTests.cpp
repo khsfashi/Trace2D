@@ -98,12 +98,35 @@ TEST(FixedStepRuntimeTests, WallClockAccumulationPreservesSubstepRemainder)
     EXPECT_EQ(runtime.State().accumulatedWallTime, 0ns);
 }
 
+TEST(FixedStepRuntimeTests, ConsumeElapsedSeparatesWallClockSchedulingFromSimulationAdvance)
+{
+    trace2d::runtime::RuntimeConfig config{};
+    config.fixedTimestep = 10ms;
+    trace2d::runtime::FixedStepRuntime runtime{config};
+
+    EXPECT_EQ(runtime.ConsumeElapsed(25ms), 2U);
+    EXPECT_EQ(runtime.State().frame, 0U);
+    EXPECT_EQ(runtime.State().simulationTime, 0ns);
+    EXPECT_EQ(runtime.State().accumulatedWallTime, 5ms);
+
+    runtime.Step(2);
+    EXPECT_EQ(runtime.State().frame, 2U);
+    EXPECT_EQ(runtime.State().simulationTime, 20ms);
+    EXPECT_EQ(runtime.State().accumulatedWallTime, 5ms);
+
+    EXPECT_EQ(runtime.ConsumeElapsed(5ms), 1U);
+    EXPECT_EQ(runtime.State().frame, 2U);
+    EXPECT_EQ(runtime.State().accumulatedWallTime, 0ns);
+}
+
 TEST(FixedStepRuntimeTests, NonPositiveElapsedTimeDoesNotAdvance)
 {
     trace2d::runtime::FixedStepRuntime runtime{};
 
     EXPECT_EQ(runtime.AccumulateElapsed(0ns), 0U);
     EXPECT_EQ(runtime.AccumulateElapsed(-1ns), 0U);
+    EXPECT_EQ(runtime.ConsumeElapsed(0ns), 0U);
+    EXPECT_EQ(runtime.ConsumeElapsed(-1ns), 0U);
     EXPECT_EQ(runtime.State().frame, 0U);
 }
 } // namespace

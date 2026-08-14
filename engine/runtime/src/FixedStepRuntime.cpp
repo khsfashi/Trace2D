@@ -49,7 +49,7 @@ void FixedStepRuntime::Step(const std::uint64_t count)
     simulationTime_ += config_.fixedTimestep * static_cast<std::chrono::nanoseconds::rep>(count);
 }
 
-std::uint64_t FixedStepRuntime::AccumulateElapsed(const std::chrono::nanoseconds elapsed)
+std::uint64_t FixedStepRuntime::ConsumeElapsed(const std::chrono::nanoseconds elapsed)
 {
     if (elapsed.count() <= 0)
     {
@@ -65,9 +65,25 @@ std::uint64_t FixedStepRuntime::AccumulateElapsed(const std::chrono::nanoseconds
     const std::chrono::nanoseconds::rep totalNanoseconds = currentNanoseconds + elapsed.count();
     const std::chrono::nanoseconds::rep timestepNanoseconds = config_.fixedTimestep.count();
     const auto availableFrames = static_cast<std::uint64_t>(totalNanoseconds / timestepNanoseconds);
-
-    Step(availableFrames);
     accumulatedWallTime_ = std::chrono::nanoseconds{totalNanoseconds % timestepNanoseconds};
+    return availableFrames;
+}
+
+std::uint64_t FixedStepRuntime::AccumulateElapsed(const std::chrono::nanoseconds elapsed)
+{
+    const std::chrono::nanoseconds previousAccumulator = accumulatedWallTime_;
+    const std::uint64_t availableFrames = ConsumeElapsed(elapsed);
+
+    try
+    {
+        Step(availableFrames);
+    }
+    catch (...)
+    {
+        accumulatedWallTime_ = previousAccumulator;
+        throw;
+    }
+
     return availableFrames;
 }
 
