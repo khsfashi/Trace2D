@@ -91,6 +91,7 @@ struct Visibility2D final
     [[nodiscard]] bool operator==(const Visibility2D&) const noexcept = default;
 };
 
+struct Camera2D;
 class ComponentRegistry;
 
 template <typename T>
@@ -300,6 +301,7 @@ private:
 struct SceneComponentTypes final
 {
     ComponentTypeHandle<Visibility2D> visibility{};
+    ComponentTypeHandle<Camera2D> camera{};
 };
 
 [[nodiscard]] SceneComponentTypes RegisterSceneComponents(ComponentRegistry& registry);
