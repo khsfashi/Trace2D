@@ -37,11 +37,11 @@ std::string_view ToString(const CameraInspectionErrorCode code) noexcept
 }
 
 CameraViewportInspectionResult2D InspectActiveCameraViewport2D(
-    const scene::Scene* const scene,
+    const scene::Scene* const worldScene,
     const scene::ComponentTypeHandle<scene::Camera2D> cameraType,
     const std::string_view viewportSemanticId)
 {
-    if (scene == nullptr)
+    if (worldScene == nullptr)
     {
         return MakeError(
             CameraInspectionErrorCode::SceneUnavailable,
@@ -49,7 +49,7 @@ CameraViewportInspectionResult2D InspectActiveCameraViewport2D(
     }
 
     const scene::CameraSelection2D selection =
-        scene::ResolveCameraSelection2D(*scene, cameraType, viewportSemanticId);
+        scene::ResolveCameraSelection2D(*worldScene, cameraType, viewportSemanticId);
     if (!selection.Succeeded())
     {
         switch (selection.error)
@@ -71,8 +71,8 @@ CameraViewportInspectionResult2D InspectActiveCameraViewport2D(
         }
     }
 
-    const scene::Entity* const entity = scene->TryGet(selection.entity);
-    const scene::Camera2D* const camera = scene->TryGetComponent(selection.entity, cameraType);
+    const scene::Entity* const entity = worldScene->TryGet(selection.entity);
+    const scene::Camera2D* const camera = worldScene->TryGetComponent(selection.entity, cameraType);
     if (entity == nullptr || camera == nullptr || !camera->enabled)
     {
         return MakeError(
@@ -81,7 +81,7 @@ CameraViewportInspectionResult2D InspectActiveCameraViewport2D(
     }
 
     scene::Transform2D world{};
-    if (!scene->TryGetWorldTransform(selection.entity, world))
+    if (!worldScene->TryGetWorldTransform(selection.entity, world))
     {
         return MakeError(
             CameraInspectionErrorCode::InvalidWorldTransform,
