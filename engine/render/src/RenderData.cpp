@@ -31,29 +31,40 @@ bool TryBuildOrthographicView(
     outView = {};
 
     if (targetWidth == 0 || targetHeight == 0 || !IsFinite(camera.center) ||
-        !std::isfinite(camera.verticalSize) || camera.verticalSize <= 0.0F)
+        !std::isfinite(camera.verticalSize) || camera.verticalSize <= 0.0F ||
+        !IsFinite(camera.presentationScale) || camera.presentationScale.x <= 0.0F ||
+        camera.presentationScale.y <= 0.0F)
     {
         return false;
     }
 
     const float halfHeight = camera.verticalSize * 0.5F;
     const float aspectRatio = static_cast<float>(targetWidth) / static_cast<float>(targetHeight);
-    const float halfWidth = halfHeight * aspectRatio;
+    const float targetHalfWidth = halfHeight * aspectRatio;
 
-    if (!std::isfinite(halfHeight) || !std::isfinite(aspectRatio) || !std::isfinite(halfWidth) ||
-        halfHeight <= 0.0F || halfWidth <= 0.0F)
+    if (!std::isfinite(halfHeight) || !std::isfinite(aspectRatio) || !std::isfinite(targetHalfWidth) ||
+        halfHeight <= 0.0F || targetHalfWidth <= 0.0F)
     {
         return false;
     }
 
-    const Float2 clipScale{1.0F / halfWidth, 1.0F / halfHeight};
-    if (!IsFinite(clipScale))
+    const Float2 clipScale{
+        camera.presentationScale.x / targetHalfWidth,
+        camera.presentationScale.y / halfHeight,
+    };
+    if (!IsFinite(clipScale) || clipScale.x <= 0.0F || clipScale.y <= 0.0F)
+    {
+        return false;
+    }
+
+    const Float2 halfExtents{1.0F / clipScale.x, 1.0F / clipScale.y};
+    if (!IsFinite(halfExtents) || halfExtents.x <= 0.0F || halfExtents.y <= 0.0F)
     {
         return false;
     }
 
     outView.center = camera.center;
-    outView.halfExtents = Float2{halfWidth, halfHeight};
+    outView.halfExtents = halfExtents;
     outView.clipScale = clipScale;
     return true;
 }
