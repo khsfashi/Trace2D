@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-20cd8282c1232234ea2bf117287ef167ee14e521",
+  "source_event": "merge",
+  "event_id": "20cd8282c1232234ea2bf117287ef167ee14e521",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#69",
+        "url": "https://github.com/khsfashi/Trace2D/issues/69"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "20cd8282c1232234ea2bf117287ef167ee14e521",
+        "authored_at": "2026-08-14T15:06:59+09:00",
+        "subject": "E0: external Game/Application module boundary (#182)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "application/game-boundary"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "external games implement one source-level Game lifecycle over an engine-owned Application and canonical Runtime/Input/Scene/UI state.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "separate wall-clock scheduling from authoritative fixed stepping so external game code executes exactly once per fixed update under both headless and windowed hosts.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Application alone owns Input frame advancement; physical input is retained until the next frame after transient clear so edge semantics survive.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "reuse existing WorkSpec/WorkResult/VerificationRecord and Agent inspection over canonical application-owned state instead of creating a second Agent game authority.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      },
+      {
+        "id": "decisions-005",
+        "text": "windowed presentation derives render input from canonical external-game Scene state while Renderer remains host-only.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Decision",
+            "ordinal": 5,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "GameContext exposes no SDL/backend/MCP/internal service-registration knowledge and does not let game code step Runtime or advance Input frames.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "no required per-fixed-step allocation/filesystem/parsing/report generation/GPU readback is added by Application orchestration.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "binary plugin ABI before measured need | generic reflection/ECS/event framework | Agent-only game database | duplicated headless simulation lifecycle | mutable host InputSystem frame control | immediate physical ApplyEvent that loses transient edges.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "20cd8282c1232234ea2bf117287ef167ee14e521",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/20cd8282c1232234ea2bf117287ef167ee14e521"
+          }
+        ],
+        "alternative": "binary plugin ABI before measured need",
+        "reason": "generic reflection/ECS/event framework | Agent-only game database | duplicated headless simulation lifecycle | mutable host InputSystem frame control | immediate physical ApplyEvent that loses transient edges."
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#67 #70 #97 #98 #175"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
