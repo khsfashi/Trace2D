@@ -15,6 +15,7 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_PREFIX_PATH": "$env{TRACE2D_ROOT}",
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
         "BUILD_TESTING": "ON"
       }
     }
