@@ -38,6 +38,11 @@ std::string_view ToString(const FieldValueKind kind) noexcept
     case FieldValueKind::UnsignedInteger: return "uint64";
     case FieldValueKind::Float: return "float";
     case FieldValueKind::String: return "string";
+    case FieldValueKind::Float2: return "float2";
+    case FieldValueKind::Float4: return "float4";
+    case FieldValueKind::EntityReference: return "entity_ref";
+    case FieldValueKind::ResourceReference: return "resource_ref";
+    case FieldValueKind::EnumName: return "enum";
     }
     return "unknown";
 }
