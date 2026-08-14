@@ -1,3 +1,4 @@
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 #include <trace2d/ui/UiRaster.hpp>
@@ -267,12 +268,31 @@ int main(const int argc, char* argv[])
         platformConfig.mode = trace2d::platform::StartupMode::Windowed;
         trace2d::platform::Platform platform{platformConfig};
         trace2d::render::Renderer renderer{trace2d::render::RendererConfig{}, platform};
+        trace2d::assets::ResourceRegistry resources{"."};
 
         trace2d::render::Rgba8TextureData textureData{};
         textureData.width = raster.width;
         textureData.height = raster.height;
         textureData.pixels = std::span<const std::uint8_t>{raster.rgba8.data(), raster.rgba8.size()};
-        const trace2d::render::TextureHandle texture = renderer.CreateTextureRgba8(textureData);
+
+        trace2d::assets::TextureResource canonicalTexture{};
+        canonicalTexture.width = raster.width;
+        canonicalTexture.height = raster.height;
+        canonicalTexture.colorSpace = trace2d::assets::TextureResourceColorSpace::Linear;
+        canonicalTexture.alphaMode = trace2d::assets::TextureResourceAlphaMode::Straight;
+        canonicalTexture.cpuRetention = trace2d::assets::CpuRetentionPolicy::Reacquirable;
+        canonicalTexture.retentionReason = "UI preview raster can be regenerated from authored UI";
+        canonicalTexture.canonicalRgba8 = raster.rgba8;
+        const auto publishedTexture = resources.PublishTexture(
+            "runtime/ui-preview.rgba8",
+            std::move(canonicalTexture));
+        if (!publishedTexture.Succeeded())
+        {
+            return PrintFailure(json, "resource", "Could not publish UI preview texture resource.");
+        }
+
+        const trace2d::render::TextureHandle texture =
+            renderer.CreateTextureRgba8(publishedTexture.handle, textureData);
 
         const float halfWidth = static_cast<float>(document.Width()) * 0.5F;
         const float halfHeight = static_cast<float>(document.Height()) * 0.5F;
@@ -305,6 +325,7 @@ int main(const int argc, char* argv[])
         }
 
         renderer.DestroyTexture(texture);
+        static_cast<void>(resources.Unload(texture.Untyped()));
 
         if (json)
         {
