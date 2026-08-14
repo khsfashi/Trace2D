@@ -54,9 +54,9 @@ This deliberately matches the established headless `GameplayScenario` frame owne
 The external game module contains no SDL, renderer, MCP or backend types.
 
 - `trace2d_e0_external_headless` drives the game without a window/GPU and is a deterministic CTest proof.
-- `trace2d_e0_external_windowed` uses `Platform` and `Renderer` only in the host executable. It installs an explicit presentation callback and runs the same `ExampleGame` class.
+- `trace2d_e0_external_windowed` uses `Platform` and `Renderer` only in the host executable. It installs an explicit presentation callback, reads the canonical `game.player` Transform from `GameContext::Scene()`, and submits a visible Sprite at that position while running the same `ExampleGame` class.
 
-Presentation is therefore a host concern over canonical current game state. It does not mutate or replace authoritative fixed-step state.
+Presentation is therefore a host concern over canonical current game state. It does not mutate or replace authoritative fixed-step state. The E0 CI gate requires the windowed host to compile; it does not invent a new real-GPU acceptance authority because Renderer semantics remain owned by the existing renderer/GPU evidence gates.
 
 ## Existing Agent / work authority is reused
 
@@ -126,7 +126,7 @@ The committed tests/proofs cover:
 - scene/input/UI access without backend types in `GameContext`,
 - existing WorkSpec/WorkResult/VerificationRecord participation,
 - existing Agent inspection over the canonical Scene,
-- optional presentation with no presentation requirement for deterministic acceptance,
+- windowed host compilation that renders a Sprite from the same canonical external-game state,
 - no binary plugin ABI or generic reflection/ECS/event framework.
 
 After #69 merges green, the live core lane advances to #70 — project manifest and external consumer build/install/package flow.
