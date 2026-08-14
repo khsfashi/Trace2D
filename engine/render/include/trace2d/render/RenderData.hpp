@@ -19,15 +19,31 @@ struct Float2 final
     [[nodiscard]] bool operator==(const Float2&) const noexcept = default;
 };
 
+// Presentation-only GPU raster viewport. Disabled preserves the historical full-target Renderer
+// behavior. When enabled, target dimensions are frozen with the resolved C0 presentation state so
+// a later OS/window resize cannot silently reuse stale fit/fill/stretch coefficients.
+struct PresentationRasterViewport2D final
+{
+    bool enabled{false};
+    std::uint32_t targetWidth{0U};
+    std::uint32_t targetHeight{0U};
+    Float2 origin{};
+    Float2 size{};
+
+    [[nodiscard]] bool operator==(const PresentationRasterViewport2D&) const noexcept = default;
+};
+
 struct OrthographicCamera final
 {
     Float2 center{};
     float verticalSize{10.0F};
 
     // Presentation-only multiplier applied after the render-target aspect projection is derived.
-    // C0 uses this to encode fit/fill/stretch while keeping verticalSize as the single authoritative
-    // camera size. Default {1,1} preserves the pre-C0 renderer contract exactly.
+    // Default {1,1} preserves the pre-C0 renderer contract exactly. C0 resolved cameras pair this
+    // with rasterViewport so world-to-clip stays the logical-viewport projection while the GPU
+    // viewport performs fit/fill/stretch mapping without per-object camera work.
     Float2 presentationScale{1.0F, 1.0F};
+    PresentationRasterViewport2D rasterViewport{};
 
     [[nodiscard]] bool operator==(const OrthographicCamera&) const noexcept = default;
 };
@@ -94,6 +110,7 @@ struct SpriteDrawOrderLess final
 
 static_assert(std::is_trivially_copyable_v<TextureHandle>);
 static_assert(std::is_trivially_copyable_v<Float2>);
+static_assert(std::is_trivially_copyable_v<PresentationRasterViewport2D>);
 static_assert(std::is_trivially_copyable_v<OrthographicCamera>);
 static_assert(std::is_trivially_copyable_v<OrthographicView>);
 static_assert(std::is_trivially_copyable_v<SpriteRenderData>);
