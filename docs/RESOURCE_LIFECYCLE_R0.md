@@ -125,6 +125,28 @@ A texture declares one CPU retention policy:
 
 R0 records only engine-known renderer bytes. It does not claim unknown driver allocation, residency overhead, fragmentation, or allocator bookkeeping as exact GPU memory.
 
+### Renderer texture identity boundary
+
+The renderer does not mint a second texture identity. `render::TextureHandle` is the canonical typed `ResourceHandle<TextureResource>` produced by `ResourceRegistry`.
+
+Production texture upload therefore follows this order:
+
+```text
+PublishTexture / resolve canonical texture
+                ↓
+ResourceHandle<TextureResource>
+                ↓ CreateTextureRgba8 / CreateSpriteTextureRgba8
+renderer-owned SDL GPU residency
+                ↓ draw / capture
+O(1) canonical slot + exact generation validation
+```
+
+Renderer GPU residency is indexed by the canonical texture slot and records the exact canonical generation beside the SDL texture pointer. Vector growth can occur only while explicit upload/setup introduces a higher canonical slot. Normal draw/capture resolution performs no allocation, hash lookup, path lookup, or ownership operation.
+
+`DestroyTexture(handle)` releases derived GPU residency only when both slot and generation match. A stale handle is a no-op and cannot release a replacement texture that reused the same canonical slot with a newer generation. Rendering with that stale generation is rejected before the SDL texture pointer is used.
+
+Canonical resource unload remains an explicit `ResourceRegistry` operation owned by the caller/project. The expected teardown sequence is renderer residency release followed by canonical resource unload when dependency/retain rules permit it.
+
 ## Memory evidence
 
 Explicit inspection reports separately:
@@ -155,9 +177,9 @@ Future TileSet, Font, Audio, Material, and similar resource payloads should exte
 
 ## Performance contract
 
-Setup/import/lifecycle work may allocate, normalize text, hash identity keys, build dependency metadata, scan the registry, or build inspection snapshots.
+Setup/import/lifecycle work may allocate, normalize text, hash identity keys, build dependency metadata, scan the registry, resize renderer residency storage during upload, or build inspection snapshots.
 
-Steady-state resource access must not do any of those things. The R0 tests retain one texture handle and perform 10,000 direct resolves while proving that the canonicalization counter is unchanged and registry filesystem-query count remains zero.
+Steady-state resource access must not do any of those things. The R0 tests retain one texture handle and perform 10,000 direct resolves while proving that the canonicalization counter is unchanged and registry filesystem-query count remains zero. Renderer draw/capture texture resolution is likewise a direct slot/generation check over retained residency storage.
 
 The baseline deliberately does not add:
 
@@ -186,7 +208,13 @@ Streaming, batched staging, or async work should be introduced only after measur
 9. 10,000 retained direct resolves with no canonicalization/filesystem work,
 10. texture canonical CPU release while renderer residency and color/alpha metadata remain explicit.
 
-Hosted exact-head Windows/MSVC `/W4 /WX` build and full CTest remain the integration acceptance authority for this connector-only implementation environment.
+`RendererTextureLifecycleGpuSmokeTests.cpp` additionally proves the renderer integration on a real presentation GPU:
+
+11. unload and republish reuse the canonical texture slot with a newer generation,
+12. stale renderer destruction cannot release the replacement generation,
+13. stale-generation rendering is rejected while the live replacement still renders successfully.
+
+Hosted exact-head Windows/MSVC `/W4 /WX` build and full CTest remain the integration acceptance authority. The owner Windows GPU gate is the acceptance authority for the renderer stale-generation smoke because skipped GPU tests fail that gate.
 
 ## Handoff
 
