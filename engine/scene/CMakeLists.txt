@@ -2,6 +2,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_scene STATIC
     src/Camera2D.cpp
+    src/CameraSelection2D.cpp
     src/Components.cpp
     src/Scene.cpp
     src/SceneText.cpp
