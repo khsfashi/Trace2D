@@ -43,6 +43,24 @@ struct Rgba8TextureData final
     std::span<const std::uint8_t> pixels{};
 };
 
+#if defined(TRACE2D_RENDER_TEST_TEXTURE_FACTORY)
+namespace detail
+{
+// Existing GPU tests exercise rendering semantics rather than resource identity. Keep their
+// synthetic identities isolated to the test target so production Renderer never regains a second
+// texture-handle allocator. R0 lifecycle coverage uses a real ResourceRegistry separately.
+[[nodiscard]] inline TextureHandle AllocateSyntheticTestTextureHandle() noexcept
+{
+    static std::uint32_t nextSlot = 0U;
+    return TextureHandle{
+        nextSlot++,
+        1U,
+        assets::ResourceTypeDomain::Texture,
+    };
+}
+} // namespace detail
+#endif
+
 enum class SpritePresentationGeometryKind : std::uint8_t
 {
     Quad = 0,
@@ -133,6 +151,25 @@ public:
         TextureHandle texture,
         const Rgba8TextureData& textureData,
         SpriteTextureEncoding encoding);
+
+#if defined(TRACE2D_RENDER_TEST_TEXTURE_FACTORY)
+    // Test-only source compatibility for pre-R0 GPU rendering tests. Production code never sees
+    // these overloads, so runtime texture identity remains exclusively ResourceRegistry-owned.
+    [[nodiscard]] TextureHandle CreateTextureRgba8(const Rgba8TextureData& textureData)
+    {
+        return CreateTextureRgba8(detail::AllocateSyntheticTestTextureHandle(), textureData);
+    }
+
+    [[nodiscard]] TextureHandle CreateSpriteTextureRgba8(
+        const Rgba8TextureData& textureData,
+        const SpriteTextureEncoding encoding)
+    {
+        return CreateSpriteTextureRgba8(
+            detail::AllocateSyntheticTestTextureHandle(),
+            textureData,
+            encoding);
+    }
+#endif
 
     // Releases derived GPU residency only. Canonical ResourceRegistry ownership/unload remains an
     // explicit resource-lifecycle operation owned by the caller/project.
