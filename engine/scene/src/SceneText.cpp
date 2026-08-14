@@ -235,8 +235,14 @@ std::optional<SemanticValue> ReadSemanticValue(
     std::vector<SceneTextDiagnostic>& diagnostics)
 {
     SemanticValue value{};
-    if (const std::optional<bool> boolean = node.value<bool>(); boolean.has_value())
+    if (node.is_boolean())
     {
+        const std::optional<bool> boolean = node.value<bool>();
+        if (!boolean.has_value())
+        {
+            AddDiagnostic(diagnostics, std::string{path}, "Boolean value could not be read.", &node);
+            return std::nullopt;
+        }
         value.kind = SemanticValueKind::Boolean;
         value.booleanValue = *boolean;
         return value;
@@ -265,8 +271,14 @@ std::optional<SemanticValue> ReadSemanticValue(
         value.floatValue = *number;
         return value;
     }
-    if (const std::optional<std::string> text = node.value<std::string>(); text.has_value())
+    if (node.is_string())
     {
+        const std::optional<std::string> text = node.value<std::string>();
+        if (!text.has_value())
+        {
+            AddDiagnostic(diagnostics, std::string{path}, "String value could not be read.", &node);
+            return std::nullopt;
+        }
         value.kind = SemanticValueKind::Text;
         value.textValue = *text;
         return value;
