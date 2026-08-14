@@ -30,16 +30,22 @@ This is a **source-level C++ contract**, not a binary plugin ABI. E0 does not ad
 2. `OnFixedUpdate(GameContext&, FixedUpdate)` exactly once per authoritative fixed step
 3. `OnStop(GameContext&)`
 
-Game code cannot step `FixedStepRuntime` through `GameContext`, and it receives `InputSystem` read-only. The host does not receive mutable `InputSystem` frame control either: physical/virtual events enter only through `Application::ApplyInput()` or `Application::ScheduleInput()`. `Application` alone advances input frames in the fixed order:
+Game code cannot step `FixedStepRuntime` through `GameContext`, and it receives `InputSystem` read-only. The host does not receive mutable `InputSystem` frame control either: physical/virtual events enter only through `Application::ApplyInput()` or deterministic `Application::ScheduleInput()`.
+
+`ApplyInput()` retains host events in a reusable pending buffer until the next fixed frame. This is required because `InputSystem::AdvanceToFrame()` clears prior transient state. Applying pending host events **after** that clear makes `Pressed`/`Released` edges visible to the game on exactly the next authoritative frame instead of silently losing them.
+
+The fixed order is:
 
 ```text
 resolve next fixed frame
  -> InputSystem::AdvanceToFrame(nextFrame)
+    (clears old transient state and applies deterministic scheduled events)
+ -> apply pending host InputEvent values in arrival order
  -> FixedStepRuntime::Step()
  -> Game::OnFixedUpdate(...)
 ```
 
-This deliberately matches the established headless `GameplayScenario` ordering rather than creating a second simulation convention.
+This deliberately matches the established headless `GameplayScenario` frame ownership while adding the host-event handoff needed by a real Application boundary.
 
 `FixedStepRuntime::ConsumeElapsed()` separates wall-clock scheduling from authoritative stepping. It returns the number of complete fixed steps while preserving the sub-step remainder, but does not advance simulation. `Application::AdvanceElapsed()` then executes those steps one by one so game logic cannot be skipped when a windowed host catches up multiple frames.
 
@@ -68,6 +74,7 @@ Representative common workflow:
 Application + external Game
  -> BindWorkContracts(...) when work intent/result is present
  -> Start()
+ -> ApplyInput(...) and/or ScheduleInput(...) when input is needed
  -> StepFrames(...) or AdvanceElapsed(...)
  -> Snapshot() / existing Agent inspection over canonical services
  -> Stop()
@@ -96,7 +103,9 @@ Token/tool-call measurements remain benchmark evidence rather than a universal E
 
 E0 adds no normal-frame filesystem access, parsing, JSON/string report construction, GPU readback or Agent snapshot generation.
 
-For `F` fixed frames, application orchestration is `O(F + scheduled input work + game work)`. The fixed-step loop reuses retained `Application`, `GameContext`, Runtime, Input, Scene and UI objects. It performs one virtual `Game::OnFixedUpdate` dispatch per fixed step and no required heap allocation of its own per fixed update. Game/subsystem allocations remain governed by their owning contracts.
+For `F` fixed frames, application orchestration is `O(F + pending/scheduled input work + game work)`. The fixed-step loop reuses retained `Application`, `GameContext`, Runtime, Input, Scene and UI objects. It performs one virtual `Game::OnFixedUpdate` dispatch per fixed step and no required heap allocation of its own per fixed update.
+
+The pending host-input vector reserves reusable capacity during Application construction and is cleared without releasing that capacity after each fixed frame. A host input burst may grow the vector only when it exceeds retained capacity; subsequent frames reuse the high-water allocation. Deterministic scheduled input retains the existing `InputSystem` ownership/complexity.
 
 `Application::Snapshot()` is explicit inspection work and returns scalar counts plus a borrowed `string_view` into canonical Scene metadata. Presentation callbacks are explicit host calls and are not part of authoritative simulation stepping.
 
@@ -112,6 +121,7 @@ The committed tests/proofs cover:
 
 - external game source outside `engine/`,
 - explicit engine-owned lifecycle and fixed-step/input-frame ownership,
+- host `Pressed`/`Released` edge preservation on the next authoritative fixed frame,
 - identical game logic under explicit/headless and elapsed/windowed-style stepping,
 - scene/input/UI access without backend types in `GameContext`,
 - existing WorkSpec/WorkResult/VerificationRecord participation,

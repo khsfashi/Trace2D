@@ -89,6 +89,8 @@ Application::Application(Game& game, ApplicationConfig config)
     {
         throw std::invalid_argument{"Application UI dimensions must be within the supported UiDocument range."};
     }
+
+    pendingInputEvents_.reserve(InitialPendingInputCapacity);
 }
 
 void Application::BindWorkContracts(
@@ -107,9 +109,9 @@ void Application::SetPresentationCallback(
     presentationUserData_ = userData;
 }
 
-void Application::ApplyInput(const input::InputEvent& event) noexcept
+void Application::ApplyInput(const input::InputEvent& event)
 {
-    input_.ApplyEvent(event);
+    pendingInputEvents_.push_back(event);
 }
 
 void Application::ScheduleInput(
@@ -152,6 +154,12 @@ void Application::StepFrames(const std::uint64_t count)
     {
         const std::uint64_t nextFrame = runtime_.State().frame + 1U;
         input_.AdvanceToFrame(nextFrame);
+        for (const input::InputEvent& event : pendingInputEvents_)
+        {
+            input_.ApplyEvent(event);
+        }
+        pendingInputEvents_.clear();
+
         runtime_.Step();
 
         const runtime::RuntimeState state = runtime_.State();

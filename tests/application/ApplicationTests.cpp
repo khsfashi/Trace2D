@@ -51,6 +51,15 @@ public:
         frames.push_back(update.frame);
         deltas.push_back(update.fixedDelta);
 
+        if (context.Input().Pressed(trace2d::input::InputControl::KeyD))
+        {
+            pressedFrames.push_back(update.frame);
+        }
+        if (context.Input().Released(trace2d::input::InputControl::KeyD))
+        {
+            releasedFrames.push_back(update.frame);
+        }
+
         trace2d::scene::Entity* const player = context.Scene().TryGet(player_);
         if (player == nullptr)
         {
@@ -69,6 +78,8 @@ public:
 
     trace2d::scene::EntityId player_{};
     std::vector<std::uint64_t> frames{};
+    std::vector<std::uint64_t> pressedFrames{};
+    std::vector<std::uint64_t> releasedFrames{};
     std::vector<std::chrono::nanoseconds> deltas{};
     std::string observedWorkId{};
     std::uint64_t startCount{0};
@@ -129,6 +140,8 @@ TEST(ApplicationTests, OwnsLifecycleAndOneGameCallbackPerFixedStep)
     application.StepFrames(3);
 
     EXPECT_EQ(game.frames, (std::vector<std::uint64_t>{1U, 2U, 3U}));
+    EXPECT_EQ(game.pressedFrames, (std::vector<std::uint64_t>{1U}));
+    EXPECT_EQ(game.releasedFrames, (std::vector<std::uint64_t>{3U}));
     EXPECT_EQ(game.deltas, (std::vector<std::chrono::nanoseconds>{10ms, 10ms, 10ms}));
     EXPECT_EQ(application.Runtime().State().frame, 3U);
     EXPECT_EQ(application.Input().CurrentFrame(), 3U);
@@ -142,6 +155,32 @@ TEST(ApplicationTests, OwnsLifecycleAndOneGameCallbackPerFixedStep)
     EXPECT_EQ(application.Lifecycle(), trace2d::application::ApplicationLifecycle::Stopped);
     application.Stop();
     EXPECT_EQ(game.stopCount, 1U);
+}
+
+TEST(ApplicationTests, HostInputEdgesBecomeVisibleOnTheNextFixedFrame)
+{
+    RecordingGame game{};
+    trace2d::application::Application application{game, MakeConfig()};
+    application.Start();
+
+    application.ApplyInput(trace2d::input::InputEvent{
+        .control = trace2d::input::InputControl::KeyD,
+        .type = trace2d::input::InputEventType::Press,
+    });
+    EXPECT_EQ(application.Input().CurrentFrame(), 0U);
+    application.StepFrames();
+
+    EXPECT_EQ(game.pressedFrames, (std::vector<std::uint64_t>{1U}));
+    EXPECT_TRUE(application.Input().Held(trace2d::input::InputControl::KeyD));
+
+    application.ApplyInput(trace2d::input::InputEvent{
+        .control = trace2d::input::InputControl::KeyD,
+        .type = trace2d::input::InputEventType::Release,
+    });
+    application.StepFrames();
+
+    EXPECT_EQ(game.releasedFrames, (std::vector<std::uint64_t>{2U}));
+    EXPECT_FALSE(application.Input().Held(trace2d::input::InputControl::KeyD));
 }
 
 TEST(ApplicationTests, ElapsedAndExplicitSteppingShareAuthoritativeGameLogic)

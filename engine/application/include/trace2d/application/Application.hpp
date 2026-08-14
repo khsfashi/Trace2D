@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 namespace trace2d::agent
 {
@@ -116,7 +117,9 @@ public:
     void BindWorkContracts(const agent::WorkSpec* workSpec, agent::WorkResult* workResult) noexcept;
     void SetPresentationCallback(PresentationCallback callback, void* userData = nullptr) noexcept;
 
-    void ApplyInput(const input::InputEvent& event) noexcept;
+    // Physical/host input is retained until the next fixed frame so Pressed/Released edges remain
+    // visible after InputSystem clears transient state for that frame.
+    void ApplyInput(const input::InputEvent& event);
     void ScheduleInput(std::uint64_t frame, const input::InputEvent& event);
 
     void Start();
@@ -138,6 +141,8 @@ public:
     [[nodiscard]] const ui::UiDocument& Ui() const noexcept;
 
 private:
+    static constexpr std::size_t InitialPendingInputCapacity = 16U;
+
     void RequireRunning() const;
     void ValidateStepCount(std::uint64_t count) const;
 
@@ -147,6 +152,7 @@ private:
     scene::Scene scene_;
     ui::UiDocument ui_;
     GameContext context_;
+    std::vector<input::InputEvent> pendingInputEvents_{};
     ApplicationLifecycle lifecycle_{ApplicationLifecycle::Created};
     PresentationCallback presentationCallback_{nullptr};
     void* presentationUserData_{nullptr};
