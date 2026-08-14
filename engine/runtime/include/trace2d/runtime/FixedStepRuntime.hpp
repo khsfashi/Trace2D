@@ -29,6 +29,11 @@ public:
     void Reset(std::uint64_t seed) noexcept;
     void Step(std::uint64_t count = 1);
 
+    // Consume wall-clock time into complete fixed-step work without advancing authoritative
+    // simulation state. Application hosts use this to invoke game code exactly once per step.
+    [[nodiscard]] std::uint64_t ConsumeElapsed(std::chrono::nanoseconds elapsed);
+
+    // Compatibility helper for callers that do not need a callback between individual steps.
     [[nodiscard]] std::uint64_t AccumulateElapsed(std::chrono::nanoseconds elapsed);
 
     [[nodiscard]] const RuntimeConfig& Config() const noexcept;

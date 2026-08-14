@@ -1,0 +1,125 @@
+# E0 — External Game / Application Boundary
+
+Issue: #69
+
+## Product boundary
+
+Trace2D now has one source-level external game boundary:
+
+```text
+host executable
+  -> trace2d::application::Application
+       -> external Game
+            -> GameContext
+                 Runtime (read-only authoritative time)
+                 Scene (canonical world state)
+                 Input (read-only gameplay input)
+                 UI (canonical game UI)
+                 optional WorkSpec / WorkResult bindings
+```
+
+External game code lives outside `engine/`. The committed proof is `examples/e0_external_game/ExampleGame.*`.
+
+This is a **source-level C++ contract**, not a binary plugin ABI. E0 does not add a service locator, reflection system, ECS, callback/event framework or editor-owned game database.
+
+## Lifecycle and ownership
+
+`Application` owns the canonical runtime/input/scene/UI instances used by a game session. The external `Game` receives three lifecycle callbacks:
+
+1. `OnStart(GameContext&)`
+2. `OnFixedUpdate(GameContext&, FixedUpdate)` exactly once per authoritative fixed step
+3. `OnStop(GameContext&)`
+
+Game code cannot step `FixedStepRuntime` through `GameContext`, and it receives `InputSystem` read-only. The host injects physical/virtual input through `Application::Input()`; `Application` advances input and runtime in the fixed order:
+
+```text
+resolve next fixed frame
+ -> InputSystem::AdvanceToFrame(nextFrame)
+ -> FixedStepRuntime::Step()
+ -> Game::OnFixedUpdate(...)
+```
+
+This deliberately matches the established headless `GameplayScenario` ordering rather than creating a second simulation convention.
+
+`FixedStepRuntime::ConsumeElapsed()` separates wall-clock scheduling from authoritative stepping. It returns the number of complete fixed steps while preserving the sub-step remainder, but does not advance simulation. `Application::AdvanceElapsed()` then executes those steps one by one so game logic cannot be skipped when a windowed host catches up multiple frames.
+
+## Headless and windowed are the same game
+
+The external game module contains no SDL, renderer, MCP or backend types.
+
+- `trace2d_e0_external_headless` drives the game without a window/GPU and is a deterministic CTest proof.
+- `trace2d_e0_external_windowed` uses `Platform` and `Renderer` only in the host executable. It installs an explicit presentation callback and runs the same `ExampleGame` class.
+
+Presentation is therefore a host concern over canonical current game state. It does not mutate or replace authoritative fixed-step state.
+
+## Existing Agent / work authority is reused
+
+E0 does not introduce `AgentGame`, a hidden game database, or a second result format.
+
+`GameContext` may receive pointers to the existing #97 `WorkSpec` and #98 `WorkResult` contracts. The external game can consume intent and emit result/revision evidence through those existing types.
+
+For deterministic inspection, existing `AgentFacade` binds directly to the `Application`'s canonical Runtime/Scene/UI objects. The E0 headless proof queries `#game.player` from the same `Scene` that game logic mutates. `Application::Snapshot()` is a bounded derived view for lifecycle/session discovery; it stores no parallel authoritative state.
+
+## Minimum Agent-facing projection
+
+Representative common workflow:
+
+```text
+Application + external Game
+ -> BindWorkContracts(...) when work intent/result is present
+ -> Start()
+ -> StepFrames(...) or AdvanceElapsed(...)
+ -> Snapshot() / existing Agent inspection over canonical services
+ -> Stop()
+```
+
+The common E0 vocabulary is intentionally bounded to four new public concepts:
+
+1. `Application`
+2. `Game`
+3. `GameContext`
+4. `FixedUpdate`
+
+`ApplicationSnapshot` is a derived inspection result, not a fifth authority. The representative external game does not need to know SDL, GPU backend state, MCP transport, internal service registration, renderer pipeline objects, Git metadata or engine source layout.
+
+Structural Agent-complexity evidence for the committed proof:
+
+- new primary authoring/runtime root: `trace2d/application/Application.hpp` — 1,
+- external game implementation resources: `ExampleGame.hpp` + `ExampleGame.cpp` — 2,
+- new semantic lifecycle operations required in the ordinary path: `Start`, one stepping operation, `Stop` — 3,
+- optional existing work-contract binding operation — 1,
+- deterministic session discovery operation: `Snapshot` — 1,
+- raw engine-internal/backend/MCP edits required — 0,
+- visual-feedback calls required for headless deterministic acceptance — 0,
+- parallel Agent semantic authorities introduced — 0.
+
+Token/tool-call measurements remain benchmark evidence rather than a universal E0 constant.
+
+## Performance contract
+
+E0 adds no normal-frame filesystem access, parsing, JSON/string report construction, GPU readback or Agent snapshot generation.
+
+For `F` fixed frames, application orchestration is `O(F + scheduled input work + game work)`. The fixed-step loop reuses retained `Application`, `GameContext`, Runtime, Input, Scene and UI objects. It performs no required heap allocation of its own per fixed update. Game/subsystem allocations remain governed by their owning contracts.
+
+`Application::Snapshot()` is explicit inspection work and returns scalar counts plus a `string_view` into canonical Scene metadata. Presentation callbacks are explicit host calls and are not part of authoritative simulation stepping.
+
+## Scope deliberately deferred
+
+E0 does not freeze the external project manifest, install/export/package target, clean external CMake consumer flow, environment doctor or public API version/deprecation policy. Those belong to #70.
+
+Scene hierarchy and external authored gameplay components remain #71. Resources, templates/world lifecycle, Camera/Viewport and later systems retain their existing owners.
+
+## Acceptance mapping
+
+The committed tests/proofs cover:
+
+- external game source outside `engine/`,
+- explicit engine-owned lifecycle and fixed-step ownership,
+- identical game logic under explicit/headless and elapsed/windowed-style stepping,
+- scene/input/UI access without backend types in `GameContext`,
+- existing WorkSpec/WorkResult participation,
+- existing Agent inspection over the canonical Scene,
+- optional presentation with no presentation requirement for deterministic acceptance,
+- no binary plugin ABI or generic reflection/ECS/event framework.
+
+After #69 merges green, the live core lane advances to #70 — project manifest and external consumer build/install/package flow.
