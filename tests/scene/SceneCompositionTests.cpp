@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -133,6 +134,59 @@ TEST(SceneCompositionTests, KeepWorldReparentPreservesWorldTransform)
     ASSERT_TRUE(scene.TryGetWorldTransform(child, after));
     EXPECT_FLOAT_EQ(after.position.x, before.position.x);
     EXPECT_FLOAT_EQ(scene.TryGet(child)->LocalTransform().position.x, 15.0F);
+}
+
+TEST(SceneCompositionTests, QuarterTurnUnderNonUniformScaleRemainsExactTrs)
+{
+    trace2d::scene::Scene scene{};
+    auto parentDescriptor = MakeEntity("parent");
+    parentDescriptor.transform.scale = {2.0F, 1.0F};
+    const auto parent = scene.CreateEntity(std::move(parentDescriptor));
+
+    auto childDescriptor = MakeEntity("child");
+    childDescriptor.transform.rotationRadians = std::numbers::pi_v<float> * 0.5F;
+    const auto child = scene.CreateEntity(std::move(childDescriptor));
+    ASSERT_EQ(scene.SetParent(child, parent), trace2d::scene::HierarchyResult::Success);
+
+    trace2d::scene::Transform2D world{};
+    ASSERT_TRUE(scene.TryGetWorldTransform(child, world));
+    EXPECT_NEAR(world.rotationRadians, std::numbers::pi_v<float> * 0.5F, 1.0e-6F);
+    EXPECT_NEAR(world.scale.x, 1.0F, 1.0e-5F);
+    EXPECT_NEAR(world.scale.y, 2.0F, 1.0e-5F);
+}
+
+TEST(SceneCompositionTests, HierarchyRejectsWorldTrsWhenCompositionWouldIntroduceShear)
+{
+    trace2d::scene::Scene scene{};
+    auto parentDescriptor = MakeEntity("parent");
+    parentDescriptor.transform.scale = {2.0F, 1.0F};
+    const auto parent = scene.CreateEntity(std::move(parentDescriptor));
+
+    auto childDescriptor = MakeEntity("child");
+    childDescriptor.transform.rotationRadians = 0.3F;
+    const auto child = scene.CreateEntity(std::move(childDescriptor));
+    ASSERT_EQ(scene.SetParent(child, parent), trace2d::scene::HierarchyResult::Success);
+
+    trace2d::scene::Transform2D world{};
+    EXPECT_FALSE(scene.TryGetWorldTransform(child, world));
+}
+
+TEST(SceneCompositionTests, KeepWorldRejectsAParentThatWouldRequireShearedLocalState)
+{
+    trace2d::scene::Scene scene{};
+    auto parentDescriptor = MakeEntity("parent");
+    parentDescriptor.transform.scale = {2.0F, 1.0F};
+    const auto parent = scene.CreateEntity(std::move(parentDescriptor));
+
+    auto childDescriptor = MakeEntity("child");
+    childDescriptor.transform.rotationRadians = 0.3F;
+    const auto child = scene.CreateEntity(std::move(childDescriptor));
+
+    EXPECT_EQ(
+        scene.SetParent(child, parent, trace2d::scene::ReparentMode::KeepWorld),
+        trace2d::scene::HierarchyResult::InvalidWorldTransform);
+    ASSERT_NE(scene.TryGet(child), nullptr);
+    EXPECT_FALSE(scene.TryGet(child)->Parent().has_value());
 }
 
 TEST(SceneCompositionTests, DestroyingParentInvalidatesWholeSubtreeGenerations)
