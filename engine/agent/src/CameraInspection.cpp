@@ -1,5 +1,6 @@
 #include <trace2d/agent/CameraInspection.hpp>
 
+#include <cmath>
 #include <utility>
 
 namespace trace2d::agent
@@ -81,7 +82,8 @@ CameraViewportInspectionResult2D InspectActiveCameraViewport2D(
     }
 
     scene::Transform2D world{};
-    if (!worldScene->TryGetWorldTransform(selection.entity, world))
+    if (!worldScene->TryGetWorldTransform(selection.entity, world) ||
+        !std::isfinite(world.position.x) || !std::isfinite(world.position.y))
     {
         return MakeError(
             CameraInspectionErrorCode::InvalidWorldTransform,
