@@ -112,6 +112,39 @@ float4 main(FragmentInput input) : SV_Target0
         texture.domain == assets::ResourceTypeDomain::Texture;
 }
 
+void ApplyPresentationRasterViewport(
+    SDL_GPURenderPass* const renderPass,
+    const OrthographicCamera& camera,
+    const std::uint32_t targetWidth,
+    const std::uint32_t targetHeight,
+    const bool narrowerRasterContractAlreadyApplied)
+{
+    if (renderPass == nullptr || !camera.rasterViewport.enabled ||
+        narrowerRasterContractAlreadyApplied)
+    {
+        return;
+    }
+
+    const PresentationRasterViewport2D& raster = camera.rasterViewport;
+    if (raster.targetWidth != targetWidth || raster.targetHeight != targetHeight ||
+        !std::isfinite(raster.origin.x) || !std::isfinite(raster.origin.y) ||
+        !std::isfinite(raster.size.x) || !std::isfinite(raster.size.y) ||
+        raster.size.x <= 0.0F || raster.size.y <= 0.0F)
+    {
+        throw std::invalid_argument{
+            "Camera2D presentation raster viewport is invalid or stale for the acquired target."};
+    }
+
+    SDL_GPUViewport viewport{};
+    viewport.x = raster.origin.x;
+    viewport.y = raster.origin.y;
+    viewport.w = raster.size.x;
+    viewport.h = raster.size.y;
+    viewport.min_depth = 0.0F;
+    viewport.max_depth = 1.0F;
+    SDL_SetGPUViewport(renderPass, &viewport);
+}
+
 class ShaderCrossScope final
 {
 public:
@@ -1748,6 +1781,19 @@ private:
                 static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
                 throw std::runtime_error{
                     "SDL GPU render pass creation failed: " + error};
+            }
+
+            const bool spritePixelPerfectRaster =
+                !spritePresentations.empty() &&
+                spritePresentations.front().pixelPerfectViewport != nullptr;
+            if (hasPresentation)
+            {
+                ApplyPresentationRasterViewport(
+                    renderPass,
+                    *camera,
+                    targetWidth,
+                    targetHeight,
+                    spritePixelPerfectRaster);
             }
 
             if (!spritePresentations.empty())
