@@ -252,3 +252,80 @@ README/release claims should distinguish:
 - subjective examples/demos.
 
 Trace2D should prefer reproducible evidence over impressive but unrepeatable agent anecdotes.
+
+## 20. Agent complexity is a product constraint
+
+Runtime correctness and Agent usability are separate product dimensions. Internal engine complexity may be necessary for determinism, performance, lifetime safety or backend isolation, but that does **not** justify exposing equivalent complexity to an Agent.
+
+For common supported workflows, Trace2D must minimize the concepts, resources and operations that an Agent must understand to express intent and verify the result.
+
+Before freezing a major subsystem contract, explicitly review both:
+
+```text
+engine-facing architecture
+        !=
+Agent-facing mental model
+```
+
+Do not answer an Agent-complexity problem by default with more prompt text, more required reading or a larger collection of narrow tools. First reduce unnecessary exposed concepts and repeated discovery work.
+
+The B1 postmortem in [`BENCHMARK_B1_POSTMORTEM.md`](BENCHMARK_B1_POSTMORTEM.md) is the initial evidence for this rule: verifier-valid work can still be a product failure when the Agent reaches it through an excessively expensive path.
+
+## 21. Major subsystems need a compact Agent-facing projection
+
+A major subsystem must provide a compact, discoverable Agent-facing projection for the common workflows it claims to support. The projection may be text authoring, typed CLI/JSON operations, runtime inspection, or another protocol-independent public contract; it is not required to be a dedicated MCP tool.
+
+The projection should:
+
+- expose semantic intent rather than implementation mechanics,
+- keep the common vocabulary small and stable,
+- avoid requiring knowledge of internal pipeline stages, parser mechanics, backend types or file-patching hazards unless those concepts are genuinely part of user intent,
+- make the production validation path obvious,
+- prefer bounded semantic operations over arbitrary text surgery when raw editing repeatedly causes repair/context cost,
+- keep lower-level APIs available as escape hatches without making them the mandatory baseline workflow.
+
+New tools are justified only when they remove demonstrated Agent work or provide authority that normal source editing cannot safely provide. Tool count is not itself a product goal.
+
+## 22. Agent convenience must not create a second authority
+
+Agent-facing projections must operate on, resolve into, or validate against the same canonical authoritative state used by the engine.
+
+An Agent convenience layer must not create a parallel `AgentScene`, `AgentParticle`, `AgentResource`, hidden task database or other second semantic truth that can diverge from the production parser/runtime/serializer/validator.
+
+Where a typed semantic mutation exists, the preferred flow is:
+
+```text
+Agent intent
+ -> compact semantic operation
+ -> canonical production state
+ -> production validation
+ -> atomic/transactional commit where applicable
+ -> compact result
+```
+
+Convenience layers may cache derived discovery metadata or provide projections, but canonical ownership and validation remain with the production subsystem.
+
+## 23. Agent complexity regression is a product regression candidate
+
+A change that preserves runtime correctness but materially increases Agent context, tool usage, exposed concepts/resources or required iterations must be treated as a potential product regression and justified with evidence.
+
+For representative Agent-operated workflows, record the applicable structural and benchmark evidence, including at least:
+
+- input/output tokens when measured,
+- tool calls,
+- distinct exposed concepts/resources,
+- resources touched,
+- revisions/iterations,
+- visual-feedback calls,
+- human interventions,
+- engine-native semantic operations used or bypassed when that signal is relevant.
+
+Token counts are model/environment sensitive and are not automatically a universal hard CI threshold. Hard numeric thresholds belong to preregistered benchmark/task contracts. Outside those suites, structural increases should trigger design review rather than silent acceptance.
+
+For every major subsystem beginning with the external game-production foundation (#69 onward), review three questions before completion:
+
+1. Is the engine/runtime architecture correct, deterministic and performant within its contract?
+2. What is the minimum subsystem vocabulary and state an Agent must understand for the common workflow?
+3. Is the shortest supported Agent-facing path discoverable, canonical and free of unnecessary implementation detail?
+
+Passing runtime tests answers only the first question. Trace2D's AI-first product contract requires all three to be considered.
