@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -44,28 +45,77 @@ class BenchmarkB1OwnerRunnerHelperTests(unittest.TestCase):
     def test_unscored_transport_accepts_only_clean_input_token_overage(self):
         clean = {
             "status": "budget_exceeded",
-            "return_code": 0,
-            "timed_out": False,
             "human_interventions": 0,
             "budget": {"exceeded": ["input_tokens"]},
-            "tool_metrics": {"tool_failures": 0},
+            "wrapper": {"process_return_code": 0, "turn_completed": True},
         }
         self.assertTrue(owner._is_unscored_transport_input_budget_only(clean))
 
         for mutation in (
             {"status": "tool_transport_failure"},
-            {"return_code": 1},
-            {"timed_out": True},
             {"human_interventions": 1},
             {"budget": {"exceeded": ["output_tokens"]}},
             {"budget": {"exceeded": ["tool_calls"]}},
-            {"tool_metrics": {"tool_failures": 1}},
+            {"wrapper": {"process_return_code": 1, "turn_completed": True}},
+            {"wrapper": {"process_return_code": 0, "turn_completed": False}},
         ):
-            candidate = {
-                **clean,
-                **mutation,
-            }
+            candidate = {**clean, **mutation}
             self.assertFalse(owner._is_unscored_transport_input_budget_only(candidate))
+
+    def test_unscored_transport_workspace_allows_only_engine_bootstrap_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = root / "fixture"
+            workspace = root / "workspace"
+            fixture.mkdir()
+            workspace.mkdir()
+            original_project = (
+                'config_version=5\n\n[application]\nconfig/name="Fixture"\n'
+                'run/main_scene="res://main.tscn"\n'
+            )
+            fixture.joinpath("project.godot").write_text(original_project, encoding="utf-8")
+            fixture.joinpath("main.tscn").write_text("[gd_scene format=3]\n", encoding="utf-8")
+            fixture.joinpath("verify.gd").write_text("extends Node\n", encoding="utf-8")
+            workspace.joinpath("main.tscn").write_text("[gd_scene format=3]\n", encoding="utf-8")
+            workspace.joinpath("verify.gd").write_text("extends Node\n", encoding="utf-8")
+            workspace.joinpath("verify.gd.uid").write_text("uid://example\n", encoding="utf-8")
+            workspace.joinpath("project.godot").write_text(
+                '; Engine configuration file.\nconfig_version=5\n\n[application]\n\n'
+                'config/name="Fixture"\nrun/main_scene="res://main.tscn"\n'
+                'config/features=PackedStringArray("4.7")\n\n[autoload]\n\n'
+                '_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"\n',
+                encoding="utf-8",
+            )
+            cache = workspace / ".godot"
+            cache.mkdir()
+            cache.joinpath("editor_cache").write_text("volatile", encoding="utf-8")
+
+            evidence = owner._verify_unscored_transport_workspace(fixture, workspace)
+            self.assertEqual(evidence["generated_metadata_paths"], ["verify.gd.uid"])
+            self.assertEqual(
+                evidence["ignored_adapter_project_settings"],
+                ["application/config/features", "autoload/_mcp_game_helper"],
+            )
+
+            workspace.joinpath("verify.gd").write_text("extends Node2D\n", encoding="utf-8")
+            with self.assertRaises(owner.base.ScoredCohortError):
+                owner._verify_unscored_transport_workspace(fixture, workspace)
+
+    def test_unscored_transport_workspace_rejects_real_project_setting_change(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = root / "fixture"
+            workspace = root / "workspace"
+            fixture.mkdir()
+            workspace.mkdir()
+            fixture.joinpath("project.godot").write_text(
+                'config_version=5\n\n[application]\nconfig/name="Fixture"\n', encoding="utf-8"
+            )
+            workspace.joinpath("project.godot").write_text(
+                'config_version=5\n\n[application]\nconfig/name="Changed"\n', encoding="utf-8"
+            )
+            with self.assertRaises(owner.base.ScoredCohortError):
+                owner._verify_unscored_transport_workspace(fixture, workspace)
 
     def test_owner_patch_changes_only_unscored_transport_verdict_not_scored_budget(self):
         self.assertIs(owner.base.run_godot_agent_preflight, owner.run_owner_godot_agent_preflight)
