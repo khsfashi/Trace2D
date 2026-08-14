@@ -3,6 +3,7 @@
 #include <trace2d/agent/WorkResult.hpp>
 #include <trace2d/agent/WorkSpec.hpp>
 
+#include <array>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -107,7 +108,40 @@ trace2d::scene::SceneLoadResult LoadExampleAuthoredScene(
     return trace2d::scene::LoadSceneToml(text, registry, path);
 }
 
-ExampleGame::ExampleGame(ExampleComponentTypes types) noexcept : types_{std::move(types)} {}
+trace2d::assets::ResourceHandle<trace2d::assets::SceneTemplateResource> LoadExampleSceneTemplate(
+    trace2d::assets::ResourceRegistry& resources,
+    const trace2d::assets::ResourceHandle<trace2d::assets::TextureResource> sharedTexture,
+    const std::string& path)
+{
+    std::ifstream input{path, std::ios::binary};
+    if (!input) throw std::runtime_error{"Could not open scene template file '" + path + "'."};
+
+    trace2d::assets::SceneTemplateResource sceneTemplate{};
+    sceneTemplate.canonicalToml.assign(
+        std::istreambuf_iterator<char>{input},
+        std::istreambuf_iterator<char>{});
+    const std::array dependencies{sharedTexture.Untyped()};
+    const auto published = resources.PublishSceneTemplate(path, std::move(sceneTemplate), dependencies);
+    if (!published.Succeeded())
+    {
+        std::string message = "Could not publish scene template resource '" + path + "'.";
+        if (published.diagnostic.has_value() && !published.diagnostic->message.empty())
+        {
+            message.append(" ");
+            message.append(published.diagnostic->message);
+        }
+        throw std::runtime_error{message};
+    }
+    return published.handle;
+}
+
+ExampleGame::ExampleGame(
+    ExampleComponentTypes types,
+    std::optional<trace2d::assets::ResourceHandle<trace2d::assets::SceneTemplateResource>> enemyTemplate) noexcept
+    : types_{std::move(types)}
+    , enemyTemplate_{enemyTemplate}
+{
+}
 
 void ExampleGame::OnStart(trace2d::application::GameContext& context)
 {
@@ -152,7 +186,7 @@ void ExampleGame::OnStart(trace2d::application::GameContext& context)
 
 void ExampleGame::OnFixedUpdate(
     trace2d::application::GameContext& context,
-    const trace2d::application::FixedUpdate&)
+    const trace2d::application::FixedUpdate& update)
 {
     trace2d::scene::Entity* const player = context.Scene().TryGet(player_);
     Health* const health = context.Scene().TryGetComponent(player_, types_.health);
@@ -164,6 +198,40 @@ void ExampleGame::OnFixedUpdate(
         player->LocalTransform().position.x += 1.0F;
         if (health->current > 0) --health->current;
     }
+
+    trace2d::scene::WorldLifecycle* const worlds = context.Worlds();
+    if (worlds != nullptr && enemyTemplate_.has_value())
+    {
+        if (update.frame == 1U)
+        {
+            trace2d::scene::TemplateInstantiationRequest request{};
+            request.worldId = "arena";
+            request.templateResource = *enemyTemplate_;
+            request.instanceId = "runtime-enemy";
+            request.rootTransform.position.x = 30.0F;
+            static_cast<void>(worlds->QueueInstantiate(std::move(request)));
+            spawnWasDeferred_ = !worlds->FindInstanceRoot("arena", "runtime-enemy").has_value();
+        }
+        else if (update.frame == 2U)
+        {
+            runtimeEnemyBody_ = worlds->FindInstanceEntity("arena", "runtime-enemy", "body");
+            if (!runtimeEnemyBody_.has_value())
+                throw std::runtime_error{"W0 safe point did not publish the queued runtime enemy before frame 2."};
+            static_cast<void>(worlds->QueueDespawn("arena", "runtime-enemy"));
+            despawnWasDeferred_ = worlds->FindInstanceRoot("arena", "runtime-enemy").has_value();
+        }
+        else if (update.frame == 3U)
+        {
+            const trace2d::scene::Scene* const arena = worlds->TryGetScene("arena");
+            runtimeDespawnInvalidatedHandle_ = runtimeEnemyBody_.has_value() && arena != nullptr &&
+                !arena->Contains(*runtimeEnemyBody_) &&
+                !worlds->FindInstanceRoot("arena", "runtime-enemy").has_value();
+            if (!runtimeDespawnInvalidatedHandle_)
+                throw std::runtime_error{"W0 safe-point despawn did not invalidate the captured entity handle before frame 3."};
+            static_cast<void>(worlds->QueueUnloadWorld("arena"));
+        }
+    }
+
     ++fixedUpdateCount_;
 }
 
@@ -190,3 +258,6 @@ void ExampleGame::OnStop(trace2d::application::GameContext& context)
 trace2d::scene::EntityId ExampleGame::Player() const noexcept { return player_; }
 std::uint64_t ExampleGame::FixedUpdateCount() const noexcept { return fixedUpdateCount_; }
 const std::string& ExampleGame::ObservedWorkId() const noexcept { return observedWorkId_; }
+bool ExampleGame::SpawnWasDeferredToSafePoint() const noexcept { return spawnWasDeferred_; }
+bool ExampleGame::DespawnWasDeferredToSafePoint() const noexcept { return despawnWasDeferred_; }
+bool ExampleGame::RuntimeDespawnInvalidatedHandle() const noexcept { return runtimeDespawnInvalidatedHandle_; }
