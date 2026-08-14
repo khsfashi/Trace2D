@@ -1,4 +1,5 @@
 add_executable(trace2d_render_tests
+    CameraViewport2DTests.cpp
     CaptureTests.cpp
     ParticleGpuConformanceTests.cpp
     ParticleGpuRuntimeTests.cpp
