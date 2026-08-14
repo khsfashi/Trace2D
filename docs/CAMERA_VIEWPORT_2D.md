@@ -73,7 +73,7 @@ WorldToPresentation
 PresentationToWorld
 ```
 
-Callers first obtain a successful `ResolveViewport2D` and `ResolvePresentationView2D`; invalid/zero/non-invertible input state is rejected at those resolve boundaries. Conversion functions then operate on the frozen valid resolved state in O(1), without GPU/window access or allocation.
+Callers first obtain a successful `ResolveViewport2D` and `ResolvePresentationView2D`. Forward conversions then operate on that frozen state in O(1). Inverse conversions return `CoordinateConversionResult2D`: invalid/non-invertible resolved state reports `invalid_resolved_view`, while NaN/Inf input reports `non_finite_input`. No inverse path divides through invalid coefficients silently. These numeric conversions require no GPU/window access and perform no heap allocation.
 
 #59 SR6 pixel-perfect Sprite presentation owns the narrower integer pixel-center/raster precision guarantees; C0 does not duplicate them.
 
