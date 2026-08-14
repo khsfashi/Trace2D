@@ -4,6 +4,7 @@ param(
     [string]$VcpkgRoot,
     [Parameter(Mandatory = $true)]
     [string]$Trace2DRoot,
+    [string]$DoctorPath = "",
     [string]$OutputDirectory = (Join-Path $env:TEMP "trace2d-doctor-tests")
 )
 
@@ -20,7 +21,17 @@ function Assert-Condition {
     }
 }
 
-$doctor = Join-Path $RepositoryRoot "scripts/trace2d_doctor.ps1"
+$doctor = if ([string]::IsNullOrWhiteSpace($DoctorPath)) {
+    Join-Path $RepositoryRoot "scripts/trace2d_doctor.ps1"
+}
+else {
+    $DoctorPath
+}
+
+if (-not (Test-Path -LiteralPath $doctor -PathType Leaf)) {
+    throw "Trace2D doctor was not found at '$doctor'."
+}
+
 $project = Join-Path $RepositoryRoot "examples/e0_external_game"
 $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
 
@@ -40,6 +51,9 @@ $healthy = Get-Content -LiteralPath $healthyPath -Raw | ConvertFrom-Json
 Assert-Condition ($healthy.format_version -eq 1) "Healthy report format_version changed."
 Assert-Condition ($healthy.status -eq "ok") "Healthy report did not return status=ok."
 Assert-Condition ($healthy.project.manifest.valid -eq $true) "Healthy report did not validate the project manifest."
+Assert-Condition ($healthy.build.configure_preset_available -eq $true) "Healthy report did not find the configure preset."
+Assert-Condition ($healthy.build.build_preset_available -eq $true) "Healthy report did not find the build preset."
+Assert-Condition ($healthy.build.test_preset_available -eq $true) "Healthy report did not find the test preset."
 Assert-Condition ($healthy.vcpkg.baseline_matches -eq $true) "Healthy report did not verify the pinned vcpkg baseline."
 Assert-Condition ($healthy.trace2d_sdk.available -eq $true) "Healthy report did not find the installed Trace2D SDK."
 Assert-Condition ($healthy.headless.eligible -eq $true) "Healthy report did not mark the headless path eligible."
@@ -61,3 +75,4 @@ Assert-Condition ($brokenCategories -contains "vcpkg.missing") "Broken report di
 Assert-Condition ($broken.headless.eligible -eq $false) "Broken setup must not be marked headless-eligible."
 
 Write-Host "Trace2D doctor contract passed (healthy + missing-vcpkg classification)."
+Write-Host "Doctor under test: $doctor"
