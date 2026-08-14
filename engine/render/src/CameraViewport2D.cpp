@@ -48,6 +48,16 @@ namespace
         viewport.presentationToViewportScale.y > 0.0F;
 }
 
+[[nodiscard]] bool IsValidInverseView(const ResolvedPresentationView2D& view) noexcept
+{
+    return IsValidResolvedViewport(view.viewport) &&
+        IsFinite(view.logicalView.center) &&
+        IsFinite(view.logicalView.halfExtents) &&
+        view.logicalView.halfExtents.x > 0.0F && view.logicalView.halfExtents.y > 0.0F &&
+        IsFinite(view.logicalView.clipScale) &&
+        view.logicalView.clipScale.x > 0.0F && view.logicalView.clipScale.y > 0.0F;
+}
+
 [[nodiscard]] Float2 Lerp(const Float2 previous, const Float2 current, const float alpha) noexcept
 {
     return Float2{
@@ -425,6 +435,20 @@ PresentationViewResult2D ResolvePresentationView2D(
     return result;
 }
 
+std::string_view ToString(const CoordinateConversionError2D error) noexcept
+{
+    switch (error)
+    {
+    case CoordinateConversionError2D::None:
+        return "none";
+    case CoordinateConversionError2D::InvalidResolvedView:
+        return "invalid_resolved_view";
+    case CoordinateConversionError2D::NonFiniteInput:
+        return "non_finite_input";
+    }
+    return "invalid";
+}
+
 Float2 WorldToViewport(
     const ResolvedPresentationView2D& view,
     const Float2 worldPosition) noexcept
@@ -436,18 +460,36 @@ Float2 WorldToViewport(
     };
 }
 
-Float2 ViewportToWorld(
+CoordinateConversionResult2D ViewportToWorld(
     const ResolvedPresentationView2D& view,
     const Float2 viewportPosition) noexcept
 {
+    CoordinateConversionResult2D result{};
+    if (!IsValidInverseView(view))
+    {
+        result.error = CoordinateConversionError2D::InvalidResolvedView;
+        return result;
+    }
+    if (!IsFinite(viewportPosition))
+    {
+        result.error = CoordinateConversionError2D::NonFiniteInput;
+        return result;
+    }
+
     const Float2 clip{
         ((viewportPosition.x / static_cast<float>(view.viewport.logicalWidth)) * 2.0F) - 1.0F,
         1.0F - ((viewportPosition.y / static_cast<float>(view.viewport.logicalHeight)) * 2.0F),
     };
-    return Float2{
+    result.value = Float2{
         view.logicalView.center.x + (clip.x / view.logicalView.clipScale.x),
         view.logicalView.center.y + (clip.y / view.logicalView.clipScale.y),
     };
+    if (!IsFinite(result.value))
+    {
+        result.error = CoordinateConversionError2D::InvalidResolvedView;
+        result.value = {};
+    }
+    return result;
 }
 
 Float2 ViewportToPresentation(
@@ -462,16 +504,34 @@ Float2 ViewportToPresentation(
     };
 }
 
-Float2 PresentationToViewport(
+CoordinateConversionResult2D PresentationToViewport(
     const ResolvedPresentationView2D& view,
     const Float2 presentationPosition) noexcept
 {
-    return Float2{
+    CoordinateConversionResult2D result{};
+    if (!IsValidInverseView(view))
+    {
+        result.error = CoordinateConversionError2D::InvalidResolvedView;
+        return result;
+    }
+    if (!IsFinite(presentationPosition))
+    {
+        result.error = CoordinateConversionError2D::NonFiniteInput;
+        return result;
+    }
+
+    result.value = Float2{
         (presentationPosition.x - view.viewport.contentRect.origin.x) *
             view.viewport.presentationToViewportScale.x,
         (presentationPosition.y - view.viewport.contentRect.origin.y) *
             view.viewport.presentationToViewportScale.y,
     };
+    if (!IsFinite(result.value))
+    {
+        result.error = CoordinateConversionError2D::InvalidResolvedView;
+        result.value = {};
+    }
+    return result;
 }
 
 Float2 WorldToPresentation(
@@ -481,11 +541,17 @@ Float2 WorldToPresentation(
     return ViewportToPresentation(view, WorldToViewport(view, worldPosition));
 }
 
-Float2 PresentationToWorld(
+CoordinateConversionResult2D PresentationToWorld(
     const ResolvedPresentationView2D& view,
     const Float2 presentationPosition) noexcept
 {
-    return ViewportToWorld(view, PresentationToViewport(view, presentationPosition));
+    const CoordinateConversionResult2D viewport =
+        PresentationToViewport(view, presentationPosition);
+    if (!viewport.Succeeded())
+    {
+        return viewport;
+    }
+    return ViewportToWorld(view, viewport.value);
 }
 
 bool IsPresentationPointInsideViewport(
