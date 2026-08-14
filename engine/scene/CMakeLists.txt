@@ -5,6 +5,7 @@ add_library(trace2d_scene STATIC
     src/Scene.cpp
     src/SceneText.cpp
     src/SpriteTransform2D.cpp
+    src/World.cpp
 )
 
 add_library(Trace2D::Scene ALIAS trace2d_scene)
@@ -16,6 +17,7 @@ target_include_directories(trace2d_scene
 
 target_link_libraries(trace2d_scene
     PUBLIC
+        Trace2D::Assets
         Trace2D::Core
     PRIVATE
         tomlplusplus::tomlplusplus
