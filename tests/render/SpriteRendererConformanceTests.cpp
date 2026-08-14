@@ -11,6 +11,16 @@
 
 namespace
 {
+[[nodiscard]] constexpr trace2d::render::TextureHandle TestTexture(
+    const std::uint32_t slot) noexcept
+{
+    return trace2d::render::TextureHandle{
+        slot,
+        1U,
+        trace2d::assets::ResourceTypeDomain::Texture,
+    };
+}
+
 [[nodiscard]] trace2d::assets::SpriteAsset MakeSr8Asset()
 {
     using namespace trace2d::assets;
@@ -139,14 +149,14 @@ TEST(SpriteRendererConformanceTests, Sr8CommittedStructuralWorkloadHasExactRawMe
     for (std::size_t index = 0U; index < items.size(); ++index)
     {
         SpriteBatchItem2D& item = items[index];
-        item.compatibility.texture = 1U;
+        item.compatibility.texture = TestTexture(1U);
         item.visible = (index % 4U) != 0U;
         item.quadCount = (index % 16U) == 1U ? 4U : 1U;
     }
 
     // Three isolated compatibility changes produce six boundaries while preserving the
     // caller/painter sequence. Culled gaps are intentionally interleaved and do not split runs.
-    items[257U].compatibility.texture = 2U;
+    items[257U].compatibility.texture = TestTexture(2U);
     items[513U].compatibility.sampler = SpriteSamplerCompatibility::Linear;
     items[769U].compatibility.blend = SpriteBlendCompatibility::Additive;
 
