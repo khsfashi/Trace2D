@@ -1,3 +1,4 @@
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 #include <trace2d/render/RendererWorkload.hpp>
@@ -12,6 +13,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #ifndef TRACE2D_BUILD_CONFIGURATION
 #define TRACE2D_BUILD_CONFIGURATION "unknown"
@@ -43,6 +45,16 @@ struct MetricsDelta final
     std::uint64_t submittedSprites{0};
     std::uint64_t culledSprites{0};
 };
+
+[[nodiscard]] constexpr trace2d::render::TextureHandle MeasurementTextureHandle(
+    const std::uint32_t slot) noexcept
+{
+    return trace2d::render::TextureHandle{
+        slot,
+        1U,
+        trace2d::assets::ResourceTypeDomain::Texture,
+    };
+}
 
 void WriteJsonString(std::ostream& output, const std::string_view value)
 {
@@ -276,7 +288,10 @@ void WriteStructure(
 
 int RunList()
 {
-    constexpr std::array<trace2d::render::TextureHandle, 2> PlaceholderTextures{1, 2};
+    constexpr std::array<trace2d::render::TextureHandle, 2> PlaceholderTextures{
+        MeasurementTextureHandle(0U),
+        MeasurementTextureHandle(1U),
+    };
 
     std::cout << "{\"command\":\"renderer-workload-list\",\"metric_source\":\"deterministic_structure\",\"workloads\":[";
     bool first = true;
@@ -300,7 +315,10 @@ int RunList()
 
 int RunStructure(const trace2d::render::RendererWorkloadId id)
 {
-    constexpr std::array<trace2d::render::TextureHandle, 2> PlaceholderTextures{1, 2};
+    constexpr std::array<trace2d::render::TextureHandle, 2> PlaceholderTextures{
+        MeasurementTextureHandle(0U),
+        MeasurementTextureHandle(1U),
+    };
     const trace2d::render::RendererWorkload workload =
         trace2d::render::BuildRendererWorkload(id, PlaceholderTextures);
     const trace2d::render::RendererWorkloadStructure structure =
@@ -336,14 +354,51 @@ int RunTiming(const Options& options, const trace2d::render::RendererWorkloadId 
 
     trace2d::platform::Platform platform{platformConfig};
     trace2d::render::Renderer renderer{trace2d::render::RendererConfig{}, platform};
+    trace2d::assets::ResourceRegistry resources{"."};
 
     constexpr std::array<std::uint8_t, 4> WhitePixel{255, 255, 255, 255};
     constexpr std::array<std::uint8_t, 4> MagentaPixel{255, 0, 255, 255};
+    const trace2d::render::Rgba8TextureData firstTextureData{1U, 1U, WhitePixel};
+    const trace2d::render::Rgba8TextureData secondTextureData{1U, 1U, MagentaPixel};
+
+    trace2d::assets::TextureResource firstCanonical{};
+    firstCanonical.width = 1U;
+    firstCanonical.height = 1U;
+    firstCanonical.colorSpace = trace2d::assets::TextureResourceColorSpace::Linear;
+    firstCanonical.alphaMode = trace2d::assets::TextureResourceAlphaMode::Straight;
+    firstCanonical.cpuRetention = trace2d::assets::CpuRetentionPolicy::Reacquirable;
+    firstCanonical.retentionReason = "renderer workload pixels are built-in";
+    firstCanonical.canonicalRgba8.assign(WhitePixel.begin(), WhitePixel.end());
+    const auto firstPublished = resources.PublishTexture(
+        "runtime/renderer-workload-white.rgba8",
+        std::move(firstCanonical));
+    if (!firstPublished.Succeeded())
+    {
+        throw std::runtime_error{"Failed to publish renderer workload white texture."};
+    }
+
+    trace2d::assets::TextureResource secondCanonical{};
+    secondCanonical.width = 1U;
+    secondCanonical.height = 1U;
+    secondCanonical.colorSpace = trace2d::assets::TextureResourceColorSpace::Linear;
+    secondCanonical.alphaMode = trace2d::assets::TextureResourceAlphaMode::Straight;
+    secondCanonical.cpuRetention = trace2d::assets::CpuRetentionPolicy::Reacquirable;
+    secondCanonical.retentionReason = "renderer workload pixels are built-in";
+    secondCanonical.canonicalRgba8.assign(MagentaPixel.begin(), MagentaPixel.end());
+    const auto secondPublished = resources.PublishTexture(
+        "runtime/renderer-workload-magenta.rgba8",
+        std::move(secondCanonical));
+    if (!secondPublished.Succeeded())
+    {
+        throw std::runtime_error{"Failed to publish renderer workload magenta texture."};
+    }
 
     const trace2d::render::TextureHandle firstTexture = renderer.CreateTextureRgba8(
-        trace2d::render::Rgba8TextureData{1, 1, WhitePixel});
+        firstPublished.handle,
+        firstTextureData);
     const trace2d::render::TextureHandle secondTexture = renderer.CreateTextureRgba8(
-        trace2d::render::Rgba8TextureData{1, 1, MagentaPixel});
+        secondPublished.handle,
+        secondTextureData);
     const std::array<trace2d::render::TextureHandle, 2> textureSlots{firstTexture, secondTexture};
 
     const trace2d::render::RendererWorkload workload =
@@ -417,6 +472,11 @@ int RunTiming(const Options& options, const trace2d::render::RendererWorkloadId 
 
     renderer.DestroyTexture(secondTexture);
     renderer.DestroyTexture(firstTexture);
+    if (!resources.Unload(secondTexture.Untyped()).Succeeded() ||
+        !resources.Unload(firstTexture.Untyped()).Succeeded())
+    {
+        throw std::runtime_error{"Failed to unload renderer workload texture resources."};
+    }
     return submissionMatches ? 0 : 3;
 }
 
