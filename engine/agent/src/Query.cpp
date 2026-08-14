@@ -63,6 +63,17 @@ bool MatchesSelector(
     }
     return false;
 }
+
+std::optional<EntitySnapshot> SnapshotBySemanticId(
+    const scene::Scene& sceneValue,
+    const std::string_view semanticId)
+{
+    const std::optional<scene::EntityId> id = sceneValue.FindBySemanticId(semanticId);
+    if (!id.has_value()) return std::nullopt;
+    const scene::Entity* entity = sceneValue.TryGet(*id);
+    if (entity == nullptr) return std::nullopt;
+    return detail::MakeEntitySnapshot(sceneValue, *id, *entity);
+}
 } // namespace
 
 std::string_view ToString(const SelectorKind kind) noexcept
@@ -104,6 +115,14 @@ QueryResult AgentFacade::Query(const std::string_view selectorText) const
         return result;
     }
     result.selector = std::move(parsed.selector);
+
+    if (result.selector->kind == SelectorKind::SemanticId)
+    {
+        std::optional<EntitySnapshot> snapshot = SnapshotBySemanticId(*scene_, result.selector->value);
+        if (snapshot.has_value()) result.matches.push_back(std::move(*snapshot));
+        return result;
+    }
+
     scene_->ForEachEntity([this, &result](const scene::EntityId id, const scene::Entity& entity)
     {
         if (MatchesSelector(*scene_, id, entity, *result.selector))
@@ -127,6 +146,14 @@ QueryOneResult AgentFacade::QueryOne(const std::string_view selectorText) const
         return result;
     }
     result.selector = std::move(parsed.selector);
+
+    if (result.selector->kind == SelectorKind::SemanticId)
+    {
+        result.match = SnapshotBySemanticId(*scene_, result.selector->value);
+        if (!result.match.has_value())
+            result.error = QueryError{.code = QueryErrorCode::NoMatch, .message = "Selector matched no entities."};
+        return result;
+    }
 
     std::size_t matchCount = 0;
     scene_->ForEachEntity([this, &result, &matchCount](const scene::EntityId id, const scene::Entity& entity)
