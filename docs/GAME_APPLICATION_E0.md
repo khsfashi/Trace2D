@@ -30,7 +30,7 @@ This is a **source-level C++ contract**, not a binary plugin ABI. E0 does not ad
 2. `OnFixedUpdate(GameContext&, FixedUpdate)` exactly once per authoritative fixed step
 3. `OnStop(GameContext&)`
 
-Game code cannot step `FixedStepRuntime` through `GameContext`, and it receives `InputSystem` read-only. The host injects physical/virtual input through `Application::Input()`; `Application` advances input and runtime in the fixed order:
+Game code cannot step `FixedStepRuntime` through `GameContext`, and it receives `InputSystem` read-only. The host does not receive mutable `InputSystem` frame control either: physical/virtual events enter only through `Application::ApplyInput()` or `Application::ScheduleInput()`. `Application` alone advances input frames in the fixed order:
 
 ```text
 resolve next fixed frame
@@ -56,7 +56,7 @@ Presentation is therefore a host concern over canonical current game state. It d
 
 E0 does not introduce `AgentGame`, a hidden game database, or a second result format.
 
-`GameContext` may receive pointers to the existing #97 `WorkSpec` and #98 `WorkResult` contracts. The external game can consume intent and emit result/revision evidence through those existing types.
+`GameContext` may receive pointers to the existing #97 `WorkSpec` and #98 `WorkResult` contracts. The external proof consumes an acceptance ID from `WorkSpec`, emits a revision into `WorkResult`, and appends a deterministic `VerificationRecord` at shutdown after checking its canonical Scene/UI state.
 
 For deterministic inspection, existing `AgentFacade` binds directly to the `Application`'s canonical Runtime/Scene/UI objects. The E0 headless proof queries `#game.player` from the same `Scene` that game logic mutates. `Application::Snapshot()` is a bounded derived view for lifecycle/session discovery; it stores no parallel authoritative state.
 
@@ -73,20 +73,17 @@ Application + external Game
  -> Stop()
 ```
 
-The common E0 vocabulary is intentionally bounded to four new public concepts:
+The authoring/lifecycle core is intentionally bounded to four new concepts: `Application`, `Game`, `GameContext`, and `FixedUpdate`. The representative inspection path adds one derived value type, `ApplicationSnapshot`, for **five exposed E0 concepts total**. It is counted as an exposed concept even though it is not a semantic authority.
 
-1. `Application`
-2. `Game`
-3. `GameContext`
-4. `FixedUpdate`
-
-`ApplicationSnapshot` is a derived inspection result, not a fifth authority. The representative external game does not need to know SDL, GPU backend state, MCP transport, internal service registration, renderer pipeline objects, Git metadata or engine source layout.
+The representative external game does not need to know SDL, GPU backend state, MCP transport, internal service registration, renderer pipeline objects, Git metadata or engine source layout.
 
 Structural Agent-complexity evidence for the committed proof:
 
 - new primary authoring/runtime root: `trace2d/application/Application.hpp` — 1,
+- exposed E0 concepts used by the representative lifecycle + discovery path — 5,
 - external game implementation resources: `ExampleGame.hpp` + `ExampleGame.cpp` — 2,
-- new semantic lifecycle operations required in the ordinary path: `Start`, one stepping operation, `Stop` — 3,
+- required lifecycle semantic operations: `Start`, one stepping operation, `Stop` — 3,
+- optional host input operations: `ApplyInput` / `ScheduleInput` — 2 bounded operations, no raw input-frame mutation,
 - optional existing work-contract binding operation — 1,
 - deterministic session discovery operation: `Snapshot` — 1,
 - raw engine-internal/backend/MCP edits required — 0,
@@ -99,9 +96,9 @@ Token/tool-call measurements remain benchmark evidence rather than a universal E
 
 E0 adds no normal-frame filesystem access, parsing, JSON/string report construction, GPU readback or Agent snapshot generation.
 
-For `F` fixed frames, application orchestration is `O(F + scheduled input work + game work)`. The fixed-step loop reuses retained `Application`, `GameContext`, Runtime, Input, Scene and UI objects. It performs no required heap allocation of its own per fixed update. Game/subsystem allocations remain governed by their owning contracts.
+For `F` fixed frames, application orchestration is `O(F + scheduled input work + game work)`. The fixed-step loop reuses retained `Application`, `GameContext`, Runtime, Input, Scene and UI objects. It performs one virtual `Game::OnFixedUpdate` dispatch per fixed step and no required heap allocation of its own per fixed update. Game/subsystem allocations remain governed by their owning contracts.
 
-`Application::Snapshot()` is explicit inspection work and returns scalar counts plus a `string_view` into canonical Scene metadata. Presentation callbacks are explicit host calls and are not part of authoritative simulation stepping.
+`Application::Snapshot()` is explicit inspection work and returns scalar counts plus a borrowed `string_view` into canonical Scene metadata. Presentation callbacks are explicit host calls and are not part of authoritative simulation stepping.
 
 ## Scope deliberately deferred
 
@@ -114,10 +111,10 @@ Scene hierarchy and external authored gameplay components remain #71. Resources,
 The committed tests/proofs cover:
 
 - external game source outside `engine/`,
-- explicit engine-owned lifecycle and fixed-step ownership,
+- explicit engine-owned lifecycle and fixed-step/input-frame ownership,
 - identical game logic under explicit/headless and elapsed/windowed-style stepping,
 - scene/input/UI access without backend types in `GameContext`,
-- existing WorkSpec/WorkResult participation,
+- existing WorkSpec/WorkResult/VerificationRecord participation,
 - existing Agent inspection over the canonical Scene,
 - optional presentation with no presentation requirement for deterministic acceptance,
 - no binary plugin ABI or generic reflection/ECS/event framework.

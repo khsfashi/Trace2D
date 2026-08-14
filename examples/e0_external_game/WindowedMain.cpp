@@ -48,7 +48,7 @@ int main()
             }
             else if (event.type == trace2d::platform::PlatformEventType::Input)
             {
-                application.Input().ApplyEvent(event.input);
+                application.ApplyInput(event.input);
             }
         }
 

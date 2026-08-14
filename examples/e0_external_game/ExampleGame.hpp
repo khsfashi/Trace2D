@@ -22,4 +22,5 @@ private:
     trace2d::scene::EntityId player_{};
     std::uint64_t fixedUpdateCount_{0};
     std::string observedWorkId_{};
+    std::string observedAcceptanceId_{};
 };

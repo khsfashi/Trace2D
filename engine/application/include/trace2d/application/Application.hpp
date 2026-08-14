@@ -116,6 +116,9 @@ public:
     void BindWorkContracts(const agent::WorkSpec* workSpec, agent::WorkResult* workResult) noexcept;
     void SetPresentationCallback(PresentationCallback callback, void* userData = nullptr) noexcept;
 
+    void ApplyInput(const input::InputEvent& event) noexcept;
+    void ScheduleInput(std::uint64_t frame, const input::InputEvent& event);
+
     void Start();
     void StepFrames(std::uint64_t count = 1);
     [[nodiscard]] std::uint64_t AdvanceElapsed(std::chrono::nanoseconds elapsed);
@@ -126,8 +129,6 @@ public:
     [[nodiscard]] ApplicationSnapshot Snapshot() const noexcept;
 
     [[nodiscard]] const runtime::FixedStepRuntime& Runtime() const noexcept;
-
-    [[nodiscard]] input::InputSystem& Input() noexcept;
     [[nodiscard]] const input::InputSystem& Input() const noexcept;
 
     [[nodiscard]] scene::Scene& Scene() noexcept;

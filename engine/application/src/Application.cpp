@@ -107,6 +107,18 @@ void Application::SetPresentationCallback(
     presentationUserData_ = userData;
 }
 
+void Application::ApplyInput(const input::InputEvent& event) noexcept
+{
+    input_.ApplyEvent(event);
+}
+
+void Application::ScheduleInput(
+    const std::uint64_t frame,
+    const input::InputEvent& event)
+{
+    input_.Schedule(frame, event);
+}
+
 void Application::Start()
 {
     if (lifecycle_ != ApplicationLifecycle::Created)
@@ -224,11 +236,6 @@ ApplicationSnapshot Application::Snapshot() const noexcept
 const runtime::FixedStepRuntime& Application::Runtime() const noexcept
 {
     return runtime_;
-}
-
-input::InputSystem& Application::Input() noexcept
-{
-    return input_;
 }
 
 const input::InputSystem& Application::Input() const noexcept

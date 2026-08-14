@@ -16,6 +16,11 @@ int main()
         trace2d::agent::WorkSpec spec{};
         spec.id = "e0-external-game";
         spec.intent = "Prove the external Game/Application boundary.";
+        spec.acceptance.push_back(trace2d::agent::AcceptanceCriterion{
+            .id = "e0.external-game.lifecycle",
+            .description = "External game reaches deterministic canonical state and shuts down cleanly.",
+            .verification = trace2d::agent::VerificationClass::Deterministic,
+        });
 
         trace2d::agent::WorkResult result{};
 
@@ -28,13 +33,13 @@ int main()
         ExampleGame game{};
         trace2d::application::Application application{game, config};
         application.BindWorkContracts(&spec, &result);
-        application.Input().Schedule(
+        application.ScheduleInput(
             1,
             trace2d::input::InputEvent{
                 .control = trace2d::input::InputControl::KeyD,
                 .type = trace2d::input::InputEventType::Press,
             });
-        application.Input().Schedule(
+        application.ScheduleInput(
             3,
             trace2d::input::InputEvent{
                 .control = trace2d::input::InputControl::KeyD,
@@ -69,7 +74,22 @@ int main()
         }
 
         application.Stop();
-        return game.FixedUpdateCount() == 3U ? 0 : 6;
+        if (game.FixedUpdateCount() != 3U)
+        {
+            return 6;
+        }
+        if (result.revisions.front().verification.size() != 1U)
+        {
+            return 7;
+        }
+        const trace2d::agent::VerificationRecord& verification = result.revisions.front().verification.front();
+        if (verification.acceptanceId != spec.acceptance.front().id
+            || verification.outcome != trace2d::agent::VerificationOutcome::Passed)
+        {
+            return 8;
+        }
+
+        return 0;
     }
     catch (const std::exception&)
     {

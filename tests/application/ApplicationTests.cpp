@@ -9,12 +9,18 @@
 #include <chrono>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace
 {
 using namespace std::chrono_literals;
+
+static_assert(std::is_same_v<
+    decltype(std::declval<trace2d::application::Application&>().Input()),
+    const trace2d::input::InputSystem&>);
 
 class RecordingGame final : public trace2d::application::Game
 {
@@ -107,13 +113,13 @@ TEST(ApplicationTests, OwnsLifecycleAndOneGameCallbackPerFixedStep)
     application.Start();
     EXPECT_EQ(game.startCount, 1U);
 
-    application.Input().Schedule(
+    application.ScheduleInput(
         1,
         trace2d::input::InputEvent{
             .control = trace2d::input::InputControl::KeyD,
             .type = trace2d::input::InputEventType::Press,
         });
-    application.Input().Schedule(
+    application.ScheduleInput(
         3,
         trace2d::input::InputEvent{
             .control = trace2d::input::InputControl::KeyD,
