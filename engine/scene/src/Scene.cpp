@@ -351,14 +351,16 @@ bool Scene::HasComponentType(const EntityId entityId, const std::string_view typ
 {
     if (!Contains(entityId)) return false;
     if (typeId == "Transform2D") return true;
+    const Entity* entity = TryGet(entityId);
+    if (typeId == "Hierarchy2D")
+        return entity != nullptr && (entity->parent_.has_value() || !entity->children_.empty());
     if (registry_ == nullptr) return false;
     const std::optional<ComponentTypeIndex> index = registry_->FindIndexById(typeId);
     if (!index.has_value()) return false;
-    const Entity& entity = *TryGet(entityId);
     const auto iterator = std::lower_bound(
-        entity.components_.begin(), entity.components_.end(), *index,
+        entity->components_.begin(), entity->components_.end(), *index,
         [](const ComponentInstance& instance, const ComponentTypeIndex value) { return instance.index_ < value; });
-    return iterator != entity.components_.end() && iterator->index_ == *index;
+    return iterator != entity->components_.end() && iterator->index_ == *index;
 }
 
 std::vector<ComponentInspectionSnapshot> Scene::InspectComponents(const EntityId entityId) const
