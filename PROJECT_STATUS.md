@@ -16,9 +16,9 @@ Verification rule:
 
 Complete Sprite #59 and Benchmark B1 #103 are merged and closed. PR #174 merged B1 to `main` as `1ba74562000425cde2a5eab342edf8f0315a6092`.
 
-#175 B1 postmortem and PR #181's Agent-complexity product rule are merged. PR #182 merged #69 E0 as `20cd8282c1232234ea2bf117287ef167ee14e521`, so the external Game/Application boundary is now complete.
+#175 B1 postmortem and PR #181's Agent-complexity product rule are merged. PR #182 merged #69 E0 as `20cd8282c1232234ea2bf117287ef167ee14e521`, establishing the external Game/Application boundary. PR #183 merged #70 E1 as `5c4f426542fe4e43e98ef107db88a640f16aeadf`, establishing the installable external project/SDK/package boundary.
 
-**#70 E1 external project/install/package is the current core stage.** Its implementation owns the first versioned project manifest, public CMake SDK export, clean external consumer path, machine-readable environment doctor, package/provenance baseline, project texture-package policy and source compatibility boundary. While the #70 implementation PR is open, continue/fix #70 only. After that PR merges green and #70 closes, the exact next core-lane item is **#71 — deterministic scene hierarchy and typed authored component composition**.
+**#71 E2 deterministic scene hierarchy and typed authored component composition is the current core stage while PR #184 is open.** Continue/fix #71 only until its exact-head CI and extracted-SDK external consumer gates are green. Once PR #184 merges and #71 closes, the exact next core-lane item is **#86 — R0 unified typed resource lifecycle, dependency, unloading, and memory accounting**.
 
 Frozen Sprite contract continuity retained for repository checks:
 
@@ -121,7 +121,7 @@ Key constraints retained from E0:
 
 ## #70 E1 external project / SDK package
 
-E1 promotes the same E0 game into a first-class project and install/package consumer rather than creating another gameplay authority.
+PR #183 completed E1 and promoted the same E0 game into a first-class project and install/package consumer rather than creating another gameplay authority.
 
 The committed E1 contract is `docs/EXTERNAL_PROJECT_E1.md`. Its core shape is:
 
@@ -154,9 +154,45 @@ E1 constraints:
 - install/package artifacts carry Trace2D license/notices plus SDK identity, and CI records source/toolchain/dependency/package SHA-256 provenance,
 - package/install hashing and project discovery do no normal-frame work.
 
-The E1 clean-checkout gate uses the extracted CPack SDK to configure/build the external E0 game and run its headless test. The windowed host must compile, but #70 does not create a new real-GPU evidence authority; renderer/GPU evidence remains with its existing gates.
+The E1 clean-checkout gate uses the extracted CPack SDK to configure/build the external game and run its headless test. The windowed host must compile, but #70 does not create a new real-GPU evidence authority; renderer/GPU evidence remains with its existing gates.
 
 Current reproducibility scope is explicit: repeat installation from one compiled build must produce the same canonical file-tree digest; repeated ZIP hashes are recorded; independent compiler/linker bit reproducibility, signing, SBOM publication and release attestations are not claimed until Trace2D publishes a user-facing binary/SDK artifact.
+
+## #71 E2 deterministic Scene composition
+
+PR #184 is the E2 implementation candidate. It extends the same application-owned `Scene` rather than creating a second game/Agent state authority.
+
+The E2 contract is frozen in `docs/SCENE_COMPOSITION_E2.md` and `docs/SCENE_FORMAT.md`:
+
+```text
+versioned authored scene
+ -> create stable entity identities
+ -> construct registered typed authored components
+ -> typed parse + validation
+ -> resolve semantic parent references
+ -> deterministic local/world hierarchy
+ -> publish one canonical Scene
+ -> external Game typed access + Agent inspect/query
+```
+
+E2 constraints:
+
+- `Scene` owns entity identity, parent/child hierarchy, local transforms and component instances,
+- authored component identity is an explicit stable type ID + schema version; C++ RTTI names, pointer addresses and registry order are not semantic identity,
+- a setup-time `ComponentRegistry` is frozen before authored component loading,
+- game code uses resolved `ComponentTypeHandle<T>` / generation-safe `ComponentHandle<T>` instead of per-frame string/property dispatch,
+- version-2 TOML adds hierarchy and typed authored components while version 1 remains readable and upgrades canonically on save,
+- built-in `trace2d.visibility2d` and external `game.health` prove engine/game composition without moving game code into `engine/`,
+- `Transform()` remains local authoritative state; world transforms are allocation-free O(hierarchy depth) and no hidden dirty cache is introduced before workload evidence,
+- subtree destruction invalidates descendant generations before slot reuse can alias stale handles,
+- existing Agent `Query` / `QueryOne` and component snapshot surface are reused; `Hierarchy2D` exposes serializer-safe parent/children/world fields without adding an E2-only tool,
+- semantic `#id` Agent queries resolve through the same `Scene::FindBySemanticId` authority used by game code,
+- TOML parsing/serialization, semantic string resolution, sorting and Agent snapshot copies are explicit setup/tooling operations, not mandatory fixed-step work,
+- no generic ECS/property bag, tracing GC, mandatory shared-ownership atomics, scripting VM or service locator is introduced.
+
+The #71 extracted-SDK gate must compile the external consumer against the packaged public SDK and run its authored scene round-trip + fixed-step + Agent verification. PR #184 does not merge until its exact-head repository CI and external consumer SDK gates are green.
+
+After #71 merges green and closes, **#86 becomes the exact core-lane handoff**. #86 must build the unified typed resource identity/lifetime/dependency/unload/memory contract on top of E2 rather than introducing another handle/resource authority.
 
 ## Evidence-backed implementation follow-ups
 
@@ -235,7 +271,7 @@ Native Skeleton is core capability. Spine remains an explicit license-gated opti
 
 The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-- If a #70 implementation PR is open, continue #70 only: inspect exact-head CI/review state and fix E1 if needed. Do **not** start #71.
-- If the #70 implementation PR is merged and #70 is closed, the exact next core implementation item is **#71 — deterministic scene hierarchy and typed authored component composition**.
-- After #71 merges green, the expanded production sequence continues to #86, as frozen by #71.
+- If PR #184 for #71 is open, continue #71 only: inspect exact-head CI/review state and fix E2 if needed. Do **not** start #86.
+- If PR #184 is merged and #71 is closed, the exact next core implementation item is **#86 — R0 unified typed resource lifecycle, dependency, unloading, and memory accounting**.
+- After #86 merges green, continue to #87 as frozen by #86.
 - #178/#179 remain registered before #104 and must not be pulled forward unless the repository owner explicitly changes the fixed lane.
