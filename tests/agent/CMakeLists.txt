@@ -2,6 +2,7 @@ add_executable(trace2d_agent_tests
     InspectionTests.cpp
     ParticleInspectionTests.cpp
     QueryTests.cpp
+    SceneCompositionInspectionTests.cpp
     SpriteAnimationInspectionTests.cpp
     UiAutomationTests.cpp
     UiAuthoredAutomationTests.cpp
