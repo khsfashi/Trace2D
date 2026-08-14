@@ -88,6 +88,7 @@ struct ResourceHandle final
     }
 };
 
+// Canonical CPU-side texture truth. Renderer/backend residency is intentionally not stored here.
 struct TextureResource final
 {
     std::uint32_t width{0};
@@ -97,8 +98,6 @@ struct TextureResource final
     CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Reacquirable};
     std::string retentionReason{"source/package can be reacquired"};
     std::vector<std::uint8_t> canonicalRgba8{};
-    bool rendererResident{false};
-    std::size_t knownRendererGpuBytes{0};
 };
 
 struct SpriteResource final
@@ -245,6 +244,7 @@ public:
     [[nodiscard]] std::size_t ReleaseUnused();
     [[nodiscard]] ResourceClearReport ClearProjectResources();
 
+    // Records only renderer-owned residency evidence; no backend handle enters canonical CPU state.
     [[nodiscard]] ResourceOperationResult SetTextureRendererResidency(
         ResourceHandle<TextureResource> handle,
         bool resident,
@@ -292,6 +292,8 @@ private:
         std::vector<ResourceHandleUntyped> dependencies{};
         std::vector<ResourceHandleUntyped> dependents{};
         std::uint32_t callerRetainCount{0};
+        bool rendererResident{false};
+        std::size_t knownRendererGpuBytes{0};
         std::optional<ResourceDiagnostic> error{};
     };
 
@@ -354,6 +356,8 @@ private:
         slot.dependencies.clear();
         slot.dependents.clear();
         slot.callerRetainCount = 0;
+        slot.rendererResident = false;
+        slot.knownRendererGpuBytes = 0U;
         slot.error.reset();
         identityToSlot_.emplace(key, slotIndex);
         ++readyResources_;
