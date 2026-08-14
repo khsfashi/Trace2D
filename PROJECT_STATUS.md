@@ -16,6 +16,8 @@ Verification rule:
 
 Complete Sprite #59 and Benchmark B1 #103 are merged and closed. PR #174 merged B1 to `main` as `1ba74562000425cde2a5eab342edf8f0315a6092`.
 
+#175 B1 postmortem and PR #181's Agent-complexity product rule are also merged. PR #182 carries the current #69 E0 external Game/Application boundary implementation. While PR #182 is open, #70 remains blocked. After PR #182 merges green, #69 is complete and the exact next core-lane item is #70.
+
 Frozen Sprite contract continuity retained for repository checks:
 
 - #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract remains frozen and complete.
@@ -88,6 +90,34 @@ For the demonstrated single-resource deterministic repair class, the product-sur
 - compact structured output rather than full-resource echo by default.
 
 Animation remains the strongest Trace2D B1 task at 2/3. Preserve exact-event semantics, compact deterministic state, headless exact-time inspection and semantic/presentation separation. B1 alone does not justify a separate animation-fix issue.
+
+## #69 E0 external Game/Application boundary
+
+PR #182 implements the first external game-production stage with one source-level `Trace2D::Application` boundary and an external `ExampleGame` under `examples/`, outside `engine/`.
+
+The E0 contract intentionally keeps ownership narrow:
+
+```text
+Application owns Runtime + Input + Scene + UI
+ -> external Game receives GameContext
+ -> Application alone advances Input frame + fixed Runtime frame
+ -> Game gets one OnFixedUpdate per authoritative fixed step
+ -> optional host presentation reads the same canonical state
+```
+
+Key constraints carried by PR #182:
+
+- game code cannot step Runtime or advance Input frames,
+- host input enters only through bounded `ApplyInput` / `ScheduleInput`,
+- headless and windowed hosts use the same external Game class,
+- SDL/render/MCP/backend types stay out of GameContext,
+- existing WorkSpec/WorkResult/VerificationRecord and Agent inspection are reused over canonical application-owned state,
+- no binary plugin ABI, generic service locator, reflection/ECS/event framework, or Agent-only game database,
+- no required per-fixed-step heap allocation/filesystem/parsing/report/GPU-readback work is added by Application orchestration.
+
+`docs/GAME_APPLICATION_E0.md` records the engine-facing lifecycle, the five exposed E0 concepts in the representative lifecycle + discovery path, bounded public operations, and why the projection does not create a second authority.
+
+Do not start #70 from this branch merely because #182 exists. #70 becomes current only after #182 is merged green and #69 is closed by live repository state.
 
 ## Evidence-backed implementation follow-ups
 
@@ -166,4 +196,6 @@ Native Skeleton is core capability. Spine remains an explicit license-gated opti
 
 The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-This branch completes the analytical #175 gate. Once its PR merges green, the exact next core implementation item is **#69 — external Game/Application module boundary**. #178/#179 remain registered before #104 and must not be pulled forward unless the repository owner explicitly changes the fixed lane.
+- If PR #182 is still open, continue #69 only: inspect exact-head CI/review state and fix E0 if needed. Do **not** start #70.
+- If PR #182 is merged and #69 is closed, the exact next core implementation item is **#70 — project manifest + external consumer build/install/package**.
+- #178/#179 remain registered before #104 and must not be pulled forward unless the repository owner explicitly changes the fixed lane.
