@@ -1,0 +1,241 @@
+{
+  "schema": "trace2d.b1-postmortem.v1",
+  "issue": 175,
+  "authority": {
+    "scored_head": "6d6904e99ad7060341861cb3823e04591a579bf7",
+    "workflow_run": 31763107941,
+    "artifact_id": 9206626314,
+    "artifact_name": "benchmark-b1-scored-6d6904e99ad7060341861cb3823e04591a579bf7",
+    "artifact_sha256": "74ab53220927f557621c96ee7b8df7395010e60c191d3959705ab7ba09f8d4d6"
+  },
+  "frozen_budget": {
+    "wall_seconds": 300,
+    "max_tool_calls": 80,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 0
+  },
+  "trace2d_summary": {
+    "scored_successes": 3,
+    "scored_attempts": 9,
+    "unsuccessful_attempts": 6,
+    "final_verifier_passes": 9,
+    "failed_final_verifier_passes": 6,
+    "failed_due_to_input_token_budget": 6,
+    "failed_due_to_output_token_budget": 0,
+    "failed_due_to_tool_call_budget": 0,
+    "failed_due_to_timeout": 0,
+    "engine_native_authoring_calls": 0,
+    "interpretation": "All six unsuccessful Trace2D scored slots reached verifier-valid final content but exceeded the frozen input-token budget. B1 therefore demonstrates an Agent-surface efficiency/discoverability defect, not a deterministic runtime/content-correctness defect for these six final workspaces."
+  },
+  "single_resource_authoring_complexity_budget": {
+    "hard_model_budget": {
+      "max_input_tokens": 100000,
+      "max_output_tokens": 20000,
+      "max_tool_calls": 80,
+      "max_human_interventions": 0
+    },
+    "surface_requirements": {
+      "discoverable_root": "one public trace2d authoring entrypoint from trace2d --help",
+      "raw_text_edit_required": false,
+      "git_metadata_required": false,
+      "primary_semantic_mutations_max": 1,
+      "deterministic_validation_calls_max": 1,
+      "expected_revisions_max": 1,
+      "visual_feedback_required_for_deterministic_acceptance": false,
+      "full_resource_echo_by_default": false
+    },
+    "measurement_fields": [
+      "input_tokens",
+      "output_tokens",
+      "tool_calls",
+      "distinct_exposed_concepts",
+      "resources_touched",
+      "revisions",
+      "visual_feedback_calls",
+      "human_interventions"
+    ]
+  },
+  "task_minimum_surface": {
+    "b1-sprite-normalize-repair": {
+      "resources": ["one Sprite resource"],
+      "concepts": [
+        "semantic region identity",
+        "source size",
+        "trim offset",
+        "trim size",
+        "packed rectangle",
+        "source-space pivot",
+        "sampling"
+      ],
+      "desired_operations": [
+        "one typed transactional region mutation",
+        "one deterministic production-authority validation"
+      ]
+    },
+    "b1-particle-budget-repair": {
+      "resources": ["one Particle effect resource"],
+      "concepts": [
+        "effect identity",
+        "particle capacity constraint",
+        "per-step spawn constraint",
+        "maximum lifetime constraint",
+        "load-emission state",
+        "loop/one-shot intent"
+      ],
+      "desired_operations": [
+        "one typed transactional constraint mutation",
+        "one deterministic production-authority validation"
+      ]
+    },
+    "b1-animation-exact-event": {
+      "resources": ["one animation clip definition", "optional separate presentation artifact"],
+      "concepts": [
+        "frame durations",
+        "loop mode",
+        "event id/meaning",
+        "event time",
+        "event ordinal",
+        "exact-time frame inspection"
+      ],
+      "desired_operations": ["one typed animation mutation", "one exact-time deterministic inspection"],
+      "preserve": [
+        "exact-event semantics",
+        "compact deterministic state",
+        "headless authority",
+        "presentation/semantic separation"
+      ]
+    }
+  },
+  "b2_entry_gate": [
+    "postmortem #175 committed",
+    "Sprite authoring issue #178 implemented and independently tested",
+    "Particle authoring issue #179 implemented and independently tested",
+    "B1 frozen evidence unchanged",
+    "new held-out B2 tasks/variants frozen before scoring",
+    "budgets/verifier authorities/retry-exclusion/baseline identities preregistered"
+  ],
+  "trials": [
+    {
+      "trial_id": "b1-sprite-normalize-repair-trace2d.agent-scored-r1",
+      "task_id": "b1-sprite-normalize-repair",
+      "repetition": 1,
+      "scored_status": "success",
+      "failure_domain": "success",
+      "metrics": {"input_tokens": 87732, "output_tokens": 2986, "tool_calls": 8, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 108803.0015, "verifier_ms": 150.7478},
+      "exceeded_limits": [],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 6, "file_change": 2},
+      "primary_category": "success",
+      "secondary_factors": []
+    },
+    {
+      "trial_id": "b1-animation-exact-event-trace2d.agent-scored-r1",
+      "task_id": "b1-animation-exact-event",
+      "repetition": 1,
+      "scored_status": "success",
+      "failure_domain": "success",
+      "metrics": {"input_tokens": 86419, "output_tokens": 3264, "tool_calls": 8, "revisions": 1, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 90502.7219, "verifier_ms": 10733.738},
+      "exceeded_limits": [],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 7, "file_change": 1},
+      "primary_category": "success",
+      "secondary_factors": []
+    },
+    {
+      "trial_id": "b1-particle-budget-repair-trace2d.agent-scored-r1",
+      "task_id": "b1-particle-budget-repair",
+      "repetition": 1,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 101586, "output_tokens": 2032, "tool_calls": 8, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 73910.1581, "verifier_ms": 148.0682},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 6, "file_change": 2},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_toml_edit_required", "first_patch_removed_required_keys", "non_git_workspace_diff_mismatch"]
+    },
+    {
+      "trial_id": "b1-animation-exact-event-trace2d.agent-scored-r2",
+      "task_id": "b1-animation-exact-event",
+      "repetition": 2,
+      "scored_status": "success",
+      "failure_domain": "success",
+      "metrics": {"input_tokens": 89946, "output_tokens": 4564, "tool_calls": 13, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 127742.079, "verifier_ms": 11390.3214},
+      "exceeded_limits": [],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 11, "file_change": 2},
+      "primary_category": "success",
+      "secondary_factors": []
+    },
+    {
+      "trial_id": "b1-particle-budget-repair-trace2d.agent-scored-r2",
+      "task_id": "b1-particle-budget-repair",
+      "repetition": 2,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 103538, "output_tokens": 2958, "tool_calls": 10, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 95740.0814, "verifier_ms": 147.9362},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 8, "file_change": 2},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_toml_edit_required", "duplicate_key_correction", "ad_hoc_shell_validation"]
+    },
+    {
+      "trial_id": "b1-sprite-normalize-repair-trace2d.agent-scored-r2",
+      "task_id": "b1-sprite-normalize-repair",
+      "repetition": 2,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 102304, "output_tokens": 2182, "tool_calls": 9, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 78072.0625, "verifier_ms": 147.2738},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 7, "file_change": 2},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_toml_edit_required", "duplicate_key_correction", "non_git_workspace_diff_mismatch"]
+    },
+    {
+      "trial_id": "b1-particle-budget-repair-trace2d.agent-scored-r3",
+      "task_id": "b1-particle-budget-repair",
+      "repetition": 3,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 164202, "output_tokens": 3335, "tool_calls": 13, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 110688.3317, "verifier_ms": 145.3899},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 10, "file_change": 2, "todo_list": 1},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_toml_edit_required", "first_patch_removed_required_keys", "non_git_workspace_diff_mismatch", "ad_hoc_shell_validation", "sandbox_helper_setup_noise"]
+    },
+    {
+      "trial_id": "b1-sprite-normalize-repair-trace2d.agent-scored-r3",
+      "task_id": "b1-sprite-normalize-repair",
+      "repetition": 3,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 132054, "output_tokens": 2739, "tool_calls": 11, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 93669.3658, "verifier_ms": 149.3587},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 8, "file_change": 2, "todo_list": 1},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_toml_edit_required", "duplicate_key_correction", "non_git_workspace_diff_mismatch", "ad_hoc_python_validation", "sandbox_helper_setup_noise"]
+    },
+    {
+      "trial_id": "b1-animation-exact-event-trace2d.agent-scored-r3",
+      "task_id": "b1-animation-exact-event",
+      "repetition": 3,
+      "scored_status": "budget_exceeded",
+      "failure_domain": "implementation",
+      "metrics": {"input_tokens": 145011, "output_tokens": 7604, "tool_calls": 15, "revisions": 2, "visual_feedback_calls": 0, "human_interventions": 0, "wall_ms": 178123.5523, "verifier_ms": 11567.9528},
+      "exceeded_limits": ["input_tokens"],
+      "verifier_status": "pass",
+      "engine_native_operations": {"command_execution": 13, "file_change": 2},
+      "primary_category": "input_token_budget_exhaustion",
+      "secondary_factors": ["typed_authoring_mutation_absent", "manual_cpp_edit_required", "non_git_workspace_diff_mismatch", "redundant_ad_hoc_structural_validation", "advisory_presentation_artifact_overhead", "sandbox_helper_setup_noise"]
+    }
+  ],
+  "follow_up_issues": [
+    {"issue": 178, "scope": "transactional Sprite resource mutation and deterministic validation", "required_before_b2": true},
+    {"issue": 179, "scope": "transactional Particle constraint mutation and deterministic validation", "required_before_b2": true}
+  ]
+}

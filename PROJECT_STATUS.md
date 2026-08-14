@@ -14,7 +14,7 @@ Verification rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Complete Sprite #59 is merged and closed. Benchmark B1 #103 has now produced its first frozen 27-slot scored cohort on PR #174 / branch `agent/benchmark-b1-content-authoring`.
+Complete Sprite #59 and Benchmark B1 #103 are merged and closed. PR #174 merged B1 to `main` as `1ba74562000425cde2a5eab342edf8f0315a6092`.
 
 Frozen Sprite contract continuity retained for repository checks:
 
@@ -23,13 +23,19 @@ Frozen Sprite contract continuity retained for repository checks:
 - #152 / PR #153 — SA4 deterministic animation conformance/workload evidence remains frozen.
 - #172 / PR #173 — SPERF completed the production Sprite program.
 
-## Benchmark B1 frozen baseline
+## Benchmark B1 — immutable baseline
 
 Exact scored head: `6d6904e99ad7060341861cb3823e04591a579bf7`.
 
 Owner scored workflow run: `31763107941`.
 
-Observed aggregate result:
+Scored artifact:
+
+- id `9206626314`,
+- `benchmark-b1-scored-6d6904e99ad7060341861cb3823e04591a579bf7`,
+- SHA-256 `74ab53220927f557621c96ee7b8df7395010e60c191d3959705ab7ba09f8d4d6`.
+
+Frozen aggregate result:
 
 - Godot Generic: 5/9 successful (55.6%).
 - Trace2D Agent: 3/9 successful (33.3%).
@@ -37,82 +43,105 @@ Observed aggregate result:
 - Trace2D by task: Sprite 1/3, animation 2/3, particle 0/3.
 - Godot Generic by task: Sprite 2/3, animation 0/3, particle 3/3.
 
-These values are frozen cohort evidence, not universal product claims. Do not rerun, replace, repair or retrospectively alter B1 scored slots.
+These are cohort observations, not universal product claims. Do not rerun, replace, repair or retrospectively alter scored B1 slots.
 
-The scored workflow completed on the exact approved head and uploaded scored evidence. B1 is therefore preserved as the immutable pre-improvement baseline for future architectural comparisons.
+## #175 postmortem finding
 
-## Immediate analytical gate
+`docs/BENCHMARK_B1_POSTMORTEM.md` and `benchmarks/b1/postmortem-v1.json` freeze the evidence-backed interpretation.
 
-New roadmap gate: **#175 — Benchmark B1 postmortem: agent-surface failure taxonomy and B2 entry gate**.
+The key distinction is:
 
-#175 owns the evidence-backed analysis of every unsuccessful Trace2D B1 slot. It must distinguish runtime/engine defects from Agent-facing authoring-surface defects and classify failures such as token/context exhaustion, tool-discovery errors, invalid authored output, verifier rejection, timeout and reasoning failure.
+- Trace2D scored success: **3/9**,
+- final independent verifier acceptance: **9/9**,
+- unsuccessful scored slots: **6/6 final verifier pass**, all classified `budget_exceeded` because input tokens exceeded the frozen 100k ceiling,
+- output-token exhaustion: 0,
+- tool-call exhaustion: 0,
+- timeout: 0,
+- deterministic verifier rejection: 0,
+- human intervention: 0,
+- engine-native authoring operations observed in the nine Trace2D traces: 0.
 
-The response to B1 is not to add more tools or longer prompts by default. Prefer reducing Agent-visible state and expressing authoring through smaller deterministic primitives.
+B1 therefore demonstrates an Agent-facing authoring-surface efficiency/discoverability defect for these cases, not a deterministic correctness defect in the six final resources.
 
-#175 also establishes an **Agent Complexity Budget** for future subsystem contracts, measuring at least:
+The repeated context amplifiers were raw TOML/C++ editing, duplicate/removed-key repair, rereading, ad-hoc validation, non-Git workspace `git diff` help output, and in r3 secondary sandbox/helper noise. Do not solve this by simply enlarging prompts/budgets or proliferating benchmark-specific MCP tools.
+
+## Agent Complexity Budget
+
+Future authoring contracts record at least:
 
 - input/output tokens,
 - tool calls,
 - distinct exposed concepts/resources,
-- revisions/iterations,
+- revisions,
 - visual-feedback calls,
 - human interventions.
 
-Task-specific interpretation:
+For the demonstrated single-resource deterministic repair class, the product-surface target is:
 
-- Animation 2/3 is a promising architectural signal, not proof of universal superiority. Preserve exact-event semantics, compact inspectable state, deterministic/headless verification and presentation separation where evidence supports them.
-- Sprite 1/3 requires failure-level analysis before calling Complete Sprite Agent-optimal.
-- Particle 0/3 is treated as a product-level authoring-surface problem until evidence proves otherwise; runtime capability and Agent usability are separate acceptance dimensions.
+- one discoverable public `trace2d` authoring root,
+- raw text editing not required,
+- Git metadata not required,
+- at most one primary semantic mutation,
+- at most one deterministic validation call after mutation,
+- expected authoring revision count one,
+- zero visual-feedback calls required for deterministic acceptance,
+- compact structured output rather than full-resource echo by default.
 
-## B2 rule
+Animation remains the strongest Trace2D B1 task at 2/3. Preserve exact-event semantics, compact deterministic state, headless exact-time inspection and semantic/presentation separation. B1 alone does not justify a separate animation-fix issue.
 
-B1 remains immutable. B2 must not be a rerun-until-win exercise.
+## Evidence-backed implementation follow-ups
 
-Before B2 scoring:
+Only two dedicated implementation issues are justified directly by B1:
 
-1. #175 postmortem is complete,
-2. evidence-backed authoring-surface improvements are implemented and independently tested,
-3. B1 tasks/verifiers/results remain unchanged,
-4. B2 uses new held-out tasks or variants frozen before scoring,
-5. budgets, verifier authorities, retry/exclusion rules and baseline identities are preregistered again.
+- **#178 — transactional Sprite resource mutation and deterministic validation**,
+- **#179 — transactional Particle constraint mutation and deterministic validation**.
+
+Both must use the existing production parser/serializer/validator/compiler authorities, mutate typed state transactionally, preserve unspecified intent, validate before atomic commit, emit bounded machine-readable diagnostics, and add no normal-frame parsing/filesystem/report/GPU cost.
+
+They are B2 prerequisites, but they do **not** jump ahead of the external-game foundation. The core lane is intentionally:
+
+```text
+#175 postmortem
+ -> #69 -> #70 -> #71 -> #86 -> #87 -> #88
+ -> #72 -> #73 -> #74 -> #75
+ -> #178 Sprite Agent authoring
+ -> #179 Particle Agent authoring
+ -> #104 B2
+ -> remaining production foundation
+```
+
+## B2 entry gate
+
+B2 remains blocked until:
+
+1. #175 postmortem is merged,
+2. #178 is implemented and independently tested on non-B1 fixtures,
+3. #179 is implemented and independently tested on non-B1 fixtures,
+4. B1 tasks/verifiers/results/artifact identity remain unchanged,
+5. B2 uses new held-out tasks or variants frozen before scoring,
+6. budgets, verifier authorities, retry/exclusion rules and baseline identities are preregistered again.
+
+B2 tests generalization after architectural improvement; it is not a rerun-until-win exercise.
 
 ## Long-range roadmap additions
 
 ### #177 — Source-neutral Asset Intelligence Pipeline and Asset IR
 
-Trace2D should accept generated, imported or hand-authored images through one shared source-neutral boundary:
+Generated, imported and hand-authored images enter one source-neutral boundary:
 
 ```text
 AssetSource
-  -> AssetInput
-  -> deterministic preparation / bounded semantic analysis
-  -> Trace2D Asset IR
-  -> native runtime and optional interoperability
+ -> AssetInput
+ -> deterministic preparation / bounded semantic analysis
+ -> Trace2D Asset IR
+ -> native runtime and optional interoperability
 ```
 
-ComfyUI, generated-image systems, Aseprite, Photoshop and other tools are adapters/sources only. Core AssetInput/AssetIR must not inherit ComfyUI-specific batch types, output-directory assumptions or Spine dependencies.
-
-Deterministic analysis owns objective questions such as alpha bounds, frame geometry, trim/alignment and schema integrity. Semantic/VLM inference is limited to ambiguous tasks such as part classification, inferred pivot/hierarchy intent and aesthetic audit, and cannot silently become runtime/gameplay authority.
-
-The intended staged direction is:
-
-```text
-AI0 Asset input contract
- -> AI1 deterministic preparation
- -> AI2 bounded semantic analysis
- -> AI3 deterministic + visual audit split
- -> AI4 native rig handoff
- -> AI5 optional interoperability
- -> AI6 closed-loop generated/imported asset workflow
-```
-
-Heavy segmentation/VLM/export work is offline/setup work and must not leak into ordinary frame execution.
+ComfyUI and other creation tools remain optional adapters/sources. Deterministic analysis owns objective geometry/schema facts; semantic/VLM inference is bounded to ambiguous or aesthetic questions. Heavy analysis stays offline/setup-side.
 
 ### #176 — Native Deterministic Skeletal Animation
 
-Trace2D will own a compact native skeleton/animation representation instead of making Spine the native architecture.
-
-Fixed umbrella direction:
+Trace2D owns a compact native skeleton/animation representation rather than making Spine the native architecture:
 
 ```text
 NS0 Skeleton IR
@@ -120,48 +149,21 @@ NS0 Skeleton IR
  -> NS2 optimized deterministic evaluator
  -> NS3 rigid region attachments
  -> NS4 animation tracks + exact events
- -> NS5 deterministic mixing/transitions
- -> NS6 Agent inspection/headless QA
+ -> NS5 deterministic mixing
+ -> NS6 Agent/headless QA
  -> NS7 weighted Mesh2D skinning
- -> NS8 auto-rig handoff from Asset IR
- -> NS9 generated/imported asset -> rig -> animation -> deterministic QA -> render -> VLM audit E2E
+ -> NS8 Asset IR auto-rig handoff
+ -> NS9 generative E2E
 ```
 
-The initial MVP stays intentionally small: bones, stable hierarchy, slots, rigid region attachments, translate/rotate/scale tracks, attachment switching and exact events. IK, physics constraints, broad editor-centric state and weighted skinning are not part of the first stage unless later evidence demands them.
-
-Normal animation evaluation should use pre-resolved stable indices and reusable contiguous buffers with no ordinary per-frame allocation, filesystem/JSON work, string lookup or hierarchy discovery. Deterministic semantic pose/event authority stays separate from GPU visual/deformed-geometry conformance.
+Normal animation evaluation uses pre-resolved stable indices and reusable contiguous buffers with no ordinary per-frame allocation, filesystem/JSON work, string lookup or hierarchy discovery.
 
 ### #61 — Spine compatibility stays optional
 
-Spine remains an explicit license-gated compatibility target. Native Skeleton is core Trace2D capability; Spine may later be an optional importer/exporter/runtime adapter.
-
-Do not make native authoring semantics depend on proprietary Spine format/editor/runtime behavior and do not reimplement proprietary formats to bypass licensing.
-
-## Roadmap ordering rule
-
-The new #176/#177 umbrellas are explicit long-range plans, not authorization to skip the existing production-foundation sequence. `config/trace2d.core-lane.json` remains the continuation authority.
-
-Current ordering now begins:
-
-```text
-B1 frozen baseline
- -> #175 B1 postmortem / Agent-surface gate
- -> #69 external-game application
- -> existing production-foundation sequence
- -> #104 B2 at its registered position, subject to #175 B2 entry requirements
- -> remaining foundation / flagship proof
- -> #60 Mesh2D
- -> #177 Asset Intelligence / Asset IR
- -> #176 Native Deterministic Skeletal Animation
- -> #61 optional Spine compatibility gate
-```
-
-Individual #177/#176 stages may only activate when their owning foundations are ready; weighted skinning specifically depends on #60.
+Native Skeleton is core capability. Spine remains an explicit license-gated optional compatibility/import/export/runtime adapter and must not define Trace2D's native semantics.
 
 ## Continuation rule
 
-The following `@GitHub Trace2D 다음 진행해줘` continuation should resolve live state first.
+The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-If #103 / PR #174 still needs final presentation/multimodal/human review or merge/closure bookkeeping, finish that without modifying or rerunning scored B1 evidence. Once B1 is accepted/finalized, advance to #175.
-
-#175 should perform the postmortem, create only evidence-backed Sprite/Particle authoring-surface fixes, preserve the successful animation design properties where justified, and keep future B2 held-out and preregistered.
+This branch completes the analytical #175 gate. Once its PR merges green, the exact next core implementation item is **#69 — external Game/Application module boundary**. #178/#179 remain registered before #104 and must not be pulled forward unless the repository owner explicitly changes the fixed lane.
