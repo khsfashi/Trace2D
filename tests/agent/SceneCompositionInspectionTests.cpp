@@ -15,12 +15,23 @@
 namespace
 {
 struct Health final { std::int64_t current{90}; std::int64_t maximum{100}; };
+struct SemanticProbe final {};
 
 trace2d::scene::SemanticValue IntValue(const std::int64_t value)
 {
     trace2d::scene::SemanticValue result{};
     result.kind = trace2d::scene::SemanticValueKind::SignedInteger;
     result.signedIntegerValue = value;
+    return result;
+}
+
+trace2d::scene::SemanticValue TextValue(
+    const trace2d::scene::SemanticValueKind kind,
+    std::string text)
+{
+    trace2d::scene::SemanticValue result{};
+    result.kind = kind;
+    result.textValue = std::move(text);
     return result;
 }
 
@@ -44,6 +55,50 @@ trace2d::scene::ComponentTypeHandle<Health> RegisterHealth(trace2d::scene::Compo
         return std::vector<trace2d::scene::ComponentInspectionField>{
             {"current", IntValue(health.current)},
             {"maximum", IntValue(health.maximum)},
+        };
+    };
+    return registry.Register(std::move(registration));
+}
+
+trace2d::scene::ComponentTypeHandle<SemanticProbe> RegisterSemanticProbe(trace2d::scene::ComponentRegistry& registry)
+{
+    trace2d::scene::ComponentRegistration<SemanticProbe> registration{};
+    registration.typeId = "game.semantic_probe";
+    registration.componentClass = trace2d::scene::ComponentClass::RuntimeOnly;
+    registration.inspect = [](const SemanticProbe&)
+    {
+        trace2d::scene::SemanticValue boolean{};
+        boolean.kind = trace2d::scene::SemanticValueKind::Boolean;
+        boolean.booleanValue = true;
+
+        trace2d::scene::SemanticValue unsignedInteger{};
+        unsignedInteger.kind = trace2d::scene::SemanticValueKind::UnsignedInteger;
+        unsignedInteger.unsignedIntegerValue = 42;
+
+        trace2d::scene::SemanticValue scalar{};
+        scalar.kind = trace2d::scene::SemanticValueKind::Float;
+        scalar.floatValue = 1.25;
+
+        trace2d::scene::SemanticValue float2{};
+        float2.kind = trace2d::scene::SemanticValueKind::Float2;
+        float2.vectorValue[0] = 2.0;
+        float2.vectorValue[1] = 3.0;
+
+        trace2d::scene::SemanticValue float4{};
+        float4.kind = trace2d::scene::SemanticValueKind::Float4;
+        float4.vectorValue = {4.0, 5.0, 6.0, 7.0};
+
+        return std::vector<trace2d::scene::ComponentInspectionField>{
+            {"bool", boolean},
+            {"enum", TextValue(trace2d::scene::SemanticValueKind::EnumName, "idle")},
+            {"entity", TextValue(trace2d::scene::SemanticValueKind::EntityReference, "player")},
+            {"float", scalar},
+            {"float2", float2},
+            {"float4", float4},
+            {"int", IntValue(-7)},
+            {"resource", TextValue(trace2d::scene::SemanticValueKind::ResourceReference, "texture:hero")},
+            {"text", TextValue(trace2d::scene::SemanticValueKind::Text, "hello")},
+            {"uint", unsignedInteger},
         };
     };
     return registry.Register(std::move(registration));
@@ -112,7 +167,8 @@ TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegiste
     ASSERT_TRUE(weaponSnapshot.parentSemanticId.has_value());
     EXPECT_EQ(*weaponSnapshot.parentSemanticId, "player");
     EXPECT_FLOAT_EQ(weaponSnapshot.transform.position.x, 2.0F);
-    EXPECT_FLOAT_EQ(weaponSnapshot.worldTransform.position.x, 12.0F);
+    ASSERT_TRUE(weaponSnapshot.worldTransform.has_value());
+    EXPECT_FLOAT_EQ(weaponSnapshot.worldTransform->position.x, 12.0F);
 
     const auto* hierarchy = FindComponent(weaponSnapshot, "Hierarchy2D");
     ASSERT_NE(hierarchy, nullptr);
@@ -120,6 +176,10 @@ TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegiste
     ASSERT_NE(hierarchyParent, nullptr);
     EXPECT_EQ(hierarchyParent->value.kind, trace2d::agent::FieldValueKind::String);
     EXPECT_EQ(hierarchyParent->value.stringValue, "player");
+    const auto* worldAvailable = FindField(*hierarchy, "world_trs_available");
+    ASSERT_NE(worldAvailable, nullptr);
+    EXPECT_EQ(worldAvailable->value.kind, trace2d::agent::FieldValueKind::Boolean);
+    EXPECT_TRUE(worldAvailable->value.booleanValue);
     const auto* worldX = FindField(*hierarchy, "world.position.x");
     ASSERT_NE(worldX, nullptr);
     EXPECT_EQ(worldX->value.kind, trace2d::agent::FieldValueKind::Float);
@@ -139,5 +199,81 @@ TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegiste
     const auto hierarchyQuery = agent.Query("type:Hierarchy2D");
     ASSERT_TRUE(hierarchyQuery.Succeeded());
     EXPECT_EQ(hierarchyQuery.matches.size(), 2U);
+}
+
+TEST(SceneCompositionInspectionTests, AgentDoesNotInventWorldTrsWhenHierarchyIntroducesShear)
+{
+    trace2d::scene::Scene scene{{.semanticId = "shear", .name = "Shear"}};
+    trace2d::scene::EntityDescriptor parentDescriptor{};
+    parentDescriptor.semanticId = "parent";
+    parentDescriptor.transform.scale = {2.0F, 1.0F};
+    const auto parent = scene.CreateEntity(std::move(parentDescriptor));
+
+    trace2d::scene::EntityDescriptor childDescriptor{};
+    childDescriptor.semanticId = "child";
+    childDescriptor.transform.rotationRadians = 0.3F;
+    const auto child = scene.CreateEntity(std::move(childDescriptor));
+    ASSERT_EQ(scene.SetParent(child, parent), trace2d::scene::HierarchyResult::Success);
+
+    trace2d::runtime::FixedStepRuntime runtime{};
+    trace2d::agent::AgentFacade agent{&runtime, &scene};
+    const auto result = agent.QueryOne("#child");
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.match.has_value());
+    EXPECT_FALSE(result.match->worldTransform.has_value());
+
+    const auto* hierarchy = FindComponent(*result.match, "Hierarchy2D");
+    ASSERT_NE(hierarchy, nullptr);
+    const auto* worldAvailable = FindField(*hierarchy, "world_trs_available");
+    ASSERT_NE(worldAvailable, nullptr);
+    EXPECT_EQ(worldAvailable->value.kind, trace2d::agent::FieldValueKind::Boolean);
+    EXPECT_FALSE(worldAvailable->value.booleanValue);
+    EXPECT_EQ(FindField(*hierarchy, "world.position.x"), nullptr);
+}
+
+TEST(SceneCompositionInspectionTests, AgentPreservesBoundedSemanticValueKinds)
+{
+    trace2d::scene::ComponentRegistry registry{};
+    const auto probeType = RegisterSemanticProbe(registry);
+    registry.Freeze();
+
+    trace2d::scene::Scene scene{registry, {.semanticId = "semantic", .name = "Semantic"}};
+    trace2d::scene::EntityDescriptor descriptor{};
+    descriptor.semanticId = "probe";
+    const auto entity = scene.CreateEntity(std::move(descriptor));
+    (void)scene.AddComponent(entity, probeType, SemanticProbe{});
+
+    trace2d::runtime::FixedStepRuntime runtime{};
+    trace2d::agent::AgentFacade agent{&runtime, &scene};
+    const auto result = agent.QueryOne("type:game.semantic_probe");
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.match.has_value());
+    const auto* probe = FindComponent(*result.match, "game.semantic_probe");
+    ASSERT_NE(probe, nullptr);
+
+    EXPECT_EQ(FindField(*probe, "bool")->value.kind, trace2d::agent::FieldValueKind::Boolean);
+    EXPECT_EQ(FindField(*probe, "int")->value.kind, trace2d::agent::FieldValueKind::SignedInteger);
+    EXPECT_EQ(FindField(*probe, "uint")->value.kind, trace2d::agent::FieldValueKind::UnsignedInteger);
+    EXPECT_EQ(FindField(*probe, "float")->value.kind, trace2d::agent::FieldValueKind::Float);
+    EXPECT_EQ(FindField(*probe, "text")->value.kind, trace2d::agent::FieldValueKind::String);
+    EXPECT_EQ(FindField(*probe, "float2")->value.kind, trace2d::agent::FieldValueKind::Float2);
+    EXPECT_EQ(FindField(*probe, "float4")->value.kind, trace2d::agent::FieldValueKind::Float4);
+    EXPECT_EQ(FindField(*probe, "entity")->value.kind, trace2d::agent::FieldValueKind::EntityReference);
+    EXPECT_EQ(FindField(*probe, "resource")->value.kind, trace2d::agent::FieldValueKind::ResourceReference);
+    EXPECT_EQ(FindField(*probe, "enum")->value.kind, trace2d::agent::FieldValueKind::EnumName);
+
+    const auto* float2 = FindField(*probe, "float2");
+    ASSERT_NE(float2, nullptr);
+    EXPECT_FLOAT_EQ(float2->value.vectorValue[0], 2.0F);
+    EXPECT_FLOAT_EQ(float2->value.vectorValue[1], 3.0F);
+    const auto* entityReference = FindField(*probe, "entity");
+    ASSERT_NE(entityReference, nullptr);
+    EXPECT_EQ(entityReference->value.stringValue, "player");
+    const auto* resourceReference = FindField(*probe, "resource");
+    ASSERT_NE(resourceReference, nullptr);
+    EXPECT_EQ(resourceReference->value.stringValue, "texture:hero");
+    const auto* enumName = FindField(*probe, "enum");
+    ASSERT_NE(enumName, nullptr);
+    EXPECT_EQ(enumName->value.stringValue, "idle");
 }
 } // namespace
