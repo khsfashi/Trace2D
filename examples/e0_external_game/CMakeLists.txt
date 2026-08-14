@@ -63,8 +63,9 @@ trace2d_e0_enable_warnings(trace2d_e0_external_windowed)
 
 if(BUILD_TESTING)
     add_test(NAME trace2d_e0_external_game_headless COMMAND trace2d_e0_external_headless)
+    set_tests_properties(trace2d_e0_external_game_headless PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 if(TRACE2D_E0_STANDALONE)
-    message(STATUS "Trace2D E0 consumer is using the installed Trace2D package contract.")
+    message(STATUS "Trace2D external consumer is using the installed Trace2D package contract with the E2 authored-scene fixture.")
 endif()
