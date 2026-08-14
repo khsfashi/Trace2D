@@ -130,6 +130,12 @@ TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegiste
     EXPECT_EQ(byType.match->semanticId, "player");
     EXPECT_NE(FindComponent(*byType.match, "game.health"), nullptr);
 
+    const auto bySemanticIdAfterType = agent.QueryOne("#weapon");
+    ASSERT_TRUE(bySemanticIdAfterType.Succeeded());
+    EXPECT_EQ(bySemanticIdAfterType.match->semanticId, "weapon");
+    ASSERT_TRUE(bySemanticIdAfterType.match->parentSemanticId.has_value());
+    EXPECT_EQ(*bySemanticIdAfterType.match->parentSemanticId, "player");
+
     const auto hierarchyQuery = agent.Query("type:Hierarchy2D");
     ASSERT_TRUE(hierarchyQuery.Succeeded());
     EXPECT_EQ(hierarchyQuery.matches.size(), 2U);
