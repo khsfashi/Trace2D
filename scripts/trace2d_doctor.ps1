@@ -132,6 +132,8 @@ $contentRoot = $null
 $configurePresetName = $null
 $buildPresetName = $null
 $testPresetName = $null
+$headlessTargetName = $null
+$windowedTargetName = $null
 $manifestValid = $false
 $expectedVcpkgBaseline = $null
 
@@ -161,6 +163,8 @@ else {
             $configurePresetName = [string](Get-PropertyValue -Object $build -Name "configure_preset")
             $buildPresetName = [string](Get-PropertyValue -Object $build -Name "build_preset")
             $testPresetName = [string](Get-PropertyValue -Object $build -Name "test_preset")
+            $headlessTargetName = [string](Get-PropertyValue -Object $build -Name "headless_target")
+            $windowedTargetName = [string](Get-PropertyValue -Object $build -Name "windowed_target")
 
             $manifestErrorsBefore = $diagnostics.Count
             if ($formatVersion -ne 1) {
@@ -171,6 +175,14 @@ else {
             }
             if ([string]::IsNullOrWhiteSpace($minimumEngineVersion)) {
                 Add-Diagnostic -Category "project.engine_version_missing" -Message "engine.minimum_version is required." -Action "Declare the minimum Trace2D SDK version consumed by the project." -Code 12
+            }
+            else {
+                try {
+                    [void][version]$minimumEngineVersion
+                }
+                catch {
+                    Add-Diagnostic -Category "project.engine_version_invalid" -Message "engine.minimum_version '$minimumEngineVersion' is not a numeric version." -Action "Declare a numeric Trace2D version such as 0.1.0." -Code 12
+                }
             }
 
             $resolvedContentRoot = Resolve-ProjectPath -Root $resolvedProjectRoot -RelativePath $contentRoot
@@ -192,10 +204,12 @@ else {
             foreach ($entry in @(
                 @{ name = "build.configure_preset"; value = $configurePresetName },
                 @{ name = "build.build_preset"; value = $buildPresetName },
-                @{ name = "build.test_preset"; value = $testPresetName }
+                @{ name = "build.test_preset"; value = $testPresetName },
+                @{ name = "build.headless_target"; value = $headlessTargetName },
+                @{ name = "build.windowed_target"; value = $windowedTargetName }
             )) {
                 if ([string]::IsNullOrWhiteSpace([string]$entry.value)) {
-                    Add-Diagnostic -Category "project.build_contract_invalid" -Message "$($entry.name) is required." -Action "Declare the supported external CMake preset contract in the project manifest." -Code 12
+                    Add-Diagnostic -Category "project.build_contract_invalid" -Message "$($entry.name) is required." -Action "Declare the supported external CMake preset and host-target contract in the project manifest." -Code 12
                 }
             }
 
@@ -207,13 +221,24 @@ else {
                 rescale_policy = [string](Get-PropertyValue -Object $texture -Name "rescale_policy")
                 artifact_identity = [string](Get-PropertyValue -Object $texture -Name "artifact_identity")
             }
-            foreach ($key in $textureContract.Keys) {
-                if ([string]::IsNullOrWhiteSpace([string]$textureContract[$key])) {
+            $expectedTextureContract = [ordered]@{
+                color_space = "srgb-authored"
+                gpu_format_policy = "rgba8-uncompressed-current-v1"
+                mip_policy = "none-current-v1"
+                max_size_policy = "reject-over-backend-limit"
+                rescale_policy = "never-implicit"
+                artifact_identity = "sha256"
+            }
+            foreach ($key in $expectedTextureContract.Keys) {
+                $actualValue = [string]$textureContract[$key]
+                $expectedValue = [string]$expectedTextureContract[$key]
+                if ([string]::IsNullOrWhiteSpace($actualValue)) {
                     Add-Diagnostic -Category "project.asset_policy_missing" -Message "assets.texture.$key is required by the E1 package contract." -Action "Declare the project-owned texture packaging policy explicitly." -Code 12
                 }
-            }
-            if ($textureContract.artifact_identity -ne "sha256") {
-                Add-Diagnostic -Category "project.asset_identity_unsupported" -Message "assets.texture.artifact_identity must be 'sha256' for manifest format 1." -Action "Use the deterministic E1 SHA-256 artifact identity policy." -Code 12
+                elseif ($actualValue -ne $expectedValue) {
+                    $category = if ($key -eq "artifact_identity") { "project.asset_identity_unsupported" } else { "project.asset_policy_unsupported" }
+                    Add-Diagnostic -Category $category -Message "assets.texture.$key '$actualValue' is not supported by manifest format 1; expected '$expectedValue'." -Action "Use the explicit E1 format-1 policy or upgrade to a future manifest format that owns the new policy." -Code 12
+                }
             }
 
             $manifestValid = ($diagnostics.Count -eq $manifestErrorsBefore)
@@ -259,6 +284,9 @@ if ($null -ne $resolvedProjectRoot) {
         try {
             $projectVcpkgManifest = Read-JsonFile -Path $projectVcpkgManifestPath
             $expectedVcpkgBaseline = [string](Get-PropertyValue -Object $projectVcpkgManifest -Name "builtin-baseline")
+            if ([string]::IsNullOrWhiteSpace($expectedVcpkgBaseline)) {
+                Add-Diagnostic -Category "vcpkg.baseline_missing" -Message "The external project vcpkg.json does not declare builtin-baseline." -Action "Pin the dependency baseline before configuring the project." -Code 32
+            }
         }
         catch {
             Add-Diagnostic -Category "vcpkg.manifest_invalid" -Message "Project vcpkg.json is invalid: $($_.Exception.Message)" -Action "Repair the external project's pinned vcpkg manifest." -Code 32
@@ -283,10 +311,7 @@ else {
     if ([string]::IsNullOrWhiteSpace($vcpkgRevision)) {
         Add-Diagnostic -Category "vcpkg.revision_unverified" -Message "The vcpkg checkout revision could not be determined." -Action "Use a Git checkout of the project-pinned vcpkg baseline." -Code 31
     }
-    elseif ([string]::IsNullOrWhiteSpace($expectedVcpkgBaseline)) {
-        Add-Diagnostic -Category "vcpkg.baseline_missing" -Message "The project does not declare builtin-baseline." -Action "Pin builtin-baseline in the external project's vcpkg.json." -Code 32
-    }
-    else {
+    elseif (-not [string]::IsNullOrWhiteSpace($expectedVcpkgBaseline)) {
         $vcpkgBaselineMatches = $vcpkgRevision.Equals($expectedVcpkgBaseline, [StringComparison]::OrdinalIgnoreCase)
         if (-not $vcpkgBaselineMatches) {
             Add-Diagnostic -Category "vcpkg.baseline_mismatch" -Message "VCPKG_ROOT is at '$vcpkgRevision' but the project requires '$expectedVcpkgBaseline'." -Action "Checkout the declared builtin-baseline before configuring." -Code 31
@@ -295,7 +320,9 @@ else {
 }
 
 $presetsPath = if ($null -ne $resolvedProjectRoot) { Join-Path $resolvedProjectRoot "CMakePresets.json" } else { $null }
-$presetAvailable = $false
+$configurePresetAvailable = $false
+$buildPresetAvailable = $false
+$testPresetAvailable = $false
 $generatorAvailable = $false
 $generator = $null
 $architecture = $null
@@ -304,15 +331,18 @@ if ($null -ne $presetsPath -and (Test-Path -LiteralPath $presetsPath -PathType L
     try {
         $presets = Read-JsonFile -Path $presetsPath
         $configurePresets = @(Get-PropertyValue -Object $presets -Name "configurePresets")
-        $selectedPreset = $configurePresets | Where-Object { [string](Get-PropertyValue -Object $_ -Name "name") -eq $configurePresetName } | Select-Object -First 1
-        if ($null -eq $selectedPreset) {
-            Add-Diagnostic -Category "build.preset_missing" -Message "Configure preset '$configurePresetName' is not present in CMakePresets.json." -Action "Restore the manifest-declared configure preset." -Code 40
+        $buildPresets = @(Get-PropertyValue -Object $presets -Name "buildPresets")
+        $testPresets = @(Get-PropertyValue -Object $presets -Name "testPresets")
+
+        $selectedConfigurePreset = $configurePresets | Where-Object { [string](Get-PropertyValue -Object $_ -Name "name") -eq $configurePresetName } | Select-Object -First 1
+        if ($null -eq $selectedConfigurePreset) {
+            Add-Diagnostic -Category "build.configure_preset_missing" -Message "Configure preset '$configurePresetName' is not present in CMakePresets.json." -Action "Restore the manifest-declared configure preset." -Code 40
         }
         else {
-            $presetAvailable = $true
-            $generator = [string](Get-PropertyValue -Object $selectedPreset -Name "generator")
-            $architecture = [string](Get-PropertyValue -Object $selectedPreset -Name "architecture")
-            $toolset = [string](Get-PropertyValue -Object $selectedPreset -Name "toolset")
+            $configurePresetAvailable = $true
+            $generator = [string](Get-PropertyValue -Object $selectedConfigurePreset -Name "generator")
+            $architecture = [string](Get-PropertyValue -Object $selectedConfigurePreset -Name "architecture")
+            $toolset = [string](Get-PropertyValue -Object $selectedConfigurePreset -Name "toolset")
             if ([string]::IsNullOrWhiteSpace($generator)) {
                 Add-Diagnostic -Category "build.generator_missing" -Message "Configure preset '$configurePresetName' does not select a generator." -Action "Declare the maintained generator explicitly." -Code 40
             }
@@ -320,6 +350,36 @@ if ($null -ne $presetsPath -and (Test-Path -LiteralPath $presetsPath -PathType L
                 $generatorAvailable = $cmakeHelp -match [regex]::Escape($generator)
                 if (-not $generatorAvailable) {
                     Add-Diagnostic -Category "compiler.generator_unavailable" -Message "CMake does not report generator '$generator' as available." -Action "Install the maintained compiler/toolchain or select a supported preset." -Code 41
+                }
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($buildPresetName)) {
+            $selectedBuildPreset = $buildPresets | Where-Object { [string](Get-PropertyValue -Object $_ -Name "name") -eq $buildPresetName } | Select-Object -First 1
+            if ($null -eq $selectedBuildPreset) {
+                Add-Diagnostic -Category "build.build_preset_missing" -Message "Build preset '$buildPresetName' is not present in CMakePresets.json." -Action "Restore the manifest-declared build preset." -Code 40
+            }
+            else {
+                $buildPresetAvailable = $true
+                $buildConfigurePreset = [string](Get-PropertyValue -Object $selectedBuildPreset -Name "configurePreset")
+                if ($buildConfigurePreset -ne $configurePresetName) {
+                    Add-Diagnostic -Category "build.build_preset_mismatch" -Message "Build preset '$buildPresetName' selects configure preset '$buildConfigurePreset', not '$configurePresetName'." -Action "Keep the manifest build path on one explicit configure preset." -Code 40
+                    $buildPresetAvailable = $false
+                }
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($testPresetName)) {
+            $selectedTestPreset = $testPresets | Where-Object { [string](Get-PropertyValue -Object $_ -Name "name") -eq $testPresetName } | Select-Object -First 1
+            if ($null -eq $selectedTestPreset) {
+                Add-Diagnostic -Category "build.test_preset_missing" -Message "Test preset '$testPresetName' is not present in CMakePresets.json." -Action "Restore the manifest-declared test preset." -Code 40
+            }
+            else {
+                $testPresetAvailable = $true
+                $testConfigurePreset = [string](Get-PropertyValue -Object $selectedTestPreset -Name "configurePreset")
+                if ($testConfigurePreset -ne $configurePresetName) {
+                    Add-Diagnostic -Category "build.test_preset_mismatch" -Message "Test preset '$testPresetName' selects configure preset '$testConfigurePreset', not '$configurePresetName'." -Action "Keep the manifest test path on one explicit configure preset." -Code 40
+                    $testPresetAvailable = $false
                 }
             }
         }
@@ -408,7 +468,7 @@ $result = [ordered]@{
         architecture = $architecture
         toolset = $toolset
         tested = $false
-        supported = $presetAvailable -and $generatorAvailable
+        supported = $configurePresetAvailable -and $generatorAvailable
     }
     vcpkg = [ordered]@{
         available = $vcpkgAvailable
@@ -428,7 +488,12 @@ $result = [ordered]@{
         configure_preset = $configurePresetName
         build_preset = $buildPresetName
         test_preset = $testPresetName
-        preset_available = $presetAvailable
+        headless_target = $headlessTargetName
+        windowed_target = $windowedTargetName
+        configure_preset_available = $configurePresetAvailable
+        build_preset_available = $buildPresetAvailable
+        test_preset_available = $testPresetAvailable
+        preset_available = $configurePresetAvailable
     }
     headless = [ordered]@{
         available = $trace2dPackageAvailable
