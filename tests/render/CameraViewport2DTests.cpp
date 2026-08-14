@@ -10,6 +10,7 @@ namespace
 {
 using trace2d::render::ActiveCameraSelectionError2D;
 using trace2d::render::CameraFrameState2D;
+using trace2d::render::CoordinateConversionError2D;
 using trace2d::render::Float2;
 using trace2d::render::PresentationSamplingMode2D;
 using trace2d::render::PresentationViewError2D;
@@ -259,14 +260,16 @@ TEST(CameraViewport2DTests, WorldViewportPresentationRoundTripsAreBackendIndepen
 
     const Float2 world{12.25F, -2.75F};
     const Float2 viewportPoint = trace2d::render::WorldToViewport(resolved.view, world);
-    const Float2 worldRoundTrip = trace2d::render::ViewportToWorld(resolved.view, viewportPoint);
-    EXPECT_NEAR(worldRoundTrip.x, world.x, 1.0e-5F);
-    EXPECT_NEAR(worldRoundTrip.y, world.y, 1.0e-5F);
+    const auto worldRoundTrip = trace2d::render::ViewportToWorld(resolved.view, viewportPoint);
+    ASSERT_TRUE(worldRoundTrip.Succeeded());
+    EXPECT_NEAR(worldRoundTrip.value.x, world.x, 1.0e-5F);
+    EXPECT_NEAR(worldRoundTrip.value.y, world.y, 1.0e-5F);
 
     const Float2 presentation = trace2d::render::WorldToPresentation(resolved.view, world);
-    const Float2 presentationRoundTrip = trace2d::render::PresentationToWorld(resolved.view, presentation);
-    EXPECT_NEAR(presentationRoundTrip.x, world.x, 1.0e-5F);
-    EXPECT_NEAR(presentationRoundTrip.y, world.y, 1.0e-5F);
+    const auto presentationRoundTrip = trace2d::render::PresentationToWorld(resolved.view, presentation);
+    ASSERT_TRUE(presentationRoundTrip.Succeeded());
+    EXPECT_NEAR(presentationRoundTrip.value.x, world.x, 1.0e-5F);
+    EXPECT_NEAR(presentationRoundTrip.value.y, world.y, 1.0e-5F);
 
     const Float2 logicalTopLeft{
         resolved.view.logicalView.center.x - resolved.view.logicalView.halfExtents.x,
@@ -275,6 +278,33 @@ TEST(CameraViewport2DTests, WorldViewportPresentationRoundTripsAreBackendIndepen
     const Float2 targetTopLeft = trace2d::render::WorldToPresentation(resolved.view, logicalTopLeft);
     EXPECT_NEAR(targetTopLeft.x, resolved.view.viewport.contentRect.origin.x, 1.0e-4F);
     EXPECT_NEAR(targetTopLeft.y, resolved.view.viewport.contentRect.origin.y, 1.0e-4F);
+}
+
+TEST(CameraViewport2DTests, InverseConversionsFailExplicitlyForInvalidStateOrInput)
+{
+    const trace2d::render::ResolvedPresentationView2D invalid{};
+    const auto invalidViewport = trace2d::render::ViewportToWorld(invalid, Float2{1.0F, 1.0F});
+    EXPECT_EQ(invalidViewport.error, CoordinateConversionError2D::InvalidResolvedView);
+
+    Viewport2D viewport{};
+    const auto resolvedViewport = trace2d::render::ResolveViewport2D(viewport, 1280U, 720U);
+    ASSERT_TRUE(resolvedViewport.Succeeded());
+    CameraFrameState2D current{};
+    current.entity = trace2d::scene::EntityId{2U, 1U};
+    current.verticalSize = 10.0F;
+    const auto resolved = trace2d::render::ResolvePresentationView2D(
+        current, nullptr, resolvedViewport.viewport);
+    ASSERT_TRUE(resolved.Succeeded());
+
+    const auto nonFinite = trace2d::render::PresentationToWorld(
+        resolved.view,
+        Float2{std::numeric_limits<float>::quiet_NaN(), 0.0F});
+    EXPECT_EQ(nonFinite.error, CoordinateConversionError2D::NonFiniteInput);
+
+    auto nonInvertible = resolved.view;
+    nonInvertible.logicalView.clipScale.x = 0.0F;
+    const auto zeroScale = trace2d::render::ViewportToWorld(nonInvertible, Float2{10.0F, 10.0F});
+    EXPECT_EQ(zeroScale.error, CoordinateConversionError2D::InvalidResolvedView);
 }
 
 TEST(CameraViewport2DTests, ResolvedRendererCameraRebuildsTheExactSamePresentationView)
