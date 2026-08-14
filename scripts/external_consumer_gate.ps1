@@ -152,12 +152,17 @@ $trace2dDirectory = Split-Path -Parent $installedConfig.FullName
 $cmakeDirectory = Split-Path -Parent $trace2dDirectory
 $libDirectory = Split-Path -Parent $cmakeDirectory
 $packageRoot = Split-Path -Parent $libDirectory
+$packagedDoctor = Join-Path $packageRoot "share/Trace2D/tools/trace2d_doctor.ps1"
+if (-not (Test-Path -LiteralPath $packagedDoctor -PathType Leaf)) {
+    throw "Packaged SDK does not contain share/Trace2D/tools/trace2d_doctor.ps1."
+}
 
 $doctorTest = Join-Path $RepositoryRoot "scripts/test_trace2d_doctor.ps1"
 & $doctorTest `
     -RepositoryRoot $RepositoryRoot `
     -VcpkgRoot $VcpkgRoot `
     -Trace2DRoot $packageRoot `
+    -DoctorPath $packagedDoctor `
     -OutputDirectory $doctorEvidence
 
 $projectRoot = Join-Path $RepositoryRoot "examples/e0_external_game"
@@ -229,6 +234,7 @@ $provenance = [ordered]@{
         consumer_tested_from_extracted_package = $true
     }
     verification = [ordered]@{
+        packaged_doctor_executed = $true
         doctor_healthy = $true
         doctor_missing_vcpkg_classified = $true
         external_configure = $true
