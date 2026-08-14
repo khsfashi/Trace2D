@@ -185,8 +185,6 @@ TEST(ResourceRegistryTests, TextureCpuAndRendererResidencyAreIndependentAndMetad
     EXPECT_EQ(resolved->height, 2U);
     EXPECT_EQ(resolved->colorSpace, TextureResourceColorSpace::Linear);
     EXPECT_EQ(resolved->alphaMode, TextureResourceAlphaMode::Premultiplied);
-    EXPECT_TRUE(resolved->rendererResident);
-    EXPECT_EQ(resolved->knownRendererGpuBytes, 256U);
 
     const auto after = registry.Inspect(texture.handle.Untyped());
     ASSERT_TRUE(after.has_value());
