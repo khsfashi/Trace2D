@@ -56,6 +56,8 @@
     {"id": "tilemap", "issue": 73},
     {"id": "text", "issue": 74},
     {"id": "ui", "issue": 75},
+    {"id": "sprite-agent-authoring", "issue": 178},
+    {"id": "particle-agent-authoring", "issue": 179},
     {"id": "B2", "issue": 104},
     {"id": "material-shader", "issue": 89},
     {"id": "tween", "issue": 90},
