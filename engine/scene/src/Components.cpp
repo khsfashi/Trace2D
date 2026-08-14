@@ -1,4 +1,5 @@
 #include <trace2d/scene/Components.hpp>
+#include <trace2d/scene/Camera2D.hpp>
 
 #include <string>
 #include <utility>
@@ -61,6 +62,7 @@ SceneComponentTypes RegisterSceneComponents(ComponentRegistry& registry)
 
     SceneComponentTypes types{};
     types.visibility = registry.Register(std::move(visibility));
+    types.camera = RegisterCamera2DComponent(registry);
     return types;
 }
 } // namespace trace2d::scene

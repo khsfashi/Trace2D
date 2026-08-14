@@ -1,4 +1,5 @@
 add_executable(trace2d_agent_tests
+    CameraInspectionTests.cpp
     InspectionTests.cpp
     ParticleInspectionTests.cpp
     QueryTests.cpp
