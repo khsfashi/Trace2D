@@ -25,11 +25,14 @@ The initial engine-authored registered component is `trace2d.visibility2d` (sche
 - parent/child mutation rejects missing IDs, self-parenting and cycles before commit,
 - child observation order is deterministic,
 - `KeepLocal` and `KeepWorld` reparenting are explicit,
-- world TRS composes parent scale/rotation/translation with local TRS,
-- a parent with zero scale cannot support `KeepWorld` inversion,
+- world TRS is derived from exact 2x2 affine linear composition plus translation rather than component-wise scale multiplication,
+- if non-uniform scale + rotation introduces shear that cannot be represented by `Transform2D`, world TRS resolution fails explicitly instead of returning an approximation,
+- `KeepWorld` rejects a reparent before mutation when the requested local state would require shear; zero-scale parents remain explicitly non-invertible,
 - subtree destruction invalidates descendant generations before slot reuse can alias stale handles.
 
 World transform resolution is allocation-free O(depth). No hidden world cache is maintained in E2 because direct mutable local transforms remain a supported API; workload evidence should precede adding dirty propagation/caching complexity.
+
+Agent snapshots mirror the same boundary: `worldTransform` is optional, and `Hierarchy2D.world_trs_available` is false when the canonical hierarchy cannot be represented as TRS. Tooling must not substitute the local transform and label it as world state.
 
 ## Authored lifecycle
 
@@ -45,6 +48,23 @@ create stable entities
 ```
 
 Canonical output sorts entities and components by their stable semantic IDs, so serialization does not depend on slot allocation or registration order.
+
+The authored TOML adapter checks the actual TOML node type before conversion. This preserves bool/integer/float/string distinctions for typed component adapters instead of relying on permissive cross-type conversion.
+
+## Agent semantic inspection boundary
+
+Registered component inspection uses the bounded semantic vocabulary already defined by E2:
+
+- bool,
+- signed/unsigned integer,
+- finite scalar,
+- text,
+- float2 / float4,
+- stable entity reference,
+- stable resource reference,
+- enum identifier.
+
+The Agent projection preserves these kinds instead of stringifying vectors/references/enums. It still reuses `Inspect`, `Query` and `QueryOne`; E2 does not add a component-specific Agent tool or a generic reflection/property database.
 
 ## External proof
 
