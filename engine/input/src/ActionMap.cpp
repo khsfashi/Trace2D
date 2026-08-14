@@ -1,6 +1,7 @@
 #include <trace2d/input/ActionMap.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
@@ -16,10 +17,28 @@ namespace
     return control != InputControl::Unknown && index < static_cast<std::size_t>(InputControl::Count);
 }
 
+[[nodiscard]] bool IsKnownAxis(const InputAxis axis) noexcept
+{
+    const std::size_t index = static_cast<std::size_t>(axis);
+    return axis != InputAxis::Unknown && index < static_cast<std::size_t>(InputAxis::Count);
+}
+
 template <typename Id>
 [[nodiscard]] std::size_t IdIndex(const Id id) noexcept
 {
     return static_cast<std::size_t>(id.value);
+}
+
+[[nodiscard]] float ApplyDeadzone(const float value, const float deadzone) noexcept
+{
+    const float magnitude = std::fabs(value);
+    if (magnitude <= deadzone)
+    {
+        return 0.0F;
+    }
+
+    const float remapped = (magnitude - deadzone) / (1.0F - deadzone);
+    return std::copysign(remapped, value);
 }
 } // namespace
 
@@ -59,23 +78,12 @@ void ActionMap::BindButton(const ButtonActionId action, const InputControl contr
     record.controls.push_back(control);
 }
 
-Axis1DActionId ActionMap::AddAxis1DAction(
-    std::string semanticId,
-    const InputControl negative,
-    const InputControl positive)
+Axis1DActionId ActionMap::AddAxis1DAction(std::string semanticId)
 {
     RequireMutable();
     if (semanticId.empty())
     {
         throw std::invalid_argument{"Axis action semantic ID must not be empty."};
-    }
-    if (!IsKnownControl(negative) || !IsKnownControl(positive))
-    {
-        throw std::invalid_argument{"Axis action bindings require known engine input controls."};
-    }
-    if (negative == positive)
-    {
-        throw std::invalid_argument{"Axis action negative and positive controls must differ."};
     }
     RequireUniqueSemanticId(semanticId);
 
@@ -85,12 +93,67 @@ Axis1DActionId ActionMap::AddAxis1DAction(
     }
 
     const Axis1DActionId id{.value = static_cast<std::uint32_t>(axis1DActions_.size())};
-    axis1DActions_.push_back(Axis1DActionRecord{
-        .semanticId = std::move(semanticId),
-        .negative = negative,
-        .positive = positive,
-    });
+    axis1DActions_.push_back(Axis1DActionRecord{.semanticId = std::move(semanticId)});
     return id;
+}
+
+Axis1DActionId ActionMap::AddAxis1DAction(
+    std::string semanticId,
+    const InputControl negative,
+    const InputControl positive)
+{
+    if (!IsKnownControl(negative) || !IsKnownControl(positive))
+    {
+        throw std::invalid_argument{"Axis action bindings require known engine input controls."};
+    }
+    if (negative == positive)
+    {
+        throw std::invalid_argument{"Axis action negative and positive controls must differ."};
+    }
+
+    const Axis1DActionId id = AddAxis1DAction(std::move(semanticId));
+    Axis1DActionRecord& record = AxisRecord(id);
+    record.negative = negative;
+    record.positive = positive;
+    record.hasDigitalBinding = true;
+    return id;
+}
+
+void ActionMap::BindAxis1DAnalog(
+    const Axis1DActionId action,
+    const InputAxis axis,
+    const float deadzone,
+    const float scale)
+{
+    RequireMutable();
+    if (!IsKnownAxis(axis))
+    {
+        throw std::invalid_argument{"Analog axis binding requires a known engine input axis."};
+    }
+    if (!std::isfinite(deadzone) || deadzone < 0.0F || deadzone >= 1.0F)
+    {
+        throw std::invalid_argument{"Analog axis deadzone must be finite and in [0, 1)."};
+    }
+    if (!std::isfinite(scale) || scale == 0.0F)
+    {
+        throw std::invalid_argument{"Analog axis scale must be finite and non-zero."};
+    }
+
+    Axis1DActionRecord& record = AxisRecord(action);
+    const auto duplicate = std::find_if(
+        record.analogBindings.begin(),
+        record.analogBindings.end(),
+        [axis](const Axis1DAnalogBinding& binding) { return binding.axis == axis; });
+    if (duplicate != record.analogBindings.end())
+    {
+        throw std::invalid_argument{"Analog axis binding is already present."};
+    }
+
+    record.analogBindings.push_back(Axis1DAnalogBinding{
+        .axis = axis,
+        .deadzone = deadzone,
+        .scale = scale,
+    });
 }
 
 void ActionMap::Finalize()
@@ -105,6 +168,14 @@ void ActionMap::Finalize()
         if (action.controls.empty())
         {
             throw std::logic_error{"Every button action must have at least one binding before finalization."};
+        }
+    }
+
+    for (const Axis1DActionRecord& action : axis1DActions_)
+    {
+        if (!action.hasDigitalBinding && action.analogBindings.empty())
+        {
+            throw std::logic_error{"Every axis action must have at least one digital or analog binding before finalization."};
         }
     }
 
@@ -149,14 +220,23 @@ void ActionMap::Resolve(const InputSystem& input)
     for (Axis1DActionRecord& action : axis1DActions_)
     {
         float value = 0.0F;
-        if (input.Held(action.negative))
+        if (action.hasDigitalBinding)
         {
-            value -= 1.0F;
+            if (input.Held(action.negative))
+            {
+                value -= 1.0F;
+            }
+            if (input.Held(action.positive))
+            {
+                value += 1.0F;
+            }
         }
-        if (input.Held(action.positive))
+
+        for (const Axis1DAnalogBinding& binding : action.analogBindings)
         {
-            value += 1.0F;
+            value += ApplyDeadzone(input.Axis(binding.axis), binding.deadzone) * binding.scale;
         }
+
         action.value = std::clamp(value, -1.0F, 1.0F);
     }
 }
@@ -266,6 +346,16 @@ const ActionMap::ButtonActionRecord& ActionMap::ButtonRecord(const ButtonActionI
         throw std::out_of_range{"Button action ID is invalid for this ActionMap."};
     }
     return buttonActions_[index];
+}
+
+ActionMap::Axis1DActionRecord& ActionMap::AxisRecord(const Axis1DActionId action)
+{
+    const std::size_t index = IdIndex(action);
+    if (index >= axis1DActions_.size())
+    {
+        throw std::out_of_range{"Axis action ID is invalid for this ActionMap."};
+    }
+    return axis1DActions_[index];
 }
 
 const ActionMap::Axis1DActionRecord& ActionMap::AxisRecord(const Axis1DActionId action) const
