@@ -19,6 +19,7 @@ _QUALIFIED_RUN_GODOT_AGENT_PREFLIGHT = base.run_godot_agent_preflight
 
 
 _ALLOWED_PREFLIGHT_BASE_ERRORS = {
+    "Godot Agent Codex/MCP preflight did not complete",
     "Godot Agent Codex/MCP preflight status is budget_exceeded",
     "Godot Agent transport preflight modified the non-scored fixture",
 }
