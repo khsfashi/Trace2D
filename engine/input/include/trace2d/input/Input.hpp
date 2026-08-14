@@ -141,7 +141,7 @@ public:
     InputSystem() = default;
 
     void Reset() noexcept;
-    void ApplyEvent(const InputEvent& event) noexcept;
+    void ApplyEvent(const InputEvent& event);
     void Schedule(std::uint64_t frame, const InputEvent& event);
     void AdvanceToFrame(std::uint64_t frame);
 
@@ -203,8 +203,8 @@ public:
     void SchedulePress(std::uint64_t frame, InputControl control);
     void ScheduleRelease(std::uint64_t frame, InputControl control);
 
-    void ConnectGamepad(InputDeviceId device) noexcept;
-    void DisconnectGamepad(InputDeviceId device) noexcept;
+    void ConnectGamepad(InputDeviceId device);
+    void DisconnectGamepad(InputDeviceId device);
     void PressGamepad(InputDeviceId device, InputControl control) noexcept;
     void ReleaseGamepad(InputDeviceId device, InputControl control) noexcept;
     void SetGamepadAxis(InputDeviceId device, InputAxis axis, float value) noexcept;
