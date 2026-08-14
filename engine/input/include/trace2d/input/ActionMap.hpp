@@ -43,10 +43,12 @@ public:
     [[nodiscard]] ButtonActionId AddButtonAction(std::string semanticId);
     void BindButton(ButtonActionId action, InputControl control);
 
+    [[nodiscard]] Axis1DActionId AddAxis1DAction(std::string semanticId);
     [[nodiscard]] Axis1DActionId AddAxis1DAction(
         std::string semanticId,
         InputControl negative,
         InputControl positive);
+    void BindAxis1DAnalog(Axis1DActionId action, InputAxis axis, float deadzone = 0.0F, float scale = 1.0F);
 
     // Finalization freezes semantic identities/bindings before fixed-step gameplay starts.
     // Resolve() performs no string lookup and no allocation after this point.
@@ -78,11 +80,20 @@ private:
         ButtonActionState state{};
     };
 
+    struct Axis1DAnalogBinding final
+    {
+        InputAxis axis{InputAxis::Unknown};
+        float deadzone{0.0F};
+        float scale{1.0F};
+    };
+
     struct Axis1DActionRecord final
     {
         std::string semanticId{};
         InputControl negative{InputControl::Unknown};
         InputControl positive{InputControl::Unknown};
+        bool hasDigitalBinding{false};
+        std::vector<Axis1DAnalogBinding> analogBindings{};
         float value{0.0F};
     };
 
@@ -90,6 +101,7 @@ private:
     void RequireUniqueSemanticId(std::string_view semanticId) const;
     [[nodiscard]] ButtonActionRecord& ButtonRecord(ButtonActionId action);
     [[nodiscard]] const ButtonActionRecord& ButtonRecord(ButtonActionId action) const;
+    [[nodiscard]] Axis1DActionRecord& AxisRecord(Axis1DActionId action);
     [[nodiscard]] const Axis1DActionRecord& AxisRecord(Axis1DActionId action) const;
 
     std::vector<ButtonActionRecord> buttonActions_{};
