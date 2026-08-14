@@ -16,6 +16,13 @@ Verification rule:
 
 Complete Sprite #59 is merged and closed. Benchmark B1 #103 has now produced its first frozen 27-slot scored cohort on PR #174 / branch `agent/benchmark-b1-content-authoring`.
 
+Frozen Sprite contract continuity retained for repository checks:
+
+- #144 / PR #145 — SA0 deterministic Sprite animation timing/frame/event contract remains frozen and complete.
+- #142 / PR #143 — SR8 renderer conformance remains the trusted presentation-GPU authority.
+- #152 / PR #153 — SA4 deterministic animation conformance/workload evidence remains frozen.
+- #172 / PR #173 — SPERF completed the production Sprite program.
+
 ## Benchmark B1 frozen baseline
 
 Exact scored head: `6d6904e99ad7060341861cb3823e04591a579bf7`.
