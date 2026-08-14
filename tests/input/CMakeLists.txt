@@ -1,6 +1,7 @@
 add_executable(trace2d_input_tests
     InputTests.cpp
     ActionMapTests.cpp
+    InputDeviceTests.cpp
 )
 
 target_link_libraries(trace2d_input_tests
