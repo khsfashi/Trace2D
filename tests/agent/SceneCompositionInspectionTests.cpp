@@ -60,6 +60,17 @@ const trace2d::agent::ComponentSnapshot* FindComponent(
     return iterator == entity.components.end() ? nullptr : &*iterator;
 }
 
+const trace2d::agent::ComponentFieldSnapshot* FindField(
+    const trace2d::agent::ComponentSnapshot& component,
+    const std::string_view name)
+{
+    const auto iterator = std::find_if(component.fields.begin(), component.fields.end(), [name](const auto& field)
+    {
+        return std::string_view{field.name} == name;
+    });
+    return iterator == component.fields.end() ? nullptr : &*iterator;
+}
+
 TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegisteredGameplayComponent)
 {
     trace2d::scene::ComponentRegistry registry{};
@@ -103,9 +114,24 @@ TEST(SceneCompositionInspectionTests, AgentSeesHierarchyWorldTransformAndRegiste
     EXPECT_FLOAT_EQ(weaponSnapshot.transform.position.x, 2.0F);
     EXPECT_FLOAT_EQ(weaponSnapshot.worldTransform.position.x, 12.0F);
 
+    const auto* hierarchy = FindComponent(weaponSnapshot, "Hierarchy2D");
+    ASSERT_NE(hierarchy, nullptr);
+    const auto* hierarchyParent = FindField(*hierarchy, "parent");
+    ASSERT_NE(hierarchyParent, nullptr);
+    EXPECT_EQ(hierarchyParent->value.kind, trace2d::agent::FieldValueKind::String);
+    EXPECT_EQ(hierarchyParent->value.stringValue, "player");
+    const auto* worldX = FindField(*hierarchy, "world.position.x");
+    ASSERT_NE(worldX, nullptr);
+    EXPECT_EQ(worldX->value.kind, trace2d::agent::FieldValueKind::Float);
+    EXPECT_FLOAT_EQ(worldX->value.floatValue, 12.0F);
+
     const auto byType = agent.QueryOne("type:game.health");
     ASSERT_TRUE(byType.Succeeded());
     EXPECT_EQ(byType.match->semanticId, "player");
     EXPECT_NE(FindComponent(*byType.match, "game.health"), nullptr);
+
+    const auto hierarchyQuery = agent.Query("type:Hierarchy2D");
+    ASSERT_TRUE(hierarchyQuery.Succeeded());
+    EXPECT_EQ(hierarchyQuery.matches.size(), 2U);
 }
 } // namespace

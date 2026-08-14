@@ -87,19 +87,24 @@ int main()
         if (current == nullptr || current->value.kind != trace2d::agent::FieldValueKind::SignedInteger || current->value.signedIntegerValue != 98) return 7;
 
         const auto weapon = agent.QueryOne("#game.weapon");
-        if (!weapon.Succeeded() || !weapon.match->parentSemanticId.has_value() || *weapon.match->parentSemanticId != "game.player") return 8;
-        if (weapon.match->worldTransform.position.x != 3.0F) return 9;
+        if (!weapon.Succeeded()) return 8;
+        const auto* hierarchy = FindComponent(*weapon.match, "Hierarchy2D");
+        if (hierarchy == nullptr) return 9;
+        const auto* parent = FindField(*hierarchy, "parent");
+        if (parent == nullptr || parent->value.kind != trace2d::agent::FieldValueKind::String || parent->value.stringValue != "game.player") return 10;
+        const auto* worldX = FindField(*hierarchy, "world.position.x");
+        if (worldX == nullptr || worldX->value.kind != trace2d::agent::FieldValueKind::Float || worldX->value.floatValue != 3.0F) return 11;
 
         const auto snapshot = application.Snapshot();
-        if (snapshot.frame != 3U || snapshot.entityCount != 2U || snapshot.uiElementCount != 1U) return 10;
-        if (!snapshot.workSpecBound || !snapshot.workResultBound || snapshot.presentationBound) return 11;
-        if (game.ObservedWorkId() != spec.id || result.workId != spec.id || result.revisions.size() != 1U) return 12;
+        if (snapshot.frame != 3U || snapshot.entityCount != 2U || snapshot.uiElementCount != 1U) return 12;
+        if (!snapshot.workSpecBound || !snapshot.workResultBound || snapshot.presentationBound) return 13;
+        if (game.ObservedWorkId() != spec.id || result.workId != spec.id || result.revisions.size() != 1U) return 14;
 
         application.Stop();
-        if (game.FixedUpdateCount() != 3U) return 13;
-        if (result.revisions.front().verification.size() != 1U) return 14;
+        if (game.FixedUpdateCount() != 3U) return 15;
+        if (result.revisions.front().verification.size() != 1U) return 16;
         const auto& verification = result.revisions.front().verification.front();
-        if (verification.acceptanceId != spec.acceptance.front().id || verification.outcome != trace2d::agent::VerificationOutcome::Passed) return 15;
+        if (verification.acceptanceId != spec.acceptance.front().id || verification.outcome != trace2d::agent::VerificationOutcome::Passed) return 17;
         return 0;
     }
     catch (const std::exception&)
