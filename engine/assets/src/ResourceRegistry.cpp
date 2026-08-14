@@ -145,7 +145,10 @@ ResourcePublishResult<TextureResource> ResourceRegistry::PublishTexture(
         return ResourcePublishResult<TextureResource>{{}, false, std::move(diagnostic)};
     }
 
-    return Publish<TextureResource>(*identity, std::move(resource), {});
+    return Publish<TextureResource>(
+        *identity,
+        std::move(resource),
+        std::span<const ResourceHandleUntyped>{});
 }
 
 ResourcePublishResult<SpriteResource> ResourceRegistry::PublishSprite(
@@ -189,14 +192,9 @@ ResourceOperationResult ResourceRegistry::RecordLoadFailure(
             diagnostic.message = "cannot replace a ready resource with an error record";
             return ResourceOperationResult{std::move(diagnostic)};
         }
-
         if (slot.state == ResourceLoadState::Error)
         {
-            ResourceDiagnostic diagnostic{};
-            diagnostic.code = code;
-            diagnostic.identity = *identity;
-            diagnostic.message = std::move(message);
-            slot.error = diagnostic;
+            slot.error = ResourceDiagnostic{code, *identity, std::move(message), {}};
             ++failedLoadRecords_;
             return {};
         }
@@ -209,13 +207,10 @@ ResourceOperationResult ResourceRegistry::RecordLoadFailure(
     slot.payload = std::monostate{};
     slot.dependencies.clear();
     slot.dependents.clear();
-    slot.callerRetainCount = 0;
-
-    ResourceDiagnostic diagnostic{};
-    diagnostic.code = code;
-    diagnostic.identity = *identity;
-    diagnostic.message = std::move(message);
-    slot.error = diagnostic;
+    slot.callerRetainCount = 0U;
+    slot.rendererResident = false;
+    slot.knownRendererGpuBytes = 0U;
+    slot.error = ResourceDiagnostic{code, *identity, std::move(message), {}};
     identityToSlot_.emplace(key, slotIndex);
     ++failedLoadRecords_;
     ++errorResources_;
@@ -319,7 +314,6 @@ ResourceOperationResult ResourceRegistry::SetStrongDependencies(
     {
         AddDependent(dependency, owner);
     }
-
     return {};
 }
 
@@ -384,7 +378,6 @@ ResourceOperationResult ResourceRegistry::Unload(ResourceHandleUntyped handle)
         diagnostic.message = "resource is explicitly retained by a caller";
         return ResourceOperationResult{std::move(diagnostic)};
     }
-
     if (!slot.dependents.empty())
     {
         ResourceDiagnostic diagnostic{};
@@ -409,7 +402,7 @@ std::size_t ResourceRegistry::ReleaseUnused()
     while (progress)
     {
         progress = false;
-        for (std::uint32_t slotIndex = 0U; slotIndex < slots_.size(); ++slotIndex)
+        for (std::uint32_t slotIndex = 0U; slotIndex < static_cast<std::uint32_t>(slots_.size()); ++slotIndex)
         {
             const Slot& slot = slots_[slotIndex];
             if (slot.state == ResourceLoadState::Ready && slot.callerRetainCount == 0U && slot.dependents.empty())
@@ -429,7 +422,7 @@ ResourceClearReport ResourceRegistry::ClearProjectResources()
     while (readyResources_ != 0U)
     {
         bool progress = false;
-        for (std::uint32_t slotIndex = 0U; slotIndex < slots_.size(); ++slotIndex)
+        for (std::uint32_t slotIndex = 0U; slotIndex < static_cast<std::uint32_t>(slots_.size()); ++slotIndex)
         {
             if (slots_[slotIndex].state == ResourceLoadState::Ready && slots_[slotIndex].dependents.empty())
             {
@@ -438,14 +431,13 @@ ResourceClearReport ResourceRegistry::ClearProjectResources()
                 break;
             }
         }
-
         if (!progress)
         {
             break;
         }
     }
 
-    for (std::uint32_t slotIndex = 0U; slotIndex < slots_.size(); ++slotIndex)
+    for (std::uint32_t slotIndex = 0U; slotIndex < static_cast<std::uint32_t>(slots_.size()); ++slotIndex)
     {
         if (slots_[slotIndex].state == ResourceLoadState::Error)
         {
@@ -453,7 +445,6 @@ ResourceClearReport ResourceRegistry::ClearProjectResources()
             ++report.clearedErrors;
         }
     }
-
     return report;
 }
 
@@ -468,27 +459,18 @@ ResourceOperationResult ResourceRegistry::SetTextureRendererResidency(
         return validation;
     }
 
-    if (handle.domain != ResourceTypeDomain::Texture)
+    Slot& slot = slots_[handle.slot];
+    if (handle.domain != ResourceTypeDomain::Texture || std::get_if<TextureResource>(&slot.payload) == nullptr)
     {
         ResourceDiagnostic diagnostic{};
         diagnostic.code = ResourceErrorCode::TypeMismatch;
-        diagnostic.identity = IdentityOf(handle.Untyped());
-        diagnostic.message = "resource handle is not a texture domain handle";
+        diagnostic.identity = slot.identity;
+        diagnostic.message = "resource handle is not backed by a texture resource";
         return ResourceOperationResult{std::move(diagnostic)};
     }
 
-    TextureResource* texture = std::get_if<TextureResource>(&slots_[handle.slot].payload);
-    if (texture == nullptr)
-    {
-        ResourceDiagnostic diagnostic{};
-        diagnostic.code = ResourceErrorCode::TypeMismatch;
-        diagnostic.identity = IdentityOf(handle.Untyped());
-        diagnostic.message = "resource payload is not a texture";
-        return ResourceOperationResult{std::move(diagnostic)};
-    }
-
-    texture->rendererResident = resident;
-    texture->knownRendererGpuBytes = resident ? knownGpuBytes : 0U;
+    slot.rendererResident = resident;
+    slot.knownRendererGpuBytes = resident ? knownGpuBytes : 0U;
     return {};
 }
 
@@ -509,7 +491,6 @@ ResourceOperationResult ResourceRegistry::ReleaseTextureCpuPayload(ResourceHandl
         diagnostic.message = "resource payload is not a texture";
         return ResourceOperationResult{std::move(diagnostic)};
     }
-
     if (texture->cpuRetention == CpuRetentionPolicy::Required)
     {
         ResourceDiagnostic diagnostic{};
@@ -531,12 +512,11 @@ std::optional<ResourceSnapshot> ResourceRegistry::Inspect(ResourceHandleUntyped 
     }
 
     const Slot& slot = slots_[handle.slot];
-    if (slot.generation != handle.generation || slot.identity.domain != handle.domain ||
-        slot.state == ResourceLoadState::Unloaded)
+    if (slot.state == ResourceLoadState::Unloaded || slot.generation != handle.generation ||
+        slot.identity.domain != handle.domain)
     {
         return std::nullopt;
     }
-
     return SnapshotOf(slot);
 }
 
@@ -577,10 +557,8 @@ std::optional<ResourceIdentity> ResourceRegistry::Canonicalize(
     ResourceDiagnostic& diagnostic)
 {
     ++canonicalizationCalls_;
-
     diagnostic.code = ResourceErrorCode::InvalidReference;
-    diagnostic.identity.domain = domain;
-    diagnostic.identity.canonicalReference = std::string(reference);
+    diagnostic.identity = ResourceIdentity{domain, std::string(reference)};
 
     if (reference.empty())
     {
@@ -621,7 +599,6 @@ std::optional<ResourceIdentity> ResourceRegistry::Canonicalize(
             diagnostic.message = "resource reference traversal is invalid";
             return std::nullopt;
         }
-
         if (!segment.empty() && segment != ".")
         {
             if (segment.find(':') != std::string_view::npos)
@@ -648,7 +625,6 @@ std::optional<ResourceIdentity> ResourceRegistry::Canonicalize(
         diagnostic.message = "resource reference does not identify a project-relative resource";
         return std::nullopt;
     }
-
     return ResourceIdentity{domain, std::move(canonical)};
 }
 
@@ -666,9 +642,9 @@ std::uint32_t ResourceRegistry::AllocateSlot()
 {
     if (!freeSlots_.empty())
     {
-        const std::uint32_t slot = freeSlots_.back();
+        const std::uint32_t slotIndex = freeSlots_.back();
         freeSlots_.pop_back();
-        return slot;
+        return slotIndex;
     }
 
     slots_.emplace_back();
@@ -694,7 +670,6 @@ ResourceOperationResult ResourceRegistry::ValidateReadyHandle(ResourceHandleUnty
         diagnostic.message = "resource handle generation is stale or the slot is not ready";
         return ResourceOperationResult{std::move(diagnostic)};
     }
-
     if (slot.identity.domain != handle.domain)
     {
         ResourceDiagnostic diagnostic{};
@@ -703,7 +678,6 @@ ResourceOperationResult ResourceRegistry::ValidateReadyHandle(ResourceHandleUnty
         diagnostic.message = "resource handle type domain does not match the resolved slot";
         return ResourceOperationResult{std::move(diagnostic)};
     }
-
     return {};
 }
 
@@ -717,13 +691,11 @@ bool ResourceRegistry::Reaches(
     {
         return false;
     }
-
     if (start == target)
     {
         chain.push_back(start);
         return true;
     }
-
     if (visited[start.slot])
     {
         return false;
@@ -731,8 +703,7 @@ bool ResourceRegistry::Reaches(
 
     visited[start.slot] = true;
     chain.push_back(start);
-    const Slot& slot = slots_[start.slot];
-    for (const ResourceHandleUntyped dependency : slot.dependencies)
+    for (const ResourceHandleUntyped dependency : slots_[start.slot].dependencies)
     {
         if (Reaches(dependency, target, visited, chain))
         {
@@ -755,16 +726,17 @@ ResourceIdentity ResourceRegistry::IdentityOf(ResourceHandleUntyped handle) cons
 ResourceMemoryEvidence ResourceRegistry::MemoryOf(const Slot& slot) const
 {
     ResourceMemoryEvidence evidence{};
+    evidence.rendererResident = slot.rendererResident;
+    evidence.knownRendererGpuBytes = slot.knownRendererGpuBytes;
+
     if (const TextureResource* texture = std::get_if<TextureResource>(&slot.payload))
     {
         evidence.knownRetainedCpuBytes = sizeof(TextureResource) + texture->canonicalRgba8.size() +
                                          StringLogicalBytes(texture->retentionReason);
         evidence.retainedContainerCapacityBytes = texture->canonicalRgba8.capacity() +
                                                   StringCapacityBytes(texture->retentionReason);
-        evidence.knownRendererGpuBytes = texture->knownRendererGpuBytes;
         evidence.cpuRetention = texture->cpuRetention;
         evidence.cpuPayloadResident = !texture->canonicalRgba8.empty();
-        evidence.rendererResident = texture->rendererResident;
         evidence.retentionReason = texture->retentionReason;
         return evidence;
     }
@@ -828,7 +800,6 @@ void ResourceRegistry::RemoveDependent(ResourceHandleUntyped dependency, Resourc
     {
         return;
     }
-
     auto& dependents = slots_[dependency.slot].dependents;
     dependents.erase(std::remove(dependents.begin(), dependents.end(), dependent), dependents.end());
 }
@@ -839,7 +810,6 @@ void ResourceRegistry::AddDependent(ResourceHandleUntyped dependency, ResourceHa
     {
         return;
     }
-
     auto& dependents = slots_[dependency.slot].dependents;
     if (std::find(dependents.begin(), dependents.end(), dependent) == dependents.end())
     {
@@ -850,12 +820,7 @@ void ResourceRegistry::AddDependent(ResourceHandleUntyped dependency, ResourceHa
 void ResourceRegistry::UnloadSlot(std::uint32_t slotIndex, bool ignoreRetains, ResourceClearReport* clearReport)
 {
     Slot& slot = slots_[slotIndex];
-    if (slot.state != ResourceLoadState::Ready)
-    {
-        return;
-    }
-
-    if (!ignoreRetains && slot.callerRetainCount != 0U)
+    if (slot.state != ResourceLoadState::Ready || (!ignoreRetains && slot.callerRetainCount != 0U))
     {
         return;
     }
@@ -876,6 +841,8 @@ void ResourceRegistry::UnloadSlot(std::uint32_t slotIndex, bool ignoreRetains, R
     slot.dependencies.clear();
     slot.dependents.clear();
     slot.callerRetainCount = 0U;
+    slot.rendererResident = false;
+    slot.knownRendererGpuBytes = 0U;
     slot.error.reset();
     slot.state = ResourceLoadState::Unloaded;
     slot.generation = NextGeneration(slot.generation);
@@ -897,6 +864,8 @@ void ResourceRegistry::ClearErrorSlot(std::uint32_t slotIndex)
     slot.dependencies.clear();
     slot.dependents.clear();
     slot.callerRetainCount = 0U;
+    slot.rendererResident = false;
+    slot.knownRendererGpuBytes = 0U;
     slot.error.reset();
     slot.state = ResourceLoadState::Unloaded;
     slot.generation = NextGeneration(slot.generation);
