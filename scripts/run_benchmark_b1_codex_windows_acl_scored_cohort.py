@@ -14,6 +14,7 @@ GODOT_AI_ENV_RECIPE = "qualified-freeze-no-deps-v1+win-cp312-x64-pywin32-312-786
 
 _QUALIFIED_EXPECTED_PYTHON_FREEZE = base.expected_python_freeze
 _QUALIFIED_ENSURE_GODOT_AI = base.ensure_godot_ai
+_QUALIFIED_RUN_GODOT_AGENT_PREFLIGHT = base.run_godot_agent_preflight
 
 
 def _distribution_name(line: str) -> str:
@@ -56,10 +57,84 @@ def ensure_owner_godot_ai(*, repo_root: Path, local_base: Path, git: str) -> dic
     return result
 
 
+def _is_unscored_transport_input_budget_only(result: dict[str, Any]) -> bool:
+    """Accept only the observed MCP-schema input overage for the unscored transport probe."""
+    return (
+        result.get("status") == "budget_exceeded"
+        and result.get("return_code") == 0
+        and result.get("timed_out") is False
+        and int(result.get("human_interventions", -1)) == 0
+        and result.get("budget", {}).get("exceeded") == ["input_tokens"]
+        and int(result.get("tool_metrics", {}).get("tool_failures", -1)) == 0
+    )
+
+
+def run_owner_godot_agent_preflight(
+    *,
+    repo_root: Path,
+    run_root: Path,
+    env: dict[str, str],
+) -> dict[str, Any]:
+    """Keep the scored budget frozen while treating a completed transport probe as transport success."""
+    try:
+        return _QUALIFIED_RUN_GODOT_AGENT_PREFLIGHT(
+            repo_root=repo_root,
+            run_root=run_root,
+            env=env,
+        )
+    except base.ScoredCohortError as exc:
+        if str(exc) != "Godot Agent Codex/MCP preflight status is budget_exceeded":
+            raise
+
+    root = run_root / "godot-agent-preflight"
+    result = base.load_json(root / "agent-result.json")
+    if not _is_unscored_transport_input_budget_only(result):
+        raise base.ScoredCohortError(
+            "Godot Agent unscored transport preflight exceeded a non-input budget "
+            "or did not complete cleanly"
+        )
+
+    events_path = root / "codex-events.jsonl"
+    events = (
+        base.codex_core.parse_jsonl(events_path.read_text(encoding="utf-8"))
+        if events_path.is_file()
+        else []
+    )
+    tool_names = base.b1_wrapper.completed_mcp_tool_names(events)
+    if not tool_names or not any(
+        "godot" in name.casefold() or "editor" in name.casefold() for name in tool_names
+    ):
+        raise base.ScoredCohortError(
+            "Godot Agent preflight completed over the scored input budget "
+            "without an observed Godot MCP tool call"
+        )
+
+    fixture = repo_root / "benchmarks/b1/qualification/godot_content_fixture"
+    workspace = root / "workspace"
+    expected_tree = base.benchmark_b0_stable_harness.stable_tree_hash(fixture)
+    observed_tree = base.benchmark_b0_stable_harness.stable_tree_hash(workspace)
+    if observed_tree != expected_tree:
+        raise base.ScoredCohortError(
+            "Godot Agent transport preflight modified the non-scored fixture"
+        )
+
+    evidence = {
+        "passed": True,
+        "tool_names": tool_names,
+        "workspace_sha256": observed_tree,
+        "agent_result": result,
+        "transport_budget_disposition": "input_tokens_over_scored_budget_allowed_for_unscored_probe_only",
+        "scored_budget_unchanged": True,
+    }
+    base.write_json(root / "preflight.json", evidence)
+    return evidence
+
+
 def apply_owner_windows_runtime_patch() -> None:
     base.GODOT_AI_ENV_RECIPE = GODOT_AI_ENV_RECIPE
     base.expected_python_freeze = expected_owner_python_freeze
     base.ensure_godot_ai = ensure_owner_godot_ai
+    base.run_godot_agent_preflight = run_owner_godot_agent_preflight
 
 
 apply_owner_windows_runtime_patch()

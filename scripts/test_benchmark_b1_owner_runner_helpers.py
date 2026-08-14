@@ -41,6 +41,51 @@ class BenchmarkB1OwnerRunnerHelperTests(unittest.TestCase):
         )
         self.assertEqual(owner.windows_runtime_freeze(self.repo_root), ["pywin32==312"])
 
+    def test_unscored_transport_accepts_only_clean_input_token_overage(self):
+        clean = {
+            "status": "budget_exceeded",
+            "return_code": 0,
+            "timed_out": False,
+            "human_interventions": 0,
+            "budget": {"exceeded": ["input_tokens"]},
+            "tool_metrics": {"tool_failures": 0},
+        }
+        self.assertTrue(owner._is_unscored_transport_input_budget_only(clean))
+
+        for mutation in (
+            {"status": "tool_transport_failure"},
+            {"return_code": 1},
+            {"timed_out": True},
+            {"human_interventions": 1},
+            {"budget": {"exceeded": ["output_tokens"]}},
+            {"budget": {"exceeded": ["tool_calls"]}},
+            {"tool_metrics": {"tool_failures": 1}},
+        ):
+            candidate = {
+                **clean,
+                **mutation,
+            }
+            self.assertFalse(owner._is_unscored_transport_input_budget_only(candidate))
+
+    def test_owner_patch_changes_only_unscored_transport_verdict_not_scored_budget(self):
+        self.assertIs(owner.base.run_godot_agent_preflight, owner.run_owner_godot_agent_preflight)
+        source = (
+            Path(__file__)
+            .with_name("run_benchmark_b1_codex_windows_acl_scored_cohort_base.py")
+            .read_text(encoding="utf-8")
+        )
+        self.assertIn(
+            'env["TRACE2D_BENCH_MAX_INPUT_TOKENS"] = str(budget["max_input_tokens"])',
+            source,
+        )
+        owner_source = (
+            Path(__file__)
+            .with_name("run_benchmark_b1_codex_windows_acl_scored_cohort.py")
+            .read_text(encoding="utf-8")
+        )
+        self.assertNotIn('TRACE2D_BENCH_MAX_INPUT_TOKENS"] =', owner_source)
+        self.assertIn('"scored_budget_unchanged": True', owner_source)
+
     def test_frozen_base_implementation_remains_no_deps_and_exact_freeze(self):
         source = (
             Path(__file__)
