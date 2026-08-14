@@ -1,0 +1,21 @@
+{
+  "format_version": 1,
+  "trace2d_version": "@PROJECT_VERSION@",
+  "minimum_cmake_version": "3.28",
+  "vcpkg_builtin_baseline": "@TRACE2D_VCPKG_BASELINE@",
+  "cmake_namespace": "Trace2D::",
+  "public_targets": [
+    "Core",
+    "Input",
+    "Platform",
+    "Runtime",
+    "Scene",
+    "Particles",
+    "Assets",
+    "Render",
+    "Ui",
+    "Application",
+    "Agent"
+  ],
+  "binary_abi": "not-guaranteed"
+}

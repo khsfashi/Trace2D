@@ -16,7 +16,9 @@ Verification rule:
 
 Complete Sprite #59 and Benchmark B1 #103 are merged and closed. PR #174 merged B1 to `main` as `1ba74562000425cde2a5eab342edf8f0315a6092`.
 
-#175 B1 postmortem and PR #181's Agent-complexity product rule are also merged. PR #182 carries the current #69 E0 external Game/Application boundary implementation. While PR #182 is open, #70 remains blocked. After PR #182 merges green, #69 is complete and the exact next core-lane item is #70.
+#175 B1 postmortem and PR #181's Agent-complexity product rule are merged. PR #182 merged #69 E0 as `20cd8282c1232234ea2bf117287ef167ee14e521`, so the external Game/Application boundary is now complete.
+
+**#70 E1 external project/install/package is the current core stage.** Its implementation owns the first versioned project manifest, public CMake SDK export, clean external consumer path, machine-readable environment doctor, package/provenance baseline, project texture-package policy and source compatibility boundary. While the #70 implementation PR is open, continue/fix #70 only. After that PR merges green and #70 closes, the exact next core-lane item is **#71 — deterministic scene hierarchy and typed authored component composition**.
 
 Frozen Sprite contract continuity retained for repository checks:
 
@@ -105,7 +107,7 @@ Application owns Runtime + Input + Scene + UI
  -> optional host presentation reads the same canonical state
 ```
 
-Key constraints carried by PR #182:
+Key constraints retained from E0:
 
 - game code cannot step Runtime or advance Input frames,
 - host input enters only through bounded `ApplyInput` / `ScheduleInput`,
@@ -115,9 +117,46 @@ Key constraints carried by PR #182:
 - no binary plugin ABI, generic service locator, reflection/ECS/event framework, or Agent-only game database,
 - no required per-fixed-step heap allocation/filesystem/parsing/report/GPU-readback work is added by Application orchestration.
 
-`docs/GAME_APPLICATION_E0.md` records the engine-facing lifecycle, the five exposed E0 concepts in the representative lifecycle + discovery path, bounded public operations, and why the projection does not create a second authority.
+`docs/GAME_APPLICATION_E0.md` remains the lifecycle/ownership contract.
 
-Do not start #70 from this branch merely because #182 exists. #70 becomes current only after #182 is merged green and #69 is closed by live repository state.
+## #70 E1 external project / SDK package
+
+E1 promotes the same E0 game into a first-class project and install/package consumer rather than creating another gameplay authority.
+
+The committed E1 contract is `docs/EXTERNAL_PROJECT_E1.md`. Its core shape is:
+
+```text
+trace2d.project.json
+ + project CMakePresets.json / pinned vcpkg.json
+ + external Game source/content
+        ↓
+Trace2D doctor/preflight
+        ↓
+installed or extracted Trace2D SDK
+        ↓
+find_package(Trace2D CONFIG REQUIRED)
+        ↓
+Trace2D::Application / Agent / Platform / Render
+        ↓
+build + headless test + optional presentation host
+```
+
+E1 constraints:
+
+- project ID/startup/content/build/package policy is versioned text and path-independent,
+- project metadata does not duplicate #97 WorkSpec intent/Definition-of-Done state,
+- game code does not modify `engine/` or link internal source targets,
+- only the game-facing public `Trace2D::...` target graph is exported; MCP/testing/repository tools are not declared stable consumer API,
+- installed target include paths do not capture absolute repository checkout paths,
+- the E1 doctor is explicit setup tooling and keeps `available`, `eligible`, `tested`, and `supported` distinct,
+- missing/mismatched vcpkg is a stable setup diagnostic rather than an engine-code failure,
+- current package texture policy explicitly records the uncompressed RGBA8/mip limitation and does not pretend it is the permanent production strategy,
+- install/package artifacts carry Trace2D license/notices plus SDK identity, and CI records source/toolchain/dependency/package SHA-256 provenance,
+- package/install hashing and project discovery do no normal-frame work.
+
+The E1 clean-checkout gate uses the extracted CPack SDK to configure/build the external E0 game and run its headless test. The windowed host must compile, but #70 does not create a new real-GPU evidence authority; renderer/GPU evidence remains with its existing gates.
+
+Current reproducibility scope is explicit: repeat installation from one compiled build must produce the same canonical file-tree digest; repeated ZIP hashes are recorded; independent compiler/linker bit reproducibility, signing, SBOM publication and release attestations are not claimed until Trace2D publishes a user-facing binary/SDK artifact.
 
 ## Evidence-backed implementation follow-ups
 
@@ -196,6 +235,7 @@ Native Skeleton is core capability. Spine remains an explicit license-gated opti
 
 The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-- If PR #182 is still open, continue #69 only: inspect exact-head CI/review state and fix E0 if needed. Do **not** start #70.
-- If PR #182 is merged and #69 is closed, the exact next core implementation item is **#70 — project manifest + external consumer build/install/package**.
+- If a #70 implementation PR is open, continue #70 only: inspect exact-head CI/review state and fix E1 if needed. Do **not** start #71.
+- If the #70 implementation PR is merged and #70 is closed, the exact next core implementation item is **#71 — deterministic scene hierarchy and typed authored component composition**.
+- After #71 merges green, the expanded production sequence continues to #86, as frozen by #71.
 - #178/#179 remain registered before #104 and must not be pulled forward unless the repository owner explicitly changes the fixed lane.

@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "project_id": "trace2d.example.e0-external-game",
+  "engine": {
+    "minimum_version": "0.1.0"
+  },
+  "startup": {
+    "scene": "content/scenes/main.trace2d.toml"
+  },
+  "content": {
+    "root": "content"
+  },
+  "build": {
+    "configure_preset": "windows-msvc",
+    "build_preset": "windows-debug",
+    "test_preset": "windows-debug",
+    "headless_target": "trace2d_e0_external_headless",
+    "windowed_target": "trace2d_e0_external_windowed"
+  },
+  "assets": {
+    "texture": {
+      "color_space": "srgb-authored",
+      "gpu_format_policy": "rgba8-uncompressed-current-v1",
+      "mip_policy": "none-current-v1",
+      "max_size_policy": "reject-over-backend-limit",
+      "rescale_policy": "never-implicit",
+      "artifact_identity": "sha256"
+    }
+  }
+}
