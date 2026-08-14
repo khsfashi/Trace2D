@@ -72,6 +72,8 @@ The baseline is one instance of a component type per entity. Runtime-only compon
 
 The generic scene boundary only transports a bounded semantic authoring vocabulary (bool, signed/unsigned integer, finite scalar, text, float2, float4 and stable reference/enum text). The **typed adapter** owns field names, validation and conversion into the game/engine C++ type. There is no generic `map<string, Variant>` runtime truth model.
 
+The loader determines the concrete TOML node kind before extracting its value, so authored integers remain integers and booleans remain booleans at the typed adapter boundary.
+
 ## Deterministic load lifecycle
 
 For version-2 authored worlds, loading follows:
@@ -92,9 +94,13 @@ Reference/component failures include the source entity/component path. A failed 
 
 `Entity::Transform()` remains the local authoritative transform for source compatibility and is equivalent to `LocalTransform()`. `Scene::TryGetWorldTransform()` composes parent transforms on demand. Reparenting is deterministic and supports `KeepLocal` and `KeepWorld`; cycles are rejected before mutation.
 
+World TRS is derived from the exact 2x2 linear transform composition plus translation. If non-uniform scale and rotation introduce shear, that affine result cannot be represented by `Transform2D`; `TryGetWorldTransform()` returns false instead of silently approximating it. `KeepWorld` likewise rejects a reparent before mutation when the requested local state is non-TRS or the parent is non-invertible.
+
 Child observation order is stable: semantic IDs sort lexicographically, with runtime-only IDs falling back to generation-safe entity handles. Destroying an entity destroys its subtree and invalidates all affected entity/component handles through generation changes.
 
 World transform is currently O(hierarchy depth) and allocation-free. Trace2D intentionally does not maintain a hidden dirty cache while direct local-transform mutation remains public; a measured workload may justify a cache later.
+
+Agent inspection reflects the same distinction: world TRS is optional, and `Hierarchy2D.world_trs_available` states whether the hierarchy can be represented exactly as TRS. Local state is never substituted and mislabeled as world state.
 
 ## Canonical serialization
 
