@@ -18,8 +18,28 @@ env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
 
 jobs:
+  # Cache publication stays on trusted push workflows. Pull-request workflows are restore-only
+  # because caches written by pull_request runs are isolated under refs/pull/*/merge.
+  probe-vcpkg-source-cache:
+    if: github.repository == 'khsfashi/Trace2D'
+    runs-on: windows-2022
+    timeout-minutes: 5
+    outputs:
+      cache-hit: ${{ steps.lookup.outputs.cache-hit }}
+
+    steps:
+      - name: Probe baseline vcpkg source cache
+        id: lookup
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          lookup-only: true
+          enableCrossOsArchive: true
+
   owner-windows-gpu:
     if: github.repository == 'khsfashi/Trace2D'
+    needs: probe-vcpkg-source-cache
     runs-on: [self-hosted, windows, x64, trace2d-gpu]
     timeout-minutes: 45
 
@@ -68,31 +88,45 @@ jobs:
             }
           }
 
+          $persistentDownloads = Join-Path $vcpkgRoot 'downloads'
+          New-Item -ItemType Directory -Force -Path $persistentDownloads | Out-Null
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$persistentDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Restore shared vcpkg source downloads
-        uses: actions/cache@v4
-        with:
-          path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
-
-      - name: Seed shared downloads from persistent runner cache
+      - name: Seed portable vcpkg source downloads
+        if: needs.probe-vcpkg-source-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
 
           $sharedDownloads = Join-Path $env:GITHUB_WORKSPACE '.trace2d-vcpkg-downloads'
-          $persistentDownloads = Join-Path $env:VCPKG_ROOT 'downloads'
+          $persistentDownloads = $env:VCPKG_DOWNLOADS
+          Remove-Item -LiteralPath $sharedDownloads -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $sharedDownloads | Out-Null
 
-          if (Test-Path $persistentDownloads -PathType Container) {
-            Get-ChildItem -LiteralPath $persistentDownloads -Force | ForEach-Object {
-              Copy-Item -LiteralPath $_.FullName -Destination $sharedDownloads -Recurse -Force
-            }
+          if (-not (Test-Path $persistentDownloads -PathType Container)) {
+            throw "Persistent vcpkg downloads directory was not found: $persistentDownloads"
           }
 
-          "VCPKG_DOWNLOADS=$sharedDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Get-ChildItem -LiteralPath $persistentDownloads -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $sharedDownloads -Recurse -Force
+          }
+
+          if (-not (Get-ChildItem -LiteralPath $sharedDownloads -Force | Select-Object -First 1)) {
+            throw 'Portable vcpkg source-download seed is empty.'
+          }
+
+      - name: Upload portable vcpkg source seed
+        if: needs.probe-vcpkg-source-cache.outputs.cache-hit != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vcpkg-source-seed-${{ github.sha }}
+          path: .trace2d-vcpkg-downloads
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 6
+          include-hidden-files: true
 
       - name: Run all real-GPU smoke and conformance tests
         shell: pwsh
@@ -115,3 +149,25 @@ jobs:
             artifacts/sprite-renderer-final-gate
           if-no-files-found: warn
           retention-days: 30
+
+  publish-vcpkg-source-cache:
+    if: github.repository == 'khsfashi/Trace2D' && needs.probe-vcpkg-source-cache.outputs.cache-hit != 'true'
+    needs:
+      - probe-vcpkg-source-cache
+      - owner-windows-gpu
+    runs-on: windows-2022
+    timeout-minutes: 15
+
+    steps:
+      - name: Download portable vcpkg source seed
+        uses: actions/download-artifact@v4
+        with:
+          name: vcpkg-source-seed-${{ github.sha }}
+          path: .trace2d-vcpkg-downloads
+
+      - name: Publish baseline vcpkg source cache
+        uses: actions/cache/save@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true

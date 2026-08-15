@@ -35,10 +35,11 @@ jobs:
           "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Restore vcpkg source downloads
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
 
       - name: Configure Trace2D SDK source tree
         run: cmake --preset windows-msvc
