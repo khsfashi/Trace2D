@@ -1,6 +1,7 @@
 #include <trace2d/ui/UiLayout.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <numeric>
 #include <utility>
 
@@ -18,6 +19,10 @@ std::string_view ToString(const UiLayoutResult result) noexcept
         return "invalid_id";
     case UiLayoutResult::TooManyNodes:
         return "too_many_nodes";
+    case UiLayoutResult::InvalidPlacementMode:
+        return "invalid_placement_mode";
+    case UiLayoutResult::InvalidAnchor:
+        return "invalid_anchor";
     case UiLayoutResult::InvalidBounds:
         return "invalid_bounds";
     case UiLayoutResult::DuplicateId:
@@ -32,6 +37,19 @@ std::string_view ToString(const UiLayoutResult result) noexcept
         return "child_outside_parent";
     case UiLayoutResult::AlreadyFinalized:
         return "already_finalized";
+    }
+
+    return "unknown";
+}
+
+std::string_view ToString(const UiLayoutPlacementMode mode) noexcept
+{
+    switch (mode)
+    {
+    case UiLayoutPlacementMode::Absolute:
+        return "absolute";
+    case UiLayoutPlacementMode::AnchoredFixed:
+        return "anchored_fixed";
     }
 
     return "unknown";
@@ -103,15 +121,36 @@ UiLayoutResult UiLayoutTree::AddNode(UiLayoutNodeSpec node)
     {
         return UiLayoutResult::TooManyNodes;
     }
-    if (node.localBounds.width == 0U || node.localBounds.height == 0U)
+
+    switch (node.placementMode)
     {
-        return UiLayoutResult::InvalidBounds;
+    case UiLayoutPlacementMode::Absolute:
+        if (node.localBounds.width == 0U || node.localBounds.height == 0U)
+        {
+            return UiLayoutResult::InvalidBounds;
+        }
+        break;
+    case UiLayoutPlacementMode::AnchoredFixed:
+        if (node.anchored.width == 0U || node.anchored.height == 0U)
+        {
+            return UiLayoutResult::InvalidBounds;
+        }
+        if (!IsValidNormalized(node.anchored.anchor) ||
+            !IsValidNormalized(node.anchored.pivot))
+        {
+            return UiLayoutResult::InvalidAnchor;
+        }
+        break;
+    default:
+        return UiLayoutResult::InvalidPlacementMode;
     }
 
     UiResolvedLayoutNode resolved{};
     resolved.id = std::move(node.id);
     resolved.parentId = std::move(node.parentId);
     resolved.localBounds = node.localBounds;
+    resolved.placementMode = node.placementMode;
+    resolved.anchored = node.anchored;
     nodes_.push_back(std::move(resolved));
     return UiLayoutResult::Success;
 }
@@ -149,6 +188,7 @@ UiLayoutResult UiLayoutTree::Finalize()
     {
         node.parentIndex = InvalidUiLayoutIndex;
         node.depth = 0U;
+        node.resolvedLocalBounds = {};
         node.bounds = {};
 
         if (node.parentId.empty())
@@ -200,26 +240,37 @@ UiLayoutResult UiLayoutTree::Finalize()
 
             if (node.parentIndex == InvalidUiLayoutIndex)
             {
-                if (!ContainsInCanvas(node.localBounds))
+                UiRect resolvedLocal{};
+                if (!ResolveLocalBounds(node, width_, height_, resolvedLocal) ||
+                    !ContainsInCanvas(resolvedLocal))
                 {
                     return UiLayoutResult::InvalidBounds;
                 }
-                node.bounds = node.localBounds;
+
+                node.resolvedLocalBounds = resolvedLocal;
+                node.bounds = resolvedLocal;
                 node.depth = 0U;
             }
             else
             {
                 const UiResolvedLayoutNode& parent = nodes_[node.parentIndex];
-                if (!ContainsInParent(parent.bounds, node.localBounds))
+                UiRect resolvedLocal{};
+                if (!ResolveLocalBounds(
+                        node,
+                        parent.bounds.width,
+                        parent.bounds.height,
+                        resolvedLocal) ||
+                    !ContainsInParent(parent.bounds, resolvedLocal))
                 {
                     return UiLayoutResult::ChildOutsideParent;
                 }
 
+                node.resolvedLocalBounds = resolvedLocal;
                 node.bounds = UiRect{
-                    parent.bounds.x + node.localBounds.x,
-                    parent.bounds.y + node.localBounds.y,
-                    node.localBounds.width,
-                    node.localBounds.height,
+                    parent.bounds.x + resolvedLocal.x,
+                    parent.bounds.y + resolvedLocal.y,
+                    resolvedLocal.width,
+                    resolvedLocal.height,
                 };
                 node.depth = parent.depth + 1U;
             }
@@ -278,5 +329,66 @@ bool UiLayoutTree::ContainsInParent(
     }
     return localBounds.width <= parentBounds.width - localBounds.x &&
            localBounds.height <= parentBounds.height - localBounds.y;
+}
+
+bool UiLayoutTree::IsValidNormalized(const UiNormalizedPoint point) noexcept
+{
+    return point.x <= UiNormalizedUnit && point.y <= UiNormalizedUnit;
+}
+
+std::uint32_t UiLayoutTree::ResolveNormalized(
+    const std::uint32_t extent,
+    const std::uint16_t normalized) noexcept
+{
+    const std::uint64_t scaled =
+        static_cast<std::uint64_t>(extent) * static_cast<std::uint64_t>(normalized);
+    return static_cast<std::uint32_t>(
+        (scaled + static_cast<std::uint64_t>(UiNormalizedUnit / 2U)) /
+        static_cast<std::uint64_t>(UiNormalizedUnit));
+}
+
+bool UiLayoutTree::ResolveLocalBounds(
+    const UiResolvedLayoutNode& node,
+    const std::uint32_t referenceWidth,
+    const std::uint32_t referenceHeight,
+    UiRect& resolved) noexcept
+{
+    switch (node.placementMode)
+    {
+    case UiLayoutPlacementMode::Absolute:
+        resolved = node.localBounds;
+        return true;
+    case UiLayoutPlacementMode::AnchoredFixed:
+        break;
+    default:
+        return false;
+    }
+
+    const std::uint32_t anchorX = ResolveNormalized(referenceWidth, node.anchored.anchor.x);
+    const std::uint32_t anchorY = ResolveNormalized(referenceHeight, node.anchored.anchor.y);
+    const std::uint32_t pivotX = ResolveNormalized(node.anchored.width, node.anchored.pivot.x);
+    const std::uint32_t pivotY = ResolveNormalized(node.anchored.height, node.anchored.pivot.y);
+
+    const std::int64_t originX =
+        static_cast<std::int64_t>(anchorX) + static_cast<std::int64_t>(node.anchored.offsetX) -
+        static_cast<std::int64_t>(pivotX);
+    const std::int64_t originY =
+        static_cast<std::int64_t>(anchorY) + static_cast<std::int64_t>(node.anchored.offsetY) -
+        static_cast<std::int64_t>(pivotY);
+
+    constexpr std::int64_t MaxCoordinate =
+        static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max());
+    if (originX < 0 || originY < 0 || originX > MaxCoordinate || originY > MaxCoordinate)
+    {
+        return false;
+    }
+
+    resolved = UiRect{
+        static_cast<std::uint32_t>(originX),
+        static_cast<std::uint32_t>(originY),
+        node.anchored.width,
+        node.anchored.height,
+    };
+    return true;
 }
 } // namespace trace2d::ui

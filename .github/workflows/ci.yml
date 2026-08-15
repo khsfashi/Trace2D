@@ -219,10 +219,19 @@ jobs:
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
           git clone https://github.com/microsoft/vcpkg $vcpkgRoot
           git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
           & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Configure
         run: cmake --preset ci-windows-msvc
@@ -267,10 +276,19 @@ jobs:
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
           git clone https://github.com/microsoft/vcpkg $vcpkgRoot
           git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
           & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Configure exactly as README quick start
         run: cmake --preset windows-msvc

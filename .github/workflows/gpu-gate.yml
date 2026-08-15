@@ -70,6 +70,30 @@ jobs:
 
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Restore shared vcpkg source downloads
+        uses: actions/cache@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
+
+      - name: Seed shared downloads from persistent runner cache
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $sharedDownloads = Join-Path $env:GITHUB_WORKSPACE '.trace2d-vcpkg-downloads'
+          $persistentDownloads = Join-Path $env:VCPKG_ROOT 'downloads'
+          New-Item -ItemType Directory -Force -Path $sharedDownloads | Out-Null
+
+          if (Test-Path $persistentDownloads -PathType Container) {
+            Get-ChildItem -LiteralPath $persistentDownloads -Force | ForEach-Object {
+              Copy-Item -LiteralPath $_.FullName -Destination $sharedDownloads -Recurse -Force
+            }
+          }
+
+          "VCPKG_DOWNLOADS=$sharedDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Run all real-GPU smoke and conformance tests
         shell: pwsh
         run: ./scripts/gpu_gate.ps1 -OutputDirectory artifacts/gpu-gate

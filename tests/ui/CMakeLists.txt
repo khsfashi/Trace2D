@@ -10,6 +10,7 @@ target_link_libraries(trace2d_ui_tests
     PRIVATE
         Trace2D::Ui
         Trace2D::Agent
+        Trace2D::Render
         GTest::gtest_main
 )
 
