@@ -189,10 +189,7 @@ bool ActionMap::IsFinalized() const noexcept
 
 void ActionMap::Resolve(const InputSystem& input)
 {
-    if (!finalized_)
-    {
-        throw std::logic_error{"ActionMap must be finalized before semantic state is resolved."};
-    }
+    RequireFinalized();
 
     for (ButtonActionRecord& action : buttonActions_)
     {
@@ -219,25 +216,31 @@ void ActionMap::Resolve(const InputSystem& input)
 
     for (Axis1DActionRecord& action : axis1DActions_)
     {
-        float value = 0.0F;
-        if (action.hasDigitalBinding)
-        {
-            if (input.Held(action.negative))
-            {
-                value -= 1.0F;
-            }
-            if (input.Held(action.positive))
-            {
-                value += 1.0F;
-            }
-        }
+        action.value = ResolveAxisValue(action, input);
+    }
+}
 
-        for (const Axis1DAnalogBinding& binding : action.analogBindings)
-        {
-            value += ApplyDeadzone(input.Axis(binding.axis), binding.deadzone) * binding.scale;
-        }
+void ActionMap::Synchronize(const InputSystem& input)
+{
+    RequireFinalized();
 
-        action.value = std::clamp(value, -1.0F, 1.0F);
+    for (ButtonActionRecord& action : buttonActions_)
+    {
+        bool held = false;
+        for (const InputControl control : action.controls)
+        {
+            held = held || input.Held(control);
+        }
+        action.state = ButtonActionState{
+            .held = held,
+            .pressed = false,
+            .released = false,
+        };
+    }
+
+    for (Axis1DActionRecord& action : axis1DActions_)
+    {
+        action.value = ResolveAxisValue(action, input);
     }
 }
 
@@ -318,6 +321,37 @@ void ActionMap::RequireMutable() const
     {
         throw std::logic_error{"ActionMap bindings are frozen after finalization."};
     }
+}
+
+void ActionMap::RequireFinalized() const
+{
+    if (!finalized_)
+    {
+        throw std::logic_error{"ActionMap must be finalized before semantic state is resolved."};
+    }
+}
+
+float ActionMap::ResolveAxisValue(const Axis1DActionRecord& action, const InputSystem& input) const noexcept
+{
+    float value = 0.0F;
+    if (action.hasDigitalBinding)
+    {
+        if (input.Held(action.negative))
+        {
+            value -= 1.0F;
+        }
+        if (input.Held(action.positive))
+        {
+            value += 1.0F;
+        }
+    }
+
+    for (const Axis1DAnalogBinding& binding : action.analogBindings)
+    {
+        value += ApplyDeadzone(input.Axis(binding.axis), binding.deadzone) * binding.scale;
+    }
+
+    return std::clamp(value, -1.0F, 1.0F);
 }
 
 void ActionMap::RequireUniqueSemanticId(const std::string_view semanticId) const
