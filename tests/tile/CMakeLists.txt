@@ -1,6 +1,7 @@
 add_executable(trace2d_tile_tests
     TileMapTests.cpp
     TilePresentation2DTests.cpp
+    TileSemantics2DTests.cpp
 )
 
 target_link_libraries(trace2d_tile_tests
