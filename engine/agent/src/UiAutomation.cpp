@@ -101,6 +101,9 @@ namespace
     snapshot.visible = element.visible;
     snapshot.enabled = element.enabled;
     snapshot.focused = document.IsFocused(element.id);
+    snapshot.hovered = element.hovered;
+    snapshot.pointerPressed = element.pointerPressed;
+    snapshot.pointerCaptured = document.CapturedElement() == &element;
     snapshot.text = element.text;
     snapshot.activationCount = element.activationCount;
 
@@ -504,6 +507,33 @@ UiAssertionResult AgentFacade::AssertUi(
             "focused",
             BoolText(*expected.focused),
             BoolText(observed.focused));
+        return result;
+    }
+
+    if (expected.hovered.has_value() && observed.hovered != *expected.hovered)
+    {
+        result.error = StateMismatch(
+            "hovered",
+            BoolText(*expected.hovered),
+            BoolText(observed.hovered));
+        return result;
+    }
+
+    if (expected.pointerPressed.has_value() && observed.pointerPressed != *expected.pointerPressed)
+    {
+        result.error = StateMismatch(
+            "pointer_pressed",
+            BoolText(*expected.pointerPressed),
+            BoolText(observed.pointerPressed));
+        return result;
+    }
+
+    if (expected.pointerCaptured.has_value() && observed.pointerCaptured != *expected.pointerCaptured)
+    {
+        result.error = StateMismatch(
+            "pointer_captured",
+            BoolText(*expected.pointerCaptured),
+            BoolText(observed.pointerCaptured));
         return result;
     }
 
