@@ -136,6 +136,21 @@ void Application::SetPresentationCallback(
     presentationUserData_ = userData;
 }
 
+void Application::CommitActions(input::ActionMap actions)
+{
+    if (lifecycle_ == ApplicationLifecycle::Stopped)
+    {
+        throw std::logic_error{"Action maps cannot be committed after Application has stopped."};
+    }
+    if (!actions.IsFinalized())
+    {
+        throw std::invalid_argument{"Committed ActionMap must already be finalized."};
+    }
+
+    actions.Synchronize(input_);
+    actions_ = std::move(actions);
+}
+
 void Application::ApplyInput(const input::InputEvent& event)
 {
     pendingInputEvents_.push_back(event);
