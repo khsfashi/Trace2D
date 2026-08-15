@@ -22,6 +22,7 @@ name = "Main Menu"
 [[elements]]
 id = "start"
 kind = "button"
+parent = "root"
 bounds = [8, 32, 96, 24]
 name = "Start Game"
 text = "Start Game"
@@ -29,6 +30,7 @@ text = "Start Game"
 [[elements]]
 id = "secondary"
 kind = "button"
+parent = "root"
 bounds = [112, 32, 40, 24]
 name = "Secondary"
 text = "Other"
@@ -36,6 +38,7 @@ text = "Other"
 [[elements]]
 id = "player_name"
 kind = "text_input"
+parent = "root"
 bounds = [8, 64, 120, 24]
 name = "Player Name"
 text = "Player"
@@ -57,10 +60,21 @@ TEST(AgentUiAuthoredAutomationTests, AuthoredTomlRunsAHeadlessSemanticInteractio
     const trace2d::agent::UiQueryOneResult queriedStart = facade.QueryOneUi(start);
     ASSERT_TRUE(queriedStart.Succeeded());
     EXPECT_EQ(queriedStart.match->id, "start");
+    ASSERT_TRUE(queriedStart.match->parentId.has_value());
+    EXPECT_EQ(*queriedStart.match->parentId, "root");
+    EXPECT_EQ(queriedStart.match->depth, 1U);
+    EXPECT_EQ(
+        queriedStart.match->localBounds,
+        (trace2d::agent::UiRectSnapshot{8U, 32U, 96U, 24U}));
+    EXPECT_EQ(
+        queriedStart.match->bounds,
+        (trace2d::agent::UiRectSnapshot{8U, 32U, 96U, 24U}));
 
     const trace2d::agent::UiActionResponse activated = facade.ActivateUi(start);
     ASSERT_TRUE(activated.Succeeded());
     EXPECT_EQ(activated.element->activationCount, 1U);
+    ASSERT_TRUE(activated.element->parentId.has_value());
+    EXPECT_EQ(*activated.element->parentId, "root");
 
     trace2d::agent::UiSelector playerName{};
     playerName.role = trace2d::agent::UiRole::TextBox;
@@ -70,6 +84,7 @@ TEST(AgentUiAuthoredAutomationTests, AuthoredTomlRunsAHeadlessSemanticInteractio
     const trace2d::agent::UiActionResponse typed = facade.InputUiText(playerName, "Ada");
     ASSERT_TRUE(typed.Succeeded());
     EXPECT_EQ(typed.element->text, "Ada");
+    EXPECT_EQ(typed.element->depth, 1U);
 
     trace2d::agent::UiExpectedState expected{};
     expected.focused = true;
