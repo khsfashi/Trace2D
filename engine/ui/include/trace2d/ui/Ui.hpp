@@ -105,6 +105,14 @@ enum class UiActionResult : std::uint8_t
     InvalidTextCompositionRange,
 };
 
+enum class UiNavigationDirection : std::uint8_t
+{
+    Left,
+    Right,
+    Up,
+    Down,
+};
+
 enum class UiPointerRouteStatus : std::uint8_t
 {
     Success,
@@ -163,6 +171,11 @@ public:
     [[nodiscard]] UiActionResult FocusNext() noexcept;
     [[nodiscard]] UiActionResult FocusPrevious() noexcept;
     [[nodiscard]] UiActionResult ActivateFocused() noexcept;
+
+    // U6 directional focus uses the already-resolved logical rectangles and performs one O(N)
+    // integer geometry scan only on an explicit navigation edge. Physical key/gamepad policy stays
+    // in #72 Input Actions; successful movement converges on the same FocusIndex() authority.
+    [[nodiscard]] UiActionResult FocusDirectional(UiNavigationDirection direction) noexcept;
 
     // Pointer coordinates are logical UI-canvas coordinates. Physical presentation coordinates must
     // first pass the #88 viewport gate/conversion owned by Trace2D::Render. The normal route performs
