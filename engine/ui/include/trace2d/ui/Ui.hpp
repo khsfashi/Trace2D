@@ -1,5 +1,6 @@
 #pragma once
 
+#include <trace2d/input/Input.hpp>
 #include <trace2d/input/TextInput.hpp>
 
 #include <cstddef>
@@ -67,6 +68,11 @@ struct UiElement final
     std::string text{};
     bool visible{true};
     bool enabled{true};
+
+    // U4 pointer state is runtime semantic state, not authored layout state. At most one element is
+    // hovered and at most one pointer-interactive element is pointerPressed/captured at a time.
+    bool hovered{false};
+    bool pointerPressed{false};
     std::uint64_t activationCount{0};
 
     std::uint64_t textSourceIdentity{0U};
@@ -99,10 +105,32 @@ enum class UiActionResult : std::uint8_t
     InvalidTextCompositionRange,
 };
 
+enum class UiPointerRouteStatus : std::uint8_t
+{
+    Success,
+    InvalidPosition,
+};
+
+struct UiPointerRouteResult final
+{
+    UiPointerRouteStatus status{UiPointerRouteStatus::Success};
+    std::size_t hoveredIndex{InvalidUiElementIndex};
+    std::size_t capturedIndex{InvalidUiElementIndex};
+    bool consumed{false};
+    bool activated{false};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return status == UiPointerRouteStatus::Success;
+    }
+};
+
 [[nodiscard]] std::string_view ToString(UiElementKind kind) noexcept;
 [[nodiscard]] std::string_view ToString(UiActionResult result) noexcept;
+[[nodiscard]] std::string_view ToString(UiPointerRouteStatus status) noexcept;
 [[nodiscard]] bool IsFocusable(UiElementKind kind) noexcept;
 [[nodiscard]] bool IsActivatable(UiElementKind kind) noexcept;
+[[nodiscard]] bool IsPointerInteractive(UiElementKind kind) noexcept;
 
 class UiTextLayoutCache;
 
@@ -118,6 +146,8 @@ public:
     [[nodiscard]] std::span<const UiElement> Elements() const noexcept;
     [[nodiscard]] const UiElement* Find(std::string_view id) const noexcept;
     [[nodiscard]] const UiElement* FocusedElement() const noexcept;
+    [[nodiscard]] const UiElement* HoveredElement() const noexcept;
+    [[nodiscard]] const UiElement* CapturedElement() const noexcept;
     [[nodiscard]] bool IsFocused(std::string_view id) const noexcept;
     [[nodiscard]] UiTextCompositionState TextComposition() const noexcept;
 
@@ -126,15 +156,29 @@ public:
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
 
+    // Pointer coordinates are logical UI-canvas coordinates. Physical presentation coordinates must
+    // first pass the #88 viewport gate/conversion owned by Trace2D::Render. The normal route performs
+    // no semantic-id lookup: overlap hit testing is a reverse contiguous scan and capture/focus/
+    // activation are direct-index mutations.
+    [[nodiscard]] UiPointerRouteResult ApplyPointer(
+        const input::PointerState& pointer,
+        input::InputControlState primaryButton) noexcept;
+
     [[nodiscard]] UiActionResult InputText(std::string_view id, std::string_view text);
     [[nodiscard]] UiActionResult ApplyTextInput(const input::TextInputEvent& event);
 
     void ClearFocus() noexcept;
+    void ClearPointerState() noexcept;
 
 private:
     [[nodiscard]] UiElement* FindMutable(std::string_view id) noexcept;
     [[nodiscard]] UiElement* FocusedTextInput() noexcept;
+    [[nodiscard]] UiActionResult FocusIndex(std::size_t index) noexcept;
+    [[nodiscard]] UiActionResult ActivateIndex(std::size_t index) noexcept;
+    [[nodiscard]] std::size_t HitTestTopmost(float x, float y) const noexcept;
+    [[nodiscard]] static bool ContainsPoint(const UiRect& bounds, float x, float y) noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
+    void ClearPointerCapture() noexcept;
     void TouchDisplayText(UiElement& element) noexcept;
     void PublishTextLayoutEvidence(std::string_view id, const UiTextLayoutEvidence& evidence) noexcept;
     void ClearTextComposition(bool touchDisplay = true) noexcept;
@@ -143,6 +187,8 @@ private:
     std::uint32_t height_{0};
     std::vector<UiElement> elements_{};
     std::size_t focusedIndex_{InvalidUiElementIndex};
+    std::size_t hoveredIndex_{InvalidUiElementIndex};
+    std::size_t pointerCaptureIndex_{InvalidUiElementIndex};
     std::uint64_t nextTextSourceIdentity_{1U};
 
     std::string textComposition_{};
