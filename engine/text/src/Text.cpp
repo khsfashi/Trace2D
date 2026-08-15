@@ -16,6 +16,7 @@ namespace trace2d::text
 namespace
 {
 constexpr std::uint32_t MaxPixelHeight = 4096U;
+constexpr FT_Int32 OutlineLoadFlags = FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP;
 
 [[nodiscard]] bool DecodeNextUtf8(
     const std::string_view text,
@@ -314,7 +315,7 @@ TextMeasureResult FontFace::MeasureUtf8(const std::string_view text, const std::
             measure.advanceX26_6 += static_cast<std::int64_t>(kerning.x);
         }
 
-        if (FT_Load_Glyph(impl_->face, glyphIndex, FT_LOAD_DEFAULT | FT_LOAD_NO_COLOR) != 0)
+        if (FT_Load_Glyph(impl_->face, glyphIndex, OutlineLoadFlags) != 0)
         {
             output.diagnostic = Diagnostic(
                 TextErrorCode::GlyphLoadFailed,
@@ -368,7 +369,7 @@ GlyphRasterResult FontFace::RasterizeCodepoint(const char32_t codepoint, const s
             codepoint);
         return output;
     }
-    if (FT_Load_Glyph(impl_->face, glyphIndex, FT_LOAD_DEFAULT | FT_LOAD_NO_COLOR) != 0)
+    if (FT_Load_Glyph(impl_->face, glyphIndex, OutlineLoadFlags) != 0)
     {
         output.diagnostic = Diagnostic(
             TextErrorCode::GlyphLoadFailed,
