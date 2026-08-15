@@ -14,6 +14,8 @@ target_include_directories(trace2d_ui
 )
 
 target_link_libraries(trace2d_ui
+    PUBLIC
+        Trace2D::Input
     PRIVATE
         tomlplusplus::tomlplusplus
 )
