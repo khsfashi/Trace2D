@@ -40,6 +40,8 @@ std::string_view ToString(ResourceTypeDomain value) noexcept
         return "sprite";
     case ResourceTypeDomain::SceneTemplate:
         return "scene_template";
+    case ResourceTypeDomain::Font:
+        return "font";
     }
     return "unknown";
 }
@@ -188,6 +190,37 @@ ResourcePublishResult<SceneTemplateResource> ResourceRegistry::PublishSceneTempl
     }
 
     return Publish<SceneTemplateResource>(*identity, std::move(resource), strongDependencies);
+}
+
+ResourcePublishResult<FontResource> ResourceRegistry::PublishFont(
+    std::string_view projectRelativeReference,
+    FontResource resource)
+{
+    ResourceDiagnostic diagnostic{};
+    const auto identity = Canonicalize(ResourceTypeDomain::Font, projectRelativeReference, diagnostic);
+    if (!identity.has_value())
+    {
+        return ResourcePublishResult<FontResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.canonicalBytes.empty())
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "canonical font payload must not be empty";
+        return ResourcePublishResult<FontResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.cpuRetention != CpuRetentionPolicy::Required)
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "font CPU retention must remain required for in-memory prepared faces";
+        return ResourcePublishResult<FontResource>{{}, false, std::move(diagnostic)};
+    }
+
+    return Publish<FontResource>(
+        *identity,
+        std::move(resource),
+        std::span<const ResourceHandleUntyped>{});
 }
 
 ResourceOperationResult ResourceRegistry::RecordLoadFailure(
@@ -805,6 +838,18 @@ ResourceMemoryEvidence ResourceRegistry::MemoryOf(const Slot& slot) const
         evidence.cpuRetention = sceneTemplate->cpuRetention;
         evidence.cpuPayloadResident = !sceneTemplate->canonicalToml.empty();
         evidence.retentionReason = sceneTemplate->retentionReason;
+        return evidence;
+    }
+
+    if (const FontResource* font = std::get_if<FontResource>(&slot.payload))
+    {
+        evidence.knownRetainedCpuBytes = sizeof(FontResource) + font->canonicalBytes.size() +
+                                         StringLogicalBytes(font->retentionReason);
+        evidence.retainedContainerCapacityBytes = font->canonicalBytes.capacity() +
+                                                  StringCapacityBytes(font->retentionReason);
+        evidence.cpuRetention = font->cpuRetention;
+        evidence.cpuPayloadResident = !font->canonicalBytes.empty();
+        evidence.retentionReason = font->retentionReason;
         return evidence;
     }
     return evidence;
