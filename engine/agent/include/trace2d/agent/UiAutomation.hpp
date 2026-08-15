@@ -28,6 +28,16 @@ struct UiRectSnapshot final
     [[nodiscard]] bool operator==(const UiRectSnapshot&) const noexcept = default;
 };
 
+struct UiPresentationRectSnapshot final
+{
+    std::int32_t x{0};
+    std::int32_t y{0};
+    std::uint32_t width{0};
+    std::uint32_t height{0};
+
+    [[nodiscard]] bool operator==(const UiPresentationRectSnapshot&) const noexcept = default;
+};
+
 struct UiTextCompositionSnapshot final
 {
     std::string text{};
@@ -60,6 +70,15 @@ struct UiElementSnapshot final
     std::uint32_t depth{0U};
     UiRectSnapshot localBounds{};
     UiRectSnapshot bounds{};
+    UiPresentationRectSnapshot presentationBounds{};
+    bool scrollViewport{false};
+    std::optional<std::string> scrollOwnerId{};
+    std::uint32_t scrollContentWidth{0U};
+    std::uint32_t scrollContentHeight{0U};
+    std::uint32_t scrollOffsetX{0U};
+    std::uint32_t scrollOffsetY{0U};
+    std::uint64_t scrollRevision{0U};
+    std::uint64_t scrollTranslationUpdates{0U};
     bool clipChildren{false};
     bool clipActive{false};
     UiRectSnapshot clipBounds{};
