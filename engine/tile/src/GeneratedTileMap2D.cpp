@@ -19,7 +19,8 @@ namespace trace2d::tile
 {
 namespace
 {
-TileDiagnostic MakeDiagnostic(
+void AddDiagnostic(
+    std::vector<TileDiagnostic>& diagnostics,
     const TileErrorCode code,
     std::string path,
     std::string message,
@@ -35,43 +36,34 @@ TileDiagnostic MakeDiagnostic(
         diagnostic.line = static_cast<std::size_t>(position.line);
         diagnostic.column = static_cast<std::size_t>(position.column);
     }
-    return diagnostic;
+    diagnostics.push_back(std::move(diagnostic));
 }
 
-void AddDiagnostic(
-    std::vector<TileDiagnostic>& diagnostics,
-    const TileErrorCode code,
-    std::string path,
-    std::string message,
-    const toml::node* node = nullptr)
+bool IsKnownKey(const std::string_view key, const std::initializer_list<std::string_view> keys)
 {
-    diagnostics.push_back(MakeDiagnostic(code, std::move(path), std::move(message), node));
-}
-
-bool IsKnownKey(const std::string_view key, const std::initializer_list<std::string_view> knownKeys)
-{
-    return std::find(knownKeys.begin(), knownKeys.end(), key) != knownKeys.end();
+    return std::find(keys.begin(), keys.end(), key) != keys.end();
 }
 
 void ValidateKnownKeys(
     const toml::table& table,
     const std::string_view path,
-    const std::initializer_list<std::string_view> knownKeys,
+    const std::initializer_list<std::string_view> keys,
     std::vector<TileDiagnostic>& diagnostics)
 {
     for (const auto& [key, value] : table)
     {
-        const std::string_view keyView = key.str();
-        if (IsKnownKey(keyView, knownKeys))
+        const std::string_view name = key.str();
+        if (IsKnownKey(name, keys))
         {
             continue;
         }
+
         std::string fieldPath{path};
         if (!fieldPath.empty())
         {
             fieldPath.push_back('.');
         }
-        fieldPath.append(keyView);
+        fieldPath.append(name);
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::move(fieldPath), "Unknown field.", &value);
     }
 }
@@ -88,6 +80,7 @@ std::optional<std::string> ReadRequiredString(
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Required field is missing.");
         return std::nullopt;
     }
+
     const std::optional<std::string> value = node->value<std::string>();
     if (!value.has_value() || value->empty())
     {
@@ -97,37 +90,23 @@ std::optional<std::string> ReadRequiredString(
     return value;
 }
 
-bool ReadUInt32Pair(
+bool ReadInt32(
     const toml::table& table,
     const std::string_view key,
     const std::string_view path,
-    std::uint32_t& first,
-    std::uint32_t& second,
+    std::int32_t& output,
     std::vector<TileDiagnostic>& diagnostics)
 {
     const toml::node* node = table.get(key);
-    const toml::array* values = node == nullptr ? nullptr : node->as_array();
-    if (values == nullptr || values->size() != 2U)
+    const std::optional<std::int64_t> value = node == nullptr ? std::nullopt : node->value<std::int64_t>();
+    constexpr std::int64_t Min = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+    constexpr std::int64_t Max = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+    if (!value.has_value() || *value < Min || *value > Max)
     {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an array containing exactly two uint32 values.", node);
+        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an int32 value.", node);
         return false;
     }
-
-    const toml::node* firstNode = values->get(0U);
-    const toml::node* secondNode = values->get(1U);
-    const std::optional<std::int64_t> firstValue = firstNode == nullptr ? std::nullopt : firstNode->value<std::int64_t>();
-    const std::optional<std::int64_t> secondValue = secondNode == nullptr ? std::nullopt : secondNode->value<std::int64_t>();
-    constexpr std::int64_t MaxUInt32 = static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max());
-    if (!firstValue.has_value() || !secondValue.has_value() ||
-        *firstValue < 0 || *firstValue > MaxUInt32 ||
-        *secondValue < 0 || *secondValue > MaxUInt32)
-    {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Values must fit uint32.", node);
-        return false;
-    }
-
-    first = static_cast<std::uint32_t>(*firstValue);
-    second = static_cast<std::uint32_t>(*secondValue);
+    output = static_cast<std::int32_t>(*value);
     return true;
 }
 
@@ -143,21 +122,20 @@ bool ReadInt32Pair(
     const toml::array* values = node == nullptr ? nullptr : node->as_array();
     if (values == nullptr || values->size() != 2U)
     {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an array containing exactly two int32 values.", node);
+        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected exactly two int32 values.", node);
         return false;
     }
 
+    constexpr std::int64_t Min = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+    constexpr std::int64_t Max = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
     const toml::node* firstNode = values->get(0U);
     const toml::node* secondNode = values->get(1U);
     const std::optional<std::int64_t> firstValue = firstNode == nullptr ? std::nullopt : firstNode->value<std::int64_t>();
     const std::optional<std::int64_t> secondValue = secondNode == nullptr ? std::nullopt : secondNode->value<std::int64_t>();
-    constexpr std::int64_t MinInt32 = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
-    constexpr std::int64_t MaxInt32 = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
     if (!firstValue.has_value() || !secondValue.has_value() ||
-        *firstValue < MinInt32 || *firstValue > MaxInt32 ||
-        *secondValue < MinInt32 || *secondValue > MaxInt32)
+        *firstValue < Min || *firstValue > Max || *secondValue < Min || *secondValue > Max)
     {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Values must fit int32.", node);
+        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Pair values must fit int32.", node);
         return false;
     }
 
@@ -166,46 +144,58 @@ bool ReadInt32Pair(
     return true;
 }
 
-bool ReadInt32(
+bool ReadUInt32Pair(
     const toml::table& table,
     const std::string_view key,
     const std::string_view path,
-    std::int32_t& value,
+    std::uint32_t& first,
+    std::uint32_t& second,
     std::vector<TileDiagnostic>& diagnostics)
 {
     const toml::node* node = table.get(key);
-    const std::optional<std::int64_t> parsed = node == nullptr ? std::nullopt : node->value<std::int64_t>();
-    constexpr std::int64_t MinInt32 = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
-    constexpr std::int64_t MaxInt32 = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
-    if (!parsed.has_value() || *parsed < MinInt32 || *parsed > MaxInt32)
+    const toml::array* values = node == nullptr ? nullptr : node->as_array();
+    if (values == nullptr || values->size() != 2U)
     {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an int32 value.", node);
+        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected exactly two uint32 values.", node);
         return false;
     }
-    value = static_cast<std::int32_t>(*parsed);
+
+    constexpr std::int64_t Max = static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max());
+    const toml::node* firstNode = values->get(0U);
+    const toml::node* secondNode = values->get(1U);
+    const std::optional<std::int64_t> firstValue = firstNode == nullptr ? std::nullopt : firstNode->value<std::int64_t>();
+    const std::optional<std::int64_t> secondValue = secondNode == nullptr ? std::nullopt : secondNode->value<std::int64_t>();
+    if (!firstValue.has_value() || !secondValue.has_value() ||
+        *firstValue < 0 || *firstValue > Max || *secondValue < 0 || *secondValue > Max)
+    {
+        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Pair values must fit uint32.", node);
+        return false;
+    }
+
+    first = static_cast<std::uint32_t>(*firstValue);
+    second = static_cast<std::uint32_t>(*secondValue);
     return true;
 }
 
-bool ReadBool(
+void ReadOptionalBool(
     const toml::table& table,
     const std::string_view key,
     const std::string_view path,
-    bool& value,
+    bool& output,
     std::vector<TileDiagnostic>& diagnostics)
 {
     const toml::node* node = table.get(key);
     if (node == nullptr)
     {
-        return true;
+        return;
     }
-    const std::optional<bool> parsed = node->value<bool>();
-    if (!parsed.has_value())
+    const std::optional<bool> value = node->value<bool>();
+    if (!value.has_value())
     {
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected a bool value.", node);
-        return false;
+        return;
     }
-    value = *parsed;
-    return true;
+    output = *value;
 }
 
 std::vector<std::string> ReadStringArray(
@@ -214,16 +204,16 @@ std::vector<std::string> ReadStringArray(
     const std::string_view path,
     std::vector<TileDiagnostic>& diagnostics)
 {
-    std::vector<std::string> result{};
+    std::vector<std::string> output{};
     const toml::node* node = table.get(key);
     const toml::array* values = node == nullptr ? nullptr : node->as_array();
     if (values == nullptr)
     {
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an array of strings.", node);
-        return result;
+        return output;
     }
 
-    result.reserve(values->size());
+    output.reserve(values->size());
     for (std::size_t index = 0U; index < values->size(); ++index)
     {
         const toml::node* valueNode = values->get(index);
@@ -236,12 +226,12 @@ std::vector<std::string> ReadStringArray(
                 std::string{path} + "[" + std::to_string(index) + "]",
                 "Expected a non-empty string.",
                 valueNode);
-            result.emplace_back();
+            output.emplace_back();
             continue;
         }
-        result.push_back(*value);
+        output.push_back(*value);
     }
-    return result;
+    return output;
 }
 
 std::vector<std::int32_t> ReadTileIndexArray(
@@ -250,23 +240,23 @@ std::vector<std::int32_t> ReadTileIndexArray(
     const std::string_view path,
     std::vector<TileDiagnostic>& diagnostics)
 {
-    std::vector<std::int32_t> result{};
+    std::vector<std::int32_t> output{};
     const toml::node* node = table.get(key);
     const toml::array* values = node == nullptr ? nullptr : node->as_array();
     if (values == nullptr)
     {
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an array of int32 tile-table indices.", node);
-        return result;
+        return output;
     }
 
-    result.reserve(values->size());
+    constexpr std::int64_t Min = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min());
+    constexpr std::int64_t Max = static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max());
+    output.reserve(values->size());
     for (std::size_t index = 0U; index < values->size(); ++index)
     {
         const toml::node* valueNode = values->get(index);
         const std::optional<std::int64_t> value = valueNode == nullptr ? std::nullopt : valueNode->value<std::int64_t>();
-        if (!value.has_value() ||
-            *value < static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::min()) ||
-            *value > static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max()))
+        if (!value.has_value() || *value < Min || *value > Max)
         {
             AddDiagnostic(
                 diagnostics,
@@ -274,12 +264,12 @@ std::vector<std::int32_t> ReadTileIndexArray(
                 std::string{path} + "[" + std::to_string(index) + "]",
                 "Expected an int32 tile-table index.",
                 valueNode);
-            result.push_back(GeneratedEmptyTileTableIndex);
+            output.push_back(GeneratedEmptyTileTableIndex);
             continue;
         }
-        result.push_back(static_cast<std::int32_t>(*value));
+        output.push_back(static_cast<std::int32_t>(*value));
     }
-    return result;
+    return output;
 }
 
 std::vector<std::uint8_t> ReadTransformArray(
@@ -288,20 +278,21 @@ std::vector<std::uint8_t> ReadTransformArray(
     const std::string_view path,
     std::vector<TileDiagnostic>& diagnostics)
 {
-    std::vector<std::uint8_t> result{};
+    std::vector<std::uint8_t> output{};
     const toml::node* node = table.get(key);
     if (node == nullptr)
     {
-        return result;
+        return output;
     }
+
     const toml::array* values = node->as_array();
     if (values == nullptr)
     {
         AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Expected an array of transform-bit integers.", node);
-        return result;
+        return output;
     }
 
-    result.reserve(values->size());
+    output.reserve(values->size());
     for (std::size_t index = 0U; index < values->size(); ++index)
     {
         const toml::node* valueNode = values->get(index);
@@ -314,12 +305,12 @@ std::vector<std::uint8_t> ReadTransformArray(
                 std::string{path} + "[" + std::to_string(index) + "]",
                 "Transform bits must be in [0, 15].",
                 valueNode);
-            result.push_back(0U);
+            output.push_back(0U);
             continue;
         }
-        result.push_back(static_cast<std::uint8_t>(*value));
+        output.push_back(static_cast<std::uint8_t>(*value));
     }
-    return result;
+    return output;
 }
 
 void WriteQuoted(std::ostream& stream, const std::string_view value)
@@ -340,6 +331,20 @@ void WriteQuoted(std::ostream& stream, const std::string_view value)
     stream << '"';
 }
 
+void WriteStringArray(std::ostream& stream, const std::vector<std::string>& values)
+{
+    stream << '[';
+    for (std::size_t index = 0U; index < values.size(); ++index)
+    {
+        if (index != 0U)
+        {
+            stream << ", ";
+        }
+        WriteQuoted(stream, values[index]);
+    }
+    stream << ']';
+}
+
 template <typename T>
 void WriteNumericArray(std::ostream& stream, const std::vector<T>& values)
 {
@@ -351,20 +356,6 @@ void WriteNumericArray(std::ostream& stream, const std::vector<T>& values)
             stream << ", ";
         }
         stream << static_cast<std::int64_t>(values[index]);
-    }
-    stream << ']';
-}
-
-void WriteStringArray(std::ostream& stream, const std::vector<std::string>& values)
-{
-    stream << '[';
-    for (std::size_t index = 0U; index < values.size(); ++index)
-    {
-        if (index != 0U)
-        {
-            stream << ", ";
-        }
-        WriteQuoted(stream, values[index]);
     }
     stream << ']';
 }
@@ -493,8 +484,8 @@ std::vector<TileDiagnostic> ValidateDocumentShape(const GeneratedTileMapDocument
                 "Transform payload must be empty or have exactly width * height entries.");
         }
 
-        const std::size_t checkedCount = std::min(layer.tileTableIndices.size(), expectedCount);
-        for (std::size_t cellIndex = 0U; cellIndex < checkedCount; ++cellIndex)
+        const std::size_t checkedTileCount = std::min(layer.tileTableIndices.size(), expectedCount);
+        for (std::size_t cellIndex = 0U; cellIndex < checkedTileCount; ++cellIndex)
         {
             const std::int32_t tileIndex = layer.tileTableIndices[cellIndex];
             if (tileIndex < GeneratedEmptyTileTableIndex ||
@@ -507,25 +498,26 @@ std::vector<TileDiagnostic> ValidateDocumentShape(const GeneratedTileMapDocument
                     "Tile index must be -1 or reference an entry in tile_table.");
             }
 
-            if (!layer.transformBits.empty())
+            if (cellIndex >= layer.transformBits.size())
             {
-                const std::uint8_t transform = layer.transformBits[cellIndex];
-                if ((transform & static_cast<std::uint8_t>(~GeneratedTileTransformMask)) != 0U)
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        TileErrorCode::SchemaError,
-                        path + ".transforms[" + std::to_string(cellIndex) + "]",
-                        "Transform contains unsupported bits.");
-                }
-                if (tileIndex == GeneratedEmptyTileTableIndex && transform != 0U)
-                {
-                    AddDiagnostic(
-                        diagnostics,
-                        TileErrorCode::SchemaError,
-                        path + ".transforms[" + std::to_string(cellIndex) + "]",
-                        "Empty cells must use identity transform bits.");
-                }
+                continue;
+            }
+            const std::uint8_t transform = layer.transformBits[cellIndex];
+            if ((transform & static_cast<std::uint8_t>(~GeneratedTileTransformMask)) != 0U)
+            {
+                AddDiagnostic(
+                    diagnostics,
+                    TileErrorCode::SchemaError,
+                    path + ".transforms[" + std::to_string(cellIndex) + "]",
+                    "Transform contains unsupported bits.");
+            }
+            if (tileIndex == GeneratedEmptyTileTableIndex && transform != 0U)
+            {
+                AddDiagnostic(
+                    diagnostics,
+                    TileErrorCode::SchemaError,
+                    path + ".transforms[" + std::to_string(cellIndex) + "]",
+                    "Empty cells must use identity transform bits.");
             }
         }
     }
@@ -601,58 +593,52 @@ GeneratedTileMapLoadResult ParseGeneratedTileMapToml(
     ReadUInt32Pair(*root, "cell_size", "cell_size", document.cellWidth, document.cellHeight, result.diagnostics);
     document.tileTable = ReadStringArray(*root, "tile_table", "tile_table", result.diagnostics);
 
-    if (const toml::node* layersNode = root->get("layers"); layersNode != nullptr)
+    const toml::node* layersNode = root->get("layers");
+    const toml::array* layers = layersNode == nullptr ? nullptr : layersNode->as_array();
+    if (layers == nullptr)
     {
-        const toml::array* layers = layersNode->as_array();
-        if (layers == nullptr)
-        {
-            AddDiagnostic(result.diagnostics, TileErrorCode::SchemaError, "layers", "Expected an array of generated layer tables.", layersNode);
-        }
-        else
-        {
-            document.layers.reserve(layers->size());
-            for (std::size_t index = 0U; index < layers->size(); ++index)
-            {
-                const toml::node* layerNode = layers->get(index);
-                const toml::table* layerTable = layerNode == nullptr ? nullptr : layerNode->as_table();
-                const std::string path = "layers[" + std::to_string(index) + "]";
-                if (layerTable == nullptr)
-                {
-                    AddDiagnostic(result.diagnostics, TileErrorCode::SchemaError, path, "Expected a generated layer table.", layerNode);
-                    continue;
-                }
-
-                ValidateKnownKeys(
-                    *layerTable,
-                    path,
-                    {"id", "order", "origin", "size", "visible", "tiles", "transforms"},
-                    result.diagnostics);
-
-                GeneratedTileLayerDocument layer{};
-                if (const std::optional<std::string> value = ReadRequiredString(*layerTable, "id", path + ".id", result.diagnostics); value.has_value())
-                {
-                    layer.semanticId = *value;
-                }
-                ReadInt32(*layerTable, "order", path + ".order", layer.order, result.diagnostics);
-                ReadInt32Pair(*layerTable, "origin", path + ".origin", layer.originX, layer.originY, result.diagnostics);
-                ReadUInt32Pair(*layerTable, "size", path + ".size", layer.width, layer.height, result.diagnostics);
-                ReadBool(*layerTable, "visible", path + ".visible", layer.visible, result.diagnostics);
-                layer.tileTableIndices = ReadTileIndexArray(*layerTable, "tiles", path + ".tiles", result.diagnostics);
-                layer.transformBits = ReadTransformArray(*layerTable, "transforms", path + ".transforms", result.diagnostics);
-                document.layers.push_back(std::move(layer));
-            }
-        }
+        AddDiagnostic(result.diagnostics, TileErrorCode::SchemaError, "layers", "Expected an array of generated layer tables.", layersNode);
     }
     else
     {
-        AddDiagnostic(result.diagnostics, TileErrorCode::SchemaError, "layers", "Required field is missing.");
+        document.layers.reserve(layers->size());
+        for (std::size_t index = 0U; index < layers->size(); ++index)
+        {
+            const toml::node* layerNode = layers->get(index);
+            const toml::table* layerTable = layerNode == nullptr ? nullptr : layerNode->as_table();
+            const std::string path = "layers[" + std::to_string(index) + "]";
+            if (layerTable == nullptr)
+            {
+                AddDiagnostic(result.diagnostics, TileErrorCode::SchemaError, path, "Expected a generated layer table.", layerNode);
+                continue;
+            }
+
+            ValidateKnownKeys(
+                *layerTable,
+                path,
+                {"id", "order", "origin", "size", "visible", "tiles", "transforms"},
+                result.diagnostics);
+
+            GeneratedTileLayerDocument layer{};
+            if (const std::optional<std::string> value = ReadRequiredString(*layerTable, "id", path + ".id", result.diagnostics); value.has_value())
+            {
+                layer.semanticId = *value;
+            }
+            ReadInt32(*layerTable, "order", path + ".order", layer.order, result.diagnostics);
+            ReadInt32Pair(*layerTable, "origin", path + ".origin", layer.originX, layer.originY, result.diagnostics);
+            ReadUInt32Pair(*layerTable, "size", path + ".size", layer.width, layer.height, result.diagnostics);
+            ReadOptionalBool(*layerTable, "visible", path + ".visible", layer.visible, result.diagnostics);
+            layer.tileTableIndices = ReadTileIndexArray(*layerTable, "tiles", path + ".tiles", result.diagnostics);
+            layer.transformBits = ReadTransformArray(*layerTable, "transforms", path + ".transforms", result.diagnostics);
+            document.layers.push_back(std::move(layer));
+        }
     }
 
-    std::vector<TileDiagnostic> validation = ValidateDocumentShape(document);
+    std::vector<TileDiagnostic> shapeDiagnostics = ValidateDocumentShape(document);
     result.diagnostics.insert(
         result.diagnostics.end(),
-        std::make_move_iterator(validation.begin()),
-        std::make_move_iterator(validation.end()));
+        std::make_move_iterator(shapeDiagnostics.begin()),
+        std::make_move_iterator(shapeDiagnostics.end()));
     if (result.diagnostics.empty())
     {
         result.document = std::move(document);
@@ -665,7 +651,11 @@ std::string SaveGeneratedTileMapToml(const GeneratedTileMapDocument& document)
     std::vector<std::size_t> tableOrder(document.tileTable.size());
     std::iota(tableOrder.begin(), tableOrder.end(), 0U);
     std::sort(tableOrder.begin(), tableOrder.end(), [&document](const std::size_t left, const std::size_t right) {
-        return std::tie(document.tileTable[left], left) < std::tie(document.tileTable[right], right);
+        if (document.tileTable[left] != document.tileTable[right])
+        {
+            return document.tileTable[left] < document.tileTable[right];
+        }
+        return left < right;
     });
 
     std::vector<std::string> canonicalTable{};
@@ -775,7 +765,6 @@ GeneratedTileMapConversionResult ConvertGeneratedTileMap(
     output.cellWidth = document.cellWidth;
     output.cellHeight = document.cellHeight;
     output.layers.reserve(document.layers.size());
-
     result.metrics.tileTableEntries = document.tileTable.size();
 
     for (const GeneratedTileLayerDocument& sourceLayer : document.layers)
@@ -791,14 +780,10 @@ GeneratedTileMapConversionResult ConvertGeneratedTileMap(
                 denseCellCount * static_cast<std::uint64_t>(sizeof(std::uint8_t));
         }
 
-        std::size_t occupiedCount = 0U;
-        for (const std::int32_t tileIndex : sourceLayer.tileTableIndices)
-        {
-            if (tileIndex != GeneratedEmptyTileTableIndex)
-            {
-                ++occupiedCount;
-            }
-        }
+        const std::size_t occupiedCount = static_cast<std::size_t>(std::count_if(
+            sourceLayer.tileTableIndices.begin(),
+            sourceLayer.tileTableIndices.end(),
+            [](const std::int32_t tileIndex) { return tileIndex != GeneratedEmptyTileTableIndex; }));
 
         TileLayerDocument outputLayer{};
         outputLayer.semanticId = sourceLayer.semanticId;
@@ -823,7 +808,6 @@ GeneratedTileMapConversionResult ConvertGeneratedTileMap(
             const std::size_t localY = cellIndex / static_cast<std::size_t>(sourceLayer.width);
             const std::uint8_t transformBits =
                 sourceLayer.transformBits.empty() ? 0U : sourceLayer.transformBits[cellIndex];
-
             outputLayer.cells.push_back(TileCellDocument{
                 .x = static_cast<std::int32_t>(localX),
                 .y = static_cast<std::int32_t>(localY),
