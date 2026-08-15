@@ -1,6 +1,7 @@
 add_executable(trace2d_ui_tests
     UiTests.cpp
     UiLimitsTests.cpp
+    TextInputTests.cpp
 )
 
 target_link_libraries(trace2d_ui_tests
