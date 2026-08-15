@@ -288,6 +288,26 @@ public:
         return static_cast<WindowId>(SDL_GetWindowID(window_));
     }
 
+    [[nodiscard]] bool SetTextInputEnabled(const bool enabled) noexcept
+    {
+        if (window_ == nullptr)
+        {
+            return false;
+        }
+
+        if (SDL_TextInputActive(window_) == enabled)
+        {
+            return true;
+        }
+
+        return enabled ? SDL_StartTextInput(window_) : SDL_StopTextInput(window_);
+    }
+
+    [[nodiscard]] bool TextInputEnabled() const noexcept
+    {
+        return window_ != nullptr && SDL_TextInputActive(window_);
+    }
+
     [[nodiscard]] bool PollEvent(PlatformEvent& event)
     {
         event = {};
@@ -301,6 +321,28 @@ public:
         if (sdlEvent.type == SDL_EVENT_QUIT || sdlEvent.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED)
         {
             event.type = PlatformEventType::QuitRequested;
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_TEXT_INPUT)
+        {
+            event.type = PlatformEventType::TextInput;
+            event.textInput = input::TextInputEvent{
+                .type = input::TextInputEventType::Committed,
+                .text = sdlEvent.text.text != nullptr ? sdlEvent.text.text : "",
+            };
+            return true;
+        }
+
+        if (sdlEvent.type == SDL_EVENT_TEXT_EDITING)
+        {
+            event.type = PlatformEventType::TextInput;
+            event.textInput = input::TextInputEvent{
+                .type = input::TextInputEventType::Composition,
+                .text = sdlEvent.edit.text != nullptr ? sdlEvent.edit.text : "",
+                .selectionStart = sdlEvent.edit.start,
+                .selectionLength = sdlEvent.edit.length,
+            };
             return true;
         }
 
@@ -474,6 +516,16 @@ bool Platform::HasWindow() const noexcept
 WindowId Platform::WindowIdValue() const noexcept
 {
     return impl_->WindowIdValue();
+}
+
+bool Platform::SetTextInputEnabled(const bool enabled) noexcept
+{
+    return impl_->SetTextInputEnabled(enabled);
+}
+
+bool Platform::TextInputEnabled() const noexcept
+{
+    return impl_->TextInputEnabled();
 }
 
 bool Platform::PollEvent(PlatformEvent& event)

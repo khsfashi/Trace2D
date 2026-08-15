@@ -1,5 +1,7 @@
 #pragma once
 
+#include <trace2d/input/TextInput.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -41,6 +43,14 @@ struct UiElement final
     std::uint64_t activationCount{0};
 };
 
+struct UiTextCompositionState final
+{
+    std::string_view text{};
+    std::int32_t selectionStart{-1};
+    std::int32_t selectionLength{-1};
+    bool active{false};
+};
+
 enum class UiActionResult : std::uint8_t
 {
     Success,
@@ -55,6 +65,7 @@ enum class UiActionResult : std::uint8_t
     NotActivatable,
     NotTextInput,
     NotFocused,
+    InvalidTextCompositionRange,
 };
 
 [[nodiscard]] std::string_view ToString(UiElementKind kind) noexcept;
@@ -75,21 +86,38 @@ public:
     [[nodiscard]] const UiElement* Find(std::string_view id) const noexcept;
     [[nodiscard]] const UiElement* FocusedElement() const noexcept;
     [[nodiscard]] bool IsFocused(std::string_view id) const noexcept;
+    [[nodiscard]] UiTextCompositionState TextComposition() const noexcept;
 
     void ReserveElements(std::size_t count);
     [[nodiscard]] UiActionResult AddElement(UiElement element);
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
+
+    // Existing semantic/Agent API: replace the complete committed value of one focused textbox.
     [[nodiscard]] UiActionResult InputText(std::string_view id, std::string_view text);
+
+    // Physical host, direct host, and headless/virtual text input all converge here. Committed UTF-8
+    // appends to the focused textbox for the I3 baseline; IME composition remains transient and is
+    // never copied into the committed textbox value until a Committed event arrives.
+    [[nodiscard]] UiActionResult ApplyTextInput(const input::TextInputEvent& event);
+
     void ClearFocus() noexcept;
 
 private:
     [[nodiscard]] UiElement* FindMutable(std::string_view id) noexcept;
+    [[nodiscard]] UiElement* FocusedTextInput() noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
+    void ClearTextComposition() noexcept;
 
     std::uint32_t width_{0};
     std::uint32_t height_{0};
     std::vector<UiElement> elements_{};
     std::size_t focusedIndex_{static_cast<std::size_t>(-1)};
+
+    // At most one UI element can own focus, so I3 retains one reusable preedit buffer per document
+    // instead of adding a std::string to every Panel/Label/Button/TextInput instance.
+    std::string textComposition_{};
+    std::int32_t textCompositionSelectionStart_{-1};
+    std::int32_t textCompositionSelectionLength_{-1};
 };
 } // namespace trace2d::ui

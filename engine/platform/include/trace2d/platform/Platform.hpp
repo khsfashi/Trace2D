@@ -1,6 +1,7 @@
 #pragma once
 
 #include <trace2d/input/Input.hpp>
+#include <trace2d/input/TextInput.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -30,12 +31,14 @@ enum class PlatformEventType
     None,
     QuitRequested,
     Input,
+    TextInput,
 };
 
 struct PlatformEvent
 {
     PlatformEventType type{PlatformEventType::None};
     input::InputEvent input{};
+    input::TextInputEvent textInput{};
 };
 
 class Platform final
@@ -52,6 +55,12 @@ public:
     [[nodiscard]] StartupMode Mode() const noexcept;
     [[nodiscard]] bool HasWindow() const noexcept;
     [[nodiscard]] WindowId WindowIdValue() const noexcept;
+
+    // SDL3 text input is window-scoped and disabled by default. The host owns enabling it only
+    // while a real text-entry target is focused; headless mode returns false and remains inert.
+    [[nodiscard]] bool SetTextInputEnabled(bool enabled) noexcept;
+    [[nodiscard]] bool TextInputEnabled() const noexcept;
+
     [[nodiscard]] bool PollEvent(PlatformEvent& event);
 
 private:

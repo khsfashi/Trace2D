@@ -112,12 +112,22 @@ int main()
         application.SetPresentationCallback(&Present, &presentation);
         application.Start();
 
+        // Native text input/IME is host-owned: keep it active only while the authoritative UI
+        // focus is a visible, enabled text-entry element. This example currently has no such focus,
+        // but the integration path is the same one an external game uses when text UI is present.
+        const trace2d::ui::UiElement* const focused = application.Ui().FocusedElement();
+        const bool wantsTextInput = focused != nullptr && focused->kind == trace2d::ui::UiElementKind::TextInput &&
+                                    focused->visible && focused->enabled;
+        if (!platform.SetTextInputEnabled(wantsTextInput) && wantsTextInput) return 2;
+
         bool quitRequested = false;
         trace2d::platform::PlatformEvent event{};
         while (platform.PollEvent(event))
         {
             if (event.type == trace2d::platform::PlatformEventType::QuitRequested) quitRequested = true;
             else if (event.type == trace2d::platform::PlatformEventType::Input) application.ApplyInput(event.input);
+            else if (event.type == trace2d::platform::PlatformEventType::TextInput)
+                static_cast<void>(application.Ui().ApplyTextInput(event.textInput));
         }
         if (!quitRequested)
         {

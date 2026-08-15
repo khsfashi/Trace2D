@@ -49,6 +49,8 @@ std::string_view ToString(const UiActionResult result) noexcept
         return "not_text_input";
     case UiActionResult::NotFocused:
         return "not_focused";
+    case UiActionResult::InvalidTextCompositionRange:
+        return "invalid_text_composition_range";
     }
 
     return "unknown";
@@ -127,10 +129,31 @@ const UiElement* UiDocument::FocusedElement() const noexcept
     return &elements_[focusedIndex_];
 }
 
+UiElement* UiDocument::FocusedTextInput() noexcept
+{
+    if (focusedIndex_ >= elements_.size())
+    {
+        return nullptr;
+    }
+
+    UiElement& element = elements_[focusedIndex_];
+    return element.kind == UiElementKind::TextInput ? &element : nullptr;
+}
+
 bool UiDocument::IsFocused(const std::string_view id) const noexcept
 {
     const UiElement* focused = FocusedElement();
     return focused != nullptr && focused->id == id;
+}
+
+UiTextCompositionState UiDocument::TextComposition() const noexcept
+{
+    return UiTextCompositionState{
+        .text = textComposition_,
+        .selectionStart = textCompositionSelectionStart_,
+        .selectionLength = textCompositionSelectionLength_,
+        .active = !textComposition_.empty(),
+    };
 }
 
 void UiDocument::ReserveElements(const std::size_t count)
@@ -189,7 +212,11 @@ UiActionResult UiDocument::Focus(const std::string_view id) noexcept
             return UiActionResult::NotFocusable;
         }
 
-        focusedIndex_ = index;
+        if (focusedIndex_ != index)
+        {
+            ClearTextComposition();
+            focusedIndex_ = index;
+        }
         return UiActionResult::Success;
     }
 
@@ -252,12 +279,71 @@ UiActionResult UiDocument::InputText(const std::string_view id, const std::strin
     }
 
     element->text.assign(text);
+    ClearTextComposition();
     return UiActionResult::Success;
+}
+
+UiActionResult UiDocument::ApplyTextInput(const input::TextInputEvent& event)
+{
+    const UiElement* const focused = FocusedElement();
+    if (focused == nullptr)
+    {
+        return UiActionResult::NotFocused;
+    }
+    if (!focused->visible)
+    {
+        return UiActionResult::NotVisible;
+    }
+    if (!focused->enabled)
+    {
+        return UiActionResult::Disabled;
+    }
+
+    UiElement* const textInput = FocusedTextInput();
+    if (textInput == nullptr)
+    {
+        return UiActionResult::NotTextInput;
+    }
+
+    switch (event.type)
+    {
+    case input::TextInputEventType::Committed:
+        textInput->text.append(event.text);
+        ClearTextComposition();
+        return UiActionResult::Success;
+
+    case input::TextInputEventType::Composition:
+        if (event.selectionStart < -1 || event.selectionLength < -1)
+        {
+            return UiActionResult::InvalidTextCompositionRange;
+        }
+
+        if (event.text.empty())
+        {
+            ClearTextComposition();
+            return UiActionResult::Success;
+        }
+
+        textComposition_.assign(event.text);
+        textCompositionSelectionStart_ = event.selectionStart;
+        textCompositionSelectionLength_ = event.selectionLength;
+        return UiActionResult::Success;
+    }
+
+    return UiActionResult::NotTextInput;
 }
 
 void UiDocument::ClearFocus() noexcept
 {
+    ClearTextComposition();
     focusedIndex_ = static_cast<std::size_t>(-1);
+}
+
+void UiDocument::ClearTextComposition() noexcept
+{
+    textComposition_.clear();
+    textCompositionSelectionStart_ = -1;
+    textCompositionSelectionLength_ = -1;
 }
 
 bool UiDocument::Contains(const UiRect& bounds) const noexcept
