@@ -219,7 +219,7 @@ For buttons, `activationCount` is the engine-owned deterministic edge counter. G
 
 Observable UI iteration remains authored order. Hash-container iteration order does not participate in runtime or Agent output.
 
-Authored load/setup for `N` valid elements performs bounded staging plus `O(N log N)` duplicate/parent lookup preparation and `O(N)` publication. This cost is not a frame loop.
+Authored load/setup for `N` valid elements performs bounded staging plus `O(N log N)` duplicate/parent lookup preparation. Publication currently preserves the original duplicate-protected `UiDocument::AddElement` contract, whose repeated linear ID guard makes publication `O(N^2)` in the worst case. This is explicit load/setup work, not a frame loop; a bulk publication/index path should be added only if measured practical authored UI sizes make that setup cost material.
 
 After publication:
 
