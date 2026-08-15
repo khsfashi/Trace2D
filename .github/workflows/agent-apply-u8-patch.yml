@@ -6,6 +6,7 @@ on:
       - agent/e6-u8-ui-clipping
     paths:
       - .agent/u8.patch
+      - .github/workflows/agent-apply-u8-patch.yml
 
 permissions:
   contents: write
@@ -23,8 +24,8 @@ jobs:
       - name: Apply U8 patch
         shell: bash
         run: |
-          git apply --check .agent/u8.patch
-          git apply .agent/u8.patch
+          git apply --check --recount .agent/u8.patch
+          git apply --recount .agent/u8.patch
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add engine/ui engine/agent tests/ui docs/UI_E6_U8.md
