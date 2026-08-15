@@ -7,6 +7,7 @@
 #include <memory>
 #include <new>
 #include <optional>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -169,6 +170,42 @@ constexpr std::size_t MaxLayoutLines = 1U << 16U;
     return true;
 }
 
+[[nodiscard]] std::optional<TextLayoutDiagnostic> ValidateFallbackAtlases(
+    const std::span<const TextFontAtlasRef> fallbackAtlases,
+    GlyphAtlasConfig& referenceConfig)
+{
+    if (fallbackAtlases.empty())
+    {
+        return LayoutDiagnostic(
+            TextLayoutErrorCode::InvalidConfig,
+            "text fallback atlas chain must contain at least one prepared atlas");
+    }
+
+    for (std::size_t fontSlot = 0U; fontSlot < fallbackAtlases.size(); ++fontSlot)
+    {
+        GlyphAtlas* const atlas = fallbackAtlases[fontSlot].atlas;
+        if (atlas == nullptr || !atlas->IsPrepared())
+        {
+            return LayoutDiagnostic(
+                TextLayoutErrorCode::InvalidConfig,
+                "text fallback atlas chain contains a null or unprepared atlas");
+        }
+
+        const GlyphAtlasConfig config = atlas->Config();
+        if (fontSlot == 0U)
+        {
+            referenceConfig = config;
+        }
+        else if (config.pixelHeight != referenceConfig.pixelHeight)
+        {
+            return LayoutDiagnostic(
+                TextLayoutErrorCode::InvalidConfig,
+                "all fallback atlases must use the same pixel height");
+        }
+    }
+    return std::nullopt;
+}
+
 [[nodiscard]] std::optional<TextLayoutDiagnostic> ValidateOptions(
     const GlyphAtlasConfig atlasConfig,
     const TextLayoutOptions options,
@@ -252,6 +289,57 @@ constexpr std::size_t MaxLayoutLines = 1U << 16U;
     }
     return std::nullopt;
 }
+
+struct FallbackGlyph final
+{
+    GlyphAtlasEntry entry{};
+    std::size_t fontSlot{0U};
+};
+
+[[nodiscard]] std::optional<TextLayoutDiagnostic> ResolveFallbackGlyph(
+    const std::span<const TextFontAtlasRef> fallbackAtlases,
+    const char32_t codepoint,
+    const std::size_t byteOffset,
+    FallbackGlyph& output)
+{
+    for (std::size_t fontSlot = 0U; fontSlot < fallbackAtlases.size(); ++fontSlot)
+    {
+        GlyphAtlas& atlas = *fallbackAtlases[fontSlot].atlas;
+        if (!atlas.SupportsCodepoint(codepoint))
+        {
+            continue;
+        }
+
+        GlyphAtlasResolveResult resolved = atlas.ResolveCodepoint(codepoint);
+        if (!resolved.Succeeded())
+        {
+            TextLayoutDiagnostic diagnostic = LayoutDiagnostic(
+                TextLayoutErrorCode::GlyphResolveFailed,
+                "selected fallback glyph atlas failed to resolve a supported codepoint",
+                byteOffset,
+                codepoint);
+            diagnostic.textDiagnostic = std::move(resolved.diagnostic);
+            return diagnostic;
+        }
+
+        output.entry = *resolved.entry;
+        output.fontSlot = fontSlot;
+        return std::nullopt;
+    }
+
+    TextLayoutDiagnostic diagnostic = LayoutDiagnostic(
+        TextLayoutErrorCode::GlyphResolveFailed,
+        "no fallback glyph atlas contains the decoded codepoint",
+        byteOffset,
+        codepoint);
+    TextDiagnostic missing{};
+    missing.code = TextErrorCode::MissingGlyph;
+    missing.message = "no fallback font contains a glyph for the requested codepoint";
+    missing.byteOffset = byteOffset;
+    missing.codepoint = codepoint;
+    diagnostic.textDiagnostic = std::move(missing);
+    return diagnostic;
+}
 } // namespace
 
 std::string_view ToString(const TextLayoutErrorCode value) noexcept
@@ -300,6 +388,15 @@ TextLayoutResult TextLayoutRun::LayoutUtf8(
     const std::string_view text,
     const TextLayoutOptions options)
 {
+    const TextFontAtlasRef singleAtlas{&atlas};
+    return LayoutUtf8(std::span<const TextFontAtlasRef>(&singleAtlas, 1U), text, options);
+}
+
+TextLayoutResult TextLayoutRun::LayoutUtf8(
+    const std::span<const TextFontAtlasRef> fallbackAtlases,
+    const std::string_view text,
+    const TextLayoutOptions options)
+{
     TextLayoutResult output{};
     if (impl_ == nullptr)
     {
@@ -307,9 +404,16 @@ TextLayoutResult TextLayoutRun::LayoutUtf8(
         return output;
     }
 
+    GlyphAtlasConfig referenceConfig{};
+    if (const auto diagnostic = ValidateFallbackAtlases(fallbackAtlases, referenceConfig); diagnostic.has_value())
+    {
+        output.diagnostic = *diagnostic;
+        return output;
+    }
+
     std::int64_t lineHeight26_6 = 0;
     std::int64_t baselineOffset26_6 = 0;
-    if (const auto diagnostic = ValidateOptions(atlas.Config(), options, lineHeight26_6, baselineOffset26_6);
+    if (const auto diagnostic = ValidateOptions(referenceConfig, options, lineHeight26_6, baselineOffset26_6);
         diagnostic.has_value())
     {
         output.diagnostic = *diagnostic;
@@ -387,25 +491,24 @@ TextLayoutResult TextLayoutRun::LayoutUtf8(
             continue;
         }
 
-        GlyphAtlasResolveResult resolved = atlas.ResolveCodepoint(codepoint);
-        if (!resolved.Succeeded())
-        {
-            TextLayoutDiagnostic diagnostic = LayoutDiagnostic(
-                TextLayoutErrorCode::GlyphResolveFailed,
-                "glyph atlas failed to resolve a decoded codepoint",
+        FallbackGlyph resolved{};
+        if (const auto diagnostic = ResolveFallbackGlyph(
+                fallbackAtlases,
+                codepoint,
                 codepointOffset,
-                codepoint);
-            diagnostic.textDiagnostic = resolved.diagnostic;
-            output.diagnostic = std::move(diagnostic);
+                resolved);
+            diagnostic.has_value())
+        {
+            output.diagnostic = *diagnostic;
             return output;
         }
 
-        const GlyphAtlasEntry entry = *resolved.entry;
+        const GlyphAtlasEntry entry = resolved.entry;
         if (entry.advanceX26_6 < 0)
         {
             output.diagnostic = LayoutDiagnostic(
                 TextLayoutErrorCode::MetricOverflow,
-                "negative glyph advances are not supported by the deterministic F2 layout path",
+                "negative glyph advances are not supported by the deterministic F2/F3 layout path",
                 codepointOffset,
                 codepoint);
             return output;
@@ -436,6 +539,7 @@ TextLayoutResult TextLayoutRun::LayoutUtf8(
 
         PositionedGlyph positioned{};
         positioned.atlasEntry = entry;
+        positioned.fontSlot = resolved.fontSlot;
         positioned.byteOffset = codepointOffset;
         positioned.lineIndex = impl_->scratchLines.size();
         positioned.penX26_6 = penX26_6;

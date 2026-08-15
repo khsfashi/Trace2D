@@ -130,6 +130,8 @@ public:
 
     [[nodiscard]] TextMeasureResult MeasureUtf8(std::string_view text, std::uint32_t pixelHeight);
     [[nodiscard]] GlyphRasterResult RasterizeCodepoint(char32_t codepoint, std::uint32_t pixelHeight);
+    // Coverage-only probe. It does not select a pixel size, rasterize, or allocate diagnostic storage.
+    [[nodiscard]] bool SupportsCodepoint(char32_t codepoint) const noexcept;
     [[nodiscard]] assets::ResourceHandle<assets::FontResource> ResourceHandle() const noexcept;
     [[nodiscard]] std::uint32_t CurrentPixelHeight() const noexcept;
 
@@ -235,6 +237,10 @@ public:
 
     [[nodiscard]] GlyphAtlasResolveResult ResolveCodepoint(char32_t codepoint);
     [[nodiscard]] GlyphAtlasWarmResult WarmUtf8(std::string_view text);
+    // Fallback layout uses these probes before ResolveCodepoint so a normal missing-glyph path
+    // never constructs an error string or mutates cache metrics.
+    [[nodiscard]] bool IsPrepared() const noexcept;
+    [[nodiscard]] bool SupportsCodepoint(char32_t codepoint) const noexcept;
     [[nodiscard]] GlyphAtlasConfig Config() const noexcept;
     [[nodiscard]] GlyphAtlasMetrics Metrics() const noexcept;
     [[nodiscard]] std::span<const std::uint8_t> Alpha8() const noexcept;

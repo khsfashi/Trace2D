@@ -76,9 +76,18 @@ struct TextLayoutOptions final
     TextVerticalAlignment verticalAlignment{TextVerticalAlignment::Top};
 };
 
+// Non-owning ordered fallback entry. The caller owns each atlas and the span storage for the
+// duration of LayoutUtf8. Earlier entries have strictly higher fallback priority.
+struct TextFontAtlasRef final
+{
+    GlyphAtlas* atlas{nullptr};
+};
+
 struct PositionedGlyph final
 {
     GlyphAtlasEntry atlasEntry{};
+    // Index into the exact fallback span passed to LayoutUtf8. Single-atlas layout always uses 0.
+    std::size_t fontSlot{0};
     std::size_t byteOffset{0};
     std::size_t lineIndex{0};
     std::int64_t penX26_6{0};
@@ -129,8 +138,15 @@ public:
     TextLayoutRun& operator=(TextLayoutRun&&) noexcept;
     ~TextLayoutRun();
 
+    // Source-compatible F2 convenience path. Equivalent to a one-entry fallback chain.
     [[nodiscard]] TextLayoutResult LayoutUtf8(
         GlyphAtlas& atlas,
+        std::string_view text,
+        TextLayoutOptions options = {});
+
+    // Deterministic F3 path: first supporting prepared atlas wins for each Unicode scalar.
+    [[nodiscard]] TextLayoutResult LayoutUtf8(
+        std::span<const TextFontAtlasRef> fallbackAtlases,
         std::string_view text,
         TextLayoutOptions options = {});
 
