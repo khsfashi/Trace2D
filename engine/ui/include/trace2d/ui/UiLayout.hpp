@@ -35,6 +35,7 @@ enum class UiLayoutResult : std::uint8_t
     InvalidPlacementMode,
     InvalidAnchor,
     InvalidContainerLayout,
+    InvalidContentExtent,
     StackParentRequired,
     StackOverflow,
 };
@@ -106,6 +107,13 @@ struct UiLayoutNodeSpec final
     UiContainerLayoutMode containerLayout{UiContainerLayoutMode::None};
     UiInsets padding{};
     std::uint32_t spacing{0U};
+
+    // U10 optionally gives direct children a larger logical content/reference space without
+    // resizing this node's own resolved visible bounds. Zero/zero preserves the legacy parent
+    // rectangle authority exactly. A non-zero extent must provide both dimensions and is validated
+    // during Finalize() once this node's absolute viewport origin/size are known.
+    std::uint32_t childContentWidth{0U};
+    std::uint32_t childContentHeight{0U};
 };
 
 struct UiResolvedLayoutNode final
@@ -126,9 +134,12 @@ struct UiResolvedLayoutNode final
     UiContainerLayoutMode containerLayout{UiContainerLayoutMode::None};
     UiInsets padding{};
     std::uint32_t spacing{0U};
+    std::uint32_t childContentWidth{0U};
+    std::uint32_t childContentHeight{0U};
 
     // Final parent-local rectangle after placement resolution, followed by absolute logical-canvas
-    // bounds. For Absolute placement resolvedLocalBounds == localBounds.
+    // bounds. For Absolute placement resolvedLocalBounds == localBounds. U10 content extents affect
+    // only child placement/reference space; they never mutate this node's own resolved rectangles.
     UiRect resolvedLocalBounds{};
     UiRect bounds{};
 };
@@ -172,6 +183,8 @@ private:
     [[nodiscard]] static bool ResolveStackFixedBounds(
         const UiResolvedLayoutNode& parent,
         const UiResolvedLayoutNode& child,
+        std::uint32_t contentWidth,
+        std::uint32_t contentHeight,
         std::uint64_t& cursor,
         bool& hasPreviousStackItem,
         UiRect& resolved) noexcept;
