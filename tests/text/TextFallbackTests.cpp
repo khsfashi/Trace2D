@@ -304,16 +304,18 @@ TEST(TextFallbackTests, MixedFontWrappingUsesSharedPixelHeightMetricDomain)
     ASSERT_GT(primaryAdvance, 0);
 
     TextLayoutOptions options{};
-    options.boxWidth26_6 = primaryAdvance;
+    options.boxWidth26_6 = 1;
     options.wrapMode = TextWrapMode::GlyphBoundary;
     options.horizontalAlignment = TextHorizontalAlignment::Center;
     const auto chain = MakeChain(*primary.atlas, *fallback.atlas);
-    const TextLayoutResult wrapped = prepared.run->LayoutUtf8(chain, "A한");
+    const TextLayoutResult wrapped = prepared.run->LayoutUtf8(chain, "한A");
     ASSERT_TRUE(wrapped.Succeeded());
     EXPECT_EQ(wrapped.metrics->lineCount, 2U);
     ASSERT_EQ(prepared.run->Glyphs().size(), 2U);
-    EXPECT_EQ(prepared.run->Glyphs()[0].fontSlot, 0U);
-    EXPECT_EQ(prepared.run->Glyphs()[1].fontSlot, 1U);
+    EXPECT_EQ(prepared.run->Glyphs()[0].fontSlot, 1U);
+    EXPECT_EQ(prepared.run->Glyphs()[0].lineIndex, 0U);
+    EXPECT_EQ(prepared.run->Glyphs()[1].fontSlot, 0U);
+    EXPECT_EQ(prepared.run->Glyphs()[1].lineIndex, 1U);
     EXPECT_EQ(wrapped.metrics->contentHeight26_6, static_cast<std::int64_t>(primary.atlas->Config().pixelHeight) * 64 * 2);
 }
 } // namespace trace2d::text
