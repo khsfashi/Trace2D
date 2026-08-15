@@ -98,6 +98,24 @@ namespace
         .width = element.bounds.width,
         .height = element.bounds.height,
     };
+    snapshot.presentationBounds = UiPresentationRectSnapshot{
+        .x = element.presentationBounds.x,
+        .y = element.presentationBounds.y,
+        .width = element.presentationBounds.width,
+        .height = element.presentationBounds.height,
+    };
+    snapshot.scrollViewport = element.scroll.viewport;
+    snapshot.scrollContentWidth = element.scroll.contentWidth;
+    snapshot.scrollContentHeight = element.scroll.contentHeight;
+    snapshot.scrollOffsetX = element.scroll.offsetX;
+    snapshot.scrollOffsetY = element.scroll.offsetY;
+    snapshot.scrollRevision = element.scroll.revision;
+    snapshot.scrollTranslationUpdates = element.scroll.translationUpdates;
+    const std::span<const ui::UiElement> elements = document.Elements();
+    if (element.scrollOwnerIndex < elements.size())
+    {
+        snapshot.scrollOwnerId = elements[element.scrollOwnerIndex].id;
+    }
     snapshot.clipChildren = element.clipChildren;
     snapshot.clipActive = element.clipActive;
     snapshot.clipBounds = UiRectSnapshot{
@@ -185,6 +203,9 @@ namespace
     case ui::UiActionResult::DuplicateId:
     case ui::UiActionResult::InvalidBounds:
     case ui::UiActionResult::InvalidTextCompositionRange:
+    case ui::UiActionResult::NotScrollViewport:
+    case ui::UiActionResult::InvalidScrollContent:
+    case ui::UiActionResult::UnsupportedScrollHierarchy:
         break;
     }
 
