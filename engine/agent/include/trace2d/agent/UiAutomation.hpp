@@ -63,6 +63,9 @@ struct UiElementSnapshot final
     bool visible{true};
     bool enabled{true};
     bool focused{false};
+    bool hovered{false};
+    bool pointerPressed{false};
+    bool pointerCaptured{false};
     std::string text{};
     std::uint64_t activationCount{0};
     std::optional<UiTextCompositionSnapshot> composition{};
@@ -167,6 +170,9 @@ struct UiExpectedState final
     std::optional<bool> visible{};
     std::optional<bool> enabled{};
     std::optional<bool> focused{};
+    std::optional<bool> hovered{};
+    std::optional<bool> pointerPressed{};
+    std::optional<bool> pointerCaptured{};
     std::optional<std::string> text{};
     std::optional<std::uint64_t> activationCount{};
 
