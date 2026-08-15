@@ -347,6 +347,12 @@ FontFace::FontFace(FontFace&&) noexcept = default;
 FontFace& FontFace::operator=(FontFace&&) noexcept = default;
 FontFace::~FontFace() = default;
 
+bool FontFace::SupportsCodepoint(const char32_t codepoint) const noexcept
+{
+    return impl_ != nullptr && impl_->face != nullptr && IsUnicodeScalar(codepoint) &&
+           FT_Get_Char_Index(impl_->face, static_cast<FT_ULong>(codepoint)) != 0U;
+}
+
 TextMeasureResult FontFace::MeasureUtf8(const std::string_view text, const std::uint32_t pixelHeight)
 {
     TextMeasureResult output{};
@@ -862,6 +868,24 @@ GlyphAtlasWarmResult GlyphAtlas::WarmUtf8(const std::string_view text)
         }
     }
     return output;
+}
+
+bool GlyphAtlas::IsPrepared() const noexcept
+{
+    return impl_ != nullptr && impl_->face != nullptr;
+}
+
+bool GlyphAtlas::SupportsCodepoint(const char32_t codepoint) const noexcept
+{
+    if (!IsPrepared())
+    {
+        return false;
+    }
+    if (impl_->FindEntryIndex(codepoint).has_value())
+    {
+        return true;
+    }
+    return impl_->face->SupportsCodepoint(codepoint);
 }
 
 GlyphAtlasConfig GlyphAtlas::Config() const noexcept
