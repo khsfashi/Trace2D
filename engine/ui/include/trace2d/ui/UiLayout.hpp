@@ -34,12 +34,23 @@ enum class UiLayoutResult : std::uint8_t
     AlreadyFinalized,
     InvalidPlacementMode,
     InvalidAnchor,
+    InvalidContainerLayout,
+    StackParentRequired,
+    StackOverflow,
 };
 
 enum class UiLayoutPlacementMode : std::uint8_t
 {
     Absolute = 0,
     AnchoredFixed,
+    StackFixed,
+};
+
+enum class UiContainerLayoutMode : std::uint8_t
+{
+    None = 0,
+    HorizontalStack,
+    VerticalStack,
 };
 
 struct UiNormalizedPoint final
@@ -48,6 +59,16 @@ struct UiNormalizedPoint final
     std::uint16_t y{0U};
 
     [[nodiscard]] bool operator==(const UiNormalizedPoint&) const noexcept = default;
+};
+
+struct UiInsets final
+{
+    std::uint32_t left{0U};
+    std::uint32_t top{0U};
+    std::uint32_t right{0U};
+    std::uint32_t bottom{0U};
+
+    [[nodiscard]] bool operator==(const UiInsets&) const noexcept = default;
 };
 
 struct UiAnchoredPlacement final
@@ -62,6 +83,15 @@ struct UiAnchoredPlacement final
     [[nodiscard]] bool operator==(const UiAnchoredPlacement&) const noexcept = default;
 };
 
+struct UiStackFixedPlacement final
+{
+    std::uint32_t width{0U};
+    std::uint32_t height{0U};
+    UiInsets margin{};
+
+    [[nodiscard]] bool operator==(const UiStackFixedPlacement&) const noexcept = default;
+};
+
 struct UiLayoutNodeSpec final
 {
     std::string id{};
@@ -69,6 +99,13 @@ struct UiLayoutNodeSpec final
     UiRect localBounds{};
     UiLayoutPlacementMode placementMode{UiLayoutPlacementMode::Absolute};
     UiAnchoredPlacement anchored{};
+    UiStackFixedPlacement stackFixed{};
+
+    // Child-layout authority belongs to the container node. Stack layout only consumes direct
+    // StackFixed children; absolute/anchored direct children are overlays and do not consume flow.
+    UiContainerLayoutMode containerLayout{UiContainerLayoutMode::None};
+    UiInsets padding{};
+    std::uint32_t spacing{0U};
 };
 
 struct UiResolvedLayoutNode final
@@ -79,10 +116,16 @@ struct UiResolvedLayoutNode final
     std::uint32_t depth{0U};
 
     // Authored absolute-mode rectangle retained for inspection/source compatibility. AnchoredFixed
-    // nodes retain their authored UiAnchoredPlacement separately and leave this field unchanged.
+    // and StackFixed nodes retain their authored placement state separately and leave this field
+    // unchanged.
     UiRect localBounds{};
     UiLayoutPlacementMode placementMode{UiLayoutPlacementMode::Absolute};
     UiAnchoredPlacement anchored{};
+    UiStackFixedPlacement stackFixed{};
+
+    UiContainerLayoutMode containerLayout{UiContainerLayoutMode::None};
+    UiInsets padding{};
+    std::uint32_t spacing{0U};
 
     // Final parent-local rectangle after placement resolution, followed by absolute logical-canvas
     // bounds. For Absolute placement resolvedLocalBounds == localBounds.
@@ -92,6 +135,7 @@ struct UiResolvedLayoutNode final
 
 [[nodiscard]] std::string_view ToString(UiLayoutResult result) noexcept;
 [[nodiscard]] std::string_view ToString(UiLayoutPlacementMode mode) noexcept;
+[[nodiscard]] std::string_view ToString(UiContainerLayoutMode mode) noexcept;
 
 class UiLayoutTree final
 {
@@ -125,6 +169,12 @@ private:
         std::uint32_t referenceWidth,
         std::uint32_t referenceHeight,
         UiRect& resolved) noexcept;
+    [[nodiscard]] static bool ResolveStackFixedBounds(
+        const UiResolvedLayoutNode& parent,
+        const UiResolvedLayoutNode& child,
+        std::uint64_t& cursor,
+        bool& hasPreviousStackItem,
+        UiRect& resolved) noexcept;
 
     std::uint32_t width_{0U};
     std::uint32_t height_{0U};
@@ -132,6 +182,9 @@ private:
     std::vector<std::size_t> lookup_{};
     std::vector<std::uint8_t> visitState_{};
     std::vector<std::size_t> chain_{};
+    std::vector<std::size_t> childOffsets_{};
+    std::vector<std::size_t> childIndices_{};
+    std::vector<std::size_t> resolveQueue_{};
     bool finalized_{false};
 };
 } // namespace trace2d::ui
