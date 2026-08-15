@@ -3,6 +3,7 @@ find_package(Freetype REQUIRED)
 add_library(trace2d_text STATIC
     src/Text.cpp
     src/TextLayout.cpp
+    src/TextPresentation2D.cpp
 )
 
 add_library(Trace2D::Text ALIAS trace2d_text)
@@ -15,6 +16,7 @@ target_include_directories(trace2d_text
 target_link_libraries(trace2d_text
     PUBLIC
         Trace2D::Assets
+        Trace2D::Render
     PRIVATE
         Freetype::Freetype
 )

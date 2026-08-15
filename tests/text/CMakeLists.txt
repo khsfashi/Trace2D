@@ -2,6 +2,7 @@ add_executable(trace2d_text_tests
     TextTests.cpp
     TextLayoutTests.cpp
     TextFallbackTests.cpp
+    TextPresentation2DTests.cpp
 )
 
 target_link_libraries(trace2d_text_tests
