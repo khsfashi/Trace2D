@@ -2,6 +2,7 @@ add_executable(trace2d_ui_tests
     UiTests.cpp
     UiLayoutTests.cpp
     UiStackLayoutTests.cpp
+    UiContentExtentTests.cpp
     UiPointerTests.cpp
     UiNavigationTests.cpp
     UiDirectionalNavigationTests.cpp

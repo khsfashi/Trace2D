@@ -13,6 +13,11 @@ namespace
 {
     return insets.left != 0U || insets.top != 0U || insets.right != 0U || insets.bottom != 0U;
 }
+
+[[nodiscard]] bool HasContentExtent(const UiResolvedLayoutNode& node) noexcept
+{
+    return node.childContentWidth != 0U;
+}
 } // namespace
 
 std::string_view ToString(const UiLayoutResult result) noexcept
@@ -33,6 +38,8 @@ std::string_view ToString(const UiLayoutResult result) noexcept
         return "invalid_anchor";
     case UiLayoutResult::InvalidContainerLayout:
         return "invalid_container_layout";
+    case UiLayoutResult::InvalidContentExtent:
+        return "invalid_content_extent";
     case UiLayoutResult::StackParentRequired:
         return "stack_parent_required";
     case UiLayoutResult::StackOverflow:
@@ -156,6 +163,15 @@ UiLayoutResult UiLayoutTree::AddNode(UiLayoutNodeSpec node)
         return UiLayoutResult::TooManyNodes;
     }
 
+    const bool hasContentWidth = node.childContentWidth != 0U;
+    const bool hasContentHeight = node.childContentHeight != 0U;
+    if (hasContentWidth != hasContentHeight ||
+        node.childContentWidth > MaxUiCanvasDimension ||
+        node.childContentHeight > MaxUiCanvasDimension)
+    {
+        return UiLayoutResult::InvalidContentExtent;
+    }
+
     switch (node.containerLayout)
     {
     case UiContainerLayoutMode::None:
@@ -214,6 +230,8 @@ UiLayoutResult UiLayoutTree::AddNode(UiLayoutNodeSpec node)
     resolved.containerLayout = node.containerLayout;
     resolved.padding = node.padding;
     resolved.spacing = node.spacing;
+    resolved.childContentWidth = node.childContentWidth;
+    resolved.childContentHeight = node.childContentHeight;
     nodes_.push_back(std::move(resolved));
     return UiLayoutResult::Success;
 }
@@ -364,6 +382,25 @@ UiLayoutResult UiLayoutTree::Finalize()
     {
         const std::size_t parentIndex = resolveQueue_[queueIndex];
         const UiResolvedLayoutNode& parent = nodes_[parentIndex];
+        const bool hasContentExtent = HasContentExtent(parent);
+        const std::uint32_t contentWidth = hasContentExtent
+            ? parent.childContentWidth
+            : parent.bounds.width;
+        const std::uint32_t contentHeight = hasContentExtent
+            ? parent.childContentHeight
+            : parent.bounds.height;
+
+        // U10 validates explicit content space only after the parent's final size/origin are known.
+        // The complete content region must stay inside the logical canvas so UiDocument can retain
+        // the existing unsigned logical-bounds publication contract unchanged.
+        if (hasContentExtent &&
+            (contentWidth < parent.bounds.width ||
+             contentHeight < parent.bounds.height ||
+             contentWidth > width_ - parent.bounds.x ||
+             contentHeight > height_ - parent.bounds.y))
+        {
+            return UiLayoutResult::InvalidContentExtent;
+        }
 
         if (parent.containerLayout != UiContainerLayoutMode::None)
         {
@@ -371,7 +408,7 @@ UiLayoutResult UiLayoutTree::Finalize()
                 static_cast<std::uint64_t>(parent.padding.left) + parent.padding.right;
             const std::uint64_t verticalPadding =
                 static_cast<std::uint64_t>(parent.padding.top) + parent.padding.bottom;
-            if (horizontalPadding > parent.bounds.width || verticalPadding > parent.bounds.height)
+            if (horizontalPadding > contentWidth || verticalPadding > contentHeight)
             {
                 return UiLayoutResult::StackOverflow;
             }
@@ -396,6 +433,8 @@ UiLayoutResult UiLayoutTree::Finalize()
                 if (!ResolveStackFixedBounds(
                         parent,
                         child,
+                        contentWidth,
+                        contentHeight,
                         stackCursor,
                         hasPreviousStackItem,
                         resolvedLocal))
@@ -405,8 +444,8 @@ UiLayoutResult UiLayoutTree::Finalize()
             }
             else if (!ResolveLocalBounds(
                          child,
-                         parent.bounds.width,
-                         parent.bounds.height,
+                         contentWidth,
+                         contentHeight,
                          resolvedLocal))
             {
                 // U1 established that a valid anchored child whose signed placement escapes its
@@ -417,7 +456,8 @@ UiLayoutResult UiLayoutTree::Finalize()
                     : UiLayoutResult::InvalidBounds;
             }
 
-            if (!ContainsInParent(parent.bounds, resolvedLocal))
+            const UiRect contentBounds{0U, 0U, contentWidth, contentHeight};
+            if (!ContainsInParent(contentBounds, resolvedLocal))
             {
                 return child.placementMode == UiLayoutPlacementMode::StackFixed
                     ? UiLayoutResult::StackOverflow
@@ -431,6 +471,12 @@ UiLayoutResult UiLayoutTree::Finalize()
                 resolvedLocal.width,
                 resolvedLocal.height,
             };
+            if (!ContainsInCanvas(child.bounds))
+            {
+                return child.placementMode == UiLayoutPlacementMode::StackFixed
+                    ? UiLayoutResult::StackOverflow
+                    : UiLayoutResult::ChildOutsideParent;
+            }
             resolveQueue_.push_back(childIndex);
         }
     }
@@ -557,6 +603,8 @@ bool UiLayoutTree::ResolveLocalBounds(
 bool UiLayoutTree::ResolveStackFixedBounds(
     const UiResolvedLayoutNode& parent,
     const UiResolvedLayoutNode& child,
+    const std::uint32_t contentWidth,
+    const std::uint32_t contentHeight,
     std::uint64_t& cursor,
     bool& hasPreviousStackItem,
     UiRect& resolved) noexcept
@@ -567,8 +615,8 @@ bool UiLayoutTree::ResolveStackFixedBounds(
         return false;
     }
 
-    const std::uint64_t parentWidth = parent.bounds.width;
-    const std::uint64_t parentHeight = parent.bounds.height;
+    const std::uint64_t parentWidth = contentWidth;
+    const std::uint64_t parentHeight = contentHeight;
     const std::uint64_t paddingLeft = parent.padding.left;
     const std::uint64_t paddingTop = parent.padding.top;
     const std::uint64_t paddingRight = parent.padding.right;
