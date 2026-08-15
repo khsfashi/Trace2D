@@ -77,22 +77,32 @@ namespace
     const ui::UiDocument& document,
     const ui::UiElement& element)
 {
-    UiElementSnapshot snapshot{
-        .id = element.id,
-        .role = RoleForKind(element.kind),
-        .name = element.name,
-        .bounds = UiRectSnapshot{
-            .x = element.bounds.x,
-            .y = element.bounds.y,
-            .width = element.bounds.width,
-            .height = element.bounds.height,
-        },
-        .visible = element.visible,
-        .enabled = element.enabled,
-        .focused = document.IsFocused(element.id),
-        .text = element.text,
-        .activationCount = element.activationCount,
+    UiElementSnapshot snapshot{};
+    snapshot.id = element.id;
+    snapshot.role = RoleForKind(element.kind);
+    snapshot.name = element.name;
+    if (!element.parentId.empty())
+    {
+        snapshot.parentId = element.parentId;
+    }
+    snapshot.depth = element.depth;
+    snapshot.localBounds = UiRectSnapshot{
+        .x = element.localBounds.x,
+        .y = element.localBounds.y,
+        .width = element.localBounds.width,
+        .height = element.localBounds.height,
     };
+    snapshot.bounds = UiRectSnapshot{
+        .x = element.bounds.x,
+        .y = element.bounds.y,
+        .width = element.bounds.width,
+        .height = element.bounds.height,
+    };
+    snapshot.visible = element.visible;
+    snapshot.enabled = element.enabled;
+    snapshot.focused = document.IsFocused(element.id);
+    snapshot.text = element.text;
+    snapshot.activationCount = element.activationCount;
 
     if (snapshot.focused)
     {
