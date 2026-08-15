@@ -111,6 +111,8 @@ struct GlyphRasterResult final
     }
 };
 
+struct FontFacePrepareResult;
+
 class FontFace final
 {
 public:
@@ -131,7 +133,6 @@ private:
 
     std::unique_ptr<Impl> impl_{};
 
-    friend struct FontFacePrepareResult;
     friend FontFacePrepareResult PrepareFontFace(
         assets::ResourceRegistry& registry,
         assets::ResourceHandle<assets::FontResource> handle);
