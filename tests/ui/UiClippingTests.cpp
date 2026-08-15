@@ -126,7 +126,7 @@ TEST(UiClippingTests, AgentInspectionPublishesAuthoredAndEffectiveClipState)
 
     agent::AgentFacade facade(nullptr, nullptr, &document);
     const agent::UiQueryOneResult query =
-        facade.QueryUiOne(agent::UiSelector{.id = "child"});
+        facade.QueryOneUi(agent::UiSelector{.id = "child"});
     ASSERT_TRUE(query.Succeeded());
     ASSERT_TRUE(query.match.has_value());
     EXPECT_TRUE(query.match->clipChildren);
