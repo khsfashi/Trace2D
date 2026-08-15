@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -12,6 +13,7 @@
 namespace trace2d::ui
 {
 inline constexpr std::uint32_t MaxUiCanvasDimension = 4096U;
+inline constexpr std::size_t InvalidUiElementIndex = std::numeric_limits<std::size_t>::max();
 
 struct UiRect final
 {
@@ -50,7 +52,17 @@ struct UiElement final
 {
     std::string id{};
     UiElementKind kind{UiElementKind::Panel};
+
+    // U2 retains the resolved hierarchy compiled at authored-load/setup time. parentIndex indexes
+    // UiDocument::Elements() and remains InvalidUiElementIndex for roots. localBounds is the
+    // resolved parent-local rectangle; bounds is the absolute logical-canvas rectangle used by
+    // raster/input/presentation work.
+    std::string parentId{};
+    std::size_t parentIndex{InvalidUiElementIndex};
+    std::uint32_t depth{0U};
+    UiRect localBounds{};
     UiRect bounds{};
+
     std::string name{};
     std::string text{};
     bool visible{true};
@@ -130,7 +142,7 @@ private:
     std::uint32_t width_{0};
     std::uint32_t height_{0};
     std::vector<UiElement> elements_{};
-    std::size_t focusedIndex_{static_cast<std::size_t>(-1)};
+    std::size_t focusedIndex_{InvalidUiElementIndex};
     std::uint64_t nextTextSourceIdentity_{1U};
 
     std::string textComposition_{};
