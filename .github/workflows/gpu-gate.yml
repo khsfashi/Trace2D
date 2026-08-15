@@ -18,6 +18,8 @@ env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
 
 jobs:
+  # Cache publication stays on trusted push workflows. Pull-request workflows are restore-only
+  # because caches written by pull_request runs are isolated under refs/pull/*/merge.
   probe-vcpkg-source-cache:
     if: github.repository == 'khsfashi/Trace2D'
     runs-on: windows-2022
