@@ -26,44 +26,38 @@ The external-game production foundation has completed:
  -> #87 scene templates + world lifecycle
  -> #88 Camera2D + Viewport2D
  -> #72 Input Actions / device input / text-IME
+ -> #73 deterministic TileSet / TileMap / TileLayer
 ```
 
-#72 E3 was delivered in bounded slices:
+#73 E4 was delivered in bounded slices:
 
-- I0 / PR #191 — resolved semantic button and Axis1D actions,
-- I1 / PR #193 — normalized gamepad, pointer and hotplug input,
-- I2 / PR #195 — versioned authored input maps and deterministic rebinding,
-- I3 / PR #197 — real UTF-8 committed text and IME composition/preedit delivery,
-- I4 / issue #198 — pointer conversion/platform-scope closure using the existing #88 authority.
+- T0 / PR #201 — versioned TileSet/TileMap authoring, compact 8-byte compiled cells, deterministic semantic inspection,
+- T1 / PR #203 — arithmetic viewport-window culling and Sprite-path presentation/batching with measured zero-chunk baseline,
+- T2 / PR #205 — finite collision/navigation/occlusion handoff metadata plus independent semantic markers,
+- T3 / PR #207 — deterministic cardinal terrain-rule authoring compiled at setup into ordinary TileMap cells,
+- T4 / issue #208 — deterministic generated/dense TileMap companion conversion, representative large-map evidence, and final E4 chunk-policy closure.
 
-I4 adds no production frame-path code. `PointerState` presentation coordinates compose directly with `IsPresentationPointInsideViewport`, `PresentationToViewport`, and `PresentationToWorld`; no Input -> Render dependency or duplicate camera state is introduced. Haptics/rumble, mobile touch/gesture lifecycle, and broader per-player device routing are explicit deferred platform/device-breadth work rather than accidental omissions. The detailed closure contract is `docs/INPUT_E3_I4_CLOSURE.md`.
+The T4 generated format remains import/setup data only. It converts into the existing canonical `TileMapDocument` and does not create a second steady-state renderer/runtime authority. For the current bounded dense runtime, T1 already proves visible-window-proportional frame work on a 1024 x 1024 layer, and T4 adds no evidence requiring retained chunk metadata. Streaming/infinite worlds remain a future evidence-driven promotion.
 
-**The exact next core-lane item is #73 — deterministic TileSet / TileMap / TileLayer authoring, rendering and semantic QA.** Do not jump to #74 while #73 is open or has an active implementation PR.
+**After #208/#73 merges green, the exact next core-lane item is #74 — production UTF-8 font/text/localization.** Do not jump to #75 or the later Agent-authoring/benchmark work while #74 remains open or has an active implementation PR.
 
-## #72 final authority boundary
+## #73 final authority boundary
 
 ```text
-physical / virtual / Agent source
- -> engine-owned input or text event
- -> InputSystem fixed-frame state
- -> finalized ActionMap semantic state
- -> gameplay
+text-authored TileMap
+terrain-rule authoring
+or generated dense companion
+ -> deterministic setup-time canonical TileMapDocument
+ -> compact compiled TileMap runtime
+ -> semantic cell/marker handoff
+ -> viewport-window Sprite presentation
 ```
 
-Pointer conversion remains a composition boundary rather than an input-owned renderer dependency:
+Normal compiled cell access remains O(1) resolved-layer/indexed storage with no filesystem access, string lookup, per-cell heap object, generated-format parsing, GPU readback or per-tile draw API. Terrain preprocessing and generated companion conversion remain explicit setup/offline work.
 
-```text
-InputSystem::Pointer()
- -> #88 presentation-inside-viewport gate
- -> presentation -> logical viewport
- -> presentation -> world when required
-```
+Actual physics remains #76. Actual navigation/lighting remain #93. Animated tiles, richer diagonal/blob/Wang terrain rules, runtime terrain rebuild scheduling and streaming/infinite worlds are explicit deferrals rather than hidden E4 behavior.
 
-Production text glyph/font rendering remains #74. Rich textbox editing, hierarchy/focus/navigation, pointer hit testing/capture/event routing and practical widgets remain #75. Mobile platform promotion remains governed by #93 after the portability foundation.
-
-## Performance boundary
-
-Normal fixed-step work must not acquire filesystem parsing, semantic string lookup, generic reflection/property-bag dispatch, tracing GC, hidden shared-ownership churn, mandatory GPU readback, or repeated device discovery. I4 preserves this by adding only headless integration coverage over existing public APIs.
+Detailed T4 closure contract: `docs/TILEMAP_E4_T4.md`.
 
 ## Frozen Sprite continuity
 
@@ -87,7 +81,7 @@ B1 remains immutable pre-improvement evidence:
 - Trace2D Agent: 3/9,
 - selected Godot Agent: 0/9.
 
-The merged #175 postmortem also freezes the important interpretation: all six scored-unsuccessful Trace2D slots exceeded the 100k input-token budget while their final workspaces independently verified successfully. Do not rerun, replace, repair, or retrospectively alter the scored B1 cohort.
+The merged #175 postmortem freezes the important interpretation: all six scored-unsuccessful Trace2D slots exceeded the 100k input-token budget while their final workspaces independently verified successfully. Do not rerun, replace, repair, or retrospectively alter the scored B1 cohort.
 
 ## Agent Complexity Budget
 
@@ -108,8 +102,7 @@ Do not solve context pressure by merely increasing prompts/budgets or proliferat
 The committed continuation remains:
 
 ```text
-#73 TileMap
- -> #74 production UTF-8 font/text/localization
+#74 production UTF-8 font/text/localization
  -> #75 practical deterministic UI
  -> #178 Sprite transactional Agent authoring
  -> #179 Particle transactional Agent authoring
@@ -129,13 +122,14 @@ The committed continuation remains:
  -> #61 Spine license gate
 ```
 
-#178 and #179 remain required before #104 B2 and must not be pulled forward ahead of #73-#75 unless the repository owner explicitly changes the fixed lane.
+#178 and #179 remain required before #104 B2 and must not be pulled forward ahead of #74-#75 unless the repository owner explicitly changes the fixed lane.
 
 ## Continuation rule
 
 The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-- If a #73 implementation PR is open, continue/fix #73 only until its exact-head required gates are green.
-- If #73 is open with no implementation PR, #73 is the exact next implementation item.
-- Only after #73 merges green does the core lane advance to #74.
+- If the T4/#208 implementation PR is still open, continue/fix that PR until its exact-head required gates are green and #73 is closed.
+- If #73 is closed and #74 is open with no implementation PR, #74 is the exact next implementation item.
+- If #74 has an implementation PR, continue/fix #74 only until its exact-head required gates are green.
+- Only after #74 merges green does the core lane advance to #75.
 - If live GitHub state conflicts with this handoff, live issue/PR/CI state plus `config/trace2d.core-lane.json` wins.
