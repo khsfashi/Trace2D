@@ -231,9 +231,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v3-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}-${{ env.TRACE2D_VCPKG_BASELINE }}
-          restore-keys: |
-            trace2d-vcpkg-downloads-v3-main-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Configure
         run: cmake --preset ci-windows-msvc
@@ -290,9 +288,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v3-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}-${{ env.TRACE2D_VCPKG_BASELINE }}
-          restore-keys: |
-            trace2d-vcpkg-downloads-v3-main-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Configure exactly as README quick start
         run: cmake --preset windows-msvc
