@@ -2,6 +2,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_tile STATIC
     src/TileMap.cpp
+    src/TilePresentation2D.cpp
 )
 
 add_library(Trace2D::Tile ALIAS trace2d_tile)
@@ -12,6 +13,8 @@ target_include_directories(trace2d_tile
 )
 
 target_link_libraries(trace2d_tile
+    PUBLIC
+        Trace2D::Render
     PRIVATE
         tomlplusplus::tomlplusplus
 )
