@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -40,9 +41,10 @@ TEST(TextInputTests, CompositionRemainsTransientUntilUtf8Commit)
     UiDocument document = MakeTextDocument();
     ASSERT_EQ(document.Focus("player_name"), UiActionResult::Success);
 
-    const std::string koreanPreedit{"\xED\x95\x9C"}; // 한
-    const std::string committedKorean{"\xED\x95\x9C\xEA\xB8\x80"}; // 한글
-    const std::string cjk{"\xE6\xBC\xA2"}; // 漢
+    // UTF-8 bytes are spelled explicitly so this acceptance test does not depend on source-file encoding.
+    const std::string koreanPreedit{"\xED\x95\x9C"};
+    const std::string committedKorean{"\xED\x95\x9C\xEA\xB8\x80"};
+    const std::string cjk{"\xE6\xBC\xA2"};
 
     EXPECT_EQ(
         document.ApplyTextInput(TextInputEvent{
