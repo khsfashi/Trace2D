@@ -2,6 +2,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_ui STATIC
     src/Ui.cpp
+    src/UiLayout.cpp
     src/UiRaster.cpp
     src/UiText.cpp
     src/UiTextLayout.cpp
