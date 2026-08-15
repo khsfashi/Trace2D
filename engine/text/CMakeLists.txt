@@ -2,6 +2,7 @@ find_package(Freetype REQUIRED)
 
 add_library(trace2d_text STATIC
     src/Text.cpp
+    src/TextLayout.cpp
 )
 
 add_library(Trace2D::Text ALIAS trace2d_text)
