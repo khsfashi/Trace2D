@@ -6,6 +6,7 @@ Trace2D does not vendor third-party source code in this repository. The supporte
 
 Direct dependencies relevant to the exported SDK include:
 
+- **FreeType** — dual-licensed under the FreeType License (FTL) or GNU GPL v2; Trace2D uses the permissive FTL option for font face access, metrics, and glyph rasterization.
 - **SDL3** — zlib license; platform/window/input and SDL GPU backend dependency.
 - **SDL3_shadercross** — zlib license; shader translation dependency. Its resolved backend/transitive notices depend on the selected vcpkg triplet/features.
 - **toml++** — MIT license; TOML parsing/serialization used by exported engine libraries.
