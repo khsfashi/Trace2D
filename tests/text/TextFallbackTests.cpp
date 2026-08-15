@@ -283,39 +283,42 @@ TEST(TextFallbackTests, SelectedAtlasFailureDoesNotFallThroughToLaterFont)
     EXPECT_EQ(fallback.atlas->Metrics().rasterizations, 0U);
 }
 
-TEST(TextFallbackTests, MixedFontWrappingUsesSharedPixelHeightMetricDomain)
+TEST(TextFallbackTests, MixedFontLinesUseSharedPixelHeightMetricDomain)
 {
     assets::ResourceRegistry registry("project");
     GlyphAtlasPrepareResult primary = PrepareFallbackAtlas(
         registry,
-        "content/fonts/wrap-primary.ttf",
+        "content/fonts/lines-primary.ttf",
         TRACE2D_TEXT_PRIMARY_TEST_FONT_PATH);
     GlyphAtlasPrepareResult fallback = PrepareFallbackAtlas(
         registry,
-        "content/fonts/wrap-secondary.ttf",
+        "content/fonts/lines-secondary.ttf",
         TRACE2D_TEXT_TEST_FONT_PATH);
     ASSERT_TRUE(primary.Succeeded());
     ASSERT_TRUE(fallback.Succeeded());
 
     TextLayoutRunPrepareResult prepared = PrepareTextLayoutRun({8U, 4U});
     ASSERT_TRUE(prepared.Succeeded());
-    ASSERT_TRUE(prepared.run->LayoutUtf8(*primary.atlas, "A").Succeeded());
-    const std::int64_t primaryAdvance = prepared.run->Glyphs()[0].atlasEntry.advanceX26_6;
-    ASSERT_GT(primaryAdvance, 0);
 
     TextLayoutOptions options{};
-    options.boxWidth26_6 = 1;
+    options.boxWidth26_6 = 4096;
     options.wrapMode = TextWrapMode::GlyphBoundary;
     options.horizontalAlignment = TextHorizontalAlignment::Center;
     const auto chain = MakeChain(*primary.atlas, *fallback.atlas);
-    const TextLayoutResult wrapped = prepared.run->LayoutUtf8(chain, "한A");
-    ASSERT_TRUE(wrapped.Succeeded());
-    EXPECT_EQ(wrapped.metrics->lineCount, 2U);
+    const TextLayoutResult laidOut = prepared.run->LayoutUtf8(chain, "한\nA");
+    ASSERT_TRUE(laidOut.Succeeded());
+    EXPECT_EQ(laidOut.metrics->lineCount, 2U);
     ASSERT_EQ(prepared.run->Glyphs().size(), 2U);
     EXPECT_EQ(prepared.run->Glyphs()[0].fontSlot, 1U);
     EXPECT_EQ(prepared.run->Glyphs()[0].lineIndex, 0U);
     EXPECT_EQ(prepared.run->Glyphs()[1].fontSlot, 0U);
     EXPECT_EQ(prepared.run->Glyphs()[1].lineIndex, 1U);
-    EXPECT_EQ(wrapped.metrics->contentHeight26_6, static_cast<std::int64_t>(primary.atlas->Config().pixelHeight) * 64 * 2);
+
+    const std::int64_t lineHeight26_6 =
+        static_cast<std::int64_t>(primary.atlas->Config().pixelHeight) * 64;
+    EXPECT_EQ(laidOut.metrics->contentHeight26_6, lineHeight26_6 * 2);
+    EXPECT_EQ(
+        prepared.run->Glyphs()[1].baselineY26_6 - prepared.run->Glyphs()[0].baselineY26_6,
+        lineHeight26_6);
 }
 } // namespace trace2d::text
