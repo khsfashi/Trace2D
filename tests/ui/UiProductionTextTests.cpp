@@ -145,17 +145,26 @@ TEST(UiProductionTextTests, ImeDisplayLayoutIsCachedAndExposedWithoutReplacingCo
     EXPECT_EQ(selectionInspection.tree->elements.front().composition->selectionStart, 1);
     EXPECT_EQ(selectionInspection.tree->elements.front().composition->selectionLength, 0);
 
+    const text::GlyphAtlasMetrics beforeCommit = atlas.atlas->Metrics();
     ASSERT_EQ(
         document.ApplyTextInput(input::TextInputEvent{
             .type = input::TextInputEventType::Committed,
             .text = "한",
         }),
         UiActionResult::Success);
+    ASSERT_NE(document.Find("chat"), nullptr);
+    EXPECT_EQ(document.Find("chat")->displayTextRevision, displayRevision);
+    EXPECT_FALSE(document.Find("chat")->textLayout.valid);
+
     const UiTextLayoutUpdateResult committed = prepared.cache->Update(document, "chat", fallback);
     ASSERT_TRUE(committed.Succeeded());
-    EXPECT_FALSE(committed.reused);
+    EXPECT_TRUE(committed.reused);
     EXPECT_FALSE(committed.includesComposition);
     EXPECT_EQ(committed.metrics->glyphCount, 2U);
+    const text::GlyphAtlasMetrics afterCommit = atlas.atlas->Metrics();
+    EXPECT_EQ(afterCommit.cacheHits, beforeCommit.cacheHits);
+    EXPECT_EQ(afterCommit.cacheMisses, beforeCommit.cacheMisses);
+    EXPECT_EQ(afterCommit.rasterizations, beforeCommit.rasterizations);
 
     const agent::UiTreeResult committedInspection = facade.InspectUi();
     ASSERT_TRUE(committedInspection.Succeeded());
@@ -206,5 +215,6 @@ TEST(UiProductionTextTests, BoundedCompositionScratchRejectsOversizeWithoutPubli
     EXPECT_EQ(failed.diagnostic->requiredUtf8Bytes, 4U);
     ASSERT_NE(document.Find("chat"), nullptr);
     EXPECT_FALSE(document.Find("chat")->textLayout.valid);
+    EXPECT_EQ(prepared.cache->Layout(), nullptr);
 }
 } // namespace trace2d::ui

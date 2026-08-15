@@ -125,7 +125,7 @@ private:
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
     void TouchDisplayText(UiElement& element) noexcept;
     void PublishTextLayoutEvidence(std::string_view id, const UiTextLayoutEvidence& evidence) noexcept;
-    void ClearTextComposition() noexcept;
+    void ClearTextComposition(bool touchDisplay = true) noexcept;
 
     std::uint32_t width_{0};
     std::uint32_t height_{0};

@@ -5,6 +5,23 @@
 
 namespace trace2d::ui
 {
+namespace
+{
+[[nodiscard]] bool EqualsCommittedPlusComposition(
+    const std::string_view candidate,
+    const std::string_view committed,
+    const std::string_view composition) noexcept
+{
+    if (committed.size() > std::numeric_limits<std::size_t>::max() - composition.size() ||
+        candidate.size() != committed.size() + composition.size())
+    {
+        return false;
+    }
+    return candidate.substr(0U, committed.size()) == committed &&
+           candidate.substr(committed.size()) == composition;
+}
+} // namespace
+
 std::string_view ToString(const UiElementKind kind) noexcept
 {
     switch (kind)
@@ -288,12 +305,24 @@ UiActionResult UiDocument::InputText(const std::string_view id, const std::strin
         return UiActionResult::NotFocused;
     }
 
+    const bool hadComposition = !textComposition_.empty();
+    const bool displayChanged = hadComposition
+        ? !EqualsCommittedPlusComposition(text, element->text, textComposition_)
+        : element->text != text;
+
     if (element->text != text)
     {
         element->text.assign(text);
+    }
+    if (displayChanged)
+    {
         TouchDisplayText(*element);
     }
-    ClearTextComposition();
+    else if (hadComposition)
+    {
+        element->textLayout = {};
+    }
+    ClearTextComposition(false);
     return UiActionResult::Success;
 }
 
@@ -322,12 +351,25 @@ UiActionResult UiDocument::ApplyTextInput(const input::TextInputEvent& event)
     switch (event.type)
     {
     case input::TextInputEventType::Committed:
-        if (!event.text.empty())
         {
-            textInput->text.append(event.text);
-            TouchDisplayText(*textInput);
+            const bool hadComposition = !textComposition_.empty();
+            const bool displayChanged = hadComposition
+                ? event.text != textComposition_
+                : !event.text.empty();
+            if (!event.text.empty())
+            {
+                textInput->text.append(event.text);
+            }
+            if (displayChanged)
+            {
+                TouchDisplayText(*textInput);
+            }
+            else if (hadComposition)
+            {
+                textInput->textLayout = {};
+            }
+            ClearTextComposition(false);
         }
-        ClearTextComposition();
         return UiActionResult::Success;
 
     case input::TextInputEventType::Composition:
@@ -394,9 +436,9 @@ void UiDocument::PublishTextLayoutEvidence(
     element->textLayout = evidence;
 }
 
-void UiDocument::ClearTextComposition() noexcept
+void UiDocument::ClearTextComposition(const bool touchDisplay) noexcept
 {
-    if (!textComposition_.empty())
+    if (touchDisplay && !textComposition_.empty())
     {
         UiElement* const textInput = FocusedTextInput();
         if (textInput != nullptr)
