@@ -60,6 +60,9 @@ struct UiElementSnapshot final
     std::uint32_t depth{0U};
     UiRectSnapshot localBounds{};
     UiRectSnapshot bounds{};
+    bool clipChildren{false};
+    bool clipActive{false};
+    UiRectSnapshot clipBounds{};
     bool visible{true};
     bool enabled{true};
     bool focused{false};
