@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+  "source_event": "merge",
+  "event_id": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+        "authored_at": "2026-08-15T11:04:42+09:00",
+        "subject": "I4: close E3 pointer and platform-scope boundaries (#199)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/af5169c7f5bb5ef1970b431c99595fa34b410fb5"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [],
+    "constraints": [],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "exact-head GitHub CI, clean-clone quick start, External Consumer SDK, Sprite S0/SA0 contracts, Benchmark B1 Contract, Content Evidence, B0 Codex Wrapper, and B0 Godot Agent Oracle all green.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/af5169c7f5bb5ef1970b431c99595fa34b410fb5"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "no new manual real-GPU run; I4 changes no GPU/runtime presentation semantics.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/af5169c7f5bb5ef1970b431c99595fa34b410fb5"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "#72 E3 complete; next core-lane item #73.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/af5169c7f5bb5ef1970b431c99595fa34b410fb5"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": [
+      {
+        "id": "supersedes-001",
+        "text": "#198 closure slice.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "af5169c7f5bb5ef1970b431c99595fa34b410fb5",
+            "trailer": "Supersedes",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/af5169c7f5bb5ef1970b431c99595fa34b410fb5"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
