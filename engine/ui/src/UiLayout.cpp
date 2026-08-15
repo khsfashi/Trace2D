@@ -409,7 +409,12 @@ UiLayoutResult UiLayoutTree::Finalize()
                          parent.bounds.height,
                          resolvedLocal))
             {
-                return UiLayoutResult::InvalidBounds;
+                // U1 established that a valid anchored child whose signed placement escapes its
+                // parent is a containment failure, not an invalid authored rectangle. Keep that
+                // diagnostic contract while roots still report InvalidBounds.
+                return child.placementMode == UiLayoutPlacementMode::AnchoredFixed
+                    ? UiLayoutResult::ChildOutsideParent
+                    : UiLayoutResult::InvalidBounds;
             }
 
             if (!ContainsInParent(parent.bounds, resolvedLocal))
