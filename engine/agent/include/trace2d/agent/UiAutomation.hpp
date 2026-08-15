@@ -28,6 +28,29 @@ struct UiRectSnapshot final
     [[nodiscard]] bool operator==(const UiRectSnapshot&) const noexcept = default;
 };
 
+struct UiTextCompositionSnapshot final
+{
+    std::string text{};
+    std::int32_t selectionStart{-1};
+    std::int32_t selectionLength{-1};
+
+    [[nodiscard]] bool operator==(const UiTextCompositionSnapshot&) const noexcept = default;
+};
+
+struct UiTextLayoutSnapshot final
+{
+    std::uint64_t sourceRevision{0U};
+    bool includesComposition{false};
+    std::uint64_t glyphCount{0U};
+    std::uint64_t lineCount{0U};
+    std::int64_t contentWidth26_6{0};
+    std::int64_t contentHeight26_6{0};
+    std::int64_t layoutWidth26_6{0};
+    std::int64_t layoutHeight26_6{0};
+
+    [[nodiscard]] bool operator==(const UiTextLayoutSnapshot&) const noexcept = default;
+};
+
 struct UiElementSnapshot final
 {
     std::string id{};
@@ -39,6 +62,8 @@ struct UiElementSnapshot final
     bool focused{false};
     std::string text{};
     std::uint64_t activationCount{0};
+    std::optional<UiTextCompositionSnapshot> composition{};
+    std::optional<UiTextLayoutSnapshot> textLayout{};
 
     [[nodiscard]] bool operator==(const UiElementSnapshot&) const noexcept = default;
 };
