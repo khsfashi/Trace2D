@@ -3,6 +3,10 @@
   "version-string": "0.1.0",
   "builtin-baseline": "d92484ed3c5020c6679d095ad3e5add907887b62",
   "dependencies": [
+    {
+      "name": "freetype",
+      "default-features": false
+    },
     "nlohmann-json",
     "sdl3",
     "sdl3-shadercross",
