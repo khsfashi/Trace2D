@@ -1,5 +1,6 @@
 #include <trace2d/ui/UiRaster.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -151,12 +152,10 @@ void PutPixel(
 
 [[nodiscard]] UiRect IntersectRect(const UiRect& lhs, const UiRect& rhs) noexcept
 {
-    const std::uint32_t left = lhs.x > rhs.x ? lhs.x : rhs.x;
-    const std::uint32_t top = lhs.y > rhs.y ? lhs.y : rhs.y;
-    const std::uint32_t right =
-        lhs.x + lhs.width < rhs.x + rhs.width ? lhs.x + lhs.width : rhs.x + rhs.width;
-    const std::uint32_t bottom =
-        lhs.y + lhs.height < rhs.y + rhs.height ? lhs.y + lhs.height : rhs.y + rhs.height;
+    const std::uint32_t left = std::max(lhs.x, rhs.x);
+    const std::uint32_t top = std::max(lhs.y, rhs.y);
+    const std::uint32_t right = std::min(lhs.x + lhs.width, rhs.x + rhs.width);
+    const std::uint32_t bottom = std::min(lhs.y + lhs.height, rhs.y + rhs.height);
     if (right <= left || bottom <= top)
     {
         return UiRect{left, top, 0U, 0U};
@@ -164,16 +163,43 @@ void PutPixel(
     return UiRect{left, top, right - left, bottom - top};
 }
 
+[[nodiscard]] UiRect IntersectPresentationRect(
+    const UiPresentationRect& rect,
+    const UiRect& clip) noexcept
+{
+    const std::int64_t left = std::max<std::int64_t>(rect.x, clip.x);
+    const std::int64_t top = std::max<std::int64_t>(rect.y, clip.y);
+    const std::int64_t right = std::min<std::int64_t>(
+        static_cast<std::int64_t>(rect.x) + rect.width,
+        static_cast<std::int64_t>(clip.x) + clip.width);
+    const std::int64_t bottom = std::min<std::int64_t>(
+        static_cast<std::int64_t>(rect.y) + rect.height,
+        static_cast<std::int64_t>(clip.y) + clip.height);
+    if (right <= left || bottom <= top)
+    {
+        return UiRect{clip.x, clip.y, 0U, 0U};
+    }
+    return UiRect{
+        static_cast<std::uint32_t>(left),
+        static_cast<std::uint32_t>(top),
+        static_cast<std::uint32_t>(right - left),
+        static_cast<std::uint32_t>(bottom - top),
+    };
+}
+
 void PutPixelClipped(
     UiRasterImage& output,
     const UiRect& clip,
-    const std::uint32_t x,
-    const std::uint32_t y,
+    const std::int64_t x,
+    const std::int64_t y,
     const Color color) noexcept
 {
-    if (x >= clip.x && x < clip.x + clip.width && y >= clip.y && y < clip.y + clip.height)
+    const std::int64_t clipRight = static_cast<std::int64_t>(clip.x) + clip.width;
+    const std::int64_t clipBottom = static_cast<std::int64_t>(clip.y) + clip.height;
+    if (x >= static_cast<std::int64_t>(clip.x) && x < clipRight &&
+        y >= static_cast<std::int64_t>(clip.y) && y < clipBottom)
     {
-        PutPixel(output, x, y, color);
+        PutPixel(output, static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y), color);
     }
 }
 
@@ -192,21 +218,26 @@ void FillRect(UiRasterImage& output, const UiRect& rect, const Color color) noex
 
 void DrawBorder(
     UiRasterImage& output,
-    const UiRect& rect,
+    const UiPresentationRect& rect,
     const UiRect& clip,
     const Color color) noexcept
 {
-    const std::uint32_t right = rect.x + rect.width - 1U;
-    const std::uint32_t bottom = rect.y + rect.height - 1U;
-
-    for (std::uint32_t x = rect.x; x <= right; ++x)
+    if (rect.width == 0U || rect.height == 0U)
     {
+        return;
+    }
+
+    const std::int64_t right = static_cast<std::int64_t>(rect.x) + rect.width - 1U;
+    const std::int64_t bottom = static_cast<std::int64_t>(rect.y) + rect.height - 1U;
+    for (std::uint32_t offset = 0U; offset < rect.width; ++offset)
+    {
+        const std::int64_t x = static_cast<std::int64_t>(rect.x) + offset;
         PutPixelClipped(output, clip, x, rect.y, color);
         PutPixelClipped(output, clip, x, bottom, color);
     }
-
-    for (std::uint32_t y = rect.y; y <= bottom; ++y)
+    for (std::uint32_t offset = 0U; offset < rect.height; ++offset)
     {
+        const std::int64_t y = static_cast<std::int64_t>(rect.y) + offset;
         PutPixelClipped(output, clip, rect.x, y, color);
         PutPixelClipped(output, clip, right, y, color);
     }
@@ -218,7 +249,6 @@ void DrawBorder(
     {
         return 0U;
     }
-
     return static_cast<std::uint64_t>(text.size()) * 6U - 1U;
 }
 
@@ -226,17 +256,17 @@ void DrawBorder(
     UiRasterImage& output,
     const UiRect& clip,
     const std::string_view text,
-    const std::uint32_t startX,
-    const std::uint32_t startY,
+    const std::int64_t startX,
+    const std::int64_t startY,
     const Color color) noexcept
 {
     constexpr std::uint32_t GlyphWidth = 5U;
     constexpr std::uint32_t GlyphHeight = 7U;
-    constexpr std::uint32_t GlyphAdvance = 6U;
+    constexpr std::int64_t GlyphAdvance = 6;
 
-    const std::uint32_t clipRight = clip.x + clip.width;
-    const std::uint32_t clipBottom = clip.y + clip.height;
-    std::uint32_t penX = startX;
+    const std::int64_t clipRight = static_cast<std::int64_t>(clip.x) + clip.width;
+    const std::int64_t clipBottom = static_cast<std::int64_t>(clip.y) + clip.height;
+    std::int64_t penX = startX;
     std::uint64_t glyphs = 0U;
 
     for (const char character : text)
@@ -254,7 +284,7 @@ void DrawBorder(
 
         for (std::uint32_t row = 0U; row < GlyphHeight; ++row)
         {
-            const std::uint32_t y = startY + row;
+            const std::int64_t y = startY + row;
             if (y >= clipBottom)
             {
                 break;
@@ -262,21 +292,21 @@ void DrawBorder(
 
             for (std::uint32_t column = 0U; column < GlyphWidth; ++column)
             {
-                const std::uint32_t x = penX + column;
+                const std::int64_t x = penX + column;
                 if (x >= clipRight)
                 {
                     break;
                 }
 
                 const std::uint8_t mask = static_cast<std::uint8_t>(1U << (4U - column));
-                if (x >= clip.x && y >= clip.y && (rows[row] & mask) != 0U)
+                if ((rows[row] & mask) != 0U)
                 {
-                    PutPixel(output, x, y, color);
+                    PutPixelClipped(output, clip, x, y, color);
                 }
             }
         }
 
-        if (penX > std::numeric_limits<std::uint32_t>::max() - GlyphAdvance)
+        if (penX > std::numeric_limits<std::int64_t>::max() - GlyphAdvance)
         {
             break;
         }
@@ -286,26 +316,27 @@ void DrawBorder(
     return glyphs;
 }
 
-[[nodiscard]] std::uint32_t CenteredTextX(const UiRect& bounds, const std::string_view text) noexcept
+[[nodiscard]] std::int64_t CenteredTextX(
+    const UiPresentationRect& bounds,
+    const std::string_view text) noexcept
 {
     const std::uint64_t textWidth = TextWidth(text);
     if (textWidth >= bounds.width)
     {
         return bounds.x;
     }
-
-    return bounds.x + static_cast<std::uint32_t>((static_cast<std::uint64_t>(bounds.width) - textWidth) / 2U);
+    return static_cast<std::int64_t>(bounds.x) +
+           static_cast<std::int64_t>((static_cast<std::uint64_t>(bounds.width) - textWidth) / 2U);
 }
 
-[[nodiscard]] std::uint32_t CenteredTextY(const UiRect& bounds) noexcept
+[[nodiscard]] std::int64_t CenteredTextY(const UiPresentationRect& bounds) noexcept
 {
     constexpr std::uint32_t GlyphHeight = 7U;
     if (bounds.height <= GlyphHeight)
     {
         return bounds.y;
     }
-
-    return bounds.y + (bounds.height - GlyphHeight) / 2U;
+    return static_cast<std::int64_t>(bounds.y) + (bounds.height - GlyphHeight) / 2U;
 }
 } // namespace
 
@@ -348,11 +379,14 @@ bool RasterizeUi(
             continue;
         }
 
-        UiRect paintBounds = element.bounds;
+        UiRect presentationClip = canvas;
         if (element.clipActive)
         {
-            paintBounds = IntersectRect(paintBounds, element.clipBounds);
+            presentationClip = IntersectRect(presentationClip, element.clipBounds);
         }
+        const UiRect paintBounds = IntersectPresentationRect(
+            element.presentationBounds,
+            presentationClip);
         if (paintBounds.width == 0U || paintBounds.height == 0U)
         {
             continue;
@@ -369,40 +403,41 @@ bool RasterizeUi(
         case UiElementKind::Label:
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                paintBounds,
+                presentationClip,
                 element.text,
-                element.bounds.x,
-                CenteredTextY(element.bounds),
+                element.presentationBounds.x,
+                CenteredTextY(element.presentationBounds),
                 textColor);
             break;
         case UiElementKind::Button:
             FillRect(output, paintBounds, element.enabled ? ButtonColor : DisabledButtonColor);
             DrawBorder(
                 output,
-                element.bounds,
-                paintBounds,
+                element.presentationBounds,
+                presentationClip,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                paintBounds,
+                presentationClip,
                 element.text,
-                CenteredTextX(element.bounds, element.text),
-                CenteredTextY(element.bounds),
+                CenteredTextX(element.presentationBounds, element.text),
+                CenteredTextY(element.presentationBounds),
                 textColor);
             break;
         case UiElementKind::TextInput:
             FillRect(output, paintBounds, InputColor);
             DrawBorder(
                 output,
-                element.bounds,
-                paintBounds,
+                element.presentationBounds,
+                presentationClip,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                paintBounds,
+                presentationClip,
                 element.text,
-                element.bounds.x + (element.bounds.width > 8U ? 4U : 0U),
-                CenteredTextY(element.bounds),
+                static_cast<std::int64_t>(element.presentationBounds.x) +
+                    (element.presentationBounds.width > 8U ? 4 : 0),
+                CenteredTextY(element.presentationBounds),
                 textColor);
             break;
         }
