@@ -74,7 +74,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v2-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v3-${{ github.ref == 'refs/heads/main' && 'main' || github.sha }}-${{ env.TRACE2D_VCPKG_BASELINE }}
+          restore-keys: |
+            trace2d-vcpkg-downloads-v3-main-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Seed shared downloads from persistent runner cache
         shell: pwsh
