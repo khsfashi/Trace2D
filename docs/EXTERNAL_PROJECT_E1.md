@@ -102,6 +102,8 @@ Trace2D::Scene
 Trace2D::Particles
 Trace2D::Assets
 Trace2D::Render
+Trace2D::Tile
+Trace2D::Text
 Trace2D::Ui
 Trace2D::Application
 Trace2D::Agent
@@ -114,13 +116,14 @@ The SDK does **not** export repository test libraries, MCP implementation target
 Because Trace2D currently exports static libraries, a downstream final link still needs the imported targets used by those archives. `Trace2DConfig.cmake` therefore calls `find_dependency` for the direct external CMake packages required by the exported target graph:
 
 ```text
+Freetype
 SDL3
 SDL3_shadercross
 nlohmann_json
 tomlplusplus
 ```
 
-The representative external project pins the same vcpkg baseline and declares those dependencies in its own `vcpkg.json`.
+The representative external project pins the same vcpkg baseline and declares those dependencies in its own `vcpkg.json`. The #74 F0 text foundation deliberately requests FreeType with vcpkg default features disabled; optional WOFF2/bzip2/PNG embedded-bitmap integrations remain outside the current TTF/OTF outline contract until a concrete requirement promotes them.
 
 ## 4. Source-tree vs installed/package semantics
 

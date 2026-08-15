@@ -8,6 +8,7 @@ This document records the current source dependency review. It is not a substitu
 
 | Dependency | Purpose in Trace2D | Upstream license | Trace2D note |
 | --- | --- | --- | --- |
+| FreeType | Production font face access, glyph metrics, and CPU glyph rasterization in `engine/text` | FreeType License (FTL) or GNU GPL v2 | Trace2D uses the permissive FTL option. Public Trace2D headers do not expose FreeType types; the exported static `Trace2D::Text` target requires FreeType discovery downstream. F0 disables vcpkg default features because WOFF2/bzip2/PNG embedded-bitmap integrations are not required by the accepted TTF/OTF outline boundary. |
 | SDL3 | Platform/window/input boundary and SDL GPU backend | zlib | Permissive; retain the upstream license notice when redistributing SDL binaries/source. |
 | SDL3_shadercross | Runtime shader translation used by the renderer | zlib | Permissive; shader translation can involve additional upstream components depending on the selected backend/path. |
 | stb | CPU-side texture image decoding in `engine/assets` | MIT or public-domain dedication at user option | Header-only decode dependency; Trace2D uses the MIT-compatible upstream terms and does not vendor the header. |
@@ -16,6 +17,14 @@ This document records the current source dependency review. It is not a substitu
 | GoogleTest | Automated tests only | BSD-3-Clause | Test/development dependency; not part of Trace2D's intended runtime API surface. |
 
 The vcpkg repository/tooling used to resolve these ports is MIT-licensed. The libraries supplied by vcpkg ports remain under their respective upstream licenses.
+
+## Font/text dependency boundary
+
+#74 F0 uses FreeType only for the lower-level job FreeType itself owns: loading a font face, resolving glyphs/metrics, selecting size, and rasterizing glyph coverage. FreeType is not treated as a text-layout/shaping engine. Complex shaping, script clustering, bidirectional layout, and similar higher-level behavior remain deferred until a concrete #74 requirement justifies a separately reviewed dependency such as HarfBuzz.
+
+The production font path opens canonical font bytes already owned by Trace2D's typed resource registry. It does not discover OS fonts or pass project file paths to FreeType during steady-state text work. Prepared faces retain the generation-safe FontResource so the in-memory bytes remain valid for the face lifetime.
+
+The pinned vcpkg baseline resolves FreeType 2.14.3. Trace2D explicitly sets `default-features: false` for both the engine and representative external consumer. Support for WOFF2, bzip2-compressed fonts, PNG embedded bitmaps, or other optional integrations must be promoted only by a concrete asset requirement plus dependency/license review; F0 does not pull them in speculatively.
 
 ## SDL3_shadercross transitive dependencies
 
@@ -56,8 +65,9 @@ Trace2D is licensed under the MIT License. The direct dependency set reviewed ab
 Dependency review updated against:
 
 - `vcpkg.json` baseline `d92484ed3c5020c6679d095ad3e5add907887b62`
-- direct ports: `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
-- current Trace2D build linkage in platform/render/assets/scene/UI/particle/Agent/MCP/test targets
+- direct ports: `freetype` (default features disabled), `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
+- current Trace2D build linkage in platform/render/assets/text/scene/UI/particle/Agent/MCP/test targets
 - #70 exported static SDK dependency-discovery contract
+- #74 F0 FreeType face/metrics/rasterization boundary
 
 Re-run this review whenever the vcpkg baseline, dependency list, features, triplet, exported target graph, or binary distribution contents change.

@@ -20,6 +20,7 @@ enum class ResourceTypeDomain : std::uint8_t
     Texture = 1,
     Sprite = 2,
     SceneTemplate = 3,
+    Font = 4,
 };
 
 [[nodiscard]] std::string_view ToString(ResourceTypeDomain value) noexcept;
@@ -117,6 +118,17 @@ struct SceneTemplateResource final
     std::string retentionReason{"canonical scene template text is required for deterministic instancing"};
 };
 
+// Canonical font-file bytes. Text owns prepared font faces and glyph/cache state; the resource
+// registry owns project-relative identity and source lifetime. The bytes stay required because
+// in-memory font faces may refer directly to this storage rather than retaining a second copy.
+struct FontResource final
+{
+    std::vector<std::uint8_t> canonicalBytes{};
+    std::uint32_t faceIndex{0};
+    CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Required};
+    std::string retentionReason{"canonical font bytes are required while prepared font faces exist"};
+};
+
 template <>
 struct ResourceTraits<TextureResource> final
 {
@@ -133,6 +145,12 @@ template <>
 struct ResourceTraits<SceneTemplateResource> final
 {
     static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::SceneTemplate;
+};
+
+template <>
+struct ResourceTraits<FontResource> final
+{
+    static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Font;
 };
 
 enum class ResourceErrorCode : std::uint8_t
@@ -245,6 +263,9 @@ public:
         std::string_view projectRelativeReference,
         SceneTemplateResource resource,
         std::span<const ResourceHandleUntyped> strongDependencies = {});
+    [[nodiscard]] ResourcePublishResult<FontResource> PublishFont(
+        std::string_view projectRelativeReference,
+        FontResource resource);
 
     [[nodiscard]] ResourceOperationResult RecordLoadFailure(
         ResourceTypeDomain domain,
@@ -301,7 +322,7 @@ public:
     [[nodiscard]] const std::filesystem::path& ProjectRoot() const noexcept;
 
 private:
-    using Payload = std::variant<std::monostate, TextureResource, SpriteResource, SceneTemplateResource>;
+    using Payload = std::variant<std::monostate, TextureResource, SpriteResource, SceneTemplateResource, FontResource>;
 
     struct Slot final
     {
