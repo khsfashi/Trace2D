@@ -8,14 +8,21 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <new>
+#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace trace2d::text
 {
 namespace
 {
 constexpr std::uint32_t MaxPixelHeight = 4096U;
+constexpr std::uint32_t MaxAtlasDimension = 4096U;
+constexpr std::uint64_t MaxAtlasPixels = 16ULL * 1024ULL * 1024ULL;
+constexpr std::uint32_t MaxAtlasPadding = 64U;
+constexpr std::uint32_t MaxCachedGlyphs = 65536U;
 constexpr FT_Int32 OutlineLoadFlags = FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP;
 
 [[nodiscard]] bool DecodeNextUtf8(
@@ -125,6 +132,79 @@ constexpr FT_Int32 OutlineLoadFlags = FT_LOAD_DEFAULT | FT_LOAD_NO_BITMAP;
 {
     return TextDiagnostic{code, std::move(message), byteOffset, codepoint};
 }
+
+[[nodiscard]] bool IsUnicodeScalar(const char32_t codepoint) noexcept
+{
+    return codepoint <= static_cast<char32_t>(0x10FFFFU) &&
+           !(codepoint >= static_cast<char32_t>(0xD800U) && codepoint <= static_cast<char32_t>(0xDFFFU));
+}
+
+[[nodiscard]] std::optional<TextDiagnostic> ValidateGlyphAtlasConfig(
+    const GlyphAtlasConfig config,
+    std::size_t& atlasPixelCount,
+    std::size_t& lookupSlotCount) noexcept
+{
+    if (config.width == 0U || config.height == 0U ||
+        config.width > MaxAtlasDimension || config.height > MaxAtlasDimension)
+    {
+        return Diagnostic(
+            TextErrorCode::InvalidGlyphAtlasConfig,
+            "glyph atlas width and height must each be in [1, 4096]");
+    }
+    if (config.pixelHeight == 0U || config.pixelHeight > MaxPixelHeight)
+    {
+        return Diagnostic(
+            TextErrorCode::InvalidGlyphAtlasConfig,
+            "glyph atlas pixel height must be in [1, 4096]");
+    }
+    if (config.padding > MaxAtlasPadding)
+    {
+        return Diagnostic(
+            TextErrorCode::InvalidGlyphAtlasConfig,
+            "glyph atlas padding must be in [0, 64]");
+    }
+    if (config.maxGlyphs == 0U || config.maxGlyphs > MaxCachedGlyphs)
+    {
+        return Diagnostic(
+            TextErrorCode::InvalidGlyphAtlasConfig,
+            "glyph atlas maxGlyphs must be in [1, 65536]");
+    }
+
+    const std::uint64_t pixelCount =
+        static_cast<std::uint64_t>(config.width) * static_cast<std::uint64_t>(config.height);
+    if (pixelCount > MaxAtlasPixels || pixelCount > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
+    {
+        return Diagnostic(
+            TextErrorCode::GlyphAtlasSizeOverflow,
+            "glyph atlas pixel storage exceeds the bounded size limit");
+    }
+    atlasPixelCount = static_cast<std::size_t>(pixelCount);
+
+    std::size_t requiredSlots = static_cast<std::size_t>(config.maxGlyphs) * 2U;
+    lookupSlotCount = 1U;
+    while (lookupSlotCount < requiredSlots)
+    {
+        if (lookupSlotCount > std::numeric_limits<std::size_t>::max() / 2U)
+        {
+            return Diagnostic(
+                TextErrorCode::GlyphAtlasSizeOverflow,
+                "glyph atlas lookup table size overflows size_t");
+        }
+        lookupSlotCount *= 2U;
+    }
+    return std::nullopt;
+}
+
+[[nodiscard]] std::size_t HashCodepoint(const char32_t codepoint, const std::size_t mask) noexcept
+{
+    std::uint32_t value = static_cast<std::uint32_t>(codepoint);
+    value ^= value >> 16U;
+    value *= 0x7FEB352DU;
+    value ^= value >> 15U;
+    value *= 0x846CA68BU;
+    value ^= value >> 16U;
+    return static_cast<std::size_t>(value) & mask;
+}
 } // namespace
 
 std::string_view ToString(const Utf8ErrorCode value) noexcept
@@ -194,6 +274,16 @@ std::string_view ToString(const TextErrorCode value) noexcept
         return "glyph_render_failed";
     case TextErrorCode::BitmapSizeOverflow:
         return "bitmap_size_overflow";
+    case TextErrorCode::InvalidGlyphAtlasConfig:
+        return "invalid_glyph_atlas_config";
+    case TextErrorCode::GlyphAtlasSizeOverflow:
+        return "glyph_atlas_size_overflow";
+    case TextErrorCode::GlyphAtlasAllocationFailed:
+        return "glyph_atlas_allocation_failed";
+    case TextErrorCode::GlyphCacheLimitReached:
+        return "glyph_cache_limit_reached";
+    case TextErrorCode::GlyphAtlasFull:
+        return "glyph_atlas_full";
     }
     return "unknown";
 }
@@ -343,8 +433,7 @@ GlyphRasterResult FontFace::RasterizeCodepoint(const char32_t codepoint, const s
         output.diagnostic = Diagnostic(TextErrorCode::InvalidFontHandle, "font face is not prepared");
         return output;
     }
-    if (codepoint > static_cast<char32_t>(0x10FFFFU) ||
-        (codepoint >= static_cast<char32_t>(0xD800U) && codepoint <= static_cast<char32_t>(0xDFFFU)))
+    if (!IsUnicodeScalar(codepoint))
     {
         output.diagnostic = Diagnostic(
             TextErrorCode::MissingGlyph,
@@ -515,6 +604,331 @@ FontFacePrepareResult PrepareFontFace(
     }
 
     output.face = std::unique_ptr<FontFace>(new FontFace(std::move(impl)));
+    return output;
+}
+
+struct GlyphAtlas::Impl final
+{
+    struct LookupSlot final
+    {
+        char32_t codepoint{0};
+        std::size_t entryIndex{0};
+        bool occupied{false};
+    };
+
+    std::unique_ptr<FontFace> face{};
+    GlyphAtlasConfig config{};
+    std::vector<std::uint8_t> alpha8{};
+    std::vector<GlyphAtlasEntry> entries{};
+    std::vector<LookupSlot> lookupSlots{};
+    std::uint32_t nextX{0};
+    std::uint32_t nextY{0};
+    std::uint32_t rowHeight{0};
+    GlyphAtlasMetrics metrics{};
+
+    [[nodiscard]] std::optional<std::size_t> FindEntryIndex(const char32_t codepoint) const noexcept
+    {
+        if (lookupSlots.empty())
+        {
+            return std::nullopt;
+        }
+        const std::size_t mask = lookupSlots.size() - 1U;
+        std::size_t slotIndex = HashCodepoint(codepoint, mask);
+        for (std::size_t probe = 0U; probe < lookupSlots.size(); ++probe)
+        {
+            const LookupSlot& slot = lookupSlots[slotIndex];
+            if (!slot.occupied)
+            {
+                return std::nullopt;
+            }
+            if (slot.codepoint == codepoint)
+            {
+                return slot.entryIndex;
+            }
+            slotIndex = (slotIndex + 1U) & mask;
+        }
+        return std::nullopt;
+    }
+
+    [[nodiscard]] bool InsertLookup(const char32_t codepoint, const std::size_t entryIndex) noexcept
+    {
+        if (lookupSlots.empty())
+        {
+            return false;
+        }
+        const std::size_t mask = lookupSlots.size() - 1U;
+        std::size_t slotIndex = HashCodepoint(codepoint, mask);
+        for (std::size_t probe = 0U; probe < lookupSlots.size(); ++probe)
+        {
+            LookupSlot& slot = lookupSlots[slotIndex];
+            if (!slot.occupied)
+            {
+                slot.codepoint = codepoint;
+                slot.entryIndex = entryIndex;
+                slot.occupied = true;
+                return true;
+            }
+            slotIndex = (slotIndex + 1U) & mask;
+        }
+        return false;
+    }
+};
+
+GlyphAtlas::GlyphAtlas(std::unique_ptr<Impl> impl) noexcept
+    : impl_(std::move(impl))
+{
+}
+
+GlyphAtlas::GlyphAtlas(GlyphAtlas&&) noexcept = default;
+GlyphAtlas& GlyphAtlas::operator=(GlyphAtlas&&) noexcept = default;
+GlyphAtlas::~GlyphAtlas() = default;
+
+GlyphAtlasResolveResult GlyphAtlas::ResolveCodepoint(const char32_t codepoint)
+{
+    GlyphAtlasResolveResult output{};
+    if (impl_ == nullptr || impl_->face == nullptr)
+    {
+        output.diagnostic = Diagnostic(TextErrorCode::InvalidFontHandle, "glyph atlas has no prepared font face");
+        return output;
+    }
+    if (!IsUnicodeScalar(codepoint))
+    {
+        output.diagnostic = Diagnostic(
+            TextErrorCode::MissingGlyph,
+            "codepoint is outside the Unicode scalar-value range",
+            0U,
+            codepoint);
+        return output;
+    }
+
+    if (const auto cachedIndex = impl_->FindEntryIndex(codepoint); cachedIndex.has_value())
+    {
+        ++impl_->metrics.cacheHits;
+        output.entry = impl_->entries[*cachedIndex];
+        output.cacheHit = true;
+        return output;
+    }
+
+    ++impl_->metrics.cacheMisses;
+    if (impl_->entries.size() >= static_cast<std::size_t>(impl_->config.maxGlyphs))
+    {
+        output.diagnostic = Diagnostic(
+            TextErrorCode::GlyphCacheLimitReached,
+            "glyph cache reached its declared maxGlyphs limit",
+            0U,
+            codepoint);
+        return output;
+    }
+
+    GlyphRasterResult raster = impl_->face->RasterizeCodepoint(codepoint, impl_->config.pixelHeight);
+    if (!raster.Succeeded())
+    {
+        output.diagnostic = raster.diagnostic;
+        return output;
+    }
+    ++impl_->metrics.rasterizations;
+    const GlyphBitmap& glyph = *raster.glyph;
+
+    GlyphAtlasEntry entry{};
+    entry.codepoint = codepoint;
+    entry.glyphIndex = glyph.glyphIndex;
+    entry.width = glyph.width;
+    entry.height = glyph.height;
+    entry.bearingX = glyph.bearingX;
+    entry.bearingY = glyph.bearingY;
+    entry.advanceX26_6 = glyph.advanceX26_6;
+
+    std::uint32_t committedNextX = impl_->nextX;
+    std::uint32_t committedNextY = impl_->nextY;
+    std::uint32_t committedRowHeight = impl_->rowHeight;
+
+    if (glyph.width != 0U && glyph.height != 0U)
+    {
+        const std::uint64_t paddingTwice = static_cast<std::uint64_t>(impl_->config.padding) * 2ULL;
+        const std::uint64_t requiredWidth = static_cast<std::uint64_t>(glyph.width) + paddingTwice;
+        const std::uint64_t requiredHeight = static_cast<std::uint64_t>(glyph.height) + paddingTwice;
+        if (requiredWidth > static_cast<std::uint64_t>(impl_->config.width) ||
+            requiredHeight > static_cast<std::uint64_t>(impl_->config.height))
+        {
+            output.diagnostic = Diagnostic(
+                TextErrorCode::GlyphAtlasFull,
+                "glyph plus padding cannot fit within the fixed atlas dimensions",
+                0U,
+                codepoint);
+            return output;
+        }
+
+        std::uint64_t candidateX = static_cast<std::uint64_t>(impl_->nextX);
+        std::uint64_t candidateY = static_cast<std::uint64_t>(impl_->nextY);
+        std::uint64_t candidateRowHeight = static_cast<std::uint64_t>(impl_->rowHeight);
+        if (candidateX + requiredWidth > static_cast<std::uint64_t>(impl_->config.width))
+        {
+            candidateX = 0U;
+            candidateY += candidateRowHeight;
+            candidateRowHeight = 0U;
+        }
+        if (candidateY + requiredHeight > static_cast<std::uint64_t>(impl_->config.height))
+        {
+            output.diagnostic = Diagnostic(
+                TextErrorCode::GlyphAtlasFull,
+                "fixed glyph atlas has no remaining shelf capacity for the glyph",
+                0U,
+                codepoint);
+            return output;
+        }
+
+        entry.x = static_cast<std::uint32_t>(candidateX + static_cast<std::uint64_t>(impl_->config.padding));
+        entry.y = static_cast<std::uint32_t>(candidateY + static_cast<std::uint64_t>(impl_->config.padding));
+        committedNextX = static_cast<std::uint32_t>(candidateX + requiredWidth);
+        committedNextY = static_cast<std::uint32_t>(candidateY);
+        committedRowHeight = static_cast<std::uint32_t>(std::max(candidateRowHeight, requiredHeight));
+    }
+
+    const std::size_t entryIndex = impl_->entries.size();
+    impl_->entries.push_back(entry);
+    if (!impl_->InsertLookup(codepoint, entryIndex))
+    {
+        impl_->entries.pop_back();
+        output.diagnostic = Diagnostic(
+            TextErrorCode::GlyphCacheLimitReached,
+            "preallocated glyph lookup table has no free slot",
+            0U,
+            codepoint);
+        return output;
+    }
+
+    if (glyph.width != 0U && glyph.height != 0U)
+    {
+        const std::size_t atlasWidth = static_cast<std::size_t>(impl_->config.width);
+        const std::size_t glyphWidth = static_cast<std::size_t>(glyph.width);
+        const std::size_t glyphHeight = static_cast<std::size_t>(glyph.height);
+        for (std::size_t row = 0U; row < glyphHeight; ++row)
+        {
+            const std::size_t destinationOffset =
+                (static_cast<std::size_t>(entry.y) + row) * atlasWidth + static_cast<std::size_t>(entry.x);
+            const std::size_t sourceOffset = row * glyphWidth;
+            std::copy_n(
+                glyph.alpha8.data() + sourceOffset,
+                glyphWidth,
+                impl_->alpha8.data() + destinationOffset);
+        }
+        impl_->metrics.occupiedBitmapPixels +=
+            static_cast<std::uint64_t>(glyph.width) * static_cast<std::uint64_t>(glyph.height);
+        impl_->nextX = committedNextX;
+        impl_->nextY = committedNextY;
+        impl_->rowHeight = committedRowHeight;
+    }
+
+    impl_->metrics.glyphCount = impl_->entries.size();
+    output.entry = entry;
+    output.cacheHit = false;
+    return output;
+}
+
+GlyphAtlasWarmResult GlyphAtlas::WarmUtf8(const std::string_view text)
+{
+    GlyphAtlasWarmResult output{};
+    std::size_t cursor = 0U;
+    while (cursor < text.size())
+    {
+        const std::size_t codepointOffset = cursor;
+        char32_t codepoint = 0;
+        Utf8Diagnostic utf8Diagnostic{};
+        if (!DecodeNextUtf8(text, cursor, codepoint, utf8Diagnostic))
+        {
+            output.diagnostic = InvalidUtf8Diagnostic(utf8Diagnostic);
+            return output;
+        }
+
+        GlyphAtlasResolveResult resolved = ResolveCodepoint(codepoint);
+        if (!resolved.Succeeded())
+        {
+            output.diagnostic = resolved.diagnostic;
+            if (output.diagnostic.has_value())
+            {
+                output.diagnostic->byteOffset = codepointOffset;
+            }
+            return output;
+        }
+
+        ++output.codepointCount;
+        if (resolved.cacheHit)
+        {
+            ++output.cacheHits;
+        }
+        else
+        {
+            ++output.uniqueGlyphsAdded;
+        }
+    }
+    return output;
+}
+
+GlyphAtlasConfig GlyphAtlas::Config() const noexcept
+{
+    return impl_ != nullptr ? impl_->config : GlyphAtlasConfig{};
+}
+
+GlyphAtlasMetrics GlyphAtlas::Metrics() const noexcept
+{
+    return impl_ != nullptr ? impl_->metrics : GlyphAtlasMetrics{};
+}
+
+std::span<const std::uint8_t> GlyphAtlas::Alpha8() const noexcept
+{
+    if (impl_ == nullptr)
+    {
+        return {};
+    }
+    return std::span<const std::uint8_t>(impl_->alpha8.data(), impl_->alpha8.size());
+}
+
+assets::ResourceHandle<assets::FontResource> GlyphAtlas::ResourceHandle() const noexcept
+{
+    return impl_ != nullptr && impl_->face != nullptr
+        ? impl_->face->ResourceHandle()
+        : assets::ResourceHandle<assets::FontResource>{};
+}
+
+GlyphAtlasPrepareResult PrepareGlyphAtlas(
+    assets::ResourceRegistry& registry,
+    const assets::ResourceHandle<assets::FontResource> handle,
+    const GlyphAtlasConfig config)
+{
+    GlyphAtlasPrepareResult output{};
+    std::size_t atlasPixelCount = 0U;
+    std::size_t lookupSlotCount = 0U;
+    if (const auto diagnostic = ValidateGlyphAtlasConfig(config, atlasPixelCount, lookupSlotCount); diagnostic.has_value())
+    {
+        output.diagnostic = *diagnostic;
+        return output;
+    }
+
+    FontFacePrepareResult preparedFace = PrepareFontFace(registry, handle);
+    if (!preparedFace.Succeeded())
+    {
+        output.diagnostic = preparedFace.diagnostic;
+        return output;
+    }
+
+    try
+    {
+        auto impl = std::make_unique<GlyphAtlas::Impl>();
+        impl->face = std::move(preparedFace.face);
+        impl->config = config;
+        impl->alpha8.assign(atlasPixelCount, 0U);
+        impl->entries.reserve(static_cast<std::size_t>(config.maxGlyphs));
+        impl->lookupSlots.resize(lookupSlotCount);
+        impl->metrics.retainedAtlasBytes = impl->alpha8.size();
+        impl->metrics.lookupSlotCount = impl->lookupSlots.size();
+        output.atlas = std::unique_ptr<GlyphAtlas>(new GlyphAtlas(std::move(impl)));
+    }
+    catch (const std::bad_alloc&)
+    {
+        output.diagnostic = Diagnostic(
+            TextErrorCode::GlyphAtlasAllocationFailed,
+            "failed to allocate bounded glyph atlas storage");
+    }
     return output;
 }
 } // namespace trace2d::text
