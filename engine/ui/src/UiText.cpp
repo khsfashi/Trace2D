@@ -226,6 +226,20 @@ void ValidateKnownKeys(
     return ReadUInt32(*node, path, diagnostics, true);
 }
 
+[[nodiscard]] std::optional<std::uint32_t> ReadOptionalUInt32(
+    const toml::table& table,
+    const std::string_view key,
+    const std::string_view path,
+    std::vector<UiTextDiagnostic>& diagnostics)
+{
+    const toml::node* const node = table.get(key);
+    if (node == nullptr)
+    {
+        return std::uint32_t{0U};
+    }
+    return ReadUInt32(*node, path, diagnostics, false);
+}
+
 [[nodiscard]] std::optional<bool> ReadOptionalBool(
     const toml::table& table,
     const std::string_view key,
@@ -315,11 +329,53 @@ void ValidateKnownKeys(
     {
         return UiLayoutPlacementMode::AnchoredFixed;
     }
+    if (*value == "stack_fixed")
+    {
+        return UiLayoutPlacementMode::StackFixed;
+    }
 
     AddDiagnostic(
         diagnostics,
         std::string{path},
-        "Unsupported placement. Expected absolute or anchored_fixed.",
+        "Unsupported placement. Expected absolute, anchored_fixed, or stack_fixed.",
+        node);
+    return std::nullopt;
+}
+
+[[nodiscard]] std::optional<UiContainerLayoutMode> ReadContainerLayout(
+    const toml::table& table,
+    const std::string_view path,
+    std::vector<UiTextDiagnostic>& diagnostics)
+{
+    const toml::node* const node = table.get("layout");
+    if (node == nullptr)
+    {
+        return UiContainerLayoutMode::None;
+    }
+
+    const std::optional<std::string> value = node->value<std::string>();
+    if (!value.has_value())
+    {
+        AddDiagnostic(diagnostics, std::string{path}, "Expected a string.", node);
+        return std::nullopt;
+    }
+    if (*value == "none")
+    {
+        return UiContainerLayoutMode::None;
+    }
+    if (*value == "horizontal_stack")
+    {
+        return UiContainerLayoutMode::HorizontalStack;
+    }
+    if (*value == "vertical_stack")
+    {
+        return UiContainerLayoutMode::VerticalStack;
+    }
+
+    AddDiagnostic(
+        diagnostics,
+        std::string{path},
+        "Unsupported layout. Expected none, horizontal_stack, or vertical_stack.",
         node);
     return std::nullopt;
 }
@@ -452,6 +508,55 @@ void ValidateKnownKeys(
     return std::array<std::int32_t, 2U>{*first, *second};
 }
 
+[[nodiscard]] std::optional<UiInsets> ReadOptionalInsets(
+    const toml::table& table,
+    const std::string_view key,
+    const std::string_view path,
+    std::vector<UiTextDiagnostic>& diagnostics)
+{
+    const toml::node* const node = table.get(key);
+    if (node == nullptr)
+    {
+        return UiInsets{};
+    }
+
+    const toml::array* const array = node->as_array();
+    if (array == nullptr || array->size() != 4U)
+    {
+        AddDiagnostic(
+            diagnostics,
+            std::string{path},
+            "Expected [left, top, right, bottom] with exactly four non-negative integers.",
+            node);
+        return std::nullopt;
+    }
+
+    std::array<std::uint32_t, 4U> values{};
+    for (std::size_t index = 0U; index < values.size(); ++index)
+    {
+        const toml::node* const valueNode = array->get(index);
+        if (valueNode == nullptr)
+        {
+            AddDiagnostic(diagnostics, std::string{path}, "Invalid inset array.", node);
+            return std::nullopt;
+        }
+        const std::optional<std::uint32_t> value =
+            ReadUInt32(*valueNode, std::string{path} + "[" + std::to_string(index) + "]", diagnostics, false);
+        if (!value.has_value())
+        {
+            return std::nullopt;
+        }
+        values[index] = *value;
+    }
+
+    return UiInsets{
+        .left = values[0],
+        .top = values[1],
+        .right = values[2],
+        .bottom = values[3],
+    };
+}
+
 [[nodiscard]] std::optional<UiNormalizedPoint> ReadNormalizedPoint(
     const toml::table& table,
     const std::string_view key,
@@ -509,10 +614,38 @@ void ValidateKnownKeys(
     };
 }
 
-[[nodiscard]] bool HasAnchoredFields(const toml::table& table) noexcept
+[[nodiscard]] std::optional<UiStackFixedPlacement> ReadStackFixedPlacement(
+    const toml::table& table,
+    const std::string_view elementPath,
+    std::vector<UiTextDiagnostic>& diagnostics)
 {
-    return table.get("anchor") != nullptr || table.get("pivot") != nullptr ||
-           table.get("offset") != nullptr || table.get("size") != nullptr;
+    const std::optional<std::array<std::uint32_t, 2U>> size =
+        ReadUInt32Pair(table, "size", std::string{elementPath} + ".size", diagnostics, true);
+    const std::optional<UiInsets> margin =
+        ReadOptionalInsets(table, "margin", std::string{elementPath} + ".margin", diagnostics);
+    if (!size.has_value() || !margin.has_value())
+    {
+        return std::nullopt;
+    }
+
+    return UiStackFixedPlacement{
+        .width = (*size)[0],
+        .height = (*size)[1],
+        .margin = *margin,
+    };
+}
+
+[[nodiscard]] bool HasAnyField(
+    const toml::table& table,
+    const std::initializer_list<std::string_view> keys) noexcept
+{
+    return std::any_of(
+        keys.begin(),
+        keys.end(),
+        [&table](const std::string_view key)
+        {
+            return table.get(key) != nullptr;
+        });
 }
 
 [[nodiscard]] bool FitsCanvas(
@@ -675,7 +808,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     *elementTable,
                     elementPath,
                     {"id", "kind", "parent", "placement", "bounds", "anchor", "pivot", "offset", "size",
-                     "name", "text", "visible", "enabled"},
+                     "layout", "padding", "spacing", "margin", "name", "text", "visible", "enabled"},
                     result.diagnostics);
 
                 const std::optional<std::string> id = ReadRequiredString(
@@ -694,6 +827,20 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 const std::optional<UiLayoutPlacementMode> placement = ReadPlacementMode(
                     *elementTable,
                     elementPath + ".placement",
+                    result.diagnostics);
+                const std::optional<UiContainerLayoutMode> containerLayout = ReadContainerLayout(
+                    *elementTable,
+                    elementPath + ".layout",
+                    result.diagnostics);
+                const std::optional<UiInsets> padding = ReadOptionalInsets(
+                    *elementTable,
+                    "padding",
+                    elementPath + ".padding",
+                    result.diagnostics);
+                const std::optional<std::uint32_t> spacing = ReadOptionalUInt32(
+                    *elementTable,
+                    "spacing",
+                    elementPath + ".spacing",
                     result.diagnostics);
                 const std::optional<std::string> elementName = ReadOptionalString(
                     *elementTable,
@@ -716,40 +863,73 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     elementPath + ".enabled",
                     result.diagnostics);
 
+                if (containerLayout.has_value() && *containerLayout == UiContainerLayoutMode::None &&
+                    HasAnyField(*elementTable, {"padding", "spacing"}))
+                {
+                    AddDiagnostic(
+                        result.diagnostics,
+                        elementPath + ".layout",
+                        "padding and spacing require layout = \"horizontal_stack\" or \"vertical_stack\".",
+                        elementTable->get("layout"));
+                }
+
                 std::optional<UiRect> absoluteBounds{};
                 std::optional<UiAnchoredPlacement> anchored{};
+                std::optional<UiStackFixedPlacement> stackFixed{};
                 if (placement.has_value() && *placement == UiLayoutPlacementMode::Absolute)
                 {
                     absoluteBounds = ReadBounds(
                         *elementTable,
                         elementPath + ".bounds",
                         result.diagnostics);
-                    if (HasAnchoredFields(*elementTable))
+                    if (HasAnyField(*elementTable, {"anchor", "pivot", "offset", "size", "margin"}))
                     {
                         AddDiagnostic(
                             result.diagnostics,
                             elementPath + ".placement",
-                            "anchor, pivot, offset, and size require placement = \"anchored_fixed\".",
+                            "anchor, pivot, offset, size, and margin are incompatible with absolute placement.",
                             elementTable->get("placement"));
                     }
                 }
                 else if (placement.has_value() && *placement == UiLayoutPlacementMode::AnchoredFixed)
                 {
-                    if (elementTable->get("bounds") != nullptr)
+                    if (HasAnyField(*elementTable, {"bounds", "margin"}))
                     {
                         AddDiagnostic(
                             result.diagnostics,
-                            elementPath + ".bounds",
-                            "bounds is incompatible with anchored_fixed placement; use anchor/pivot/offset/size.",
-                            elementTable->get("bounds"));
+                            elementPath + ".placement",
+                            "bounds and margin are incompatible with anchored_fixed placement; use anchor/pivot/offset/size.",
+                            elementTable->get("placement"));
                     }
                     anchored = ReadAnchoredPlacement(*elementTable, elementPath, result.diagnostics);
+                }
+                else if (placement.has_value() && *placement == UiLayoutPlacementMode::StackFixed)
+                {
+                    if (HasAnyField(*elementTable, {"bounds", "anchor", "pivot", "offset"}))
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".placement",
+                            "bounds, anchor, pivot, and offset are incompatible with stack_fixed placement; use size and optional margin.",
+                            elementTable->get("placement"));
+                    }
+                    if (parent.has_value() && parent->empty())
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".parent",
+                            "stack_fixed placement requires a parent stack container.",
+                            elementTable->get("placement"));
+                    }
+                    stackFixed = ReadStackFixedPlacement(*elementTable, elementPath, result.diagnostics);
                 }
 
                 const bool hasGeometry = placement.has_value() &&
                     ((*placement == UiLayoutPlacementMode::Absolute && absoluteBounds.has_value()) ||
-                     (*placement == UiLayoutPlacementMode::AnchoredFixed && anchored.has_value()));
+                     (*placement == UiLayoutPlacementMode::AnchoredFixed && anchored.has_value()) ||
+                     (*placement == UiLayoutPlacementMode::StackFixed && stackFixed.has_value()));
                 if (!id.has_value() || !kind.has_value() || !parent.has_value() || !placement.has_value() ||
+                    !containerLayout.has_value() || !padding.has_value() || !spacing.has_value() ||
                     !elementName.has_value() || !elementText.has_value() || !visible.has_value() ||
                     !enabled.has_value() || !hasGeometry)
                 {
@@ -781,13 +961,20 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 authored.layout.id = *id;
                 authored.layout.parentId = *parent;
                 authored.layout.placementMode = *placement;
+                authored.layout.containerLayout = *containerLayout;
+                authored.layout.padding = *padding;
+                authored.layout.spacing = *spacing;
                 if (*placement == UiLayoutPlacementMode::Absolute)
                 {
                     authored.layout.localBounds = *absoluteBounds;
                 }
-                else
+                else if (*placement == UiLayoutPlacementMode::AnchoredFixed)
                 {
                     authored.layout.anchored = *anchored;
+                }
+                else
+                {
+                    authored.layout.stackFixed = *stackFixed;
                 }
 
                 parsed.push_back(std::move(authored));
