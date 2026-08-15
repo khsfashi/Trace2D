@@ -12,8 +12,8 @@
 namespace trace2d::text
 {
 // Caller-owned resolved UTF-8 source. identity identifies the semantic source (for example a
-// localization key or UI element) and revision must change whenever the resolved bytes change.
-// The cache intentionally trusts this revision contract so a hit does not need to scan utf8.
+// localization key or UI element) and revision must change whenever the resolved display bytes
+// change. The cache intentionally trusts this revision contract so a hit does not scan utf8.
 struct TextSourceView final
 {
     std::uint64_t identity{0U};
@@ -51,6 +51,14 @@ public:
     TextLayoutCache(TextLayoutCache&&) noexcept;
     TextLayoutCache& operator=(TextLayoutCache&&) noexcept;
     ~TextLayoutCache();
+
+    // Probe the cache key without reading source.utf8. This is useful for adapters that would
+    // otherwise need to construct a derived display string (for example committed + IME preedit)
+    // just to discover that the existing layout is reusable.
+    [[nodiscard]] bool CanReuse(
+        std::span<const TextFontAtlasRef> fallbackAtlases,
+        TextSourceView source,
+        TextLayoutOptions options = {}) const noexcept;
 
     [[nodiscard]] TextLayoutCacheUpdateResult Update(
         std::span<const TextFontAtlasRef> fallbackAtlases,

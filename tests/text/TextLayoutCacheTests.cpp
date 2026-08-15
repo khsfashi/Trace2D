@@ -67,6 +67,19 @@ TEST(TextLayoutCacheTests, StableSourceRevisionReusesPublishedLayoutWithoutTouch
     EXPECT_EQ(first.metrics->glyphCount, 3U);
 
     const GlyphAtlasMetrics afterFirst = atlas.atlas->Metrics();
+    EXPECT_TRUE(prepared.cache->CanReuse(
+        fallback,
+        TextSourceView{42U, 7U, {}},
+        {}));
+    EXPECT_FALSE(prepared.cache->CanReuse(
+        fallback,
+        TextSourceView{42U, 8U, {}},
+        {}));
+    const GlyphAtlasMetrics afterProbe = atlas.atlas->Metrics();
+    EXPECT_EQ(afterProbe.cacheHits, afterFirst.cacheHits);
+    EXPECT_EQ(afterProbe.cacheMisses, afterFirst.cacheMisses);
+    EXPECT_EQ(afterProbe.rasterizations, afterFirst.rasterizations);
+
     const TextLayoutCacheUpdateResult second = prepared.cache->Update(fallback, source);
     ASSERT_TRUE(second.Succeeded());
     EXPECT_TRUE(second.reused);

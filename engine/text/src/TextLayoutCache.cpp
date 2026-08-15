@@ -1,6 +1,5 @@
 #include <trace2d/text/TextLayoutCache.hpp>
 
-#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <new>
@@ -59,6 +58,31 @@ TextLayoutCache::TextLayoutCache(TextLayoutCache&&) noexcept = default;
 TextLayoutCache& TextLayoutCache::operator=(TextLayoutCache&&) noexcept = default;
 TextLayoutCache::~TextLayoutCache() = default;
 
+bool TextLayoutCache::CanReuse(
+    const std::span<const TextFontAtlasRef> fallbackAtlases,
+    const TextSourceView source,
+    const TextLayoutOptions options) const noexcept
+{
+    if (impl_ == nullptr || impl_->run == nullptr || !impl_->published ||
+        fallbackAtlases.empty() || fallbackAtlases.size() > impl_->config.maxFallbackFonts ||
+        fallbackAtlases.size() != impl_->fallbackIdentity.size() ||
+        source.identity != impl_->sourceIdentity ||
+        source.revision != impl_->sourceRevision ||
+        !SameOptions(options, impl_->options))
+    {
+        return false;
+    }
+
+    for (std::size_t index = 0U; index < fallbackAtlases.size(); ++index)
+    {
+        if (fallbackAtlases[index].atlas != impl_->fallbackIdentity[index])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 TextLayoutCacheUpdateResult TextLayoutCache::Update(
     const std::span<const TextFontAtlasRef> fallbackAtlases,
     const TextSourceView source,
@@ -81,24 +105,7 @@ TextLayoutCacheUpdateResult TextLayoutCache::Update(
         return output;
     }
 
-    bool sameFallbacks = impl_->published &&
-        fallbackAtlases.size() == impl_->fallbackIdentity.size();
-    if (sameFallbacks)
-    {
-        for (std::size_t index = 0U; index < fallbackAtlases.size(); ++index)
-        {
-            if (fallbackAtlases[index].atlas != impl_->fallbackIdentity[index])
-            {
-                sameFallbacks = false;
-                break;
-            }
-        }
-    }
-
-    if (impl_->published && sameFallbacks &&
-        source.identity == impl_->sourceIdentity &&
-        source.revision == impl_->sourceRevision &&
-        SameOptions(options, impl_->options))
+    if (CanReuse(fallbackAtlases, source, options))
     {
         output.metrics = impl_->run->Metrics();
         output.reused = true;

@@ -29,6 +29,24 @@ constexpr std::size_t MaxComposedUtf8Bytes = 1U << 20U;
     return kind == UiElementKind::Label || kind == UiElementKind::Button ||
            kind == UiElementKind::TextInput;
 }
+
+[[nodiscard]] UiTextLayoutEvidence MakeEvidence(
+    const std::uint64_t sourceRevision,
+    const bool includesComposition,
+    const text::TextLayoutMetrics metrics) noexcept
+{
+    return UiTextLayoutEvidence{
+        .valid = true,
+        .sourceRevision = sourceRevision,
+        .includesComposition = includesComposition,
+        .glyphCount = metrics.glyphCount,
+        .lineCount = metrics.lineCount,
+        .contentWidth26_6 = metrics.contentWidth26_6,
+        .contentHeight26_6 = metrics.contentHeight26_6,
+        .layoutWidth26_6 = metrics.layoutWidth26_6,
+        .layoutHeight26_6 = metrics.layoutHeight26_6,
+    };
+}
 } // namespace
 
 struct UiTextLayoutCache::Impl final
@@ -90,6 +108,31 @@ UiTextLayoutUpdateResult UiTextLayoutCache::Update(
     const UiTextCompositionState composition = document.TextComposition();
     const bool includesComposition = element->kind == UiElementKind::TextInput &&
         document.IsFocused(elementId) && composition.active;
+    const text::TextLayoutOptions boundedOptions =
+        UiTextLayoutOptionsForElement(*element, options);
+    const text::TextSourceView sourceKey{
+        .identity = element->textSourceIdentity,
+        .revision = element->displayTextRevision,
+        .utf8 = {},
+    };
+
+    // Probe before constructing committed+preedit display bytes. A stable active IME field can
+    // therefore be polled every frame without rescanning or copying its UTF-8 payload.
+    if (impl_->textCache->CanReuse(fallbackAtlases, sourceKey, boundedOptions))
+    {
+        const text::TextLayoutRun* const cachedLayout = impl_->textCache->Layout();
+        if (cachedLayout != nullptr)
+        {
+            const text::TextLayoutMetrics metrics = cachedLayout->Metrics();
+            document.PublishTextLayoutEvidence(
+                elementId,
+                MakeEvidence(element->displayTextRevision, includesComposition, metrics));
+            output.metrics = metrics;
+            output.reused = true;
+            output.includesComposition = includesComposition;
+            return output;
+        }
+    }
 
     std::string_view displayUtf8 = element->text;
     if (includesComposition)
@@ -117,15 +160,11 @@ UiTextLayoutUpdateResult UiTextLayoutCache::Update(
         displayUtf8 = impl_->composedUtf8;
     }
 
-    const text::TextLayoutOptions boundedOptions =
-        UiTextLayoutOptionsForElement(*element, options);
+    text::TextSourceView source = sourceKey;
+    source.utf8 = displayUtf8;
     const text::TextLayoutCacheUpdateResult updated = impl_->textCache->Update(
         fallbackAtlases,
-        text::TextSourceView{
-            .identity = element->textSourceIdentity,
-            .revision = element->displayTextRevision,
-            .utf8 = displayUtf8,
-        },
+        source,
         boundedOptions);
     if (!updated.Succeeded())
     {
@@ -142,17 +181,7 @@ UiTextLayoutUpdateResult UiTextLayoutCache::Update(
     const text::TextLayoutMetrics metrics = *updated.metrics;
     document.PublishTextLayoutEvidence(
         elementId,
-        UiTextLayoutEvidence{
-            .valid = true,
-            .sourceRevision = element->displayTextRevision,
-            .includesComposition = includesComposition,
-            .glyphCount = metrics.glyphCount,
-            .lineCount = metrics.lineCount,
-            .contentWidth26_6 = metrics.contentWidth26_6,
-            .contentHeight26_6 = metrics.contentHeight26_6,
-            .layoutWidth26_6 = metrics.layoutWidth26_6,
-            .layoutHeight26_6 = metrics.layoutHeight26_6,
-        });
+        MakeEvidence(element->displayTextRevision, includesComposition, metrics));
 
     output.metrics = metrics;
     output.reused = updated.reused;

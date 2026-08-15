@@ -28,7 +28,7 @@ TextLayoutCache
              -> existing SR7 renderer/GPU path
 ```
 
-`TextSourceView::identity` identifies a stable semantic source. `revision` is the invalidation contract: the caller must change it whenever the resolved UTF-8 bytes change. A cache hit intentionally does **not** compare or scan `utf8`; that is what makes an unchanged text probe independent of string length.
+`TextSourceView::identity` identifies a stable semantic source. `revision` is the invalidation contract: the caller must change it whenever the resolved UTF-8 display bytes change. A cache hit intentionally does **not** compare or scan `utf8`; that is what makes an unchanged text probe independent of string length.
 
 A localization catalog, locale selector, plural-rule engine, message formatter, or key store is not introduced. Those systems can resolve a string and feed the exact same `TextSourceView` later without changing Text ownership.
 
@@ -73,13 +73,14 @@ Agent semantics:  text="A", composition="한"
 
 This matches I3's current append-only editing baseline. F5 does not pretend that caret insertion/selection replacement already exists.
 
-Each UI element receives an engine-owned stable text-source identity and monotonic display-text revision when added. The revision changes when displayed UTF-8 changes:
+Each UI element receives an engine-owned stable text-source identity and monotonic display-text revision when added. The revision changes when the **displayed UTF-8 bytes** change. This includes ordinary committed-value edits, changed composition bytes, composition cancellation/focus loss, or a commit whose final bytes differ from the active preedit.
 
-- committed textbox value changes,
-- composition bytes change,
-- active composition is cleared/committed/focus-lost.
+Two semantic-only transitions deliberately do not force layout:
 
-Changing only IME selection/cursor metadata while composition bytes are identical does **not** invalidate layout. Agent inspection still observes the new composition metadata, while the production layout cache is reused.
+- changing only IME selection/cursor metadata while composition bytes are identical,
+- committing the exact active composition, e.g. visible `A + [한]` becoming committed `A한`.
+
+In the second case the committed/composition semantic boundary changes but the visible UTF-8 bytes do not. UI layout evidence is invalidated because `includesComposition` changed, while the text revision is preserved. The next `UiTextLayoutCache::Update` therefore takes the existing Text cache hit and republishes the same measured layout with `includesComposition=false` without touching GlyphAtlas or rerasterizing.
 
 Composition concatenation uses one cache-owned string reserved during `PrepareUiTextLayoutCache`. If committed + composition bytes exceed the declared bound, the update fails instead of growing storage implicitly.
 
@@ -94,14 +95,14 @@ A successful UI layout publishes `UiTextLayoutEvidence` back to the existing `Ui
 - content width/height in 26.6 pixels,
 - final layout width/height in 26.6 pixels.
 
-The evidence is invalidated whenever displayed text changes and is accepted only when its source revision matches the element's current revision.
+The evidence is invalidated whenever displayed text changes and is accepted only when its source revision matches the element's current revision. It is also invalidated for display-preserving semantic transitions whose `includesComposition` meaning changed, then republished from the cached layout.
 
 `AgentFacade::InspectUi` / UI query snapshots expose two optional semantic projections:
 
 - active composition text and selection metadata for the focused textbox,
 - current measured production-text layout evidence.
 
-The committed `text` field remains unchanged. Glyph atlas rectangles, texture pixels, GPU handles, and raster output are deliberately not promoted to semantic authority.
+The committed `text` field remains unchanged. Glyph atlas rectangles, texture pixels, GPU handles, and raster output are deliberately not promoted to semantic authority. MCP JSON transport projection is not required by #74 and remains available for #75 to extend if its concrete Agent workflow needs these new optional fields.
 
 ## Presentation handoff
 
@@ -117,7 +118,7 @@ The F5 tests cover:
 - bounded fallback-chain rejection without partial publication,
 - focused E3 IME composition included in production UI layout while committed semantic text remains separate,
 - selection-only composition metadata changes reusing the existing layout,
-- commit clearing composition and producing a new non-composition layout,
+- exact composition commit preserving display revision and reusing the existing layout with zero GlyphAtlas metric change,
 - element-bounds-to-layout-box mapping,
 - bounded composition scratch failure without publishing stale evidence,
 - Agent inspection of composition and measured layout.
@@ -130,6 +131,7 @@ F5 intentionally does not add:
 - caret navigation, selection replacement, Backspace/Delete, clipboard, or rich text editing,
 - UI hierarchy/anchors/resolution scaling/scroll widgets/event routing (owned by #75),
 - HarfBuzz shaping, bidi, system font discovery, or language-specific word breaking without a concrete requirement,
-- atlas eviction/growth, automatic partial GPU upload, or an R8-only text renderer.
+- atlas eviction/growth, automatic partial GPU upload, or an R8-only text renderer,
+- MCP-specific serialization of the new optional Agent UI evidence until a concrete #75 tool workflow requires it.
 
 With F5 green, #74's production text foundation is complete and the fixed core lane advances to #75 practical deterministic UI.
