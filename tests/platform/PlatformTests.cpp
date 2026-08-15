@@ -13,6 +13,8 @@ TEST(PlatformTests, HeadlessModeInitializesWithoutWindow)
 
     EXPECT_EQ(platform.Mode(), trace2d::platform::StartupMode::Headless);
     EXPECT_FALSE(platform.HasWindow());
+    EXPECT_FALSE(platform.TextInputEnabled());
+    EXPECT_FALSE(platform.SetTextInputEnabled(true));
 }
 
 TEST(PlatformTests, StartupModeNamesAreStable)
