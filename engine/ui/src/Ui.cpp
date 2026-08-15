@@ -1,5 +1,6 @@
 #include <trace2d/ui/Ui.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -20,6 +21,28 @@ namespace
     }
     return candidate.substr(0U, committed.size()) == committed &&
            candidate.substr(committed.size()) == composition;
+}
+
+[[nodiscard]] UiRect IntersectRects(const UiRect& lhs, const UiRect& rhs) noexcept
+{
+    const std::uint32_t left = std::max(lhs.x, rhs.x);
+    const std::uint32_t top = std::max(lhs.y, rhs.y);
+    const std::uint32_t right = std::min(lhs.x + lhs.width, rhs.x + rhs.width);
+    const std::uint32_t bottom = std::min(lhs.y + lhs.height, rhs.y + rhs.height);
+    if (right <= left || bottom <= top)
+    {
+        return UiRect{left, top, 0U, 0U};
+    }
+    return UiRect{left, top, right - left, bottom - top};
+}
+
+[[nodiscard]] std::uint64_t SaturatingAdd(
+    const std::uint64_t lhs,
+    const std::uint64_t rhs) noexcept
+{
+    return rhs > std::numeric_limits<std::uint64_t>::max() - lhs
+        ? std::numeric_limits<std::uint64_t>::max()
+        : lhs + rhs;
 }
 } // namespace
 
@@ -72,6 +95,12 @@ std::string_view ToString(const UiActionResult result) noexcept
         return "outside_modal_scope";
     case UiActionResult::InvalidTextCompositionRange:
         return "invalid_text_composition_range";
+    case UiActionResult::NotScrollViewport:
+        return "not_scroll_viewport";
+    case UiActionResult::InvalidScrollContent:
+        return "invalid_scroll_content";
+    case UiActionResult::UnsupportedScrollHierarchy:
+        return "unsupported_scroll_hierarchy";
     }
 
     return "unknown";
@@ -263,7 +292,15 @@ UiActionResult UiDocument::AddElement(UiElement element)
         element.localBounds = element.bounds;
     }
 
-    // Runtime interaction state is never accepted as authored input.
+    // Runtime interaction / U9 scroll state is never accepted as authored input.
+    element.presentationBounds = UiPresentationRect{
+        .x = static_cast<std::int32_t>(element.bounds.x),
+        .y = static_cast<std::int32_t>(element.bounds.y),
+        .width = element.bounds.width,
+        .height = element.bounds.height,
+    };
+    element.scrollOwnerIndex = InvalidUiElementIndex;
+    element.scroll = {};
     element.hovered = false;
     element.pointerPressed = false;
 
@@ -374,6 +411,209 @@ UiActionResult UiDocument::ActivateIndex(const std::size_t index) noexcept
     return UiActionResult::Success;
 }
 
+UiActionResult UiDocument::ConfigureScrollViewport(
+    const std::string_view id,
+    const std::uint32_t contentWidth,
+    const std::uint32_t contentHeight) noexcept
+{
+    std::size_t viewportIndex = InvalidUiElementIndex;
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (elements_[index].id == id)
+        {
+            viewportIndex = index;
+            break;
+        }
+    }
+    if (viewportIndex == InvalidUiElementIndex)
+    {
+        return UiActionResult::NotFound;
+    }
+
+    UiElement& viewport = elements_[viewportIndex];
+    if (viewport.kind != UiElementKind::Panel || viewport.scroll.viewport)
+    {
+        return UiActionResult::InvalidScrollContent;
+    }
+    if (viewport.scrollOwnerIndex != InvalidUiElementIndex)
+    {
+        return UiActionResult::UnsupportedScrollHierarchy;
+    }
+    if (contentWidth < viewport.bounds.width || contentHeight < viewport.bounds.height ||
+        contentWidth > MaxUiCanvasDimension || contentHeight > MaxUiCanvasDimension)
+    {
+        return UiActionResult::InvalidScrollContent;
+    }
+
+    // Validate the complete subtree first so failed configuration publishes no partial ownership.
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (index == viewportIndex || !IsDescendantOrSelf(index, viewportIndex))
+        {
+            continue;
+        }
+
+        const UiElement& descendant = elements_[index];
+        if (descendant.scroll.viewport || descendant.scrollOwnerIndex != InvalidUiElementIndex ||
+            descendant.clipChildren)
+        {
+            // Nested scroll ownership and movable nested clipping need cumulative transformed clip
+            // state. U9 deliberately rejects both instead of adding per-event hierarchy discovery.
+            return UiActionResult::UnsupportedScrollHierarchy;
+        }
+
+        if (descendant.bounds.x < viewport.bounds.x || descendant.bounds.y < viewport.bounds.y)
+        {
+            return UiActionResult::InvalidScrollContent;
+        }
+
+        const std::uint32_t localX = descendant.bounds.x - viewport.bounds.x;
+        const std::uint32_t localY = descendant.bounds.y - viewport.bounds.y;
+        if (localX >= contentWidth || localY >= contentHeight ||
+            descendant.bounds.width > contentWidth - localX ||
+            descendant.bounds.height > contentHeight - localY)
+        {
+            return UiActionResult::InvalidScrollContent;
+        }
+    }
+
+    viewport.clipChildren = true;
+    viewport.scroll.viewport = true;
+    viewport.scroll.contentWidth = contentWidth;
+    viewport.scroll.contentHeight = contentHeight;
+
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (index == viewportIndex || !IsDescendantOrSelf(index, viewportIndex))
+        {
+            continue;
+        }
+
+        UiElement& descendant = elements_[index];
+        descendant.scrollOwnerIndex = viewportIndex;
+        descendant.clipBounds = descendant.clipActive
+            ? IntersectRects(descendant.clipBounds, viewport.bounds)
+            : viewport.bounds;
+        descendant.clipActive = true;
+    }
+
+    return UiActionResult::Success;
+}
+
+UiActionResult UiDocument::ScrollTo(
+    const std::string_view id,
+    const std::uint32_t offsetX,
+    const std::uint32_t offsetY) noexcept
+{
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (elements_[index].id == id)
+        {
+            return SetScrollOffsetIndex(index, offsetX, offsetY);
+        }
+    }
+    return UiActionResult::NotFound;
+}
+
+UiActionResult UiDocument::ScrollBy(
+    const std::string_view id,
+    const std::int32_t deltaX,
+    const std::int32_t deltaY) noexcept
+{
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (elements_[index].id == id)
+        {
+            return ScrollIndex(index, deltaX, deltaY);
+        }
+    }
+    return UiActionResult::NotFound;
+}
+
+UiActionResult UiDocument::ScrollIndex(
+    const std::size_t index,
+    const std::int64_t deltaX,
+    const std::int64_t deltaY) noexcept
+{
+    if (index >= elements_.size() || !elements_[index].scroll.viewport)
+    {
+        return UiActionResult::NotScrollViewport;
+    }
+
+    const UiElement& viewport = elements_[index];
+    const std::uint32_t maxX = viewport.scroll.contentWidth - viewport.bounds.width;
+    const std::uint32_t maxY = viewport.scroll.contentHeight - viewport.bounds.height;
+    const std::int64_t targetX = std::clamp<std::int64_t>(
+        static_cast<std::int64_t>(viewport.scroll.offsetX) + deltaX,
+        0,
+        static_cast<std::int64_t>(maxX));
+    const std::int64_t targetY = std::clamp<std::int64_t>(
+        static_cast<std::int64_t>(viewport.scroll.offsetY) + deltaY,
+        0,
+        static_cast<std::int64_t>(maxY));
+    return SetScrollOffsetIndex(
+        index,
+        static_cast<std::uint32_t>(targetX),
+        static_cast<std::uint32_t>(targetY));
+}
+
+UiActionResult UiDocument::SetScrollOffsetIndex(
+    const std::size_t index,
+    const std::uint32_t offsetX,
+    const std::uint32_t offsetY) noexcept
+{
+    if (index >= elements_.size() || !elements_[index].scroll.viewport)
+    {
+        return UiActionResult::NotScrollViewport;
+    }
+
+    UiElement& viewport = elements_[index];
+    const std::uint32_t maxX = viewport.scroll.contentWidth - viewport.bounds.width;
+    const std::uint32_t maxY = viewport.scroll.contentHeight - viewport.bounds.height;
+    const std::uint32_t clampedX = std::min(offsetX, maxX);
+    const std::uint32_t clampedY = std::min(offsetY, maxY);
+    if (clampedX == viewport.scroll.offsetX && clampedY == viewport.scroll.offsetY)
+    {
+        return UiActionResult::Success;
+    }
+
+    viewport.scroll.offsetX = clampedX;
+    viewport.scroll.offsetY = clampedY;
+    viewport.scroll.revision = viewport.scroll.revision == std::numeric_limits<std::uint64_t>::max()
+        ? 1U
+        : viewport.scroll.revision + 1U;
+
+    std::uint64_t updated = 0U;
+    bool clearHovered = false;
+    for (std::size_t elementIndex = 0U; elementIndex < elements_.size(); ++elementIndex)
+    {
+        UiElement& element = elements_[elementIndex];
+        if (element.scrollOwnerIndex != index)
+        {
+            continue;
+        }
+
+        element.presentationBounds = UiPresentationRect{
+            .x = static_cast<std::int32_t>(element.bounds.x) - static_cast<std::int32_t>(clampedX),
+            .y = static_cast<std::int32_t>(element.bounds.y) - static_cast<std::int32_t>(clampedY),
+            .width = element.bounds.width,
+            .height = element.bounds.height,
+        };
+        ++updated;
+        if (hoveredIndex_ == elementIndex)
+        {
+            element.hovered = false;
+            clearHovered = true;
+        }
+    }
+    if (clearHovered)
+    {
+        hoveredIndex_ = InvalidUiElementIndex;
+    }
+    viewport.scroll.translationUpdates = SaturatingAdd(viewport.scroll.translationUpdates, updated);
+    return UiActionResult::Success;
+}
+
 UiPointerRouteResult UiDocument::ApplyPointer(
     const input::PointerState& pointer,
     const input::InputControlState primaryButton) noexcept
@@ -386,6 +626,24 @@ UiPointerRouteResult UiDocument::ApplyPointer(
         result.hoveredIndex = hoveredIndex_;
         result.capturedIndex = pointerCaptureIndex_;
         return result;
+    }
+
+    // Wheel routing is edge-triggered work. Ordinary pointer motion never pays this second scan.
+    if ((pointer.wheelX != 0.0F || pointer.wheelY != 0.0F) &&
+        std::isfinite(pointer.wheelX) && std::isfinite(pointer.wheelY))
+    {
+        const std::size_t scrollIndex = HitTestTopmostScrollViewport(pointer.x, pointer.y);
+        if (scrollIndex < elements_.size())
+        {
+            const std::int64_t deltaX = pointer.wheelX > 0.0F
+                ? -static_cast<std::int64_t>(UiScrollWheelStep)
+                : (pointer.wheelX < 0.0F ? static_cast<std::int64_t>(UiScrollWheelStep) : 0);
+            const std::int64_t deltaY = pointer.wheelY > 0.0F
+                ? -static_cast<std::int64_t>(UiScrollWheelStep)
+                : (pointer.wheelY < 0.0F ? static_cast<std::int64_t>(UiScrollWheelStep) : 0);
+            (void)ScrollIndex(scrollIndex, deltaX, deltaY);
+            result.consumed = true;
+        }
     }
 
     // Capture is direct-index runtime state. If game code invalidates the target between pointer
@@ -682,6 +940,25 @@ std::size_t UiDocument::HitTestTopmost(const float x, const float y) const noexc
     return InvalidUiElementIndex;
 }
 
+std::size_t UiDocument::HitTestTopmostScrollViewport(const float x, const float y) const noexcept
+{
+    for (std::size_t reverseIndex = elements_.size(); reverseIndex > 0U; --reverseIndex)
+    {
+        const std::size_t index = reverseIndex - 1U;
+        const UiElement& element = elements_[index];
+        if (!element.scroll.viewport || !element.visible || !element.enabled ||
+            !IsInteractionAllowed(index))
+        {
+            continue;
+        }
+        if (IsPointInsideElement(index, x, y))
+        {
+            return index;
+        }
+    }
+    return InvalidUiElementIndex;
+}
+
 bool UiDocument::IsPointInsideElement(
     const std::size_t index,
     const float x,
@@ -693,11 +970,30 @@ bool UiDocument::IsPointInsideElement(
     }
 
     const UiElement& element = elements_[index];
-    return ContainsPoint(element.bounds, x, y) &&
+    return ContainsPoint(element.presentationBounds, x, y) &&
            (!element.clipActive || ContainsPoint(element.clipBounds, x, y));
 }
 
 bool UiDocument::ContainsPoint(const UiRect& bounds, const float x, const float y) noexcept
+{
+    if (!std::isfinite(x) || !std::isfinite(y) || bounds.width == 0U || bounds.height == 0U)
+    {
+        return false;
+    }
+
+    const double pointX = static_cast<double>(x);
+    const double pointY = static_cast<double>(y);
+    const double left = static_cast<double>(bounds.x);
+    const double top = static_cast<double>(bounds.y);
+    const double right = left + static_cast<double>(bounds.width);
+    const double bottom = top + static_cast<double>(bounds.height);
+    return pointX >= left && pointX < right && pointY >= top && pointY < bottom;
+}
+
+bool UiDocument::ContainsPoint(
+    const UiPresentationRect& bounds,
+    const float x,
+    const float y) noexcept
 {
     if (!std::isfinite(x) || !std::isfinite(y) || bounds.width == 0U || bounds.height == 0U)
     {
