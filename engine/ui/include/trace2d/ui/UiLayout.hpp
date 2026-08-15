@@ -25,8 +25,6 @@ enum class UiLayoutResult : std::uint8_t
     InvalidCanvasSize,
     InvalidId,
     TooManyNodes,
-    InvalidPlacementMode,
-    InvalidAnchor,
     InvalidBounds,
     DuplicateId,
     UnknownParent,
@@ -34,6 +32,8 @@ enum class UiLayoutResult : std::uint8_t
     HierarchyCycle,
     ChildOutsideParent,
     AlreadyFinalized,
+    InvalidPlacementMode,
+    InvalidAnchor,
 };
 
 enum class UiLayoutPlacementMode : std::uint8_t
