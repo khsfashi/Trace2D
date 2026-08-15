@@ -58,6 +58,11 @@ public:
     // Resolve the semantic state from the already-authoritative low-level InputSystem for the
     // current fixed frame. Physical, test, and Agent input therefore converge before gameplay.
     void Resolve(const InputSystem& input);
+
+    // Establish held/axis state from an already-authoritative InputSystem while deliberately
+    // clearing semantic edge flags. This is the explicit replacement/rebinding boundary: changing
+    // bindings while a physical control is already held must not synthesize a new Pressed edge.
+    void Synchronize(const InputSystem& input);
     void ResetState() noexcept;
 
     [[nodiscard]] std::optional<ButtonActionId> FindButtonAction(std::string_view semanticId) const noexcept;
@@ -98,6 +103,8 @@ private:
     };
 
     void RequireMutable() const;
+    void RequireFinalized() const;
+    [[nodiscard]] float ResolveAxisValue(const Axis1DActionRecord& action, const InputSystem& input) const noexcept;
     void RequireUniqueSemanticId(std::string_view semanticId) const;
     [[nodiscard]] ButtonActionRecord& ButtonRecord(ButtonActionId action);
     [[nodiscard]] const ButtonActionRecord& ButtonRecord(ButtonActionId action) const;
