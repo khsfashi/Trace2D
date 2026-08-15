@@ -33,8 +33,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
           lookup-only: true
+          enableCrossOsArchive: true
 
   owner-windows-gpu:
     if: github.repository == 'khsfashi/Trace2D'
@@ -168,4 +169,5 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
