@@ -56,6 +56,9 @@ struct UiElementSnapshot final
     std::string id{};
     UiRole role{UiRole::Panel};
     std::string name{};
+    std::optional<std::string> parentId{};
+    std::uint32_t depth{0U};
+    UiRectSnapshot localBounds{};
     UiRectSnapshot bounds{};
     bool visible{true};
     bool enabled{true};

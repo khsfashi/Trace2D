@@ -80,8 +80,152 @@ TEST(UiTextTests, AuthoredUiLoadsWithStableOrderAndDeterministicBounds)
     EXPECT_EQ(elements[2].name, "Start Game");
     EXPECT_EQ(elements[3].name, "Player Name");
     EXPECT_EQ(elements[2].bounds, (UiRect{8U, 32U, 96U, 24U}));
+    EXPECT_EQ(elements[2].localBounds, elements[2].bounds);
+    EXPECT_TRUE(elements[2].parentId.empty());
+    EXPECT_EQ(elements[2].parentIndex, InvalidUiElementIndex);
+    EXPECT_EQ(elements[2].depth, 0U);
     EXPECT_EQ(elements[3].kind, UiElementKind::TextInput);
     EXPECT_TRUE(elements[3].visible);
+}
+
+TEST(UiTextTests, AuthoredHierarchyAndAnchorsCompileIntoRuntimeDocument)
+{
+    constexpr std::string_view HierarchicalUi = R"(format_version = 1
+
+[canvas]
+width = 320
+height = 180
+
+[[elements]]
+id = "confirm"
+kind = "button"
+parent = "panel"
+placement = "anchored_fixed"
+anchor = [1024, 1024]
+pivot = [1024, 1024]
+offset = [-8, -6]
+size = [64, 24]
+name = "Confirm"
+text = "OK"
+
+[[elements]]
+id = "label"
+kind = "label"
+parent = "panel"
+bounds = [4, 5, 40, 12]
+text = "Ready"
+
+[[elements]]
+id = "panel"
+kind = "panel"
+bounds = [40, 20, 200, 100]
+name = "Panel"
+)";
+
+    UiLoadResult result = LoadUiToml(HierarchicalUi, "hierarchical_ui.trace2d.toml");
+    ASSERT_TRUE(result.Succeeded());
+    ASSERT_TRUE(result.document.has_value());
+
+    const std::span<const UiElement> elements = result.document->Elements();
+    ASSERT_EQ(elements.size(), 3U);
+
+    // Authored order is stable even though both children are declared before their parent.
+    EXPECT_EQ(elements[0].id, "confirm");
+    EXPECT_EQ(elements[1].id, "label");
+    EXPECT_EQ(elements[2].id, "panel");
+
+    EXPECT_EQ(elements[0].parentId, "panel");
+    EXPECT_EQ(elements[0].parentIndex, 2U);
+    EXPECT_EQ(elements[0].depth, 1U);
+    EXPECT_EQ(elements[0].localBounds, (UiRect{128U, 70U, 64U, 24U}));
+    EXPECT_EQ(elements[0].bounds, (UiRect{168U, 90U, 64U, 24U}));
+
+    EXPECT_EQ(elements[1].parentId, "panel");
+    EXPECT_EQ(elements[1].parentIndex, 2U);
+    EXPECT_EQ(elements[1].depth, 1U);
+    EXPECT_EQ(elements[1].localBounds, (UiRect{4U, 5U, 40U, 12U}));
+    EXPECT_EQ(elements[1].bounds, (UiRect{44U, 25U, 40U, 12U}));
+
+    EXPECT_TRUE(elements[2].parentId.empty());
+    EXPECT_EQ(elements[2].parentIndex, InvalidUiElementIndex);
+    EXPECT_EQ(elements[2].depth, 0U);
+    EXPECT_EQ(elements[2].localBounds, (UiRect{40U, 20U, 200U, 100U}));
+    EXPECT_EQ(elements[2].bounds, elements[2].localBounds);
+}
+
+TEST(UiTextTests, InvalidAuthoredHierarchyAndPlacementDoNotPublishPartialDocument)
+{
+    constexpr std::string_view MissingParent = R"(format_version = 1
+[canvas]
+width = 64
+height = 64
+[[elements]]
+id = "child"
+kind = "label"
+parent = "missing"
+bounds = [0, 0, 8, 8]
+)";
+    const UiLoadResult missingParent = LoadUiToml(MissingParent);
+    EXPECT_FALSE(missingParent.Succeeded());
+    EXPECT_FALSE(missingParent.document.has_value());
+    EXPECT_TRUE(HasDiagnosticPath(missingParent, "layout"));
+
+    constexpr std::string_view Cycle = R"(format_version = 1
+[canvas]
+width = 64
+height = 64
+[[elements]]
+id = "a"
+kind = "panel"
+parent = "b"
+bounds = [0, 0, 16, 16]
+[[elements]]
+id = "b"
+kind = "panel"
+parent = "a"
+bounds = [0, 0, 16, 16]
+)";
+    const UiLoadResult cycle = LoadUiToml(Cycle);
+    EXPECT_FALSE(cycle.Succeeded());
+    EXPECT_FALSE(cycle.document.has_value());
+    EXPECT_TRUE(HasDiagnosticPath(cycle, "layout"));
+
+    constexpr std::string_view ConflictingPlacement = R"(format_version = 1
+[canvas]
+width = 64
+height = 64
+[[elements]]
+id = "bad"
+kind = "button"
+placement = "anchored_fixed"
+bounds = [0, 0, 8, 8]
+anchor = [0, 0]
+pivot = [0, 0]
+offset = [0, 0]
+size = [8, 8]
+)";
+    const UiLoadResult conflicting = LoadUiToml(ConflictingPlacement);
+    EXPECT_FALSE(conflicting.Succeeded());
+    EXPECT_FALSE(conflicting.document.has_value());
+    EXPECT_TRUE(HasDiagnosticPath(conflicting, "elements[0].bounds"));
+
+    constexpr std::string_view InvalidNormalized = R"(format_version = 1
+[canvas]
+width = 64
+height = 64
+[[elements]]
+id = "bad"
+kind = "button"
+placement = "anchored_fixed"
+anchor = [1025, 0]
+pivot = [0, 0]
+offset = [0, 0]
+size = [8, 8]
+)";
+    const UiLoadResult normalized = LoadUiToml(InvalidNormalized);
+    EXPECT_FALSE(normalized.Succeeded());
+    EXPECT_FALSE(normalized.document.has_value());
+    EXPECT_TRUE(HasDiagnosticPath(normalized, "elements[0].anchor"));
 }
 
 TEST(UiStateTests, FocusActivationAndTextInputAreInspectableWithoutRendering)

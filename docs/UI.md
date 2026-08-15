@@ -2,44 +2,57 @@
 
 Trace2D UI is intentionally small, deterministic, engine-owned, and directly operable by coding agents without screen-coordinate targeting.
 
-The authoritative flow is:
+The authoritative authored flow is:
 
 ```text
 text-authored TOML
-  -> UiDocument
-  -> deterministic engine-owned state
+  -> setup-only UiLayoutTree compilation
+  -> UiDocument resolved runtime state
+  -> deterministic engine-owned interaction/text state
   -> AgentFacade semantic inspect/query/action/assert
   -> deterministic RGBA8 raster
   -> optional renderer texture upload
 ```
 
-The GPU remains presentation only. Element identity, role, semantic name, bounds, visibility, enabled state, focus, text, and activation state live in `engine/ui` and are available without creating a window or renderer. `engine/agent` observes and mutates that same `UiDocument`; it does not maintain a second UI model.
+The GPU remains presentation only. Element identity, semantic hierarchy, role, name, resolved geometry, visibility, enabled state, focus, text, and activation state live in `engine/ui` and are available without creating a window or renderer. `engine/agent` observes and mutates that same `UiDocument`; it does not maintain a second UI model.
+
+Detailed E6 layout contracts:
+
+- `docs/UI_E6_U0.md` — deterministic hierarchy foundation,
+- `docs/UI_E6_U1.md` — deterministic fixed anchor/pivot placement,
+- `docs/UI_E6_U2.md` — authored TOML -> runtime hierarchy/layout bridge.
 
 ## Module boundary
 
 `engine/ui` is SDL-free and does not depend on `engine/render`, `engine/agent`, JSON, MCP, or an LLM protocol.
 
-Current responsibilities:
+Current responsibilities include:
 
-- strict versioned TOML loading
-- stable non-empty element IDs
-- stable semantic names
-- deterministic authored-order iteration
-- integer pixel bounds
-- visible/enabled/focused state
-- panel, label, button, and text-input primitives
-- button activation count
-- focused text-input replacement
-- deterministic CPU RGBA8 rasterization
-- minimal built-in 5x7 ASCII-oriented label font
+- strict versioned TOML loading,
+- stable non-empty element IDs,
+- deterministic authored-order iteration,
+- setup-time stable parent resolution and hierarchy validation,
+- parent-local absolute placement,
+- exact integer fixed anchor/pivot placement,
+- retained direct parent index, hierarchy depth, local bounds, and absolute logical-canvas bounds,
+- visible/enabled/focused state,
+- panel, label, button, and text-input primitives,
+- button activation count,
+- focused text-input mutation/composition,
+- deterministic CPU RGBA8 rasterization,
+- semantic Agent inspection/query/action/assertion.
 
-`engine/agent` depends on `engine/ui` and exposes protocol-independent semantic snapshots, selectors, actions, and assertions. MCP is intentionally deferred to Issue #39 and will adapt this existing surface rather than define it.
+`engine/agent` depends on `engine/ui` and exposes protocol-independent semantic snapshots, selectors, actions, and assertions. Protocol adapters consume this existing surface rather than defining UI ownership.
 
 The separate `trace2d_ui_preview` tool remains a presentation adapter. In windowed mode it uploads the CPU raster through the existing renderer texture API and draws that texture as one sprite.
 
 ## Authored format
 
-The current format version is `1`.
+The current format version remains `1`.
+
+### Legacy/root absolute placement
+
+Existing documents remain source-compatible:
 
 ```toml
 format_version = 1
@@ -55,55 +68,91 @@ bounds = [0, 0, 160, 96]
 name = "Main Menu"
 
 [[elements]]
-id = "title"
-kind = "label"
-bounds = [8, 8, 100, 16]
-name = "Title"
-text = "Trace2D UI"
-
-[[elements]]
 id = "start"
 kind = "button"
 bounds = [8, 32, 96, 24]
 name = "Start Game"
 text = "Start Game"
-
-[[elements]]
-id = "player_name"
-kind = "text_input"
-bounds = [8, 64, 120, 24]
-name = "Player Name"
-text = "Player"
 ```
 
-The committed sample is `samples/ui/basic_ui.trace2d.toml`.
+With no `parent` and no `placement`, `bounds = [x, y, width, height]` is a root rectangle in logical-canvas coordinates.
 
-### Required fields
+### Parent-local absolute placement
 
-Top level:
+A child names its stable parent and authors `bounds` relative to that immediate parent:
 
-- `format_version = 1`
-- `[canvas].width`
-- `[canvas].height`
+```toml
+[[elements]]
+id = "label"
+kind = "label"
+parent = "panel"
+bounds = [4, 5, 40, 12]
+text = "Ready"
+```
 
-Each `[[elements]]` table requires:
+Children may be declared before parents. The load compiler resolves IDs independently of author order while preserving the original element iteration order in `UiDocument`.
 
-- `id`: stable, non-empty, unique identity
-- `kind`: `panel`, `label`, `button`, or `text_input`
-- `bounds`: `[x, y, width, height]`
+### Fixed anchored placement
 
-Optional element fields:
+U1 placement is exposed explicitly through the authored path:
 
-- `name`: stable semantic name used by agents; defaults to the initial authored `text`
-- `text`: current label/value text; defaults to empty
-- `visible`: defaults to `true`
-- `enabled`: defaults to `true`
+```toml
+[[elements]]
+id = "confirm"
+kind = "button"
+parent = "panel"
+placement = "anchored_fixed"
+anchor = [1024, 1024]
+pivot = [1024, 1024]
+offset = [-8, -6]
+size = [64, 24]
+name = "Confirm"
+text = "OK"
+```
+
+The normalized anchor/pivot domain is exactly `0..1024` per axis:
+
+- `0` = leading edge,
+- `512` = center,
+- `1024` = trailing edge.
+
+`offset` is signed logical pixels. `size` is a positive logical-pixel pair. `anchored_fixed` must not also provide `bounds`; absolute placement requires `bounds` and does not accept anchor/pivot/offset/size fields.
+
+All anchor/pivot arithmetic and containment validation remain owned by `UiLayoutTree`; the TOML loader does not define a second implementation.
+
+### Common fields
+
+Each `[[elements]]` table always requires:
+
+- `id`: stable, non-empty, unique identity,
+- `kind`: `panel`, `label`, `button`, or `text_input`.
+
+Optional common fields:
+
+- `parent`: stable non-empty parent ID,
+- `placement`: omitted/`absolute`, or `anchored_fixed`,
+- `name`: stable semantic name used by agents; defaults to initial authored `text`,
+- `text`: current label/value text; defaults to empty,
+- `visible`: defaults to `true`,
+- `enabled`: defaults to `true`.
 
 The `name` fallback is resolved when the authored document loads. Later text-input mutation changes `text` but does not silently change semantic identity.
 
-Unknown fields are rejected. Bounds must have positive width/height and remain inside the canvas.
+Unknown fields are rejected. V1 canvas dimensions are bounded to `1..4096` on each axis.
 
-V1 canvas dimensions are bounded to `1..4096` on each axis. The bound is an authored-input safety limit, not a recommended production resolution. A 4096x4096 RGBA8 raster is already 64 MiB before renderer resources.
+## Setup compilation and runtime state
+
+`LoadUiToml()` stages syntactically valid elements, validates duplicate IDs, then feeds the existing U0/U1 `UiLayoutTree`. Only after `Finalize()` succeeds are elements published into `UiDocument`.
+
+Each runtime `UiElement` retains:
+
+- semantic `parentId`,
+- direct `parentIndex` into the same authored-order `UiDocument::Elements()` storage, or `InvalidUiElementIndex` for roots,
+- hierarchy `depth`,
+- resolved parent-local `localBounds`,
+- absolute logical-canvas `bounds`.
+
+The temporary layout tree is discarded after load. Runtime actions, rasterization, later input routing, and Agent inspection consume the already-resolved `UiDocument`; there is no second hierarchy to synchronize per frame.
 
 ## Semantic roles
 
@@ -116,41 +165,31 @@ button     -> button
 text_input -> textbox
 ```
 
-This vocabulary is intentionally smaller than a browser accessibility tree or DOM. V1 is a flat authored-order semantic tree rooted by the UI document itself; there is no speculative hierarchy, automatic layout tree, CSS model, or browser abstraction.
+This vocabulary is intentionally smaller than a browser accessibility tree or DOM. Semantic identity remains independent of screen coordinates.
 
 ## Semantic selectors
 
 `agent::UiSelector` can contain any non-empty combination of:
 
-- `id`
-- `role`
-- `name`
+- `id`,
+- `role`,
+- `name`.
 
-Multiple fields are ANDed. A normal agent workflow can therefore use a stable selector equivalent to:
-
-```text
-role=button name="Start Game"
-role=textbox name="Player Name"
-id=start
-```
-
-`QueryUi` returns every match in authored order. `QueryOneUi` requires exactly one match and returns stable `no_match` or `ambiguous_match` diagnostics otherwise.
-
-Coordinates are exposed as structured bounds for observation and assertions, but they are not needed to identify or activate a control when semantic identity exists.
+Multiple fields are ANDed. `QueryUi` returns every match in authored order. `QueryOneUi` requires exactly one match and returns stable `no_match` or `ambiguous_match` diagnostics otherwise.
 
 ## Semantic inspection
 
-`AgentFacade::InspectUi()` returns the canvas and authored-order element snapshots. Each element exposes:
+`AgentFacade::InspectUi()` and query/action responses expose the same engine-owned runtime truth. Each element snapshot includes:
 
-- stable `id`
-- semantic `role`
-- semantic `name`
-- integer `bounds`
-- `visible`
-- `enabled`
-- `focused`
-- current `text`
-- `activationCount`
+- stable `id`, role, and semantic `name`,
+- optional `parentId`,
+- hierarchy `depth`,
+- resolved parent-local `localBounds`,
+- absolute logical-canvas `bounds`,
+- `visible`, `enabled`, `focused`,
+- current `text`,
+- `activationCount`,
+- text composition/layout evidence when applicable.
 
 Snapshots allocate only when an explicit inspection/query request asks for copied observation data. Ordinary UI state and raster paths do not build Agent snapshots.
 
@@ -164,110 +203,45 @@ ActivateUi(selector)
 InputUiText(selector, text)
 ```
 
-Each action first resolves exactly one semantic target, then mutates engine-owned `UiDocument` state.
+Rules remain deterministic:
 
-Rules:
+- invisible controls reject focus/activation/text input,
+- disabled controls reject focus/activation/text input,
+- only button/textbox controls are focusable,
+- only buttons are activatable,
+- only textboxes accept text input,
+- text input requires the textbox to be focused first,
+- successful text input changes `text`, not semantic `name`.
 
-- invisible controls reject focus/activation/text input
-- disabled controls reject focus/activation/text input
-- only button/textbox controls are focusable
-- only buttons are activatable in V1
-- only textboxes accept text input
-- text input requires the textbox to be focused first
-- a successful text-input action changes `text`, not semantic `name`
-
-`UiDocument` button activation and focus remain allocation-free. Agent-facing actions return copied structured result snapshots, so explicit automation requests may allocate observation strings. Text replacement is an explicit user/agent mutation and may resize the element's existing `std::string`; none of these explicit tooling costs occur automatically in a per-frame simulation hot path.
-
-Stable action diagnostics include:
-
-```text
-ui_unavailable
-invalid_selector
-no_match
-ambiguous_match
-not_visible
-disabled
-not_focusable
-not_activatable
-not_text_input
-not_focused
-action_rejected
-```
-
-## Deterministic gameplay handoff
-
-V1 deliberately avoids a callback graph, polymorphic UI command objects, or a heap-allocating event queue just to connect a button to game logic.
-
-For buttons, `activationCount` is the engine-owned deterministic edge counter. Gameplay code can keep the last consumed count and process the positive delta during its deterministic update:
-
-```text
-semantic ActivateUi("Start Game")
-  -> UiDocument.start.activationCount increments
-  -> fixed-step gameplay consumes activationCount delta exactly once
-  -> authoritative scene/game state changes
-  -> Agent queries/asserts resulting structured state
-```
-
-Re-running the gameplay update without another activation observes no new delta, so the action is not replayed. Multiple activations before one update remain representable as a count delta instead of being collapsed into a boolean.
-
-This keeps V1 dispatch explicit, deterministic, and allocation-light. If future practical controls require richer payload events, they should extend this boundary from measured requirements rather than introduce a generic event framework preemptively.
-
-`tests/agent/UiGameInteractionTests.cpp` proves the complete headless path by selecting `role=button, name="Start Game"` without coordinates, activating it, consuming the activation edge into scene state, and then verifying the changed entity through the existing structured Agent query surface.
-
-## Semantic assertions
-
-`AgentFacade::AssertUi(selector, expected)` performs an exact single-target query and may verify any combination of:
-
-- `visible`
-- `enabled`
-- `focused`
-- `text`
-- `activationCount`
-
-A mismatch returns `state_mismatch` with expected and observed context. This gives coding agents a structured correctness oracle without screenshot inference.
+For buttons, `activationCount` is the engine-owned deterministic edge counter. Gameplay may retain the last consumed count and process the positive delta during deterministic update without introducing a callback graph or heap event queue.
 
 ## Determinism and complexity
 
-UI iteration and all semantic multi-query output preserve authored order. No hash-container iteration order participates in observable output.
+Observable UI iteration remains authored order. Hash-container iteration order does not participate in runtime or Agent output.
 
-Current element lookup/query/action target resolution is a deterministic O(N) scan. This is deliberate: the first UI surface is small, predictable, and allocation-light. An index should be introduced only when measured authored UI sizes demonstrate that O(N) lookup is a meaningful cost.
+Authored load/setup for `N` valid elements performs bounded staging plus `O(N log N)` duplicate/parent lookup preparation. Publication currently preserves the original duplicate-protected `UiDocument::AddElement` contract, whose repeated linear ID guard makes publication `O(N^2)` in the worst case. This is explicit load/setup work, not a frame loop; a bulk publication/index path should be added only if measured practical authored UI sizes make that setup cost material.
 
-The semantic query path is explicit tooling work and may allocate result snapshots. `UiDocument` focus/activation state mutation itself adds no heap allocation. No semantic snapshot, JSON object, fingerprint, or MCP payload is produced during ordinary rasterization or simulation.
+After publication:
 
-Bounds use unsigned integer canvas pixels. The same loaded document therefore produces the same element rectangles independent of renderer resolution, GPU vendor, locale, or wall-clock timing.
+- parent traversal can use direct indices,
+- hierarchy discovery is not repeated,
+- anchor/pivot math is not repeated,
+- no TOML parsing, filesystem access, sorting, JSON/reporting, or Agent snapshot generation happens implicitly,
+- logical UI geometry remains independent of OS/window presentation size and follows the #88 viewport mapping contract.
+
+Current semantic ID lookup/query/action target resolution in `UiDocument` remains a deterministic O(N) scan. An additional runtime index should be introduced only when measured practical UI sizes show that scan cost is meaningful.
 
 ## Rasterization and visibility
 
-`RasterizeUi` writes into a caller-owned `UiRasterImage`.
+`RasterizeUi` consumes each element's resolved absolute `bounds` and writes into a caller-owned `UiRasterImage`.
 
-When width and height are unchanged, the existing `std::vector<std::uint8_t>` storage is reused. The raster path does not allocate temporary element or glyph collections.
-
-Invisible elements are skipped entirely by rasterization. The same `visible` state exposed to Agent inspection therefore controls presentation rather than existing as automation-only metadata.
-
-Current complexity is proportional to the canvas pixels cleared plus visible primitive/glyph work:
+When width and height are unchanged, existing output storage is reused. Invisible elements are skipped entirely. Current work is proportional to canvas clear plus visible primitive/glyph pixels:
 
 ```text
 O(canvas_pixels + visible_filled_primitive_pixels + visible_glyph_pixels)
 ```
 
-The preview adapter performs one texture upload when the authored UI is loaded, then reuses the resulting renderer texture for subsequent preview frames. This first deterministic CPU rasterizer is not claimed as the final production UI renderer; later optimization should follow measured workloads.
-
-## Built-in text scope
-
-The built-in font is dependency-free and deterministic. It is a fixed 5x7 bitmap glyph set covering ASCII letters, digits, space, and a small punctuation subset. Lowercase ASCII renders through the corresponding uppercase glyph.
-
-Not implemented:
-
-- Unicode shaping
-- CJK text
-- kerning
-- font fallback
-- variable font sizing
-- authored font assets
-- rich text
-- localization layout
-
-Those capabilities should be introduced only when practical authored content requires them, behind the same engine-owned semantic contract.
+The preview adapter performs one texture upload when authored UI is loaded, then reuses the renderer texture for subsequent preview frames. This CPU rasterizer remains presentation plumbing rather than a second UI state model.
 
 ## Preview commands
 
@@ -291,20 +265,21 @@ build\windows-debug\tools\ui_preview\Debug\trace2d_ui_preview.exe `
 
 Headless semantic interaction is covered directly through `AgentFacade` tests over the same `UiDocument` state and requires no renderer initialization.
 
-## Deliberate non-goals
+## Deliberate non-goals for U2
 
-The current UI/semantic automation surface does not introduce:
+U2 does not introduce:
 
-- a broad widget framework
-- nested automatic layout
-- anchors/flex/grid systems
-- style sheets or themes
-- an editor
-- coordinate-only automation
-- a UI-specific GPU renderer
-- a DOM clone or browser abstraction
-- a generic callback/event framework without a demonstrated payload requirement
-- JSON/MCP types inside engine modules
-- a font cache system without a real authored-font requirement
+- stretch anchors without demonstrated need,
+- horizontal/vertical stack, flex, or grid layout,
+- margin/padding policy,
+- pointer hit routing/capture,
+- focus traversal/navigation,
+- clipping/scroll,
+- broad widget/style/theme frameworks,
+- an editor,
+- coordinate-only automation,
+- a UI-specific retained GPU renderer,
+- a DOM/browser abstraction,
+- a generic callback/event framework without a demonstrated payload requirement.
 
-Issue #39 may now expose this completed semantic vocabulary through MCP without redesigning UI ownership or automation semantics.
+Those are later bounded #75 slices and must build on this single resolved runtime state rather than bypass it.

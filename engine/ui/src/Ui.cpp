@@ -201,6 +201,13 @@ UiActionResult UiDocument::AddElement(UiElement element)
         return UiActionResult::InvalidBounds;
     }
 
+    // Direct callers from the original flat UI contract do not need to populate U2 hierarchy
+    // metadata. For a root, the resolved parent-local rectangle is identical to absolute bounds.
+    if (element.localBounds.width == 0U || element.localBounds.height == 0U)
+    {
+        element.localBounds = element.bounds;
+    }
+
     element.textSourceIdentity = nextTextSourceIdentity_;
     ++nextTextSourceIdentity_;
     if (nextTextSourceIdentity_ == 0U)
@@ -403,7 +410,7 @@ UiActionResult UiDocument::ApplyTextInput(const input::TextInputEvent& event)
 void UiDocument::ClearFocus() noexcept
 {
     ClearTextComposition();
-    focusedIndex_ = static_cast<std::size_t>(-1);
+    focusedIndex_ = InvalidUiElementIndex;
 }
 
 void UiDocument::TouchDisplayText(UiElement& element) noexcept
