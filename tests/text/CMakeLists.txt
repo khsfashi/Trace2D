@@ -1,6 +1,7 @@
 add_executable(trace2d_text_tests
     TextTests.cpp
     TextLayoutTests.cpp
+    TextLayoutCacheTests.cpp
     TextFallbackTests.cpp
     TextPresentation2DTests.cpp
 )

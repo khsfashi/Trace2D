@@ -77,7 +77,7 @@ namespace
     const ui::UiDocument& document,
     const ui::UiElement& element)
 {
-    return UiElementSnapshot{
+    UiElementSnapshot snapshot{
         .id = element.id,
         .role = RoleForKind(element.kind),
         .name = element.name,
@@ -93,6 +93,36 @@ namespace
         .text = element.text,
         .activationCount = element.activationCount,
     };
+
+    if (snapshot.focused)
+    {
+        const ui::UiTextCompositionState composition = document.TextComposition();
+        if (composition.active)
+        {
+            snapshot.composition = UiTextCompositionSnapshot{
+                .text = std::string{composition.text},
+                .selectionStart = composition.selectionStart,
+                .selectionLength = composition.selectionLength,
+            };
+        }
+    }
+
+    if (element.textLayout.valid &&
+        element.textLayout.sourceRevision == element.displayTextRevision)
+    {
+        snapshot.textLayout = UiTextLayoutSnapshot{
+            .sourceRevision = element.textLayout.sourceRevision,
+            .includesComposition = element.textLayout.includesComposition,
+            .glyphCount = static_cast<std::uint64_t>(element.textLayout.glyphCount),
+            .lineCount = static_cast<std::uint64_t>(element.textLayout.lineCount),
+            .contentWidth26_6 = element.textLayout.contentWidth26_6,
+            .contentHeight26_6 = element.textLayout.contentHeight26_6,
+            .layoutWidth26_6 = element.textLayout.layoutWidth26_6,
+            .layoutHeight26_6 = element.textLayout.layoutHeight26_6,
+        };
+    }
+
+    return snapshot;
 }
 
 [[nodiscard]] UiAutomationError MakeError(
@@ -129,6 +159,7 @@ namespace
     case ui::UiActionResult::InvalidId:
     case ui::UiActionResult::DuplicateId:
     case ui::UiActionResult::InvalidBounds:
+    case ui::UiActionResult::InvalidTextCompositionRange:
         break;
     }
 

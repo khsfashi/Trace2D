@@ -31,6 +31,21 @@ enum class UiElementKind : std::uint8_t
     TextInput,
 };
 
+struct UiTextLayoutEvidence final
+{
+    bool valid{false};
+    std::uint64_t sourceRevision{0U};
+    bool includesComposition{false};
+    std::size_t glyphCount{0U};
+    std::size_t lineCount{0U};
+    std::int64_t contentWidth26_6{0};
+    std::int64_t contentHeight26_6{0};
+    std::int64_t layoutWidth26_6{0};
+    std::int64_t layoutHeight26_6{0};
+
+    [[nodiscard]] bool operator==(const UiTextLayoutEvidence&) const noexcept = default;
+};
+
 struct UiElement final
 {
     std::string id{};
@@ -41,6 +56,10 @@ struct UiElement final
     bool visible{true};
     bool enabled{true};
     std::uint64_t activationCount{0};
+
+    std::uint64_t textSourceIdentity{0U};
+    std::uint64_t displayTextRevision{0U};
+    UiTextLayoutEvidence textLayout{};
 };
 
 struct UiTextCompositionState final
@@ -73,6 +92,8 @@ enum class UiActionResult : std::uint8_t
 [[nodiscard]] bool IsFocusable(UiElementKind kind) noexcept;
 [[nodiscard]] bool IsActivatable(UiElementKind kind) noexcept;
 
+class UiTextLayoutCache;
+
 class UiDocument final
 {
 public:
@@ -93,12 +114,7 @@ public:
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
 
-    // Existing semantic/Agent API: replace the complete committed value of one focused textbox.
     [[nodiscard]] UiActionResult InputText(std::string_view id, std::string_view text);
-
-    // Physical host, direct host, and headless/virtual text input all converge here. Committed UTF-8
-    // appends to the focused textbox for the I3 baseline; IME composition remains transient and is
-    // never copied into the committed textbox value until a Committed event arrives.
     [[nodiscard]] UiActionResult ApplyTextInput(const input::TextInputEvent& event);
 
     void ClearFocus() noexcept;
@@ -107,17 +123,20 @@ private:
     [[nodiscard]] UiElement* FindMutable(std::string_view id) noexcept;
     [[nodiscard]] UiElement* FocusedTextInput() noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
-    void ClearTextComposition() noexcept;
+    void TouchDisplayText(UiElement& element) noexcept;
+    void PublishTextLayoutEvidence(std::string_view id, const UiTextLayoutEvidence& evidence) noexcept;
+    void ClearTextComposition(bool touchDisplay = true) noexcept;
 
     std::uint32_t width_{0};
     std::uint32_t height_{0};
     std::vector<UiElement> elements_{};
     std::size_t focusedIndex_{static_cast<std::size_t>(-1)};
+    std::uint64_t nextTextSourceIdentity_{1U};
 
-    // At most one UI element can own focus, so I3 retains one reusable preedit buffer per document
-    // instead of adding a std::string to every Panel/Label/Button/TextInput instance.
     std::string textComposition_{};
     std::int32_t textCompositionSelectionStart_{-1};
     std::int32_t textCompositionSelectionLength_{-1};
+
+    friend class UiTextLayoutCache;
 };
 } // namespace trace2d::ui

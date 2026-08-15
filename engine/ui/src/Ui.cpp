@@ -1,9 +1,27 @@
 #include <trace2d/ui/Ui.hpp>
 
+#include <limits>
 #include <utility>
 
 namespace trace2d::ui
 {
+namespace
+{
+[[nodiscard]] bool EqualsCommittedPlusComposition(
+    const std::string_view candidate,
+    const std::string_view committed,
+    const std::string_view composition) noexcept
+{
+    if (committed.size() > std::numeric_limits<std::size_t>::max() - composition.size() ||
+        candidate.size() != committed.size() + composition.size())
+    {
+        return false;
+    }
+    return candidate.substr(0U, committed.size()) == committed &&
+           candidate.substr(committed.size()) == composition;
+}
+} // namespace
+
 std::string_view ToString(const UiElementKind kind) noexcept
 {
     switch (kind)
@@ -183,6 +201,15 @@ UiActionResult UiDocument::AddElement(UiElement element)
         return UiActionResult::InvalidBounds;
     }
 
+    element.textSourceIdentity = nextTextSourceIdentity_;
+    ++nextTextSourceIdentity_;
+    if (nextTextSourceIdentity_ == 0U)
+    {
+        nextTextSourceIdentity_ = 1U;
+    }
+    element.displayTextRevision = 1U;
+    element.textLayout = {};
+
     elements_.push_back(std::move(element));
     return UiActionResult::Success;
 }
@@ -278,8 +305,24 @@ UiActionResult UiDocument::InputText(const std::string_view id, const std::strin
         return UiActionResult::NotFocused;
     }
 
-    element->text.assign(text);
-    ClearTextComposition();
+    const bool hadComposition = !textComposition_.empty();
+    const bool displayChanged = hadComposition
+        ? !EqualsCommittedPlusComposition(text, element->text, textComposition_)
+        : element->text != text;
+
+    if (element->text != text)
+    {
+        element->text.assign(text);
+    }
+    if (displayChanged)
+    {
+        TouchDisplayText(*element);
+    }
+    else if (hadComposition)
+    {
+        element->textLayout = {};
+    }
+    ClearTextComposition(false);
     return UiActionResult::Success;
 }
 
@@ -308,8 +351,25 @@ UiActionResult UiDocument::ApplyTextInput(const input::TextInputEvent& event)
     switch (event.type)
     {
     case input::TextInputEventType::Committed:
-        textInput->text.append(event.text);
-        ClearTextComposition();
+        {
+            const bool hadComposition = !textComposition_.empty();
+            const bool displayChanged = hadComposition
+                ? event.text != textComposition_
+                : !event.text.empty();
+            if (!event.text.empty())
+            {
+                textInput->text.append(event.text);
+            }
+            if (displayChanged)
+            {
+                TouchDisplayText(*textInput);
+            }
+            else if (hadComposition)
+            {
+                textInput->textLayout = {};
+            }
+            ClearTextComposition(false);
+        }
         return UiActionResult::Success;
 
     case input::TextInputEventType::Composition:
@@ -324,9 +384,16 @@ UiActionResult UiDocument::ApplyTextInput(const input::TextInputEvent& event)
             return UiActionResult::Success;
         }
 
-        textComposition_.assign(event.text);
-        textCompositionSelectionStart_ = event.selectionStart;
-        textCompositionSelectionLength_ = event.selectionLength;
+        {
+            const bool textChanged = textComposition_ != event.text;
+            textComposition_.assign(event.text);
+            textCompositionSelectionStart_ = event.selectionStart;
+            textCompositionSelectionLength_ = event.selectionLength;
+            if (textChanged)
+            {
+                TouchDisplayText(*textInput);
+            }
+        }
         return UiActionResult::Success;
     }
 
@@ -339,8 +406,46 @@ void UiDocument::ClearFocus() noexcept
     focusedIndex_ = static_cast<std::size_t>(-1);
 }
 
-void UiDocument::ClearTextComposition() noexcept
+void UiDocument::TouchDisplayText(UiElement& element) noexcept
 {
+    if (element.displayTextRevision == std::numeric_limits<std::uint64_t>::max())
+    {
+        element.displayTextRevision = 1U;
+    }
+    else
+    {
+        ++element.displayTextRevision;
+    }
+    element.textLayout = {};
+}
+
+void UiDocument::PublishTextLayoutEvidence(
+    const std::string_view id,
+    const UiTextLayoutEvidence& evidence) noexcept
+{
+    UiElement* const element = FindMutable(id);
+    if (element == nullptr || !evidence.valid ||
+        evidence.sourceRevision != element->displayTextRevision)
+    {
+        if (element != nullptr)
+        {
+            element->textLayout = {};
+        }
+        return;
+    }
+    element->textLayout = evidence;
+}
+
+void UiDocument::ClearTextComposition(const bool touchDisplay) noexcept
+{
+    if (touchDisplay && !textComposition_.empty())
+    {
+        UiElement* const textInput = FocusedTextInput();
+        if (textInput != nullptr)
+        {
+            TouchDisplayText(*textInput);
+        }
+    }
     textComposition_.clear();
     textCompositionSelectionStart_ = -1;
     textCompositionSelectionLength_ = -1;

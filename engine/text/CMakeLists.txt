@@ -3,6 +3,7 @@ find_package(Freetype REQUIRED)
 add_library(trace2d_text STATIC
     src/Text.cpp
     src/TextLayout.cpp
+    src/TextLayoutCache.cpp
     src/TextPresentation2D.cpp
 )
 

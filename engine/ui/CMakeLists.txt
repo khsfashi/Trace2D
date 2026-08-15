@@ -4,6 +4,7 @@ add_library(trace2d_ui STATIC
     src/Ui.cpp
     src/UiRaster.cpp
     src/UiText.cpp
+    src/UiTextLayout.cpp
 )
 
 add_library(Trace2D::Ui ALIAS trace2d_ui)
@@ -16,6 +17,7 @@ target_include_directories(trace2d_ui
 target_link_libraries(trace2d_ui
     PUBLIC
         Trace2D::Input
+        Trace2D::Text
     PRIVATE
         tomlplusplus::tomlplusplus
 )
