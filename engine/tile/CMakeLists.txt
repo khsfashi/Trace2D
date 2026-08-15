@@ -1,6 +1,7 @@
 find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_tile STATIC
+    src/GeneratedTileMap2D.cpp
     src/TileMap.cpp
     src/TilePresentation2D.cpp
     src/TileSemantics2D.cpp
