@@ -156,6 +156,14 @@ public:
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
 
+    // U5 focus traversal consumes the already-resolved authored element order. Hosts map resolved
+    // semantic Input Actions (keyboard/gamepad/etc.) to these protocol-independent operations; UI
+    // does not own physical key bindings. Traversal scans only on an explicit move edge and never
+    // resolves semantic IDs.
+    [[nodiscard]] UiActionResult FocusNext() noexcept;
+    [[nodiscard]] UiActionResult FocusPrevious() noexcept;
+    [[nodiscard]] UiActionResult ActivateFocused() noexcept;
+
     // Pointer coordinates are logical UI-canvas coordinates. Physical presentation coordinates must
     // first pass the #88 viewport gate/conversion owned by Trace2D::Render. The normal route performs
     // no semantic-id lookup: overlap hit testing is a reverse contiguous scan and capture/focus/
@@ -175,6 +183,7 @@ private:
     [[nodiscard]] UiElement* FocusedTextInput() noexcept;
     [[nodiscard]] UiActionResult FocusIndex(std::size_t index) noexcept;
     [[nodiscard]] UiActionResult ActivateIndex(std::size_t index) noexcept;
+    [[nodiscard]] UiActionResult MoveFocus(bool forward) noexcept;
     [[nodiscard]] std::size_t HitTestTopmost(float x, float y) const noexcept;
     [[nodiscard]] static bool ContainsPoint(const UiRect& bounds, float x, float y) noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
