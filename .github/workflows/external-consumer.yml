@@ -38,9 +38,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v3-${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}-${{ env.TRACE2D_VCPKG_BASELINE }}
-          restore-keys: |
-            trace2d-vcpkg-downloads-v3-main-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
 
       - name: Configure Trace2D SDK source tree
         run: cmake --preset windows-msvc
