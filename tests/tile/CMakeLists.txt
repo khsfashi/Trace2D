@@ -1,4 +1,5 @@
 add_executable(trace2d_tile_tests
+    GeneratedTileMap2DTests.cpp
     TileMapTests.cpp
     TilePresentation2DTests.cpp
     TileSemantics2DTests.cpp
