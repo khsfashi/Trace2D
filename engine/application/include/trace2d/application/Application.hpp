@@ -133,6 +133,11 @@ public:
     void BindWorldLifecycle(scene::WorldLifecycle* worlds) noexcept;
     void SetPresentationCallback(PresentationCallback callback, void* userData = nullptr) noexcept;
 
+    // Commit a fully built/finalized semantic map at an explicit host safe boundary. This may be
+    // used before Start for project-authored input or between StepFrames calls for rebinding. The
+    // replacement synchronizes current held/axis state without synthesizing Pressed/Released edges.
+    void CommitActions(input::ActionMap actions);
+
     // Physical/host input is retained until the next fixed frame so Pressed/Released edges remain
     // visible after InputSystem clears transient state for that frame.
     void ApplyInput(const input::InputEvent& event);
