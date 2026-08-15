@@ -30,6 +30,22 @@ namespace
     resource.canonicalBytes = LoadTestFont();
     return resource;
 }
+
+[[nodiscard]] bool RectanglesOverlap(const GlyphAtlasEntry& left, const GlyphAtlasEntry& right) noexcept
+{
+    if (left.width == 0U || left.height == 0U || right.width == 0U || right.height == 0U)
+    {
+        return false;
+    }
+    const std::uint64_t leftRight = static_cast<std::uint64_t>(left.x) + static_cast<std::uint64_t>(left.width);
+    const std::uint64_t rightRight = static_cast<std::uint64_t>(right.x) + static_cast<std::uint64_t>(right.width);
+    const std::uint64_t leftBottom = static_cast<std::uint64_t>(left.y) + static_cast<std::uint64_t>(left.height);
+    const std::uint64_t rightBottom = static_cast<std::uint64_t>(right.y) + static_cast<std::uint64_t>(right.height);
+    return static_cast<std::uint64_t>(left.x) < rightRight &&
+           static_cast<std::uint64_t>(right.x) < leftRight &&
+           static_cast<std::uint64_t>(left.y) < rightBottom &&
+           static_cast<std::uint64_t>(right.y) < leftBottom;
+}
 } // namespace
 
 TEST(TextUtf8Tests, DecodesAsciiKoreanAndCjkByCodepointNotByte)
@@ -227,5 +243,191 @@ TEST(TextFontTests, MissingGlyphAndInvalidPixelHeightProduceTypedDiagnostics)
     const TextMeasureResult tooLarge = prepared.face->MeasureUtf8("A", 4097U);
     ASSERT_FALSE(tooLarge.Succeeded());
     EXPECT_EQ(tooLarge.diagnostic->code, TextErrorCode::InvalidPixelHeight);
+}
+
+TEST(TextGlyphAtlasTests, RejectsInvalidConfigurationBeforeRetainingFont)
+{
+    assets::ResourceRegistry registry("project");
+    const auto font = registry.PublishFont("content/fonts/test.ttf", MakeTestFont());
+    ASSERT_TRUE(font.Succeeded());
+
+    GlyphAtlasConfig config{};
+    config.width = 0U;
+    const GlyphAtlasPrepareResult invalidSize = PrepareGlyphAtlas(registry, font.handle, config);
+    ASSERT_FALSE(invalidSize.Succeeded());
+    EXPECT_EQ(invalidSize.diagnostic->code, TextErrorCode::InvalidGlyphAtlasConfig);
+
+    config = GlyphAtlasConfig{};
+    config.maxGlyphs = 65537U;
+    const GlyphAtlasPrepareResult invalidLimit = PrepareGlyphAtlas(registry, font.handle, config);
+    ASSERT_FALSE(invalidLimit.Succeeded());
+    EXPECT_EQ(invalidLimit.diagnostic->code, TextErrorCode::InvalidGlyphAtlasConfig);
+
+    const auto snapshot = registry.Inspect(font.handle.Untyped());
+    ASSERT_TRUE(snapshot.has_value());
+    EXPECT_EQ(snapshot->callerRetainCount, 0U);
+}
+
+TEST(TextGlyphAtlasTests, CachesAsciiKoreanAndCjkWithoutRerasterizingHits)
+{
+    assets::ResourceRegistry registry("project");
+    const auto font = registry.PublishFont("content/fonts/test.ttf", MakeTestFont());
+    ASSERT_TRUE(font.Succeeded());
+
+    GlyphAtlasConfig config{};
+    config.width = 128U;
+    config.height = 128U;
+    config.pixelHeight = 24U;
+    config.padding = 1U;
+    config.maxGlyphs = 16U;
+    GlyphAtlasPrepareResult prepared = PrepareGlyphAtlas(registry, font.handle, config);
+    ASSERT_TRUE(prepared.Succeeded());
+
+    const auto retained = registry.Inspect(font.handle.Untyped());
+    ASSERT_TRUE(retained.has_value());
+    EXPECT_EQ(retained->callerRetainCount, 1U);
+
+    const GlyphAtlasWarmResult warm = prepared.atlas->WarmUtf8("A한中A");
+    ASSERT_TRUE(warm.Succeeded());
+    EXPECT_EQ(warm.codepointCount, 4U);
+    EXPECT_EQ(warm.uniqueGlyphsAdded, 3U);
+    EXPECT_EQ(warm.cacheHits, 1U);
+
+    const GlyphAtlasMetrics afterWarm = prepared.atlas->Metrics();
+    EXPECT_EQ(afterWarm.glyphCount, 3U);
+    EXPECT_EQ(afterWarm.cacheMisses, 3U);
+    EXPECT_EQ(afterWarm.cacheHits, 1U);
+    EXPECT_EQ(afterWarm.rasterizations, 3U);
+    EXPECT_EQ(afterWarm.retainedAtlasBytes, 128U * 128U);
+    EXPECT_GT(afterWarm.occupiedBitmapPixels, 0U);
+    EXPECT_GE(afterWarm.lookupSlotCount, 32U);
+
+    const GlyphAtlasResolveResult cachedA = prepared.atlas->ResolveCodepoint(U'A');
+    ASSERT_TRUE(cachedA.Succeeded());
+    EXPECT_TRUE(cachedA.cacheHit);
+    const GlyphAtlasMetrics afterHit = prepared.atlas->Metrics();
+    EXPECT_EQ(afterHit.rasterizations, 3U);
+    EXPECT_EQ(afterHit.cacheHits, 2U);
+
+    const auto pixels = prepared.atlas->Alpha8();
+    EXPECT_EQ(pixels.size(), 128U * 128U);
+    EXPECT_TRUE(std::any_of(pixels.begin(), pixels.end(), [](const std::uint8_t value) { return value != 0U; }));
+
+    prepared.atlas.reset();
+    const auto released = registry.Inspect(font.handle.Untyped());
+    ASSERT_TRUE(released.has_value());
+    EXPECT_EQ(released->callerRetainCount, 0U);
+}
+
+TEST(TextGlyphAtlasTests, ShelfPlacementIsDeterministicBoundedAndNonOverlapping)
+{
+    assets::ResourceRegistry registry("project");
+    const auto font = registry.PublishFont("content/fonts/test.ttf", MakeTestFont());
+    ASSERT_TRUE(font.Succeeded());
+
+    GlyphAtlasConfig config{};
+    config.width = 128U;
+    config.height = 64U;
+    config.pixelHeight = 24U;
+    config.padding = 2U;
+    config.maxGlyphs = 8U;
+    GlyphAtlasPrepareResult first = PrepareGlyphAtlas(registry, font.handle, config);
+    GlyphAtlasPrepareResult second = PrepareGlyphAtlas(registry, font.handle, config);
+    ASSERT_TRUE(first.Succeeded());
+    ASSERT_TRUE(second.Succeeded());
+
+    std::vector<GlyphAtlasEntry> firstEntries{};
+    std::vector<GlyphAtlasEntry> secondEntries{};
+    for (const char32_t codepoint : {U'A', U'한', U'中'})
+    {
+        const GlyphAtlasResolveResult firstResolved = first.atlas->ResolveCodepoint(codepoint);
+        const GlyphAtlasResolveResult secondResolved = second.atlas->ResolveCodepoint(codepoint);
+        ASSERT_TRUE(firstResolved.Succeeded());
+        ASSERT_TRUE(secondResolved.Succeeded());
+        firstEntries.push_back(*firstResolved.entry);
+        secondEntries.push_back(*secondResolved.entry);
+    }
+
+    ASSERT_EQ(firstEntries.size(), secondEntries.size());
+    for (std::size_t index = 0U; index < firstEntries.size(); ++index)
+    {
+        EXPECT_EQ(firstEntries[index].x, secondEntries[index].x);
+        EXPECT_EQ(firstEntries[index].y, secondEntries[index].y);
+        EXPECT_EQ(firstEntries[index].width, secondEntries[index].width);
+        EXPECT_EQ(firstEntries[index].height, secondEntries[index].height);
+        EXPECT_LE(firstEntries[index].x + firstEntries[index].width, config.width);
+        EXPECT_LE(firstEntries[index].y + firstEntries[index].height, config.height);
+    }
+
+    for (std::size_t left = 0U; left < firstEntries.size(); ++left)
+    {
+        for (std::size_t right = left + 1U; right < firstEntries.size(); ++right)
+        {
+            EXPECT_FALSE(RectanglesOverlap(firstEntries[left], firstEntries[right]));
+        }
+    }
+    EXPECT_TRUE(std::equal(first.atlas->Alpha8().begin(), first.atlas->Alpha8().end(), second.atlas->Alpha8().begin()));
+}
+
+TEST(TextGlyphAtlasTests, ExplicitGlyphAndPixelCapacityFailuresDoNotPublishPartialEntries)
+{
+    assets::ResourceRegistry registry("project");
+    const auto font = registry.PublishFont("content/fonts/test.ttf", MakeTestFont());
+    ASSERT_TRUE(font.Succeeded());
+
+    GlyphAtlasConfig oneGlyph{};
+    oneGlyph.width = 64U;
+    oneGlyph.height = 64U;
+    oneGlyph.pixelHeight = 20U;
+    oneGlyph.padding = 0U;
+    oneGlyph.maxGlyphs = 1U;
+    GlyphAtlasPrepareResult limited = PrepareGlyphAtlas(registry, font.handle, oneGlyph);
+    ASSERT_TRUE(limited.Succeeded());
+    ASSERT_TRUE(limited.atlas->ResolveCodepoint(U'A').Succeeded());
+    const GlyphAtlasResolveResult limitFailure = limited.atlas->ResolveCodepoint(U'한');
+    ASSERT_FALSE(limitFailure.Succeeded());
+    EXPECT_EQ(limitFailure.diagnostic->code, TextErrorCode::GlyphCacheLimitReached);
+    EXPECT_EQ(limited.atlas->Metrics().glyphCount, 1U);
+    EXPECT_EQ(limited.atlas->Metrics().rasterizations, 1U);
+
+    GlyphAtlasConfig tiny{};
+    tiny.width = 4U;
+    tiny.height = 4U;
+    tiny.pixelHeight = 24U;
+    tiny.padding = 0U;
+    tiny.maxGlyphs = 4U;
+    GlyphAtlasPrepareResult full = PrepareGlyphAtlas(registry, font.handle, tiny);
+    ASSERT_TRUE(full.Succeeded());
+    const GlyphAtlasResolveResult fullFailure = full.atlas->ResolveCodepoint(U'A');
+    ASSERT_FALSE(fullFailure.Succeeded());
+    EXPECT_EQ(fullFailure.diagnostic->code, TextErrorCode::GlyphAtlasFull);
+    EXPECT_EQ(full.atlas->Metrics().glyphCount, 0U);
+    EXPECT_EQ(full.atlas->Metrics().rasterizations, 1U);
+    EXPECT_TRUE(std::all_of(full.atlas->Alpha8().begin(), full.atlas->Alpha8().end(), [](const std::uint8_t value) {
+        return value == 0U;
+    }));
+}
+
+TEST(TextGlyphAtlasTests, WarmUtf8UsesStrictDecoderAndLeavesInvalidLeadingInputUncached)
+{
+    assets::ResourceRegistry registry("project");
+    const auto font = registry.PublishFont("content/fonts/test.ttf", MakeTestFont());
+    ASSERT_TRUE(font.Succeeded());
+
+    GlyphAtlasConfig config{};
+    config.width = 64U;
+    config.height = 64U;
+    config.pixelHeight = 20U;
+    config.maxGlyphs = 8U;
+    GlyphAtlasPrepareResult prepared = PrepareGlyphAtlas(registry, font.handle, config);
+    ASSERT_TRUE(prepared.Succeeded());
+
+    const std::string invalid{"\xE2\x28\xA1", 3U};
+    const GlyphAtlasWarmResult warm = prepared.atlas->WarmUtf8(invalid);
+    ASSERT_FALSE(warm.Succeeded());
+    EXPECT_EQ(warm.diagnostic->code, TextErrorCode::InvalidUtf8);
+    EXPECT_EQ(warm.diagnostic->byteOffset, 1U);
+    EXPECT_EQ(prepared.atlas->Metrics().glyphCount, 0U);
+    EXPECT_EQ(prepared.atlas->Metrics().rasterizations, 0U);
 }
 } // namespace trace2d::text
