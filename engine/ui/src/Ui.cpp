@@ -1,5 +1,6 @@
 #include <trace2d/ui/Ui.hpp>
 
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -74,6 +75,19 @@ std::string_view ToString(const UiActionResult result) noexcept
     return "unknown";
 }
 
+std::string_view ToString(const UiPointerRouteStatus status) noexcept
+{
+    switch (status)
+    {
+    case UiPointerRouteStatus::Success:
+        return "success";
+    case UiPointerRouteStatus::InvalidPosition:
+        return "invalid_position";
+    }
+
+    return "unknown";
+}
+
 bool IsFocusable(const UiElementKind kind) noexcept
 {
     return kind == UiElementKind::Button || kind == UiElementKind::TextInput;
@@ -82,6 +96,11 @@ bool IsFocusable(const UiElementKind kind) noexcept
 bool IsActivatable(const UiElementKind kind) noexcept
 {
     return kind == UiElementKind::Button;
+}
+
+bool IsPointerInteractive(const UiElementKind kind) noexcept
+{
+    return kind == UiElementKind::Button || kind == UiElementKind::TextInput;
 }
 
 UiDocument::UiDocument(const std::uint32_t width, const std::uint32_t height) noexcept
@@ -147,6 +166,26 @@ const UiElement* UiDocument::FocusedElement() const noexcept
     return &elements_[focusedIndex_];
 }
 
+const UiElement* UiDocument::HoveredElement() const noexcept
+{
+    if (hoveredIndex_ >= elements_.size())
+    {
+        return nullptr;
+    }
+
+    return &elements_[hoveredIndex_];
+}
+
+const UiElement* UiDocument::CapturedElement() const noexcept
+{
+    if (pointerCaptureIndex_ >= elements_.size())
+    {
+        return nullptr;
+    }
+
+    return &elements_[pointerCaptureIndex_];
+}
+
 UiElement* UiDocument::FocusedTextInput() noexcept
 {
     if (focusedIndex_ >= elements_.size())
@@ -208,6 +247,10 @@ UiActionResult UiDocument::AddElement(UiElement element)
         element.localBounds = element.bounds;
     }
 
+    // Runtime interaction state is never accepted as authored input.
+    element.hovered = false;
+    element.pointerPressed = false;
+
     element.textSourceIdentity = nextTextSourceIdentity_;
     ++nextTextSourceIdentity_;
     if (nextTextSourceIdentity_ == 0U)
@@ -225,63 +268,173 @@ UiActionResult UiDocument::Focus(const std::string_view id) noexcept
 {
     for (std::size_t index = 0U; index < elements_.size(); ++index)
     {
-        const UiElement& element = elements_[index];
-        if (element.id != id)
+        if (elements_[index].id == id)
         {
-            continue;
+            return FocusIndex(index);
         }
-
-        if (!element.visible)
-        {
-            return UiActionResult::NotVisible;
-        }
-
-        if (!element.enabled)
-        {
-            return UiActionResult::Disabled;
-        }
-
-        if (!IsFocusable(element.kind))
-        {
-            return UiActionResult::NotFocusable;
-        }
-
-        if (focusedIndex_ != index)
-        {
-            ClearTextComposition();
-            focusedIndex_ = index;
-        }
-        return UiActionResult::Success;
     }
 
     return UiActionResult::NotFound;
 }
 
-UiActionResult UiDocument::Activate(const std::string_view id) noexcept
+UiActionResult UiDocument::FocusIndex(const std::size_t index) noexcept
 {
-    UiElement* element = FindMutable(id);
-    if (element == nullptr)
+    if (index >= elements_.size())
     {
         return UiActionResult::NotFound;
     }
 
-    if (!element->visible)
+    const UiElement& element = elements_[index];
+    if (!element.visible)
     {
         return UiActionResult::NotVisible;
     }
 
-    if (!element->enabled)
+    if (!element.enabled)
     {
         return UiActionResult::Disabled;
     }
 
-    if (!IsActivatable(element->kind))
+    if (!IsFocusable(element.kind))
+    {
+        return UiActionResult::NotFocusable;
+    }
+
+    if (focusedIndex_ != index)
+    {
+        ClearTextComposition();
+        focusedIndex_ = index;
+    }
+    return UiActionResult::Success;
+}
+
+UiActionResult UiDocument::Activate(const std::string_view id) noexcept
+{
+    for (std::size_t index = 0U; index < elements_.size(); ++index)
+    {
+        if (elements_[index].id == id)
+        {
+            return ActivateIndex(index);
+        }
+    }
+
+    return UiActionResult::NotFound;
+}
+
+UiActionResult UiDocument::ActivateIndex(const std::size_t index) noexcept
+{
+    if (index >= elements_.size())
+    {
+        return UiActionResult::NotFound;
+    }
+
+    UiElement& element = elements_[index];
+    if (!element.visible)
+    {
+        return UiActionResult::NotVisible;
+    }
+
+    if (!element.enabled)
+    {
+        return UiActionResult::Disabled;
+    }
+
+    if (!IsActivatable(element.kind))
     {
         return UiActionResult::NotActivatable;
     }
 
-    ++element->activationCount;
+    ++element.activationCount;
     return UiActionResult::Success;
+}
+
+UiPointerRouteResult UiDocument::ApplyPointer(
+    const input::PointerState& pointer,
+    const input::InputControlState primaryButton) noexcept
+{
+    UiPointerRouteResult result{};
+    if (!std::isfinite(pointer.x) || !std::isfinite(pointer.y))
+    {
+        result.status = UiPointerRouteStatus::InvalidPosition;
+        result.hoveredIndex = hoveredIndex_;
+        result.capturedIndex = pointerCaptureIndex_;
+        return result;
+    }
+
+    // Capture is direct-index runtime state. If game code invalidates the target between pointer
+    // samples, cancel deterministically before any release/activation processing.
+    if (pointerCaptureIndex_ < elements_.size())
+    {
+        const UiElement& captured = elements_[pointerCaptureIndex_];
+        if (!captured.visible || !captured.enabled || !IsPointerInteractive(captured.kind))
+        {
+            ClearPointerCapture();
+        }
+    }
+    else
+    {
+        pointerCaptureIndex_ = InvalidUiElementIndex;
+    }
+
+    const std::size_t hitIndex = HitTestTopmost(pointer.x, pointer.y);
+    if (hoveredIndex_ != hitIndex)
+    {
+        if (hoveredIndex_ < elements_.size())
+        {
+            elements_[hoveredIndex_].hovered = false;
+        }
+        hoveredIndex_ = hitIndex;
+        if (hoveredIndex_ < elements_.size())
+        {
+            elements_[hoveredIndex_].hovered = true;
+        }
+    }
+    result.hoveredIndex = hoveredIndex_;
+
+    // The aggregate InputControlState can report pressed+released in the same fixed frame. Process
+    // press before release so a quick click still has one deterministic capture/activation path.
+    if (primaryButton.pressed && pointerCaptureIndex_ == InvalidUiElementIndex &&
+        hitIndex < elements_.size())
+    {
+        result.consumed = true;
+        UiElement& target = elements_[hitIndex];
+        if (target.enabled && FocusIndex(hitIndex) == UiActionResult::Success)
+        {
+            pointerCaptureIndex_ = hitIndex;
+            target.pointerPressed = true;
+        }
+    }
+
+    if (pointerCaptureIndex_ < elements_.size())
+    {
+        result.consumed = true;
+        const std::size_t capturedIndex = pointerCaptureIndex_;
+        UiElement& captured = elements_[capturedIndex];
+
+        if (primaryButton.released)
+        {
+            const bool releaseInside = ContainsPoint(captured.bounds, pointer.x, pointer.y);
+            if (releaseInside && IsActivatable(captured.kind) &&
+                ActivateIndex(capturedIndex) == UiActionResult::Success)
+            {
+                result.activated = true;
+            }
+            ClearPointerCapture();
+        }
+        else if (primaryButton.held || primaryButton.pressed)
+        {
+            captured.pointerPressed = true;
+        }
+        else
+        {
+            // A caller may skip the exact release-transition sample. Never leave stale capture held
+            // after the canonical primary button is observed up.
+            ClearPointerCapture();
+        }
+    }
+
+    result.capturedIndex = pointerCaptureIndex_;
+    return result;
 }
 
 UiActionResult UiDocument::InputText(const std::string_view id, const std::string_view text)
@@ -413,6 +566,25 @@ void UiDocument::ClearFocus() noexcept
     focusedIndex_ = InvalidUiElementIndex;
 }
 
+void UiDocument::ClearPointerState() noexcept
+{
+    if (hoveredIndex_ < elements_.size())
+    {
+        elements_[hoveredIndex_].hovered = false;
+    }
+    hoveredIndex_ = InvalidUiElementIndex;
+    ClearPointerCapture();
+}
+
+void UiDocument::ClearPointerCapture() noexcept
+{
+    if (pointerCaptureIndex_ < elements_.size())
+    {
+        elements_[pointerCaptureIndex_].pointerPressed = false;
+    }
+    pointerCaptureIndex_ = InvalidUiElementIndex;
+}
+
 void UiDocument::TouchDisplayText(UiElement& element) noexcept
 {
     if (element.displayTextRevision == std::numeric_limits<std::uint64_t>::max())
@@ -456,6 +628,40 @@ void UiDocument::ClearTextComposition(const bool touchDisplay) noexcept
     textComposition_.clear();
     textCompositionSelectionStart_ = -1;
     textCompositionSelectionLength_ = -1;
+}
+
+std::size_t UiDocument::HitTestTopmost(const float x, const float y) const noexcept
+{
+    for (std::size_t reverseIndex = elements_.size(); reverseIndex > 0U; --reverseIndex)
+    {
+        const std::size_t index = reverseIndex - 1U;
+        const UiElement& element = elements_[index];
+        if (!element.visible || !IsPointerInteractive(element.kind))
+        {
+            continue;
+        }
+        if (ContainsPoint(element.bounds, x, y))
+        {
+            return index;
+        }
+    }
+    return InvalidUiElementIndex;
+}
+
+bool UiDocument::ContainsPoint(const UiRect& bounds, const float x, const float y) noexcept
+{
+    if (!std::isfinite(x) || !std::isfinite(y) || bounds.width == 0U || bounds.height == 0U)
+    {
+        return false;
+    }
+
+    const double pointX = static_cast<double>(x);
+    const double pointY = static_cast<double>(y);
+    const double left = static_cast<double>(bounds.x);
+    const double top = static_cast<double>(bounds.y);
+    const double right = left + static_cast<double>(bounds.width);
+    const double bottom = top + static_cast<double>(bounds.height);
+    return pointX >= left && pointX < right && pointY >= top && pointY < bottom;
 }
 
 bool UiDocument::Contains(const UiRect& bounds) const noexcept
