@@ -102,6 +102,7 @@ enum class UiActionResult : std::uint8_t
     NotActivatable,
     NotTextInput,
     NotFocused,
+    OutsideModalScope,
     InvalidTextCompositionRange,
 };
 
@@ -156,6 +157,8 @@ public:
     [[nodiscard]] const UiElement* FocusedElement() const noexcept;
     [[nodiscard]] const UiElement* HoveredElement() const noexcept;
     [[nodiscard]] const UiElement* CapturedElement() const noexcept;
+    [[nodiscard]] const UiElement* ModalScopeElement() const noexcept;
+    [[nodiscard]] bool HasModalScope() const noexcept;
     [[nodiscard]] bool IsFocused(std::string_view id) const noexcept;
     [[nodiscard]] UiTextCompositionState TextComposition() const noexcept;
 
@@ -163,6 +166,12 @@ public:
     [[nodiscard]] UiActionResult AddElement(UiElement element);
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
+
+    // U7 installs at most one active modal root. Membership is prepared from the already-resolved
+    // hierarchy only when the scope changes; steady interaction performs direct-index membership
+    // checks and never rediscovers parent strings or allocates per event.
+    [[nodiscard]] UiActionResult SetModalScope(std::string_view id);
+    void ClearModalScope() noexcept;
 
     // U5 focus traversal consumes the already-resolved authored element order. Hosts map resolved
     // semantic Input Actions (keyboard/gamepad/etc.) to these protocol-independent operations; UI
@@ -180,7 +189,8 @@ public:
     // Pointer coordinates are logical UI-canvas coordinates. Physical presentation coordinates must
     // first pass the #88 viewport gate/conversion owned by Trace2D::Render. The normal route performs
     // no semantic-id lookup: overlap hit testing is a reverse contiguous scan and capture/focus/
-    // activation are direct-index mutations.
+    // activation are direct-index mutations. While U7 modal scope is active, otherwise-unhandled
+    // pointer input is consumed so it cannot fall through to background UI/gameplay.
     [[nodiscard]] UiPointerRouteResult ApplyPointer(
         const input::PointerState& pointer,
         input::InputControlState primaryButton) noexcept;
@@ -198,6 +208,8 @@ private:
     [[nodiscard]] UiActionResult ActivateIndex(std::size_t index) noexcept;
     [[nodiscard]] UiActionResult MoveFocus(bool forward) noexcept;
     [[nodiscard]] std::size_t HitTestTopmost(float x, float y) const noexcept;
+    [[nodiscard]] bool IsInteractionAllowed(std::size_t index) const noexcept;
+    [[nodiscard]] bool IsDescendantOrSelf(std::size_t index, std::size_t ancestorIndex) const noexcept;
     [[nodiscard]] static bool ContainsPoint(const UiRect& bounds, float x, float y) noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
     void ClearPointerCapture() noexcept;
@@ -211,6 +223,8 @@ private:
     std::size_t focusedIndex_{InvalidUiElementIndex};
     std::size_t hoveredIndex_{InvalidUiElementIndex};
     std::size_t pointerCaptureIndex_{InvalidUiElementIndex};
+    std::size_t modalScopeIndex_{InvalidUiElementIndex};
+    std::vector<std::uint8_t> modalScopeMembership_{};
     std::uint64_t nextTextSourceIdentity_{1U};
 
     std::string textComposition_{};

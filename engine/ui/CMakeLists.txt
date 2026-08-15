@@ -4,6 +4,7 @@ add_library(trace2d_ui STATIC
     src/Ui.cpp
     src/UiNavigation.cpp
     src/UiDirectionalNavigation.cpp
+    src/UiModal.cpp
     src/UiLayout.cpp
     src/UiRaster.cpp
     src/UiText.cpp

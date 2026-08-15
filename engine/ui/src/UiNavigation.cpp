@@ -33,7 +33,8 @@ UiActionResult UiDocument::MoveFocus(const bool forward) noexcept
     if (focusedIndex_ < count)
     {
         const UiElement& focused = elements_[focusedIndex_];
-        if (!focused.visible || !focused.enabled || !IsFocusable(focused.kind))
+        if (!IsInteractionAllowed(focusedIndex_) || !focused.visible || !focused.enabled ||
+            !IsFocusable(focused.kind))
         {
             ClearFocus();
         }
@@ -67,7 +68,8 @@ UiActionResult UiDocument::MoveFocus(const bool forward) noexcept
     for (std::size_t scanned = 0U; scanned < count; ++scanned)
     {
         const UiElement& candidate = elements_[index];
-        if (candidate.visible && candidate.enabled && IsFocusable(candidate.kind))
+        if (IsInteractionAllowed(index) && candidate.visible && candidate.enabled &&
+            IsFocusable(candidate.kind))
         {
             return FocusIndex(index);
         }

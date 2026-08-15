@@ -78,6 +78,7 @@ struct UiTreeSnapshot final
 {
     std::uint32_t width{0};
     std::uint32_t height{0};
+    std::optional<std::string> modalScopeId{};
     std::vector<UiElementSnapshot> elements{};
 
     [[nodiscard]] bool operator==(const UiTreeSnapshot&) const noexcept = default;
@@ -104,6 +105,7 @@ enum class UiAutomationErrorCode : std::uint8_t
     NotActivatable,
     NotTextInput,
     NotFocused,
+    OutsideModalScope,
     StateMismatch,
     ActionRejected,
 };

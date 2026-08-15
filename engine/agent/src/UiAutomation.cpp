@@ -166,6 +166,10 @@ namespace
         return MakeError(UiAutomationErrorCode::NotTextInput, "UI target is not a text box.");
     case ui::UiActionResult::NotFocused:
         return MakeError(UiAutomationErrorCode::NotFocused, "UI text box must be focused before text input.");
+    case ui::UiActionResult::OutsideModalScope:
+        return MakeError(
+            UiAutomationErrorCode::OutsideModalScope,
+            "UI target is outside the active modal scope.");
     case ui::UiActionResult::Success:
         break;
     case ui::UiActionResult::InvalidDocumentSize:
@@ -258,6 +262,8 @@ std::string_view ToString(const UiAutomationErrorCode code) noexcept
         return "not_text_input";
     case UiAutomationErrorCode::NotFocused:
         return "not_focused";
+    case UiAutomationErrorCode::OutsideModalScope:
+        return "outside_modal_scope";
     case UiAutomationErrorCode::StateMismatch:
         return "state_mismatch";
     case UiAutomationErrorCode::ActionRejected:
@@ -281,6 +287,10 @@ UiTreeResult AgentFacade::InspectUi() const
     UiTreeSnapshot tree{};
     tree.width = ui_->Width();
     tree.height = ui_->Height();
+    if (const ui::UiElement* const modalScope = ui_->ModalScopeElement(); modalScope != nullptr)
+    {
+        tree.modalScopeId = modalScope->id;
+    }
     tree.elements.reserve(ui_->Elements().size());
     for (const ui::UiElement& element : ui_->Elements())
     {

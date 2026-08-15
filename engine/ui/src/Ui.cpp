@@ -68,6 +68,8 @@ std::string_view ToString(const UiActionResult result) noexcept
         return "not_text_input";
     case UiActionResult::NotFocused:
         return "not_focused";
+    case UiActionResult::OutsideModalScope:
+        return "outside_modal_scope";
     case UiActionResult::InvalidTextCompositionRange:
         return "invalid_text_composition_range";
     }
@@ -216,6 +218,7 @@ UiTextCompositionState UiDocument::TextComposition() const noexcept
 void UiDocument::ReserveElements(const std::size_t count)
 {
     elements_.reserve(count);
+    modalScopeMembership_.reserve(count);
 }
 
 UiActionResult UiDocument::AddElement(UiElement element)
@@ -284,6 +287,11 @@ UiActionResult UiDocument::FocusIndex(const std::size_t index) noexcept
         return UiActionResult::NotFound;
     }
 
+    if (!IsInteractionAllowed(index))
+    {
+        return UiActionResult::OutsideModalScope;
+    }
+
     const UiElement& element = elements_[index];
     if (!element.visible)
     {
@@ -328,6 +336,11 @@ UiActionResult UiDocument::ActivateIndex(const std::size_t index) noexcept
         return UiActionResult::NotFound;
     }
 
+    if (!IsInteractionAllowed(index))
+    {
+        return UiActionResult::OutsideModalScope;
+    }
+
     UiElement& element = elements_[index];
     if (!element.visible)
     {
@@ -353,6 +366,7 @@ UiPointerRouteResult UiDocument::ApplyPointer(
     const input::InputControlState primaryButton) noexcept
 {
     UiPointerRouteResult result{};
+    result.consumed = HasModalScope();
     if (!std::isfinite(pointer.x) || !std::isfinite(pointer.y))
     {
         result.status = UiPointerRouteStatus::InvalidPosition;
@@ -366,7 +380,8 @@ UiPointerRouteResult UiDocument::ApplyPointer(
     if (pointerCaptureIndex_ < elements_.size())
     {
         const UiElement& captured = elements_[pointerCaptureIndex_];
-        if (!captured.visible || !captured.enabled || !IsPointerInteractive(captured.kind))
+        if (!IsInteractionAllowed(pointerCaptureIndex_) || !captured.visible || !captured.enabled ||
+            !IsPointerInteractive(captured.kind))
         {
             ClearPointerCapture();
         }
@@ -443,6 +458,12 @@ UiActionResult UiDocument::InputText(const std::string_view id, const std::strin
     if (element == nullptr)
     {
         return UiActionResult::NotFound;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(element - elements_.data());
+    if (!IsInteractionAllowed(index))
+    {
+        return UiActionResult::OutsideModalScope;
     }
 
     if (!element->visible)
@@ -636,7 +657,7 @@ std::size_t UiDocument::HitTestTopmost(const float x, const float y) const noexc
     {
         const std::size_t index = reverseIndex - 1U;
         const UiElement& element = elements_[index];
-        if (!element.visible || !IsPointerInteractive(element.kind))
+        if (!IsInteractionAllowed(index) || !element.visible || !IsPointerInteractive(element.kind))
         {
             continue;
         }
