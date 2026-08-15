@@ -403,7 +403,7 @@ bool RasterizeUi(
         case UiElementKind::Label:
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                presentationClip,
+                paintBounds,
                 element.text,
                 element.presentationBounds.x,
                 CenteredTextY(element.presentationBounds),
@@ -414,11 +414,11 @@ bool RasterizeUi(
             DrawBorder(
                 output,
                 element.presentationBounds,
-                presentationClip,
+                paintBounds,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                presentationClip,
+                paintBounds,
                 element.text,
                 CenteredTextX(element.presentationBounds, element.text),
                 CenteredTextY(element.presentationBounds),
@@ -429,11 +429,11 @@ bool RasterizeUi(
             DrawBorder(
                 output,
                 element.presentationBounds,
-                presentationClip,
+                paintBounds,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                presentationClip,
+                paintBounds,
                 element.text,
                 static_cast<std::int64_t>(element.presentationBounds.x) +
                     (element.presentationBounds.width > 8U ? 4 : 0),
