@@ -63,7 +63,8 @@ UiActionResult UiDocument::FocusDirectional(const UiNavigationDirection directio
     }
 
     const UiElement& focused = elements_[focusedIndex_];
-    if (!focused.visible || !focused.enabled || !IsFocusable(focused.kind))
+    if (!IsInteractionAllowed(focusedIndex_) || !focused.visible || !focused.enabled ||
+        !IsFocusable(focused.kind))
     {
         ClearFocus();
         return UiActionResult::NotFocused;
@@ -87,7 +88,8 @@ UiActionResult UiDocument::FocusDirectional(const UiNavigationDirection directio
         }
 
         const UiElement& candidate = elements_[index];
-        if (!candidate.visible || !candidate.enabled || !IsFocusable(candidate.kind))
+        if (!IsInteractionAllowed(index) || !candidate.visible || !candidate.enabled ||
+            !IsFocusable(candidate.kind))
         {
             continue;
         }
