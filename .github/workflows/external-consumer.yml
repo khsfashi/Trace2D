@@ -38,7 +38,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .trace2d-vcpkg-downloads
-          key: trace2d-vcpkg-downloads-v4-${{ env.TRACE2D_VCPKG_BASELINE }}
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
 
       - name: Configure Trace2D SDK source tree
         run: cmake --preset windows-msvc
