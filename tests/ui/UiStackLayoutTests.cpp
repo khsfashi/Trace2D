@@ -239,16 +239,16 @@ TEST(UiStackLayoutTests, LoadsAuthoredStackLayoutAndPublishesResolvedRuntimeBoun
     constexpr std::string_view source = R"toml(
 format_version = 1
 
-[canvas]
-width = 240
-height = 160
-
 elements = [
   { id = "first", kind = "button", parent = "menu", placement = "stack_fixed", size = [80, 20], margin = [2, 1, 3, 2], text = "First" },
   { id = "overlay", kind = "label", parent = "menu", bounds = [90, 10, 20, 20], text = "!" },
   { id = "second", kind = "button", parent = "menu", placement = "stack_fixed", size = [80, 18], text = "Second" },
   { id = "menu", kind = "panel", bounds = [20, 20, 120, 80], layout = "vertical_stack", padding = [10, 5, 10, 5], spacing = 4 },
 ]
+
+[canvas]
+width = 240
+height = 160
 )toml";
 
     UiLoadResult loaded = LoadUiToml(source, "stack-ui.toml");
@@ -282,13 +282,13 @@ TEST(UiStackLayoutTests, RejectsInvalidAuthoredStackTransactionsWithoutPublishin
 {
     constexpr std::string_view wrongParent = R"toml(
 format_version = 1
-[canvas]
-width = 64
-height = 64
 elements = [
   { id = "parent", kind = "panel", bounds = [0, 0, 32, 32] },
   { id = "child", kind = "button", parent = "parent", placement = "stack_fixed", size = [8, 8], text = "x" },
 ]
+[canvas]
+width = 64
+height = 64
 )toml";
 
     UiLoadResult wrong = LoadUiToml(wrongParent, "wrong-parent.toml");
@@ -300,13 +300,13 @@ elements = [
 
     constexpr std::string_view overflowSource = R"toml(
 format_version = 1
-[canvas]
-width = 64
-height = 64
 elements = [
   { id = "parent", kind = "panel", bounds = [0, 0, 20, 20], layout = "horizontal_stack", padding = [8, 1, 8, 1] },
   { id = "child", kind = "button", parent = "parent", placement = "stack_fixed", size = [8, 8], text = "x" },
 ]
+[canvas]
+width = 64
+height = 64
 )toml";
 
     UiLoadResult overflow = LoadUiToml(overflowSource, "overflow.toml");
@@ -320,12 +320,12 @@ TEST(UiStackLayoutTests, KeepsLegacyFormatOneAbsoluteDocumentsCompatible)
 {
     constexpr std::string_view legacy = R"toml(
 format_version = 1
-[canvas]
-width = 100
-height = 60
 elements = [
   { id = "legacy", kind = "label", bounds = [3, 4, 20, 10], text = "ok" },
 ]
+[canvas]
+width = 100
+height = 60
 )toml";
 
     UiLoadResult loaded = LoadUiToml(legacy, "legacy.toml");
