@@ -119,7 +119,9 @@ For `N` syntactically valid elements:
 
 - duplicate validation sorts an index vector: `O(N log N)`,
 - U0 parent lookup/finalization uses its existing sorted lookup and direct resolved indices,
-- publication is `O(N)` and preserves authored order.
+- publication preserves authored order through the existing duplicate-protected `UiDocument::AddElement` path, so its current worst case is `O(N^2)` string-identity checking.
+
+That publication scan is setup-only and is inherited from the original `UiDocument` insertion contract; U2 does not add a runtime hash/index merely to optimize an unmeasured authoring workload. If practical UI sizes demonstrate material load cost, a bounded bulk-publication/index path can replace the redundant second duplicate check without changing the runtime hierarchy contract.
 
 Temporary vectors reserve from the authored element count. Normal frame code performs no TOML parsing, parent string lookup, hierarchy discovery, anchor math, sorting, filesystem work, Agent snapshot creation, JSON work, or layout-tree rebuild.
 
