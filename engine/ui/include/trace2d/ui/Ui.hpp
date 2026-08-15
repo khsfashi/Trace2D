@@ -64,6 +64,14 @@ struct UiElement final
     UiRect localBounds{};
     UiRect bounds{};
 
+    // U8 authored clipping is owned by the hierarchy, not by renderer-specific state.
+    // clipChildren clips descendants to this element's resolved logical bounds. clipActive /
+    // clipBounds are setup-time resolved ancestor evidence consumed directly by pointer/raster
+    // paths so ordinary interaction never walks parent chains.
+    bool clipChildren{false};
+    bool clipActive{false};
+    UiRect clipBounds{};
+
     std::string name{};
     std::string text{};
     bool visible{true};
@@ -208,6 +216,7 @@ private:
     [[nodiscard]] UiActionResult ActivateIndex(std::size_t index) noexcept;
     [[nodiscard]] UiActionResult MoveFocus(bool forward) noexcept;
     [[nodiscard]] std::size_t HitTestTopmost(float x, float y) const noexcept;
+    [[nodiscard]] bool IsPointInsideElement(std::size_t index, float x, float y) const noexcept;
     [[nodiscard]] bool IsInteractionAllowed(std::size_t index) const noexcept;
     [[nodiscard]] bool IsDescendantOrSelf(std::size_t index, std::size_t ancestorIndex) const noexcept;
     [[nodiscard]] static bool ContainsPoint(const UiRect& bounds, float x, float y) noexcept;

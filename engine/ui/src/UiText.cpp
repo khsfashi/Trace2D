@@ -244,12 +244,13 @@ void ValidateKnownKeys(
     const toml::table& table,
     const std::string_view key,
     const std::string_view path,
-    std::vector<UiTextDiagnostic>& diagnostics)
+    std::vector<UiTextDiagnostic>& diagnostics,
+    const bool defaultValue = true)
 {
     const toml::node* const node = table.get(key);
     if (node == nullptr)
     {
-        return true;
+        return defaultValue;
     }
 
     const std::optional<bool> value = node->value<bool>();
@@ -808,7 +809,8 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     *elementTable,
                     elementPath,
                     {"id", "kind", "parent", "placement", "bounds", "anchor", "pivot", "offset", "size",
-                     "layout", "padding", "spacing", "margin", "name", "text", "visible", "enabled"},
+                     "layout", "padding", "spacing", "margin", "name", "text", "visible", "enabled",
+                     "clip_children"},
                     result.diagnostics);
 
                 const std::optional<std::string> id = ReadRequiredString(
@@ -862,6 +864,12 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     "enabled",
                     elementPath + ".enabled",
                     result.diagnostics);
+                const std::optional<bool> clipChildren = ReadOptionalBool(
+                    *elementTable,
+                    "clip_children",
+                    elementPath + ".clip_children",
+                    result.diagnostics,
+                    false);
 
                 if (containerLayout.has_value() && *containerLayout == UiContainerLayoutMode::None &&
                     HasAnyField(*elementTable, {"padding", "spacing"}))
@@ -939,7 +947,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 if (!id.has_value() || !kind.has_value() || !parent.has_value() || !placement.has_value() ||
                     !containerLayout.has_value() || !padding.has_value() || !spacing.has_value() ||
                     !elementName.has_value() || !elementText.has_value() || !visible.has_value() ||
-                    !enabled.has_value() || !hasGeometry)
+                    !enabled.has_value() || !clipChildren.has_value() || !hasGeometry)
                 {
                     continue;
                 }
@@ -965,6 +973,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 authored.element.text = *elementText;
                 authored.element.visible = *visible;
                 authored.element.enabled = *enabled;
+                authored.element.clipChildren = *clipChildren;
 
                 authored.layout.id = *id;
                 authored.layout.parentId = *parent;
@@ -1029,6 +1038,54 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
     {
         AddDiagnostic(result.diagnostics, "layout", "Resolved UI layout node count changed unexpectedly.");
         return result;
+    }
+
+    const auto intersectRects = [](const UiRect& lhs, const UiRect& rhs) noexcept
+    {
+        const std::uint32_t left = std::max(lhs.x, rhs.x);
+        const std::uint32_t top = std::max(lhs.y, rhs.y);
+        const std::uint32_t right = std::min(lhs.x + lhs.width, rhs.x + rhs.width);
+        const std::uint32_t bottom = std::min(lhs.y + lhs.height, rhs.y + rhs.height);
+        if (right <= left || bottom <= top)
+        {
+            return UiRect{left, top, 0U, 0U};
+        }
+        return UiRect{left, top, right - left, bottom - top};
+    };
+
+    // U8 resolves the clipping chain once after U0-U3 hierarchy/layout finalization. This loop is
+    // deliberately setup-only; ordinary pointer/raster/Agent paths consume retained direct state.
+    for (std::size_t index = 0U; index < parsed.size(); ++index)
+    {
+        bool clipActive = false;
+        UiRect clipBounds{};
+        std::size_t ancestorIndex = resolvedNodes[index].parentIndex;
+        std::size_t remaining = resolvedNodes.size();
+
+        while (ancestorIndex != InvalidUiLayoutIndex)
+        {
+            if (ancestorIndex >= parsed.size() || remaining == 0U)
+            {
+                AddDiagnostic(
+                    result.diagnostics,
+                    "layout",
+                    "Resolved UI clipping hierarchy is invalid.");
+                return result;
+            }
+
+            if (parsed[ancestorIndex].element.clipChildren)
+            {
+                const UiRect ancestorBounds = resolvedNodes[ancestorIndex].bounds;
+                clipBounds = clipActive ? intersectRects(clipBounds, ancestorBounds) : ancestorBounds;
+                clipActive = true;
+            }
+
+            ancestorIndex = resolvedNodes[ancestorIndex].parentIndex;
+            --remaining;
+        }
+
+        parsed[index].element.clipActive = clipActive;
+        parsed[index].element.clipBounds = clipActive ? clipBounds : UiRect{};
     }
 
     UiDocument document{*canvasWidth, *canvasHeight};

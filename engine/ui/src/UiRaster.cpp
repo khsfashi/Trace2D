@@ -149,6 +149,34 @@ void PutPixel(
     output.rgba8[byteIndex + 3U] = color.a;
 }
 
+[[nodiscard]] UiRect IntersectRect(const UiRect& lhs, const UiRect& rhs) noexcept
+{
+    const std::uint32_t left = lhs.x > rhs.x ? lhs.x : rhs.x;
+    const std::uint32_t top = lhs.y > rhs.y ? lhs.y : rhs.y;
+    const std::uint32_t right =
+        lhs.x + lhs.width < rhs.x + rhs.width ? lhs.x + lhs.width : rhs.x + rhs.width;
+    const std::uint32_t bottom =
+        lhs.y + lhs.height < rhs.y + rhs.height ? lhs.y + lhs.height : rhs.y + rhs.height;
+    if (right <= left || bottom <= top)
+    {
+        return UiRect{left, top, 0U, 0U};
+    }
+    return UiRect{left, top, right - left, bottom - top};
+}
+
+void PutPixelClipped(
+    UiRasterImage& output,
+    const UiRect& clip,
+    const std::uint32_t x,
+    const std::uint32_t y,
+    const Color color) noexcept
+{
+    if (x >= clip.x && x < clip.x + clip.width && y >= clip.y && y < clip.y + clip.height)
+    {
+        PutPixel(output, x, y, color);
+    }
+}
+
 void FillRect(UiRasterImage& output, const UiRect& rect, const Color color) noexcept
 {
     const std::uint32_t endX = rect.x + rect.width;
@@ -162,21 +190,25 @@ void FillRect(UiRasterImage& output, const UiRect& rect, const Color color) noex
     }
 }
 
-void DrawBorder(UiRasterImage& output, const UiRect& rect, const Color color) noexcept
+void DrawBorder(
+    UiRasterImage& output,
+    const UiRect& rect,
+    const UiRect& clip,
+    const Color color) noexcept
 {
     const std::uint32_t right = rect.x + rect.width - 1U;
     const std::uint32_t bottom = rect.y + rect.height - 1U;
 
     for (std::uint32_t x = rect.x; x <= right; ++x)
     {
-        PutPixel(output, x, rect.y, color);
-        PutPixel(output, x, bottom, color);
+        PutPixelClipped(output, clip, x, rect.y, color);
+        PutPixelClipped(output, clip, x, bottom, color);
     }
 
     for (std::uint32_t y = rect.y; y <= bottom; ++y)
     {
-        PutPixel(output, rect.x, y, color);
-        PutPixel(output, right, y, color);
+        PutPixelClipped(output, clip, rect.x, y, color);
+        PutPixelClipped(output, clip, right, y, color);
     }
 }
 
@@ -237,7 +269,7 @@ void DrawBorder(UiRasterImage& output, const UiRect& rect, const Color color) no
                 }
 
                 const std::uint8_t mask = static_cast<std::uint8_t>(1U << (4U - column));
-                if ((rows[row] & mask) != 0U)
+                if (x >= clip.x && y >= clip.y && (rows[row] & mask) != 0U)
                 {
                     PutPixel(output, x, y, color);
                 }
@@ -316,46 +348,58 @@ bool RasterizeUi(
             continue;
         }
 
+        UiRect paintBounds = element.bounds;
+        if (element.clipActive)
+        {
+            paintBounds = IntersectRect(paintBounds, element.clipBounds);
+        }
+        if (paintBounds.width == 0U || paintBounds.height == 0U)
+        {
+            continue;
+        }
+
         ++localMetrics.elementsRasterized;
         const Color textColor = element.enabled ? TextColor : DisabledTextColor;
 
         switch (element.kind)
         {
         case UiElementKind::Panel:
-            FillRect(output, element.bounds, PanelColor);
+            FillRect(output, paintBounds, PanelColor);
             break;
         case UiElementKind::Label:
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                element.bounds,
+                paintBounds,
                 element.text,
                 element.bounds.x,
                 CenteredTextY(element.bounds),
                 textColor);
             break;
         case UiElementKind::Button:
-            FillRect(output, element.bounds, element.enabled ? ButtonColor : DisabledButtonColor);
+            FillRect(output, paintBounds, element.enabled ? ButtonColor : DisabledButtonColor);
             DrawBorder(
                 output,
                 element.bounds,
+                paintBounds,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                element.bounds,
+                paintBounds,
                 element.text,
                 CenteredTextX(element.bounds, element.text),
                 CenteredTextY(element.bounds),
                 textColor);
             break;
         case UiElementKind::TextInput:
-            FillRect(output, element.bounds, InputColor);
+            FillRect(output, paintBounds, InputColor);
             DrawBorder(
                 output,
                 element.bounds,
+                paintBounds,
                 document.IsFocused(element.id) ? FocusBorderColor : BorderColor);
             localMetrics.glyphsRasterized += DrawText(
                 output,
-                element.bounds,
+                paintBounds,
                 element.text,
                 element.bounds.x + (element.bounds.width > 8U ? 4U : 0U),
                 CenteredTextY(element.bounds),

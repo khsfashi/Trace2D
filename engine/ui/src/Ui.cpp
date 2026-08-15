@@ -243,6 +243,19 @@ UiActionResult UiDocument::AddElement(UiElement element)
         return UiActionResult::InvalidBounds;
     }
 
+    if (element.clipActive)
+    {
+        const bool hasClipArea = element.clipBounds.width > 0U && element.clipBounds.height > 0U;
+        if (hasClipArea && !Contains(element.clipBounds))
+        {
+            return UiActionResult::InvalidBounds;
+        }
+    }
+    else
+    {
+        element.clipBounds = {};
+    }
+
     // Direct callers from the original flat UI contract do not need to populate U2 hierarchy
     // metadata. For a root, the resolved parent-local rectangle is identical to absolute bounds.
     if (element.localBounds.width == 0U || element.localBounds.height == 0U)
@@ -428,7 +441,7 @@ UiPointerRouteResult UiDocument::ApplyPointer(
 
         if (primaryButton.released)
         {
-            const bool releaseInside = ContainsPoint(captured.bounds, pointer.x, pointer.y);
+            const bool releaseInside = IsPointInsideElement(capturedIndex, pointer.x, pointer.y);
             if (releaseInside && IsActivatable(captured.kind) &&
                 ActivateIndex(capturedIndex) == UiActionResult::Success)
             {
@@ -661,12 +674,27 @@ std::size_t UiDocument::HitTestTopmost(const float x, const float y) const noexc
         {
             continue;
         }
-        if (ContainsPoint(element.bounds, x, y))
+        if (IsPointInsideElement(index, x, y))
         {
             return index;
         }
     }
     return InvalidUiElementIndex;
+}
+
+bool UiDocument::IsPointInsideElement(
+    const std::size_t index,
+    const float x,
+    const float y) const noexcept
+{
+    if (index >= elements_.size())
+    {
+        return false;
+    }
+
+    const UiElement& element = elements_[index];
+    return ContainsPoint(element.bounds, x, y) &&
+           (!element.clipActive || ContainsPoint(element.clipBounds, x, y));
 }
 
 bool UiDocument::ContainsPoint(const UiRect& bounds, const float x, const float y) noexcept

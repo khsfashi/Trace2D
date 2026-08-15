@@ -98,6 +98,14 @@ namespace
         .width = element.bounds.width,
         .height = element.bounds.height,
     };
+    snapshot.clipChildren = element.clipChildren;
+    snapshot.clipActive = element.clipActive;
+    snapshot.clipBounds = UiRectSnapshot{
+        .x = element.clipBounds.x,
+        .y = element.clipBounds.y,
+        .width = element.clipBounds.width,
+        .height = element.clipBounds.height,
+    };
     snapshot.visible = element.visible;
     snapshot.enabled = element.enabled;
     snapshot.focused = document.IsFocused(element.id);
