@@ -15,6 +15,7 @@ namespace trace2d::ui
 {
 inline constexpr std::uint32_t MaxUiCanvasDimension = 4096U;
 inline constexpr std::size_t InvalidUiElementIndex = std::numeric_limits<std::size_t>::max();
+inline constexpr std::uint32_t UiScrollWheelStep = 24U;
 
 struct UiRect final
 {
@@ -24,6 +25,18 @@ struct UiRect final
     std::uint32_t height{0};
 
     [[nodiscard]] bool operator==(const UiRect&) const noexcept = default;
+};
+
+// Presentation-space coordinates may become negative when logical scroll content is translated
+// above/left of a clipped viewport. Logical UiRect layout truth remains unsigned and unchanged.
+struct UiPresentationRect final
+{
+    std::int32_t x{0};
+    std::int32_t y{0};
+    std::uint32_t width{0};
+    std::uint32_t height{0};
+
+    [[nodiscard]] bool operator==(const UiPresentationRect&) const noexcept = default;
 };
 
 enum class UiElementKind : std::uint8_t
@@ -49,6 +62,19 @@ struct UiTextLayoutEvidence final
     [[nodiscard]] bool operator==(const UiTextLayoutEvidence&) const noexcept = default;
 };
 
+struct UiScrollState final
+{
+    bool viewport{false};
+    std::uint32_t contentWidth{0U};
+    std::uint32_t contentHeight{0U};
+    std::uint32_t offsetX{0U};
+    std::uint32_t offsetY{0U};
+    std::uint64_t revision{0U};
+    std::uint64_t translationUpdates{0U};
+
+    [[nodiscard]] bool operator==(const UiScrollState&) const noexcept = default;
+};
+
 struct UiElement final
 {
     std::string id{};
@@ -56,13 +82,19 @@ struct UiElement final
 
     // U2 retains the resolved hierarchy compiled at authored-load/setup time. parentIndex indexes
     // UiDocument::Elements() and remains InvalidUiElementIndex for roots. localBounds is the
-    // resolved parent-local rectangle; bounds is the absolute logical-canvas rectangle used by
-    // raster/input/presentation work.
+    // resolved parent-local rectangle; bounds is immutable logical/content-space layout truth.
     std::string parentId{};
     std::size_t parentIndex{InvalidUiElementIndex};
     std::uint32_t depth{0U};
     UiRect localBounds{};
     UiRect bounds{};
+
+    // U9 keeps translated presentation geometry separate from logical layout. Ordinary elements
+    // initialize this from bounds. Scrolled descendants retain one direct owner index so pointer /
+    // raster work never walks hierarchy or resolves semantic strings after setup.
+    UiPresentationRect presentationBounds{};
+    std::size_t scrollOwnerIndex{InvalidUiElementIndex};
+    UiScrollState scroll{};
 
     // U8 authored clipping is owned by the hierarchy, not by renderer-specific state.
     // clipChildren clips descendants to this element's resolved logical bounds. clipActive /
@@ -112,6 +144,9 @@ enum class UiActionResult : std::uint8_t
     NotFocused,
     OutsideModalScope,
     InvalidTextCompositionRange,
+    NotScrollViewport,
+    InvalidScrollContent,
+    UnsupportedScrollHierarchy,
 };
 
 enum class UiNavigationDirection : std::uint8_t
@@ -175,6 +210,22 @@ public:
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
 
+    // U9 configures an existing Panel as a clipped scroll viewport after hierarchy/layout setup.
+    // Configuration may discover descendants once. Offset changes then update only retained signed
+    // presentation bounds in one allocation-free contiguous pass; logical bounds never move.
+    [[nodiscard]] UiActionResult ConfigureScrollViewport(
+        std::string_view id,
+        std::uint32_t contentWidth,
+        std::uint32_t contentHeight) noexcept;
+    [[nodiscard]] UiActionResult ScrollTo(
+        std::string_view id,
+        std::uint32_t offsetX,
+        std::uint32_t offsetY) noexcept;
+    [[nodiscard]] UiActionResult ScrollBy(
+        std::string_view id,
+        std::int32_t deltaX,
+        std::int32_t deltaY) noexcept;
+
     // U7 installs at most one active modal root. Membership is prepared from the already-resolved
     // hierarchy only when the scope changes; steady interaction performs direct-index membership
     // checks and never rediscovers parent strings or allocates per event.
@@ -197,8 +248,8 @@ public:
     // Pointer coordinates are logical UI-canvas coordinates. Physical presentation coordinates must
     // first pass the #88 viewport gate/conversion owned by Trace2D::Render. The normal route performs
     // no semantic-id lookup: overlap hit testing is a reverse contiguous scan and capture/focus/
-    // activation are direct-index mutations. While U7 modal scope is active, otherwise-unhandled
-    // pointer input is consumed so it cannot fall through to background UI/gameplay.
+    // activation are direct-index mutations. U9 wheel routing scans scroll viewports only when wheel
+    // input is present and mutates the same retained presentation authority used by hit testing.
     [[nodiscard]] UiPointerRouteResult ApplyPointer(
         const input::PointerState& pointer,
         input::InputControlState primaryButton) noexcept;
@@ -215,11 +266,21 @@ private:
     [[nodiscard]] UiActionResult FocusIndex(std::size_t index) noexcept;
     [[nodiscard]] UiActionResult ActivateIndex(std::size_t index) noexcept;
     [[nodiscard]] UiActionResult MoveFocus(bool forward) noexcept;
+    [[nodiscard]] UiActionResult ScrollIndex(
+        std::size_t index,
+        std::int64_t deltaX,
+        std::int64_t deltaY) noexcept;
+    [[nodiscard]] UiActionResult SetScrollOffsetIndex(
+        std::size_t index,
+        std::uint32_t offsetX,
+        std::uint32_t offsetY) noexcept;
     [[nodiscard]] std::size_t HitTestTopmost(float x, float y) const noexcept;
+    [[nodiscard]] std::size_t HitTestTopmostScrollViewport(float x, float y) const noexcept;
     [[nodiscard]] bool IsPointInsideElement(std::size_t index, float x, float y) const noexcept;
     [[nodiscard]] bool IsInteractionAllowed(std::size_t index) const noexcept;
     [[nodiscard]] bool IsDescendantOrSelf(std::size_t index, std::size_t ancestorIndex) const noexcept;
     [[nodiscard]] static bool ContainsPoint(const UiRect& bounds, float x, float y) noexcept;
+    [[nodiscard]] static bool ContainsPoint(const UiPresentationRect& bounds, float x, float y) noexcept;
     [[nodiscard]] bool Contains(const UiRect& bounds) const noexcept;
     void ClearPointerCapture() noexcept;
     void TouchDisplayText(UiElement& element) noexcept;
