@@ -83,6 +83,64 @@ TEST(TextInputTests, CompositionRemainsTransientUntilUtf8Commit)
     EXPECT_EQ(document.Find("player_name")->text, std::string{"Player"} + committedKorean + cjk);
 }
 
+TEST(TextInputTests, CompositionUpdatesReplaceAndClearWithoutCommitting)
+{
+    UiDocument document = MakeTextDocument();
+    ASSERT_EQ(document.Focus("player_name"), UiActionResult::Success);
+
+    ASSERT_EQ(
+        document.ApplyTextInput(TextInputEvent{
+            .type = TextInputEventType::Composition,
+            .text = "first",
+            .selectionStart = 1,
+            .selectionLength = 2,
+        }),
+        UiActionResult::Success);
+    EXPECT_EQ(document.Find("player_name")->text, "Player");
+    EXPECT_EQ(document.TextComposition().text, "first");
+
+    ASSERT_EQ(
+        document.ApplyTextInput(TextInputEvent{
+            .type = TextInputEventType::Composition,
+            .text = "second",
+            .selectionStart = 3,
+            .selectionLength = 1,
+        }),
+        UiActionResult::Success);
+    EXPECT_EQ(document.Find("player_name")->text, "Player");
+    EXPECT_EQ(document.TextComposition().text, "second");
+    EXPECT_EQ(document.TextComposition().selectionStart, 3);
+    EXPECT_EQ(document.TextComposition().selectionLength, 1);
+
+    ASSERT_EQ(
+        document.ApplyTextInput(TextInputEvent{
+            .type = TextInputEventType::Composition,
+            .text = "",
+            .selectionStart = -1,
+            .selectionLength = -1,
+        }),
+        UiActionResult::Success);
+    EXPECT_EQ(document.Find("player_name")->text, "Player");
+    EXPECT_FALSE(document.TextComposition().active);
+
+    ASSERT_EQ(
+        document.ApplyTextInput(TextInputEvent{
+            .type = TextInputEventType::Composition,
+            .text = "final",
+            .selectionStart = 5,
+            .selectionLength = 0,
+        }),
+        UiActionResult::Success);
+    ASSERT_EQ(
+        document.ApplyTextInput(TextInputEvent{
+            .type = TextInputEventType::Committed,
+            .text = "x",
+        }),
+        UiActionResult::Success);
+    EXPECT_EQ(document.Find("player_name")->text, "Playerx");
+    EXPECT_FALSE(document.TextComposition().active);
+}
+
 TEST(TextInputTests, FocusChangesAndSemanticReplacementClearCompositionDeterministically)
 {
     UiDocument document = MakeTextDocument();
