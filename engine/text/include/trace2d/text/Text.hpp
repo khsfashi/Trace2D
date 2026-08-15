@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -56,6 +57,11 @@ enum class TextErrorCode : std::uint8_t
     GlyphLoadFailed,
     GlyphRenderFailed,
     BitmapSizeOverflow,
+    InvalidGlyphAtlasConfig,
+    GlyphAtlasSizeOverflow,
+    GlyphAtlasAllocationFailed,
+    GlyphCacheLimitReached,
+    GlyphAtlasFull,
 };
 
 [[nodiscard]] std::string_view ToString(TextErrorCode value) noexcept;
@@ -154,4 +160,111 @@ struct FontFacePrepareResult final
 [[nodiscard]] FontFacePrepareResult PrepareFontFace(
     assets::ResourceRegistry& registry,
     assets::ResourceHandle<assets::FontResource> handle);
+
+struct GlyphAtlasConfig final
+{
+    std::uint32_t width{1024U};
+    std::uint32_t height{1024U};
+    std::uint32_t pixelHeight{32U};
+    std::uint32_t padding{1U};
+    std::uint32_t maxGlyphs{4096U};
+};
+
+struct GlyphAtlasEntry final
+{
+    char32_t codepoint{0};
+    std::uint32_t glyphIndex{0};
+    std::uint32_t x{0};
+    std::uint32_t y{0};
+    std::uint32_t width{0};
+    std::uint32_t height{0};
+    std::int32_t bearingX{0};
+    std::int32_t bearingY{0};
+    std::int64_t advanceX26_6{0};
+};
+
+struct GlyphAtlasMetrics final
+{
+    std::size_t glyphCount{0};
+    std::uint64_t cacheHits{0};
+    std::uint64_t cacheMisses{0};
+    std::uint64_t rasterizations{0};
+    std::size_t retainedAtlasBytes{0};
+    std::uint64_t occupiedBitmapPixels{0};
+    std::size_t lookupSlotCount{0};
+};
+
+struct GlyphAtlasResolveResult final
+{
+    std::optional<GlyphAtlasEntry> entry{};
+    bool cacheHit{false};
+    std::optional<TextDiagnostic> diagnostic{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return entry.has_value() && !diagnostic.has_value();
+    }
+};
+
+struct GlyphAtlasWarmResult final
+{
+    std::size_t codepointCount{0};
+    std::size_t uniqueGlyphsAdded{0};
+    std::size_t cacheHits{0};
+    std::optional<TextDiagnostic> diagnostic{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return !diagnostic.has_value();
+    }
+};
+
+struct GlyphAtlasPrepareResult;
+
+// A GlyphAtlas owns one prepared FontFace at one fixed pixel height. It is intentionally bounded:
+// cache exhaustion is reported instead of triggering implicit growth/eviction. The type is not
+// internally synchronized; use one atlas from one text-preparation thread unless externally guarded.
+class GlyphAtlas final
+{
+public:
+    GlyphAtlas(const GlyphAtlas&) = delete;
+    GlyphAtlas& operator=(const GlyphAtlas&) = delete;
+    GlyphAtlas(GlyphAtlas&&) noexcept;
+    GlyphAtlas& operator=(GlyphAtlas&&) noexcept;
+    ~GlyphAtlas();
+
+    [[nodiscard]] GlyphAtlasResolveResult ResolveCodepoint(char32_t codepoint);
+    [[nodiscard]] GlyphAtlasWarmResult WarmUtf8(std::string_view text);
+    [[nodiscard]] GlyphAtlasConfig Config() const noexcept;
+    [[nodiscard]] GlyphAtlasMetrics Metrics() const noexcept;
+    [[nodiscard]] std::span<const std::uint8_t> Alpha8() const noexcept;
+    [[nodiscard]] assets::ResourceHandle<assets::FontResource> ResourceHandle() const noexcept;
+
+private:
+    struct Impl;
+    explicit GlyphAtlas(std::unique_ptr<Impl> impl) noexcept;
+
+    std::unique_ptr<Impl> impl_{};
+
+    friend GlyphAtlasPrepareResult PrepareGlyphAtlas(
+        assets::ResourceRegistry& registry,
+        assets::ResourceHandle<assets::FontResource> handle,
+        GlyphAtlasConfig config);
+};
+
+struct GlyphAtlasPrepareResult final
+{
+    std::unique_ptr<GlyphAtlas> atlas{};
+    std::optional<TextDiagnostic> diagnostic{};
+
+    [[nodiscard]] bool Succeeded() const noexcept
+    {
+        return atlas != nullptr && !diagnostic.has_value();
+    }
+};
+
+[[nodiscard]] GlyphAtlasPrepareResult PrepareGlyphAtlas(
+    assets::ResourceRegistry& registry,
+    assets::ResourceHandle<assets::FontResource> handle,
+    GlyphAtlasConfig config = {});
 } // namespace trace2d::text
