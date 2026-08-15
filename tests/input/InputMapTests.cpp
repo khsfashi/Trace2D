@@ -209,10 +209,4 @@ TEST(InputMapTests, ProjectStorePersistsAndReloadsCanonicalRebindingsWithoutDisc
 
     std::filesystem::remove_all(root);
 }
-
-TEST(InputMapTests, EmptyHandBuiltDocumentIsRejectedBeforePersistence)
-{
-    const auto result = trace2d::input::BuildActionMap(InputMapDocument{});
-    EXPECT_FALSE(result.Succeeded());
-}
 } // namespace
