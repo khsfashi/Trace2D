@@ -893,13 +893,21 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 }
                 else if (placement.has_value() && *placement == UiLayoutPlacementMode::AnchoredFixed)
                 {
-                    if (HasAnyField(*elementTable, {"bounds", "margin"}))
+                    if (elementTable->get("bounds") != nullptr)
                     {
                         AddDiagnostic(
                             result.diagnostics,
-                            elementPath + ".placement",
-                            "bounds and margin are incompatible with anchored_fixed placement; use anchor/pivot/offset/size.",
-                            elementTable->get("placement"));
+                            elementPath + ".bounds",
+                            "bounds is incompatible with anchored_fixed placement; use anchor/pivot/offset/size.",
+                            elementTable->get("bounds"));
+                    }
+                    if (elementTable->get("margin") != nullptr)
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".margin",
+                            "margin is incompatible with anchored_fixed placement; margin is only valid for stack_fixed.",
+                            elementTable->get("margin"));
                     }
                     anchored = ReadAnchoredPlacement(*elementTable, elementPath, result.diagnostics);
                 }
