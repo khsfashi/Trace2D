@@ -1,11 +1,13 @@
 #include <trace2d/application/Application.hpp>
 #include <trace2d/input/ActionMap.hpp>
 #include <trace2d/input/Input.hpp>
+#include <trace2d/input/InputMap.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace
@@ -188,5 +190,108 @@ TEST(InputActionApplicationTests, StartRejectsIncompleteActionDefinitionsBeforeG
 
     EXPECT_THROW(application.Start(), std::logic_error);
     EXPECT_EQ(application.Lifecycle(), trace2d::application::ApplicationLifecycle::Stopped);
+}
+
+class ConfiguredInputGame final : public Game
+{
+public:
+    void OnStart(GameContext& context) override
+    {
+        const auto jump = context.Actions().FindButtonAction("jump");
+        if (!jump.has_value())
+        {
+            throw std::logic_error{"Configured input map must contain jump."};
+        }
+        jump_ = *jump;
+    }
+
+    void OnFixedUpdate(GameContext& context, const FixedUpdate& update) override
+    {
+        observations.push_back(FrameObservation{
+            .frame = update.frame,
+            .jumpHeld = context.Actions().Held(jump_),
+            .jumpPressed = context.Actions().Pressed(jump_),
+            .jumpReleased = context.Actions().Released(jump_),
+        });
+    }
+
+    std::vector<FrameObservation> observations{};
+
+private:
+    ButtonActionId jump_{};
+};
+
+TEST(InputActionApplicationTests, RebindingToAnAlreadyHeldControlDoesNotSynthesizeAPressEdge)
+{
+    constexpr std::string_view initialText = R"toml(format_version = 1
+[[buttons]]
+id = "jump"
+controls = ["Enter"]
+)toml";
+
+    auto load = trace2d::input::ParseInputMapToml(initialText);
+    ASSERT_TRUE(load.Succeeded());
+    auto initialBuild = trace2d::input::BuildActionMap(*load.document);
+    ASSERT_TRUE(initialBuild.Succeeded());
+
+    ConfiguredInputGame game{};
+    Application application{game};
+    application.CommitActions(std::move(*initialBuild.actionMap));
+    application.Start();
+
+    application.ApplyInput(InputEvent{.control = InputControl::Space, .type = InputEventType::Press});
+    application.StepFrames(1U);
+    ASSERT_EQ(game.observations.size(), 1U);
+    EXPECT_FALSE(game.observations[0].jumpHeld);
+    EXPECT_FALSE(game.observations[0].jumpPressed);
+
+    auto document = *load.document;
+    const auto rebind = trace2d::input::RebindControl(
+        document,
+        "jump",
+        InputControl::Enter,
+        InputControl::Space);
+    ASSERT_TRUE(rebind.Succeeded());
+    ASSERT_TRUE(rebind.changed);
+    auto reboundBuild = trace2d::input::BuildActionMap(document);
+    ASSERT_TRUE(reboundBuild.Succeeded());
+
+    application.CommitActions(std::move(*reboundBuild.actionMap));
+    application.StepFrames(1U);
+    ASSERT_EQ(game.observations.size(), 2U);
+    EXPECT_TRUE(game.observations[1].jumpHeld);
+    EXPECT_FALSE(game.observations[1].jumpPressed);
+    EXPECT_FALSE(game.observations[1].jumpReleased);
+
+    application.ApplyInput(InputEvent{.control = InputControl::Space, .type = InputEventType::Release});
+    application.StepFrames(1U);
+    ASSERT_EQ(game.observations.size(), 3U);
+    EXPECT_FALSE(game.observations[2].jumpHeld);
+    EXPECT_FALSE(game.observations[2].jumpPressed);
+    EXPECT_TRUE(game.observations[2].jumpReleased);
+}
+
+TEST(InputActionApplicationTests, CommitRejectsUnfinalizedMapsAndStoppedApplications)
+{
+    ConfiguredInputGame game{};
+    Application application{game};
+
+    trace2d::input::ActionMap unfinalized{};
+    const auto jump = unfinalized.AddButtonAction("jump");
+    unfinalized.BindButton(jump, InputControl::Space);
+    EXPECT_THROW(application.CommitActions(std::move(unfinalized)), std::invalid_argument);
+
+    trace2d::input::ActionMap finalized{};
+    const auto configuredJump = finalized.AddButtonAction("jump");
+    finalized.BindButton(configuredJump, InputControl::Space);
+    finalized.Finalize();
+    application.CommitActions(std::move(finalized));
+    application.Stop();
+
+    trace2d::input::ActionMap afterStop{};
+    const auto afterStopJump = afterStop.AddButtonAction("jump");
+    afterStop.BindButton(afterStopJump, InputControl::Enter);
+    afterStop.Finalize();
+    EXPECT_THROW(application.CommitActions(std::move(afterStop)), std::logic_error);
 }
 } // namespace
