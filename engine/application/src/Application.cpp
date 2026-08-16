@@ -131,7 +131,7 @@ Application::Application(Game& game, ApplicationConfig config)
 
 Application::Application(
     Game& game,
-    const scene::ComponentRegistry& componentRegistry,
+    scene::ComponentRegistry& componentRegistry,
     ApplicationConfig config)
     : game_{game}
     , runtime_{config.runtime}
