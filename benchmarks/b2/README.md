@@ -16,11 +16,39 @@ B2 uses a staged pre-score freeze:
    external-user lane, pin its exact source/package/evidence identity, and freeze
    all nine scored slots before any scored result is observed.
 4. **P1c verifier qualification** — qualify each lane's independent B2 verifier
-   on committed known-good and meaningful known-bad fixtures. Only this step may
-   open the scoring gate.
+   on committed known-good and meaningful known-bad fixtures.
+5. **Scoring gate** — pin the exact verifier qualification heads, workflow runs,
+   artifacts and digests, then open scoring without changing any frozen task,
+   lane, schedule, budget, retry or authority field.
 
 No scored B2 result may be observed while `preregistration-v1.json` has
-`scoring_gate.allowed = false`.
+`scoring_gate.allowed = false`. The explicit verifier qualification record is
+`verifier-qualification-v1.json`.
+
+## Scoring gate status
+
+The scoring gate is open. No scored B2 result had been observed when the gate
+was frozen open.
+
+The Trace2D verifier qualification is pinned to exact head
+`12ada922f37fdd4e004a39cdb168dc610b8fdd4c`, workflow run `31938580902`,
+artifact `9261437919`, and artifact SHA-256
+`5c4bf6b0e253b480ddee5ad2a06836c96943d0b77def251d9481ff02f2707635`.
+The same verifier accepted the committed six-step cooldown fixture and rejected
+the committed five-step cooldown mutation at the frame-14 early-attack check.
+
+The shared Godot runtime verifier qualification for `godot.generic` and
+`godot.agent` is pinned to exact head
+`a11592be1da77867e6e6792f97de6dbc21ea6b23`, workflow run `31939889431`,
+artifact `9261721033`, and artifact SHA-256
+`a7934b2cf2c55894b969d3a429aeb8afbcdb4cca9fe9033328da5e2ebf83c3cb`.
+It used official Godot `4.7.1.stable.official.a13da4feb`, accepted the committed
+six-step cooldown fixture, and rejected the five-step mutation at the same
+frame-14 checkpoint.
+
+Opening the gate does not authorize a reroll, task edit, lane substitution,
+budget increase, verifier change, or best-of-N selection. The nine committed
+slots remain the only scored cohort.
 
 ## Frozen strongest Godot Agent lane
 
@@ -42,9 +70,9 @@ frozen task across `godot.generic`, `godot.agent`, and `trace2d.agent`. Lane ord
 rotates so each lane occupies first, second, and third temporal position exactly
 once. There are no automatic or replacement retries and no best-of-N selection.
 
-The schedule is frozen but **not yet executable as scored B2**. The only
-remaining scoring-gate blocker is lane-specific independent verifier
-qualification on known-good and meaningful known-bad fixtures.
+The schedule is now executable as scored B2 because both independent verifier
+families have been qualified and their evidence is frozen. Execution must still
+follow the exact committed slot order and reporting policy.
 
 ## Frozen task
 
@@ -54,8 +82,8 @@ sprite animation, hit/death particles, a small HUD, deterministic gameplay
 acceptance, and presentation evidence.
 
 The task prompt is frozen at
-`tasks/b2-topdown-combat-v1/PROMPT.md`. Later qualification work may not change
-task membership or task semantics.
+`tasks/b2-topdown-combat-v1/PROMPT.md`. Scored work may not change task membership
+or task semantics.
 
 ## Budget rationale
 
