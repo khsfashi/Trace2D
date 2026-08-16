@@ -65,6 +65,21 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME trace2d_cli_author_sprite_unknown_property
+        COMMAND trace2d author sprite
+            --project "${CMAKE_SOURCE_DIR}"
+            --resource "unused.sprite.toml"
+            --unknown-property 1
+            --json
+    )
+    set_tests_properties(
+        trace2d_cli_author_sprite_unknown_property
+        PROPERTIES
+            WILL_FAIL TRUE
+            PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown sprite authoring option: --unknown-property"
+    )
+
+    add_test(
         NAME trace2d_cli_public_alpha_headless
         COMMAND trace2d public-alpha
             --headless
