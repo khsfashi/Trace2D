@@ -6,6 +6,7 @@ add_library(trace2d_agent STATIC
     src/ParticleInspection.cpp
     src/Query.cpp
     src/SpriteAnimationInspection.cpp
+    src/SpriteAuthoring.cpp
     src/UiAutomation.cpp
     src/WorkResult.cpp
     src/WorkSpec.cpp
@@ -21,6 +22,7 @@ target_include_directories(trace2d_agent
 
 target_link_libraries(trace2d_agent
     PUBLIC
+        Trace2D::Assets
         Trace2D::Runtime
         Trace2D::Scene
         Trace2D::Ui

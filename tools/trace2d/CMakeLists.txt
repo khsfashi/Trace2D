@@ -2,6 +2,7 @@ add_executable(trace2d
     main.cpp
     AgentCommands.cpp
     PublicAlphaCommand.cpp
+    SpriteAuthoringCommand.cpp
 )
 
 target_link_libraries(trace2d
@@ -51,6 +52,30 @@ if(BUILD_TESTING)
         trace2d_cli_query
         PROPERTIES
             PASS_REGULAR_EXPRESSION "\\\"command\\\":\\\"query\\\".*\\\"kind\\\":\\\"tag\\\".*\\\"match_count\\\":1.*\\\"id\\\":\\\"enemy\\\""
+    )
+
+    add_test(
+        NAME trace2d_cli_author_sprite_help
+        COMMAND trace2d author sprite --help
+    )
+    set_tests_properties(
+        trace2d_cli_author_sprite_help
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "trace2d author sprite.*--source-size.*--pivot"
+    )
+
+    add_test(
+        NAME trace2d_cli_author_sprite_unknown_property
+        COMMAND trace2d author sprite
+            --project "${CMAKE_SOURCE_DIR}"
+            --resource "unused.sprite.toml"
+            --unknown-property 1
+            --json
+    )
+    set_tests_properties(
+        trace2d_cli_author_sprite_unknown_property
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown sprite authoring option: --unknown-property"
     )
 
     add_test(
