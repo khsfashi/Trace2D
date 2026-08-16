@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -90,15 +91,23 @@ public:
         std::error_code error{};
         std::filesystem::remove_all(root_, error);
         error.clear();
-        std::filesystem::create_directories(
-            (root_ / std::filesystem::path{EffectReference}).parent_path(),
-            error);
-        ASSERT_FALSE(error);
+        const std::filesystem::path effectPath = root_ / std::filesystem::path{EffectReference};
+        std::filesystem::create_directories(effectPath.parent_path(), error);
+        if (error)
+        {
+            throw std::runtime_error{"failed to create Particle authoring test directory: " + error.message()};
+        }
 
-        std::ofstream output{root_ / std::filesystem::path{EffectReference}, std::ios::binary};
-        ASSERT_TRUE(output);
+        std::ofstream output{effectPath, std::ios::binary};
+        if (!output)
+        {
+            throw std::runtime_error{"failed to open Particle authoring test resource"};
+        }
         output.write(EffectToml.data(), static_cast<std::streamsize>(EffectToml.size()));
-        ASSERT_TRUE(output);
+        if (!output)
+        {
+            throw std::runtime_error{"failed to write Particle authoring test resource"};
+        }
     }
 
     ~TempParticleAuthoringProject()
