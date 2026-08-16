@@ -104,7 +104,10 @@ ParticleAuthoringResult MutateParticleEffectResource(
         return result;
     }
 
-    particles::ParticleEffectCache cache{projectRoot, limits};
+    // Load the current canonical resource under the production authority's normal limits.
+    // The caller-provided limits describe the desired post-mutation budget and are applied
+    // to the candidate below, so an over-budget-but-production-valid resource can be repaired.
+    particles::ParticleEffectCache cache{projectRoot};
     particles::ParticleEffectLoadResult loaded = cache.Load(projectRelativeReference);
     if (!loaded.Succeeded())
     {
