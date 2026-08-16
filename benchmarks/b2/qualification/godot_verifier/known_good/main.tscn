@@ -1,0 +1,57 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://combat_game.gd" id="1_game"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Player" type="Node2D" parent="."]
+metadata/semantic_id = "player"
+metadata/hp = 3
+metadata/maximum_hp = 3
+metadata/dead = false
+metadata/death_transitions = 0
+
+[node name="Enemy" type="Node2D" parent="."]
+position = Vector2(64, 0)
+metadata/semantic_id = "enemy"
+metadata/hp = 2
+metadata/maximum_hp = 2
+metadata/dead = false
+metadata/death_transitions = 0
+metadata/hit_particle_triggers = 0
+metadata/death_particle_triggers = 0
+
+[node name="HitParticles" type="CPUParticles2D" parent="Enemy"]
+emitting = false
+one_shot = true
+amount = 1
+lifetime = 0.1
+
+[node name="DeathParticles" type="CPUParticles2D" parent="Enemy"]
+emitting = false
+one_shot = true
+amount = 1
+lifetime = 0.1
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PlayerHP" type="ProgressBar" parent="HUD"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 128.0
+offset_bottom = 20.0
+max_value = 3.0
+value = 3.0
+show_percentage = false
+metadata/semantic_id = "hud.player_hp"
+
+[node name="EnemyHP" type="ProgressBar" parent="HUD"]
+offset_left = 8.0
+offset_top = 28.0
+offset_right = 128.0
+offset_bottom = 40.0
+max_value = 2.0
+value = 2.0
+show_percentage = false
+metadata/semantic_id = "hud.enemy_hp"

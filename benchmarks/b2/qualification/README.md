@@ -42,3 +42,30 @@ Verifier qualification is non-scored evidence and does not open the scoring gate
 by itself. `benchmarks/b2/preregistration-v1.json` and
 `benchmarks/b2/scored-cohort-v1.json` remain authoritative for the frozen task,
 schedule, lane identities, and remaining pre-score blockers.
+
+## Godot lane verifier qualification
+
+`godot_verifier` qualifies the independent deterministic verifier shared by the
+`godot.generic` and `godot.agent` B2 lanes. The verifier is injected by the
+harness after candidate authoring, drives the public semantic InputMap actions,
+and observes ordinary runtime nodes through stable `semantic_id` metadata plus
+HUD `Range` state. Candidate code does not receive a verifier-only simulation
+entrypoint or direct state-assignment hook.
+
+The verifier runs after normal candidate physics callbacks by using a later
+physics-process priority. It replays the same sixteen-step acceptance sequence
+as the Trace2D verifier: eight movement steps, first damage, a frame-14 attack
+that must still be blocked by the six-step cooldown, and the post-cooldown lethal
+attack/death transition. It also checks unchanged player HP, HUD convergence,
+and deterministic hit/death presentation-hook counters.
+
+The committed pair differs by one meaningful rule:
+
+- `known_good` implements the frozen six-fixed-step attack cooldown.
+- `known_bad_cooldown` implements five steps and must therefore be rejected at
+  the frame-14 early-attack checkpoint by the exact same verifier.
+
+Qualification uses pinned official Godot `4.7.1-stable` in headless fixed-FPS
+mode and retains the verifier/runner hashes, fixture tree hashes, stdout logs,
+and machine-readable verdict as CI evidence. This qualification does not open
+B2 scoring; the scoring gate remains an explicit separate preregistration step.
