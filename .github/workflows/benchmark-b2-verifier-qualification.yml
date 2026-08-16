@@ -37,29 +37,48 @@ jobs:
         shell: pwsh
         run: |
           $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
           git clone https://github.com/microsoft/vcpkg $vcpkgRoot
           git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
           & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
           "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
 
       - name: Configure
-        run: cmake --preset ci-windows-msvc
+        shell: pwsh
+        run: |
+          $evidenceDir = Join-Path $env:RUNNER_TEMP "b2-verifier-qualification"
+          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+          cmake --preset ci-windows-msvc 2>&1 | Tee-Object -FilePath (Join-Path $evidenceDir "configure.log")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build Trace2D B2 verifier fixtures
-        run: >-
-          cmake --build --preset ci-windows-debug --parallel --target
-          trace2d_b2_trace2d_good_verify
-          trace2d_b2_trace2d_bad_cooldown_verify
+        shell: pwsh
+        run: |
+          $evidenceDir = Join-Path $env:RUNNER_TEMP "b2-verifier-qualification"
+          cmake --build --preset ci-windows-debug --parallel --target trace2d_b2_trace2d_good_verify trace2d_b2_trace2d_bad_cooldown_verify 2>&1 | Tee-Object -FilePath (Join-Path $evidenceDir "build.log")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Qualify known-good acceptance and known-bad rejection
-        run: ctest --preset ci-windows-debug -L benchmark_b2_verifier_qualification --output-on-failure
+        shell: pwsh
+        run: |
+          $evidenceDir = Join-Path $env:RUNNER_TEMP "b2-verifier-qualification"
+          ctest --preset ci-windows-debug -L benchmark_b2_verifier_qualification --output-on-failure 2>&1 | Tee-Object -FilePath (Join-Path $evidenceDir "ctest.log")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Write qualification evidence
         if: success()
         shell: pwsh
         run: |
           $evidenceDir = Join-Path $env:RUNNER_TEMP "b2-verifier-qualification"
-          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
           $data = [ordered]@{
             schema_version = 1
             benchmark_id = "trace2d-b2"
@@ -81,5 +100,5 @@ jobs:
         with:
           name: benchmark-b2-trace2d-verifier-qualification
           path: ${{ runner.temp }}/b2-verifier-qualification
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
