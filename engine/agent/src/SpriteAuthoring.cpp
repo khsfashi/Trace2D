@@ -4,9 +4,11 @@
 #include <atomic>
 #include <cstdint>
 #include <fstream>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
