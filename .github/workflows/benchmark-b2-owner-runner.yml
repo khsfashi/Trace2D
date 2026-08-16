@@ -6,6 +6,7 @@ on:
       - main
       - "agent/**"
     paths:
+      - ".gitattributes"
       - "benchmarks/b2/OWNER_RUNNER.md"
       - "scripts/benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
@@ -16,6 +17,7 @@ on:
     branches:
       - main
     paths:
+      - ".gitattributes"
       - "benchmarks/b2/OWNER_RUNNER.md"
       - "scripts/benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
@@ -72,3 +74,17 @@ jobs:
           set -e
           test "$code" -eq 2
           grep -F "next frozen B2 slot is 1 (godot.generic), not requested slot 2" "$RUNNER_TEMP/skip.stderr"
+
+  windows-checkout:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Re-clone with Windows autocrlf enabled
+        shell: pwsh
+        run: |
+          $clone = Join-Path $env:RUNNER_TEMP "b2-windows-autocrlf-clone"
+          git -c core.autocrlf=true clone . $clone
+          Set-Location $clone
+          python scripts/benchmark_b2_scored_harness.py validate
