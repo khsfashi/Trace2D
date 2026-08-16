@@ -33,11 +33,10 @@ class B2WrapperError(base.B1WrapperError):
 
 def _alias_env(target: str, source: str) -> None:
     value = os.environ.get(source, "").strip()
-    existing = os.environ.get(target, "").strip()
-    if existing and value and existing != value:
-        raise B2WrapperError(f"conflicting environment values: {target} and {source}")
     if value:
         os.environ[target] = value
+    else:
+        os.environ.pop(target, None)
 
 
 def _execution_mechanics(lane: str) -> str:
@@ -79,7 +78,7 @@ def run_b2_trial(args: argparse.Namespace) -> int:
     frozen_prompt_path = Path(args.prompt_file).expanduser().resolve()
     frozen_prompt = frozen_prompt_path.read_text(encoding="utf-8")
     mechanics = _execution_mechanics(args.lane)
-    effective_prompt = frozen_prompt.rstrip() + mechanics + "\n"
+    effective_prompt = frozen_prompt + mechanics
     effective_path = result.parent / "effective-agent-prompt.md"
     effective_path.write_text(effective_prompt, encoding="utf-8")
     delegated = argparse.Namespace(**vars(args))
