@@ -1,6 +1,8 @@
 add_executable(trace2d
     main.cpp
     AgentCommands.cpp
+    AuthoringCommand.cpp
+    ParticleAuthoringCommand.cpp
     PublicAlphaCommand.cpp
     SpriteAuthoringCommand.cpp
 )
@@ -55,6 +57,16 @@ if(BUILD_TESTING)
     )
 
     add_test(
+        NAME trace2d_cli_author_help
+        COMMAND trace2d author --help
+    )
+    set_tests_properties(
+        trace2d_cli_author_help
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "Supported resource kinds: sprite, particle"
+    )
+
+    add_test(
         NAME trace2d_cli_author_sprite_help
         COMMAND trace2d author sprite --help
     )
@@ -76,6 +88,39 @@ if(BUILD_TESTING)
         trace2d_cli_author_sprite_unknown_property
         PROPERTIES
             PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown sprite authoring option: --unknown-property"
+    )
+
+    add_test(
+        NAME trace2d_cli_author_particle_help
+        COMMAND trace2d author particle --help
+    )
+    set_tests_properties(
+        trace2d_cli_author_particle_help
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "trace2d author particle.*--max-particles.*--emission-count.*--lifetime-frames"
+    )
+
+    add_test(
+        NAME trace2d_cli_author_particle_unknown_property
+        COMMAND trace2d author particle
+            --project "${CMAKE_SOURCE_DIR}"
+            --resource "unused.trace2d.particle.toml"
+            --unknown-property 1
+            --json
+    )
+    set_tests_properties(
+        trace2d_cli_author_particle_unknown_property
+        PROPERTIES
+            PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown particle authoring option: --unknown-property"
+    )
+
+    add_test(
+        NAME trace2d_cli_author_particle_transaction
+        COMMAND ${CMAKE_COMMAND}
+            "-DTRACE2D_CLI=$<TARGET_FILE:trace2d>"
+            "-DSOURCE=${CMAKE_SOURCE_DIR}/tests/data/particle_authoring_fixture.trace2d.particle.toml"
+            "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/particle_authoring_cli_test"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/ParticleAuthoringCliTest.cmake"
     )
 
     add_test(

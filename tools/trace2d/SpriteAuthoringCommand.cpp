@@ -1,4 +1,4 @@
-#include "AgentCommands.hpp"
+#include "AuthoringCommands.hpp"
 
 #include <trace2d/agent/SpriteAuthoring.hpp>
 
@@ -194,13 +194,9 @@ void PrintResultHuman(const agent::SpriteAuthoringResult& result)
 }
 } // namespace
 
-int RunAuthorCommand(const int argc, char* argv[])
+int RunSpriteAuthorCommand(const int argc, char* argv[])
 {
     const bool json = HasJsonFlag(argc, argv);
-    if (argc < 3 || std::string_view{argv[2]} != "sprite")
-    {
-        return PrintUsageError(json, "author requires the supported resource kind: sprite.");
-    }
     if (argc == 4 && std::string_view{argv[3]} == "--help")
     {
         PrintSpriteAuthoringUsage();

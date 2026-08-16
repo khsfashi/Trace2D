@@ -1,34 +1,18 @@
 #include <trace2d/agent/SpriteAuthoring.hpp>
 
+#include "AuthoringFileTransaction.hpp"
+
 #include <algorithm>
-#include <atomic>
-#include <cstdint>
-#include <fstream>
 #include <iterator>
 #include <optional>
 #include <string>
-#include <system_error>
 #include <utility>
-
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <Windows.h>
-#else
-#include <unistd.h>
-#endif
 
 namespace trace2d::agent
 {
 namespace
 {
 constexpr std::size_t MaximumDiagnostics = 8U;
-constexpr std::uint32_t MaximumTemporaryPathAttempts = 8U;
-std::atomic<std::uint64_t> TemporarySerial{0U};
 
 void AddDiagnostic(
     SpriteAuthoringResult& result,
@@ -60,106 +44,6 @@ void CopyAssetDiagnostics(
             break;
         }
     }
-}
-
-std::uint64_t ProcessId() noexcept
-{
-#ifdef _WIN32
-    return static_cast<std::uint64_t>(::GetCurrentProcessId());
-#else
-    return static_cast<std::uint64_t>(::getpid());
-#endif
-}
-
-std::optional<std::filesystem::path> MakeTemporaryPath(
-    const std::filesystem::path& target,
-    std::string& errorMessage)
-{
-    for (std::uint32_t attempt = 0U; attempt < MaximumTemporaryPathAttempts; ++attempt)
-    {
-        std::filesystem::path candidate = target;
-        candidate += ".trace2d-authoring." + std::to_string(ProcessId()) + "." +
-            std::to_string(TemporarySerial.fetch_add(1U, std::memory_order_relaxed)) + ".tmp";
-
-        std::error_code error{};
-        const bool exists = std::filesystem::exists(candidate, error);
-        if (error)
-        {
-            errorMessage = "Unable to inspect temporary Sprite authoring path: " + error.message();
-            return std::nullopt;
-        }
-        if (!exists)
-        {
-            return candidate;
-        }
-    }
-
-    errorMessage = "Unable to reserve a unique sibling temporary path for Sprite authoring.";
-    return std::nullopt;
-}
-
-bool WriteTemporaryFile(
-    const std::filesystem::path& path,
-    const std::string_view contents,
-    std::string& errorMessage)
-{
-    std::ofstream output{path, std::ios::binary | std::ios::trunc};
-    if (!output)
-    {
-        errorMessage = "Unable to open temporary Sprite resource for writing.";
-        return false;
-    }
-
-    output.write(contents.data(), static_cast<std::streamsize>(contents.size()));
-    output.flush();
-    if (!output)
-    {
-        errorMessage = "Unable to write temporary Sprite resource completely.";
-        output.close();
-        return false;
-    }
-
-    output.close();
-    if (!output)
-    {
-        errorMessage = "Unable to close temporary Sprite resource after writing.";
-        return false;
-    }
-    return true;
-}
-
-bool ReplaceFileAtomically(
-    const std::filesystem::path& source,
-    const std::filesystem::path& target,
-    std::string& errorMessage)
-{
-#ifdef _WIN32
-    if (::MoveFileExW(
-            source.c_str(),
-            target.c_str(),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0)
-    {
-        errorMessage = "Unable to atomically replace Sprite resource: " +
-            std::system_category().message(static_cast<int>(::GetLastError()));
-        return false;
-    }
-    return true;
-#else
-    std::error_code error{};
-    std::filesystem::rename(source, target, error);
-    if (error)
-    {
-        errorMessage = "Unable to atomically replace Sprite resource: " + error.message();
-        return false;
-    }
-    return true;
-#endif
-}
-
-void RemoveTemporaryFile(const std::filesystem::path& path) noexcept
-{
-    std::error_code ignored{};
-    static_cast<void>(std::filesystem::remove(path, ignored));
 }
 
 std::string RegionFieldPath(const std::string_view regionId, const std::string_view field)
@@ -330,24 +214,10 @@ SpriteAuthoringResult MutateSpriteResource(
     }
 
     const std::filesystem::path target = cache.ProjectRoot() / std::filesystem::path{result.resource};
-    std::string writeError{};
-    const std::optional<std::filesystem::path> temporary = MakeTemporaryPath(target, writeError);
-    if (!temporary.has_value())
-    {
-        AddDiagnostic(result, SpriteAuthoringErrorCode::WriteFailed, "$resource", std::move(writeError));
-        return result;
-    }
-
     const std::string canonical = assets::SaveSpriteAssetToml(*validated.asset);
-    if (!WriteTemporaryFile(*temporary, canonical, writeError))
+    std::string writeError{};
+    if (!detail::CommitAuthoringTextFile(target, canonical, "Sprite", writeError))
     {
-        RemoveTemporaryFile(*temporary);
-        AddDiagnostic(result, SpriteAuthoringErrorCode::WriteFailed, "$resource", std::move(writeError));
-        return result;
-    }
-    if (!ReplaceFileAtomically(*temporary, target, writeError))
-    {
-        RemoveTemporaryFile(*temporary);
         AddDiagnostic(result, SpriteAuthoringErrorCode::WriteFailed, "$resource", std::move(writeError));
         return result;
     }
