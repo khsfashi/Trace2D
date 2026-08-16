@@ -82,20 +82,25 @@ jobs:
           prefix="$RUNNER_TEMP/godot-agent-loop"
           fixture="$RUNNER_TEMP/b2-baseline-qualification-fixture"
           evidence="$RUNNER_TEMP/b2-baseline-qualification-evidence"
-          rm -rf "$prefix" "$fixture" "$evidence"
+          launcher="$RUNNER_TEMP/godot-agent-loop-npx"
+          rm -rf "$prefix" "$fixture" "$evidence" "$launcher"
           mkdir -p "$evidence"
           cp -a benchmarks/b2/qualification/gameplay_loop_fixture "$fixture"
           npm install --prefix "$prefix" --no-audit --no-fund "$TRACE2D_B2_AGENT_LOOP_PACKAGE"
-          server="$prefix/node_modules/.bin/godot-agent-loop"
-          test -x "$server"
           package_json="$prefix/node_modules/@beremaran/godot-agent-loop/package.json"
           version="$(node -p "require(process.argv[1]).version" "$package_json")"
           test "$version" = "3.0.0"
           integrity="$(npm view "$TRACE2D_B2_AGENT_LOOP_PACKAGE" dist.integrity)"
           test -n "$integrity"
+          cat > "$launcher" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec npx --yes '@beremaran/godot-agent-loop@3.0.0'
+          SH
+          chmod +x "$launcher"
           printf '%s\n' "$integrity" > "$evidence/npm-integrity.txt"
           printf '%s\n' "$TRACE2D_B2_AGENT_LOOP_SOURCE_COMMIT" > "$evidence/source-commit.txt"
-          echo "TRACE2D_B2_AGENT_LOOP_SERVER=$server" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_AGENT_LOOP_SERVER=$launcher" >> "$GITHUB_ENV"
           echo "TRACE2D_B2_AGENT_LOOP_FIXTURE=$fixture" >> "$GITHUB_ENV"
           echo "TRACE2D_B2_AGENT_LOOP_EVIDENCE=$evidence" >> "$GITHUB_ENV"
           echo "TRACE2D_B2_AGENT_LOOP_INTEGRITY=$integrity" >> "$GITHUB_ENV"
