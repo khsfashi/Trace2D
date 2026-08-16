@@ -16,7 +16,9 @@
 #include <fstream>
 #include <iterator>
 #include <span>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace trace2d::ui
@@ -119,7 +121,7 @@ struct CaptureEvidence final
     std::vector<std::uint8_t> rgba{};
 };
 
-[[nodiscard]] CaptureEvidence CaptureHud(
+void CaptureHud(
     const int requestedWidth,
     const int requestedHeight,
     const std::uint64_t frameNumber,
@@ -135,7 +137,8 @@ struct CaptureEvidence final
     const std::uint32_t glyphWidth,
     const std::uint32_t glyphHeight,
     const bool releaseImageCpuPayload,
-    const bool proveUnchangedReuse)
+    const bool proveUnchangedReuse,
+    CaptureEvidence& outEvidence)
 {
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
@@ -150,8 +153,8 @@ struct CaptureEvidence final
     render::Renderer renderer{rendererConfig, platform};
     renderer.RenderFrame();
     const render::RenderMetrics initial = renderer.Metrics();
-    EXPECT_GT(initial.lastTargetWidth, 0U);
-    EXPECT_GT(initial.lastTargetHeight, 0U);
+    ASSERT_GT(initial.lastTargetWidth, 0U);
+    ASSERT_GT(initial.lastTargetHeight, 0U);
 
     constexpr std::array<std::uint8_t, 4U> White{255U, 255U, 255U, 255U};
     EXPECT_EQ(
@@ -216,7 +219,6 @@ struct CaptureEvidence final
     EXPECT_EQ(captured.width, initial.lastTargetWidth);
     EXPECT_EQ(captured.height, initial.lastTargetHeight);
 
-    // Canonical Image identity is still the U13 handle even after its allowed CPU payload release.
     bool sawImageHandle = false;
     for (const render::SpritePresentationRenderData& presentation : frame.presentations)
     {
@@ -224,7 +226,6 @@ struct CaptureEvidence final
     }
     EXPECT_TRUE(sawImageHandle);
 
-    // Sample the center of the authored 2x2 red Image after #88 logical->presentation mapping.
     const render::Float2 imageCenterLogical{272.0F, 40.0F};
     const float sampleXf = resolved.viewport.contentRect.origin.x +
         imageCenterLogical.x * resolved.viewport.viewportToPresentationScale.x;
@@ -236,7 +237,7 @@ struct CaptureEvidence final
     ASSERT_LT(sampleY, captured.height);
     const std::size_t sampleOffset =
         (static_cast<std::size_t>(sampleY) * captured.width + sampleX) * 4U;
-    ASSERT_LE(sampleOffset + 3U, captured.rgba8Pixels.size());
+    ASSERT_LT(sampleOffset + 3U, captured.rgba8Pixels.size());
     EXPECT_GT(captured.rgba8Pixels[sampleOffset], 220U);
     EXPECT_LT(captured.rgba8Pixels[sampleOffset + 1U], 32U);
     EXPECT_LT(captured.rgba8Pixels[sampleOffset + 2U], 32U);
@@ -271,7 +272,7 @@ struct CaptureEvidence final
 
     std::error_code removeError{};
     std::filesystem::remove(path, removeError);
-    return CaptureEvidence{captured.width, captured.height, captured.rgba8Pixels};
+    outEvidence = CaptureEvidence{captured.width, captured.height, captured.rgba8Pixels};
 }
 } // namespace
 
@@ -375,7 +376,6 @@ text = "More items"
     ASSERT_EQ(document.Focus("chat"), UiActionResult::Success);
     ASSERT_EQ(document.ScrollTo("scroll", 0U, 40U), UiActionResult::Success);
 
-    // Preserve the existing CPU/Agent oracles before releasing the Image CPU payload.
     UiRasterImage cpuEvidence{};
     UiRasterMetrics cpuMetrics{};
     ASSERT_TRUE(RasterizeUi(document, resources, cpuEvidence, &cpuMetrics));
@@ -461,7 +461,8 @@ text = "More items"
         PrepareUiPresentationCache(UiPresentationCacheConfig{512U});
     ASSERT_TRUE(prepared.Succeeded());
 
-    const CaptureEvidence first = CaptureHud(
+    CaptureEvidence first{};
+    CaptureHud(
         640,
         360,
         1500U,
@@ -477,15 +478,16 @@ text = "More items"
         atlasConfig.width,
         atlasConfig.height,
         true,
-        true);
+        true,
+        first);
     ASSERT_GT(first.width, 0U);
     ASSERT_GT(first.height, 0U);
     EXPECT_EQ(text::GlyphAtlasPixelRevision(*atlas.atlas), glyphPixelRevision);
 
-    // A bounded Progress mutation invalidates presentation state without touching Image/glyph identity.
     const std::uint32_t imageGeneration = imageHandle.generation;
     ASSERT_EQ(document.SetProgress("health", 75U, 100U), UiProgressResult::Success);
-    const CaptureEvidence second = CaptureHud(
+    CaptureEvidence second{};
+    CaptureHud(
         960,
         540,
         1600U,
@@ -501,7 +503,8 @@ text = "More items"
         atlasConfig.width,
         atlasConfig.height,
         false,
-        false);
+        false,
+        second);
     ASSERT_GT(second.width, 0U);
     ASSERT_GT(second.height, 0U);
     EXPECT_NE(first.width, second.width);
