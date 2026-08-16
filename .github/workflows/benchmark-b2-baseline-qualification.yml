@@ -141,6 +141,7 @@ jobs:
         run: python3 -m py_compile scripts/qualify_b2_godot_agent_loop.py scripts/qualify_godot_agent_mcp.py
 
       - name: Upload non-scored qualification evidence
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: b2-godot-agent-loop-qualification-${{ github.sha }}
