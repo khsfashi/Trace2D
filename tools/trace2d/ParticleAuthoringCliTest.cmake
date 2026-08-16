@@ -23,7 +23,7 @@ execute_process(
     OUTPUT_VARIABLE first_stdout
     ERROR_VARIABLE first_stderr
 )
-if(NOT first_result EQUAL 0)
+if(NOT first_result STREQUAL "0")
     message(FATAL_ERROR "Particle authoring commit failed (${first_result}): ${first_stderr}${first_stdout}")
 endif()
 
@@ -31,6 +31,7 @@ foreach(required IN ITEMS
     "\"status\":\"ok\""
     "\"committed\":true"
     "\"validation_passed\":true"
+    "\"program_fingerprint\":"
     "effect.max_particles"
     "emission.count"
     "lifetime.frames")
@@ -63,12 +64,16 @@ execute_process(
     OUTPUT_VARIABLE second_stdout
     ERROR_VARIABLE second_stderr
 )
-if(NOT second_result EQUAL 0)
+if(NOT second_result STREQUAL "0")
     message(FATAL_ERROR "Particle authoring no-op validation failed (${second_result}): ${second_stderr}${second_stdout}")
 endif()
 string(FIND "${second_stdout}" "\"committed\":false" no_op_position)
 if(no_op_position EQUAL -1)
     message(FATAL_ERROR "Equivalent Particle mutation should not rewrite the resource: ${second_stdout}")
+endif()
+string(FIND "${second_stdout}" "\"program_fingerprint\":" fingerprint_position)
+if(fingerprint_position EQUAL -1)
+    message(FATAL_ERROR "Equivalent Particle mutation should still return deterministic compiler evidence: ${second_stdout}")
 endif()
 
 file(REMOVE_RECURSE "${WORK_DIR}")
