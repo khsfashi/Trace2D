@@ -177,9 +177,9 @@ def save_screenshot(result: dict[str, Any], output: Path) -> bool:
 def run_live_candidate(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     client = HttpMcpClient(args.server_url)
     initialized = client.initialize()
-    server_info = initialized.get("serverInfo", {}) if isinstance(initialized, dict) else {}
-    version = str(server_info.get("version", "")) if isinstance(server_info, dict) else ""
-    base.require(version == EXPECTED_VERSION, f"unexpected Godot AI server version: {version!r}")
+    # FastMCP reports its own transport implementation version in serverInfo.
+    # The Godot AI application identity is independently pinned by the exact
+    # source commit, PyPI package version, and wheel SHA in the workflow.
     tools = client.list_tools()
     base.require(not sorted(REQUIRED_TOOLS - tools), f"Godot AI missing tools: {sorted(REQUIRED_TOOLS - tools)}")
 
