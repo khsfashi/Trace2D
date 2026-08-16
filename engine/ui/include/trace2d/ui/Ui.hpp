@@ -1,5 +1,6 @@
 #pragma once
 
+#include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/input/Input.hpp>
 #include <trace2d/input/TextInput.hpp>
 
@@ -109,6 +110,34 @@ private:
     friend class UiDocument;
 };
 
+class UiImageState final
+{
+public:
+    [[nodiscard]] bool Active() const noexcept
+    {
+        return active_;
+    }
+
+    [[nodiscard]] assets::ResourceHandle<assets::TextureResource> Texture() const noexcept
+    {
+        return texture_;
+    }
+
+    [[nodiscard]] std::uint64_t Revision() const noexcept
+    {
+        return revision_;
+    }
+
+    [[nodiscard]] bool operator==(const UiImageState&) const noexcept = default;
+
+private:
+    bool active_{false};
+    assets::ResourceHandle<assets::TextureResource> texture_{};
+    std::uint64_t revision_{0U};
+
+    friend class UiDocument;
+};
+
 struct UiElement final
 {
     std::string id{};
@@ -134,6 +163,11 @@ struct UiElement final
     // The state can only be activated/mutated through UiDocument, preserving maximum/value
     // invariants while raster and Agent inspection consume direct retained values.
     UiProgressState progress{};
+
+    // U13 keeps only #86 generation-safe texture identity on the retained element. Canonical RGBA8
+    // bytes stay ResourceRegistry-owned and renderer residency stays renderer-owned; UI never keeps
+    // a second decoded texture/cache/backend handle.
+    UiImageState image{};
 
     // U8 authored clipping is owned by the hierarchy, not by renderer-specific state.
     // clipChildren clips descendants to this element's resolved logical bounds. clipActive /
@@ -197,6 +231,15 @@ enum class UiProgressResult : std::uint8_t
     InvalidRange,
 };
 
+enum class UiImageResult : std::uint8_t
+{
+    Success,
+    NotFound,
+    InvalidTarget,
+    NotImage,
+    InvalidTexture,
+};
+
 enum class UiNavigationDirection : std::uint8_t
 {
     Left,
@@ -228,6 +271,7 @@ struct UiPointerRouteResult final
 [[nodiscard]] std::string_view ToString(UiElementKind kind) noexcept;
 [[nodiscard]] std::string_view ToString(UiActionResult result) noexcept;
 [[nodiscard]] std::string_view ToString(UiProgressResult result) noexcept;
+[[nodiscard]] std::string_view ToString(UiImageResult result) noexcept;
 [[nodiscard]] std::string_view ToString(UiPointerRouteStatus status) noexcept;
 [[nodiscard]] bool IsFocusable(UiElementKind kind) noexcept;
 [[nodiscard]] bool IsActivatable(UiElementKind kind) noexcept;
@@ -269,6 +313,18 @@ public:
         std::string_view id,
         std::uint32_t value,
         std::uint32_t maximum) noexcept;
+
+    // U13 specializes an existing non-scroll Panel as an Image while retaining only a live #86
+    // TextureResource handle. Registry resolution is explicit mutation/setup work; unchanged handle
+    // assignment is a no-op and canonical bytes remain registry-owned.
+    [[nodiscard]] UiImageResult ConfigureImage(
+        std::string_view id,
+        assets::ResourceHandle<assets::TextureResource> texture,
+        const assets::ResourceRegistry& resources) noexcept;
+    [[nodiscard]] UiImageResult SetImage(
+        std::string_view id,
+        assets::ResourceHandle<assets::TextureResource> texture,
+        const assets::ResourceRegistry& resources) noexcept;
 
     // U9 configures an existing Panel as a clipped scroll viewport after hierarchy/layout setup.
     // Configuration may discover descendants once. Offset changes then update only retained signed

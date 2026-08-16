@@ -152,6 +152,40 @@ void PutPixel(
     output.rgba8[byteIndex + 3U] = color.a;
 }
 
+void BlendTexturePixel(
+    UiRasterImage& output,
+    const std::uint32_t x,
+    const std::uint32_t y,
+    const std::uint8_t* const source,
+    const assets::TextureResourceAlphaMode alphaMode) noexcept
+{
+    if (x >= output.width || y >= output.height)
+    {
+        return;
+    }
+
+    const std::size_t pixelIndex =
+        static_cast<std::size_t>(y) * static_cast<std::size_t>(output.width) +
+        static_cast<std::size_t>(x);
+    const std::size_t byteIndex = pixelIndex * 4U;
+    const std::uint32_t alpha = source[3U];
+    const std::uint32_t inverseAlpha = 255U - alpha;
+
+    for (std::size_t channel = 0U; channel < 3U; ++channel)
+    {
+        const std::uint32_t sourcePremultiplied = alphaMode == assets::TextureResourceAlphaMode::Premultiplied
+            ? source[channel]
+            : (static_cast<std::uint32_t>(source[channel]) * alpha + 127U) / 255U;
+        const std::uint32_t destinationContribution =
+            (static_cast<std::uint32_t>(output.rgba8[byteIndex + channel]) * inverseAlpha + 127U) / 255U;
+        const std::uint32_t blended = sourcePremultiplied + destinationContribution;
+        output.rgba8[byteIndex + channel] = static_cast<std::uint8_t>(std::min(blended, 255U));
+    }
+
+    // The deterministic UI canvas is initialized opaque, so source-over remains opaque.
+    output.rgba8[byteIndex + 3U] = 255U;
+}
+
 [[nodiscard]] UiRect IntersectRect(const UiRect& lhs, const UiRect& rhs) noexcept
 {
     const std::uint32_t left = std::max(lhs.x, rhs.x);
@@ -243,6 +277,62 @@ void DrawBorder(
         PutPixelClipped(output, clip, rect.x, y, color);
         PutPixelClipped(output, clip, right, y, color);
     }
+}
+
+[[nodiscard]] bool RasterImageElement(
+    UiRasterImage& output,
+    const UiElement& element,
+    const UiRect& paintBounds,
+    const assets::ResourceRegistry* const resources) noexcept
+{
+    if (resources == nullptr)
+    {
+        return false;
+    }
+
+    const assets::TextureResource* const texture = resources->Resolve(element.image.Texture());
+    if (texture == nullptr || texture->width == 0U || texture->height == 0U)
+    {
+        return false;
+    }
+
+    const std::size_t textureWidth = static_cast<std::size_t>(texture->width);
+    const std::size_t textureHeight = static_cast<std::size_t>(texture->height);
+    if (textureHeight > std::numeric_limits<std::size_t>::max() / textureWidth ||
+        textureWidth * textureHeight > std::numeric_limits<std::size_t>::max() / 4U)
+    {
+        return false;
+    }
+    if (texture->canonicalRgba8.size() != textureWidth * textureHeight * 4U)
+    {
+        return false;
+    }
+
+    const std::uint32_t endX = paintBounds.x + paintBounds.width;
+    const std::uint32_t endY = paintBounds.y + paintBounds.height;
+    for (std::uint32_t y = paintBounds.y; y < endY; ++y)
+    {
+        const std::int64_t localY = static_cast<std::int64_t>(y) - element.presentationBounds.y;
+        const std::uint32_t sourceY = static_cast<std::uint32_t>(
+            static_cast<std::uint64_t>(localY) * texture->height / element.presentationBounds.height);
+
+        for (std::uint32_t x = paintBounds.x; x < endX; ++x)
+        {
+            const std::int64_t localX = static_cast<std::int64_t>(x) - element.presentationBounds.x;
+            const std::uint32_t sourceX = static_cast<std::uint32_t>(
+                static_cast<std::uint64_t>(localX) * texture->width / element.presentationBounds.width);
+            const std::size_t sourceOffset =
+                (static_cast<std::size_t>(sourceY) * textureWidth + sourceX) * 4U;
+            BlendTexturePixel(
+                output,
+                x,
+                y,
+                texture->canonicalRgba8.data() + sourceOffset,
+                texture->alphaMode);
+        }
+    }
+
+    return true;
 }
 
 [[nodiscard]] std::uint64_t TextWidth(const std::string_view text) noexcept
@@ -340,10 +430,10 @@ void DrawBorder(
     }
     return static_cast<std::int64_t>(bounds.y) + (bounds.height - GlyphHeight) / 2U;
 }
-} // namespace
 
-bool RasterizeUi(
+[[nodiscard]] bool RasterizeUiImpl(
     const UiDocument& document,
+    const assets::ResourceRegistry* const resources,
     UiRasterImage& output,
     UiRasterMetrics* const metrics)
 {
@@ -396,6 +486,15 @@ bool RasterizeUi(
 
         ++localMetrics.elementsRasterized;
         const Color textColor = element.enabled ? TextColor : DisabledTextColor;
+
+        if (element.image.Active())
+        {
+            if (!RasterImageElement(output, element, paintBounds, resources))
+            {
+                return false;
+            }
+            continue;
+        }
 
         if (element.progress.Active())
         {
@@ -478,5 +577,23 @@ bool RasterizeUi(
     }
 
     return true;
+}
+} // namespace
+
+bool RasterizeUi(
+    const UiDocument& document,
+    UiRasterImage& output,
+    UiRasterMetrics* const metrics)
+{
+    return RasterizeUiImpl(document, nullptr, output, metrics);
+}
+
+bool RasterizeUi(
+    const UiDocument& document,
+    const assets::ResourceRegistry& resources,
+    UiRasterImage& output,
+    UiRasterMetrics* const metrics)
+{
+    return RasterizeUiImpl(document, &resources, output, metrics);
 }
 } // namespace trace2d::ui

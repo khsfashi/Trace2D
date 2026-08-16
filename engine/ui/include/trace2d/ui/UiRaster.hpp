@@ -22,8 +22,18 @@ struct UiRasterMetrics final
     [[nodiscard]] bool operator==(const UiRasterMetrics&) const noexcept = default;
 };
 
+// Existing resource-free deterministic fixture. It remains source-compatible for documents without
+// U13 Image specialization and returns false if a live Image requires canonical texture bytes.
 [[nodiscard]] bool RasterizeUi(
     const UiDocument& document,
+    UiRasterImage& output,
+    UiRasterMetrics* metrics = nullptr);
+
+// U13 resource-aware fixture. Image sampling resolves the retained generation-safe texture handle
+// directly through #86 and never stores a UI-owned decoded texture or backend resource.
+[[nodiscard]] bool RasterizeUi(
+    const UiDocument& document,
+    const assets::ResourceRegistry& resources,
     UiRasterImage& output,
     UiRasterMetrics* metrics = nullptr);
 } // namespace trace2d::ui
