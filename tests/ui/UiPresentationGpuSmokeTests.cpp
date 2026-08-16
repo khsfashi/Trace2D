@@ -306,6 +306,8 @@ TEST(UiPresentationGpuSmokeTests, AuthoredHudUsesProductionRendererAtTwoTargetsA
     UiSolidTextureBinding2D solid{};
     ASSERT_TRUE(ResolveUiSolidTextureBinding2D(resources, solidHandle, solid));
 
+    // Trace2DTestFont.ttf is intentionally tiny: space, A, 中 and 한 only. Keep semantic names
+    // representative while using supported fixture glyphs for the production text presentation path.
     constexpr std::string_view AuthoredHud = R"toml(
 format_version = 1
 
@@ -342,7 +344,7 @@ kind = "button"
 parent = "root"
 bounds = [8, 32, 100, 28]
 name = "Resume"
-text = "Resume"
+text = "A"
 
 [[elements]]
 id = "chat"
@@ -350,7 +352,7 @@ kind = "text_input"
 parent = "root"
 bounds = [116, 32, 116, 28]
 name = "Chat"
-text = "Hello"
+text = "A"
 
 [[elements]]
 id = "scroll"
@@ -366,7 +368,7 @@ kind = "label"
 parent = "scroll"
 bounds = [8, 72, 120, 24]
 name = "Scrolled"
-text = "More items"
+text = "A A"
 )toml";
 
     UiLoadResult loaded = LoadUiToml(AuthoredHud, resources, "u15-hud.toml");
