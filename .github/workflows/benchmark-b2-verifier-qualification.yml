@@ -1,0 +1,85 @@
+name: Benchmark B2 Verifier Qualification
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/qualification/trace2d_verifier/**"
+      - "tests/benchmark/B2Trace2DVerifierMain.cpp"
+      - "tests/benchmark/CMakeLists.txt"
+      - ".github/workflows/benchmark-b2-verifier-qualification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/qualification/trace2d_verifier/**"
+      - "tests/benchmark/B2Trace2DVerifierMain.cpp"
+      - "tests/benchmark/CMakeLists.txt"
+      - ".github/workflows/benchmark-b2-verifier-qualification.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  trace2d-lane:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pinned vcpkg
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
+          & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure
+        run: cmake --preset ci-windows-msvc
+
+      - name: Build Trace2D B2 verifier fixtures
+        run: >-
+          cmake --build --preset ci-windows-debug --parallel --target
+          trace2d_b2_trace2d_good_verify
+          trace2d_b2_trace2d_bad_cooldown_verify
+
+      - name: Qualify known-good acceptance and known-bad rejection
+        run: ctest --preset ci-windows-debug -L benchmark_b2_verifier_qualification --output-on-failure
+
+      - name: Write qualification evidence
+        if: success()
+        shell: pwsh
+        run: |
+          $evidenceDir = Join-Path $env:RUNNER_TEMP "b2-verifier-qualification"
+          New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+          $data = [ordered]@{
+            schema_version = 1
+            benchmark_id = "trace2d-b2"
+            task_id = "b2-topdown-combat-v1"
+            lane = "trace2d.agent"
+            verifier = "tests/benchmark/B2Trace2DVerifierMain.cpp"
+            workflow_run_id = [int64]$env:GITHUB_RUN_ID
+            commit = $env:GITHUB_SHA
+            result = "passed"
+            known_good_accepted = $true
+            known_bad_cooldown_rejected = $true
+            scoring_gate_opened = $false
+          }
+          $data | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $evidenceDir "trace2d-summary.json")
+
+      - name: Upload Trace2D verifier qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b2-trace2d-verifier-qualification
+          path: ${{ runner.temp }}/b2-verifier-qualification
+          if-no-files-found: warn
+          retention-days: 30
