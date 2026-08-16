@@ -3,13 +3,15 @@
 #include <gtest/gtest.h>
 
 #include <array>
-#include <atomic>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
 
 namespace trace2d::agent
 {
@@ -45,15 +47,21 @@ pivot = [1, 1, 1]
 packed_rotation = "none"
 )toml";
 
-std::atomic<std::uint64_t> TempProjectSerial{0U};
+std::filesystem::path MakeTempProjectRoot()
+{
+    const testing::TestInfo* const info = testing::UnitTest::GetInstance()->current_test_info();
+    std::string name{"trace2d_sprite_authoring_tests_"};
+    name += info != nullptr ? info->test_suite_name() : "unknown_suite";
+    name.push_back('_');
+    name += info != nullptr ? info->name() : "unknown_test";
+    return std::filesystem::temp_directory_path() / name;
+}
 
 class TempSpriteAuthoringProject final
 {
 public:
     TempSpriteAuthoringProject()
-        : root_{std::filesystem::temp_directory_path() /
-                ("trace2d_sprite_authoring_tests_" +
-                 std::to_string(TempProjectSerial.fetch_add(1U, std::memory_order_relaxed)))}
+        : root_{MakeTempProjectRoot()}
     {
         std::error_code error{};
         std::filesystem::remove_all(root_, error);
@@ -223,6 +231,26 @@ TEST(SpriteAuthoringTests, RejectsInvalidGeometryWithoutChangingResource)
     mutation.region = SpriteRegionMutation{
         .regionId = "hero",
         .trimSize = assets::SpritePixelSize{3U, 3U},
+    };
+
+    const SpriteAuthoringResult result = MutateSpriteResource(project.Root(), SpriteReference, mutation);
+
+    EXPECT_FALSE(result.Succeeded());
+    EXPECT_FALSE(result.committed);
+    EXPECT_FALSE(result.validationPassed);
+    EXPECT_TRUE(HasDiagnosticCode(result, SpriteAuthoringErrorCode::ValidationFailed));
+    EXPECT_EQ(project.ReadSpriteText(), before);
+}
+
+TEST(SpriteAuthoringTests, RejectsInvalidPivotWithoutChangingResource)
+{
+    TempSpriteAuthoringProject project{};
+    const std::string before = project.ReadSpriteText();
+
+    SpriteMutation mutation{};
+    mutation.region = SpriteRegionMutation{
+        .regionId = "hero",
+        .pivot = assets::SpriteRationalPivot{1, 1, 0},
     };
 
     const SpriteAuthoringResult result = MutateSpriteResource(project.Root(), SpriteReference, mutation);
