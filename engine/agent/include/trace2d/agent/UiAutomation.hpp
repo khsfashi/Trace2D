@@ -14,6 +14,7 @@ enum class UiRole : std::uint8_t
     Label,
     Button,
     TextBox,
+    ProgressBar,
 };
 
 [[nodiscard]] std::string_view ToString(UiRole role) noexcept;
@@ -79,6 +80,9 @@ struct UiElementSnapshot final
     std::uint32_t scrollOffsetY{0U};
     std::uint64_t scrollRevision{0U};
     std::uint64_t scrollTranslationUpdates{0U};
+    std::uint32_t progressValue{0U};
+    std::uint32_t progressMaximum{0U};
+    std::uint64_t progressRevision{0U};
     bool clipChildren{false};
     bool clipActive{false};
     UiRectSnapshot clipBounds{};
@@ -199,6 +203,9 @@ struct UiExpectedState final
     std::optional<bool> pointerCaptured{};
     std::optional<std::string> text{};
     std::optional<std::uint64_t> activationCount{};
+    std::optional<std::uint32_t> progressValue{};
+    std::optional<std::uint32_t> progressMaximum{};
+    std::optional<std::uint64_t> progressRevision{};
 
     [[nodiscard]] bool operator==(const UiExpectedState&) const noexcept = default;
 };

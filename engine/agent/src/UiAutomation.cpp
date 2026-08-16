@@ -11,9 +11,14 @@ namespace trace2d::agent
 {
 namespace
 {
-[[nodiscard]] UiRole RoleForKind(const ui::UiElementKind kind) noexcept
+[[nodiscard]] UiRole RoleForElement(const ui::UiElement& element) noexcept
 {
-    switch (kind)
+    if (element.progress.Active())
+    {
+        return UiRole::ProgressBar;
+    }
+
+    switch (element.kind)
     {
     case ui::UiElementKind::Panel:
         return UiRole::Panel;
@@ -60,7 +65,7 @@ namespace
         return false;
     }
 
-    if (selector.role.has_value() && RoleForKind(element.kind) != *selector.role)
+    if (selector.role.has_value() && RoleForElement(element) != *selector.role)
     {
         return false;
     }
@@ -79,7 +84,7 @@ namespace
 {
     UiElementSnapshot snapshot{};
     snapshot.id = element.id;
-    snapshot.role = RoleForKind(element.kind);
+    snapshot.role = RoleForElement(element);
     snapshot.name = element.name;
     if (!element.parentId.empty())
     {
@@ -116,6 +121,9 @@ namespace
     {
         snapshot.scrollOwnerId = elements[element.scrollOwnerIndex].id;
     }
+    snapshot.progressValue = element.progress.Value();
+    snapshot.progressMaximum = element.progress.Maximum();
+    snapshot.progressRevision = element.progress.Revision();
     snapshot.clipChildren = element.clipChildren;
     snapshot.clipActive = element.clipActive;
     snapshot.clipBounds = UiRectSnapshot{
@@ -262,6 +270,8 @@ std::string_view ToString(const UiRole role) noexcept
         return "button";
     case UiRole::TextBox:
         return "textbox";
+    case UiRole::ProgressBar:
+        return "progressbar";
     }
 
     return "unknown";
@@ -592,6 +602,33 @@ UiAssertionResult AgentFacade::AssertUi(
             "activation_count",
             std::to_string(*expected.activationCount),
             std::to_string(observed.activationCount));
+        return result;
+    }
+
+    if (expected.progressValue.has_value() && observed.progressValue != *expected.progressValue)
+    {
+        result.error = StateMismatch(
+            "progress_value",
+            std::to_string(*expected.progressValue),
+            std::to_string(observed.progressValue));
+        return result;
+    }
+
+    if (expected.progressMaximum.has_value() && observed.progressMaximum != *expected.progressMaximum)
+    {
+        result.error = StateMismatch(
+            "progress_maximum",
+            std::to_string(*expected.progressMaximum),
+            std::to_string(observed.progressMaximum));
+        return result;
+    }
+
+    if (expected.progressRevision.has_value() && observed.progressRevision != *expected.progressRevision)
+    {
+        result.error = StateMismatch(
+            "progress_revision",
+            std::to_string(*expected.progressRevision),
+            std::to_string(observed.progressRevision));
     }
 
     return result;

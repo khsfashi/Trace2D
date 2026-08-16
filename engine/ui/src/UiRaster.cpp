@@ -26,6 +26,8 @@ constexpr Color DisabledTextColor{140U, 144U, 152U, 255U};
 constexpr Color ButtonColor{58U, 84U, 136U, 255U};
 constexpr Color DisabledButtonColor{66U, 68U, 74U, 255U};
 constexpr Color InputColor{20U, 23U, 30U, 255U};
+constexpr Color ProgressTrackColor{36U, 40U, 52U, 255U};
+constexpr Color ProgressFillColor{76U, 166U, 106U, 255U};
 constexpr Color BorderColor{154U, 166U, 188U, 255U};
 constexpr Color FocusBorderColor{246U, 196U, 76U, 255U};
 
@@ -394,6 +396,33 @@ bool RasterizeUi(
 
         ++localMetrics.elementsRasterized;
         const Color textColor = element.enabled ? TextColor : DisabledTextColor;
+
+        if (element.progress.Active())
+        {
+            FillRect(output, paintBounds, ProgressTrackColor);
+
+            const std::uint64_t scaledWidth =
+                static_cast<std::uint64_t>(element.presentationBounds.width) * element.progress.Value();
+            const std::uint32_t fillWidth = static_cast<std::uint32_t>(
+                scaledWidth / static_cast<std::uint64_t>(element.progress.Maximum()));
+            if (fillWidth > 0U)
+            {
+                const UiPresentationRect fillPresentation{
+                    .x = element.presentationBounds.x,
+                    .y = element.presentationBounds.y,
+                    .width = fillWidth,
+                    .height = element.presentationBounds.height,
+                };
+                const UiRect fillBounds = IntersectPresentationRect(fillPresentation, presentationClip);
+                if (fillBounds.width > 0U && fillBounds.height > 0U)
+                {
+                    FillRect(output, fillBounds, ProgressFillColor);
+                }
+            }
+
+            DrawBorder(output, element.presentationBounds, paintBounds, BorderColor);
+            continue;
+        }
 
         switch (element.kind)
         {

@@ -11,6 +11,7 @@ add_executable(trace2d_ui_tests
     UiClippingTests.cpp
     UiScrollTests.cpp
     UiModalAgentTests.cpp
+    UiProgressTests.cpp
     UiLimitsTests.cpp
     TextInputTests.cpp
     UiProductionTextTests.cpp
