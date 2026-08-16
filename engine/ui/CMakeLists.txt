@@ -7,6 +7,7 @@ add_library(trace2d_ui STATIC
     src/UiModal.cpp
     src/UiLayout.cpp
     src/UiProgress.cpp
+    src/UiImage.cpp
     src/UiRaster.cpp
     src/UiText.cpp
     src/UiTextLayout.cpp
@@ -21,6 +22,7 @@ target_include_directories(trace2d_ui
 
 target_link_libraries(trace2d_ui
     PUBLIC
+        Trace2D::Assets
         Trace2D::Input
         Trace2D::Text
     PRIVATE
