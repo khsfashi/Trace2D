@@ -2,6 +2,8 @@
 
 #include "AuthoringFileTransaction.hpp"
 
+#include <trace2d/particles/ParticleProgram.hpp>
+
 #include <string>
 #include <utility>
 
@@ -158,7 +160,10 @@ ParticleAuthoringResult MutateParticleEffectResource(
         }
         return result;
     }
+
+    const particles::ParticleProgram program = particles::CompileParticleProgram(*validated.asset);
     result.validationPassed = true;
+    result.programFingerprint = program.fingerprint;
 
     const particles::ParticleEffectAsset& after = *validated.asset;
     if (mutation.semanticId.has_value() && after.semanticId != original.semanticId)
