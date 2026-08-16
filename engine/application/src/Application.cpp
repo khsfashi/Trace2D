@@ -6,6 +6,20 @@
 
 namespace trace2d::application
 {
+namespace
+{
+scene::Scene MakeRootScene(
+    const scene::ComponentRegistry& componentRegistry,
+    scene::SceneMetadata metadata)
+{
+    if (!componentRegistry.IsFrozen())
+    {
+        throw std::invalid_argument{"Application component registry must be frozen before construction."};
+    }
+    return scene::Scene{componentRegistry, std::move(metadata)};
+}
+} // namespace
+
 std::string_view ToString(const ApplicationLifecycle lifecycle) noexcept
 {
     switch (lifecycle)
@@ -104,6 +118,24 @@ Application::Application(Game& game, ApplicationConfig config)
     : game_{game}
     , runtime_{config.runtime}
     , scene_{std::move(config.scene)}
+    , ui_{config.uiWidth, config.uiHeight}
+    , context_{runtime_, scene_, input_, actions_, ui_}
+{
+    if (!ui_.HasValidSize())
+    {
+        throw std::invalid_argument{"Application UI dimensions must be within the supported UiDocument range."};
+    }
+
+    pendingInputEvents_.reserve(InitialPendingInputCapacity);
+}
+
+Application::Application(
+    Game& game,
+    scene::ComponentRegistry& componentRegistry,
+    ApplicationConfig config)
+    : game_{game}
+    , runtime_{config.runtime}
+    , scene_{MakeRootScene(componentRegistry, std::move(config.scene))}
     , ui_{config.uiWidth, config.uiHeight}
     , context_{runtime_, scene_, input_, actions_, ui_}
 {
