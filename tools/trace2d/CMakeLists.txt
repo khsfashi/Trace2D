@@ -75,7 +75,6 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_cli_author_sprite_unknown_property
         PROPERTIES
-            WILL_FAIL TRUE
             PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown sprite authoring option: --unknown-property"
     )
 
