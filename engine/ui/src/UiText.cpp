@@ -27,6 +27,9 @@ struct ParsedUiElement final
     std::size_t sourceIndex{0U};
     UiElement element{};
     UiLayoutNodeSpec layout{};
+    bool configureScrollViewport{false};
+    std::uint32_t scrollContentWidth{0U};
+    std::uint32_t scrollContentHeight{0U};
 };
 
 void AddDiagnostic(
@@ -810,7 +813,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     elementPath,
                     {"id", "kind", "parent", "placement", "bounds", "anchor", "pivot", "offset", "size",
                      "layout", "padding", "spacing", "margin", "name", "text", "visible", "enabled",
-                     "clip_children"},
+                     "clip_children", "scroll_content_size"},
                     result.diagnostics);
 
                 const std::optional<std::string> id = ReadRequiredString(
@@ -870,6 +873,26 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     elementPath + ".clip_children",
                     result.diagnostics,
                     false);
+
+                const bool hasScrollContentSize = elementTable->get("scroll_content_size") != nullptr;
+                std::optional<std::array<std::uint32_t, 2U>> scrollContentSize{};
+                if (hasScrollContentSize)
+                {
+                    scrollContentSize = ReadUInt32Pair(
+                        *elementTable,
+                        "scroll_content_size",
+                        elementPath + ".scroll_content_size",
+                        result.diagnostics,
+                        true);
+                    if (kind.has_value() && *kind != UiElementKind::Panel)
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".scroll_content_size",
+                            "scroll_content_size is only valid for kind = \"panel\".",
+                            elementTable->get("scroll_content_size"));
+                    }
+                }
 
                 if (containerLayout.has_value() && *containerLayout == UiContainerLayoutMode::None &&
                     HasAnyField(*elementTable, {"padding", "spacing"}))
@@ -947,7 +970,8 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 if (!id.has_value() || !kind.has_value() || !parent.has_value() || !placement.has_value() ||
                     !containerLayout.has_value() || !padding.has_value() || !spacing.has_value() ||
                     !elementName.has_value() || !elementText.has_value() || !visible.has_value() ||
-                    !enabled.has_value() || !clipChildren.has_value() || !hasGeometry)
+                    !enabled.has_value() || !clipChildren.has_value() ||
+                    (hasScrollContentSize && !scrollContentSize.has_value()) || !hasGeometry)
                 {
                     continue;
                 }
@@ -992,6 +1016,15 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 else
                 {
                     authored.layout.stackFixed = *stackFixed;
+                }
+
+                if (scrollContentSize.has_value())
+                {
+                    authored.configureScrollViewport = true;
+                    authored.scrollContentWidth = (*scrollContentSize)[0];
+                    authored.scrollContentHeight = (*scrollContentSize)[1];
+                    authored.layout.childContentWidth = authored.scrollContentWidth;
+                    authored.layout.childContentHeight = authored.scrollContentHeight;
                 }
 
                 parsed.push_back(std::move(authored));
@@ -1109,6 +1142,35 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 result.diagnostics,
                 "elements[" + std::to_string(authored.sourceIndex) + "]",
                 "Resolved UI element could not be published: " + std::string{ToString(addResult)} + ".");
+        }
+    }
+
+    if (!result.diagnostics.empty())
+    {
+        return result;
+    }
+
+    // U11 intentionally configures authored scroll viewports only after every element is present so
+    // the existing U9 authority observes the complete descendant set. The local document remains
+    // transactional: any unsupported/invalid scroll topology is discarded rather than published.
+    for (std::size_t index = 0U; index < parsed.size(); ++index)
+    {
+        const ParsedUiElement& authored = parsed[index];
+        if (!authored.configureScrollViewport)
+        {
+            continue;
+        }
+
+        const UiActionResult scrollResult = document.ConfigureScrollViewport(
+            resolvedNodes[index].id,
+            authored.scrollContentWidth,
+            authored.scrollContentHeight);
+        if (scrollResult != UiActionResult::Success)
+        {
+            AddDiagnostic(
+                result.diagnostics,
+                "elements[" + std::to_string(authored.sourceIndex) + "].scroll_content_size",
+                "Authored scroll viewport configuration failed: " + std::string{ToString(scrollResult)} + ".");
         }
     }
 
