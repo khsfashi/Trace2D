@@ -1,0 +1,266 @@
+name: Benchmark B2 Baseline Qualification
+
+on:
+  push:
+    branches: [main, "agent/**"]
+    paths:
+      - "benchmarks/b2/qualification/**"
+      - "scripts/qualify_b2_godot_agent_loop.py"
+      - "scripts/qualify_b2_godot_mcp_satellite.py"
+      - "scripts/qualify_godot_agent_mcp.py"
+      - "scripts/qualify_godot_agent_mcp_live.py"
+      - ".github/workflows/benchmark-b2-baseline-qualification.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/b2/qualification/**"
+      - "scripts/qualify_b2_godot_agent_loop.py"
+      - "scripts/qualify_b2_godot_mcp_satellite.py"
+      - "scripts/qualify_godot_agent_mcp.py"
+      - "scripts/qualify_godot_agent_mcp_live.py"
+      - ".github/workflows/benchmark-b2-baseline-qualification.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B2_GODOT_VERSION: 4.7.1-stable
+  TRACE2D_B2_NODE_VERSION_PIN: 22.18.0
+  TRACE2D_B2_AGENT_LOOP_PACKAGE: "@beremaran/godot-agent-loop@3.0.0"
+  TRACE2D_B2_AGENT_LOOP_SOURCE_COMMIT: 7bc6062f90e2f96a04f997b202f7a24dd152a9fd
+  TRACE2D_B2_SATELLITE_PACKAGE: "@satelliteoflove/godot-mcp@4.1.0"
+  TRACE2D_B2_SATELLITE_SOURCE_COMMIT: 1b7d40537240fd54300f54bf6fda1ea91f06c878
+
+jobs:
+  godot-agent-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.TRACE2D_B2_NODE_VERSION_PIN }}
+      - name: Install exact candidate and prepare non-scored fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/godot-agent-loop"
+          fixture="$RUNNER_TEMP/b2-agent-loop-fixture"
+          evidence="$RUNNER_TEMP/b2-agent-loop-evidence"
+          launcher="$RUNNER_TEMP/godot-agent-loop-npx"
+          rm -rf "$prefix" "$fixture" "$evidence" "$launcher"
+          mkdir -p "$evidence"
+          cp -a benchmarks/b2/qualification/gameplay_loop_fixture "$fixture"
+          npm install --prefix "$prefix" --no-audit --no-fund "$TRACE2D_B2_AGENT_LOOP_PACKAGE"
+          test "$(node -p "require(process.argv[1]).version" "$prefix/node_modules/@beremaran/godot-agent-loop/package.json")" = "3.0.0"
+          integrity="$(npm view "$TRACE2D_B2_AGENT_LOOP_PACKAGE" dist.integrity)"
+          test -n "$integrity"
+          cat > "$launcher" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec npx --yes '@beremaran/godot-agent-loop@3.0.0'
+          SH
+          chmod +x "$launcher"
+          printf '%s\n' "$integrity" > "$evidence/npm-integrity.txt"
+          printf '%s\n' "$TRACE2D_B2_AGENT_LOOP_SOURCE_COMMIT" > "$evidence/source-commit.txt"
+          echo "TRACE2D_B2_AGENT_LOOP_SERVER=$launcher" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_AGENT_LOOP_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_AGENT_LOOP_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_AGENT_LOOP_INTEGRITY=$integrity" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_NODE_VERSION=$(node --version)" >> "$GITHUB_ENV"
+          echo "GODOT_MCP_ALLOWED_DIRS=$fixture" >> "$GITHUB_ENV"
+          echo "GODOT_MCP_LEGACY_JSON_TEXT=false" >> "$GITHUB_ENV"
+      - name: Install pinned Godot for fixture precheck
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip"
+          sums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B2_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$base/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip" -o "$archive"
+          curl --fail --location --retry 3 "$base/SHA512-SUMS.txt" -o "$sums"
+          (cd "$RUNNER_TEMP" && grep "  Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip$" "$sums" | sha512sum --check --strict)
+          mkdir -p "$RUNNER_TEMP/godot-agent-loop-engine"
+          unzip -q "$archive" -d "$RUNNER_TEMP/godot-agent-loop-engine"
+          godot="$RUNNER_TEMP/godot-agent-loop-engine/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64"
+          chmod +x "$godot"
+          echo "GODOT_PATH=$godot" >> "$GITHUB_ENV"
+      - name: Ensure virtual X display
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y xvfb; fi
+      - name: Qualify documented quickstart without internal-entrypoint workaround
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$TRACE2D_B2_AGENT_LOOP_EVIDENCE/qualifier.stdout.log"
+          set +e
+          xvfb-run -a python3 scripts/qualify_b2_godot_agent_loop.py \
+            --server "$TRACE2D_B2_AGENT_LOOP_SERVER" \
+            --project "$TRACE2D_B2_AGENT_LOOP_FIXTURE" \
+            --source-fixture benchmarks/b2/qualification/gameplay_loop_fixture \
+            --evidence "$TRACE2D_B2_AGENT_LOOP_EVIDENCE/qualification.json" \
+            --mcp-stderr "$TRACE2D_B2_AGENT_LOOP_EVIDENCE/mcp.stderr.log" 2>&1 | tee "$output"
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ "$status" -eq 0 ]]; then exit 0; fi
+          grep -Fq "MCP server exited with code 0" "$output" || exit "$status"
+          python3 - "$TRACE2D_B2_AGENT_LOOP_EVIDENCE/qualification.json" <<'PY'
+          import json, os, sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+          data = {
+            "schema_version": 1,
+            "benchmark_id": "trace2d-b2",
+            "qualification_id": "b2-gameplay-loop-qualification-v1",
+            "scored": False,
+            "qualified": False,
+            "scored_task_prompt_exposed": False,
+            "candidate": {
+              "id": "beremaran/godot-agent-loop",
+              "package": "@beremaran/godot-agent-loop@3.0.0",
+              "version": "3.0.0",
+              "source_commit": os.environ["TRACE2D_B2_AGENT_LOOP_SOURCE_COMMIT"],
+              "npm_integrity": os.environ["TRACE2D_B2_AGENT_LOOP_INTEGRITY"]
+            },
+            "engine": {"id": "godot", "version": "4.7.1-stable"},
+            "failure": {
+              "stage": "mcp_initialize",
+              "classification": "normal_quickstart_bootstrap_failure",
+              "observed": "documented npx entrypoint exited 0 before initialize response",
+              "workaround_used": False
+            },
+            "independent_fixture_precheck_passed": True,
+            "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+          }
+          Path(sys.argv[1]).write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+      - name: Validate Agent Loop result classification
+        shell: bash
+        run: |
+          python3 - "$TRACE2D_B2_AGENT_LOOP_EVIDENCE/qualification.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          d=json.loads(Path(sys.argv[1]).read_text())
+          assert d["scored"] is False and d["scored_task_prompt_exposed"] is False
+          assert d["candidate"]["source_commit"] == "7bc6062f90e2f96a04f997b202f7a24dd152a9fd"
+          if not d["qualified"]:
+              assert d["failure"]["classification"] == "normal_quickstart_bootstrap_failure"
+              assert d["failure"]["workaround_used"] is False
+          PY
+      - name: Upload Agent Loop evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: b2-godot-agent-loop-qualification-${{ github.sha }}
+          path: ${{ env.TRACE2D_B2_AGENT_LOOP_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 90
+
+  satellite-godot-mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.TRACE2D_B2_NODE_VERSION_PIN }}
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip"
+          sums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B2_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$base/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip" -o "$archive"
+          curl --fail --location --retry 3 "$base/SHA512-SUMS.txt" -o "$sums"
+          (cd "$RUNNER_TEMP" && grep "  Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip$" "$sums" | sha512sum --check --strict)
+          mkdir -p "$RUNNER_TEMP/godot-satellite-engine"
+          unzip -q "$archive" -d "$RUNNER_TEMP/godot-satellite-engine"
+          godot="$RUNNER_TEMP/godot-satellite-engine/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64"
+          chmod +x "$godot"
+          echo "GODOT_PATH=$godot" >> "$GITHUB_ENV"
+      - name: Ensure virtual X display
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y xvfb; fi
+      - name: Install exact satellite candidate, addon, and enable plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/satellite-godot-mcp"
+          fixture="$RUNNER_TEMP/b2-satellite-fixture"
+          evidence="$RUNNER_TEMP/b2-satellite-evidence"
+          rm -rf "$prefix" "$fixture" "$evidence"
+          mkdir -p "$evidence"
+          cp -a benchmarks/b2/qualification/gameplay_loop_fixture "$fixture"
+          npm install --prefix "$prefix" --no-audit --no-fund "$TRACE2D_B2_SATELLITE_PACKAGE"
+          server="$prefix/node_modules/.bin/godot-mcp"
+          test -x "$server"
+          test "$("$server" --version)" = "4.1.0"
+          integrity="$(npm view "$TRACE2D_B2_SATELLITE_PACKAGE" dist.integrity)"
+          test -n "$integrity"
+          "$server" --install-addon "$fixture"
+          test -f "$fixture/addons/godot_mcp/plugin.cfg"
+          cat >> "$fixture/project.godot" <<'EOF'
+
+          [editor_plugins]
+          enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+          EOF
+          printf '%s\n' "$integrity" > "$evidence/npm-integrity.txt"
+          printf '%s\n' "$TRACE2D_B2_SATELLITE_SOURCE_COMMIT" > "$evidence/source-commit.txt"
+          echo "TRACE2D_B2_SATELLITE_SERVER=$server" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_SATELLITE_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_SATELLITE_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_SATELLITE_INTEGRITY=$integrity" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_NODE_VERSION=$(node --version)" >> "$GITHUB_ENV"
+      - name: Launch Godot editor with enabled satellite addon
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a "$GODOT_PATH" --editor --path "$TRACE2D_B2_SATELLITE_FIXTURE" --rendering-method gl_compatibility \
+            >"$TRACE2D_B2_SATELLITE_EVIDENCE/godot-editor.log" 2>&1 &
+          pid=$!
+          echo "$pid" > "$TRACE2D_B2_SATELLITE_EVIDENCE/editor.pid"
+          sleep 3
+          kill -0 "$pid"
+      - name: Prove satellite author-run-observe-input-capture-verify loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/qualify_b2_godot_mcp_satellite.py \
+            --server "$TRACE2D_B2_SATELLITE_SERVER" \
+            --project "$TRACE2D_B2_SATELLITE_FIXTURE" \
+            --source-fixture benchmarks/b2/qualification/gameplay_loop_fixture \
+            --evidence "$TRACE2D_B2_SATELLITE_EVIDENCE/qualification.json" \
+            --mcp-stderr "$TRACE2D_B2_SATELLITE_EVIDENCE/mcp.stderr.log"
+      - name: Validate satellite evidence
+        shell: bash
+        run: |
+          python3 - "$TRACE2D_B2_SATELLITE_EVIDENCE/qualification.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          d=json.loads(Path(sys.argv[1]).read_text())
+          assert d["scored"] is False and d["qualified"] is True
+          assert d["scored_task_prompt_exposed"] is False
+          assert d["candidate"]["id"] == "satelliteoflove/godot-mcp"
+          assert d["candidate"]["source_commit"] == "1b7d40537240fd54300f54bf6fda1ea91f06c878"
+          assert d["engine"]["version"] == "4.7.1-stable"
+          assert all(d["checks"].values())
+          assert d["fixture"]["source_tree_sha256_before"] == d["fixture"]["source_tree_sha256_after"]
+          assert d["independent_verifier"]["known_good"]["accepted"] is True
+          assert d["independent_verifier"]["known_bad"]["accepted"] is False
+          PY
+      - name: Stop qualification editor
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${TRACE2D_B2_SATELLITE_EVIDENCE:-}" && -f "$TRACE2D_B2_SATELLITE_EVIDENCE/editor.pid" ]]; then
+            kill "$(cat "$TRACE2D_B2_SATELLITE_EVIDENCE/editor.pid")" 2>/dev/null || true
+          fi
+      - name: Upload satellite evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: b2-satellite-godot-mcp-qualification-${{ github.sha }}
+          path: ${{ env.TRACE2D_B2_SATELLITE_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 90

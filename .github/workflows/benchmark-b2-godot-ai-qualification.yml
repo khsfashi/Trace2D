@@ -1,0 +1,216 @@
+name: Benchmark B2 Godot AI Qualification
+
+on:
+  push:
+    branches: [main, "agent/**"]
+    paths:
+      - "benchmarks/b2/qualification/**"
+      - "scripts/qualify_b2_godot_ai.py"
+      - "scripts/qualify_b2_godot_agent_loop.py"
+      - "scripts/qualify_godot_agent_mcp.py"
+      - ".github/workflows/benchmark-b2-godot-ai-qualification.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmarks/b2/qualification/**"
+      - "scripts/qualify_b2_godot_ai.py"
+      - "scripts/qualify_b2_godot_agent_loop.py"
+      - "scripts/qualify_godot_agent_mcp.py"
+      - ".github/workflows/benchmark-b2-godot-ai-qualification.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B2_GODOT_VERSION: 4.7.1-stable
+  TRACE2D_B2_GODOT_AI_VERSION: "3.1.5"
+  TRACE2D_B2_GODOT_AI_SOURCE_COMMIT: 09a1e3311015153d967710fbe6502ac519585a9b
+  GODOT_AI_DISABLE_TELEMETRY: "true"
+
+jobs:
+  godot-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Trace2D
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip"
+          checksums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          install_dir="$RUNNER_TEMP/godot"
+          release_base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B2_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$release_base/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip" --output "$archive"
+          curl --fail --location --retry 3 "$release_base/SHA512-SUMS.txt" --output "$checksums"
+          (
+            cd "$RUNNER_TEMP"
+            grep "  Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip$" "$checksums" | sha512sum --check --strict
+          )
+          mkdir -p "$install_dir"
+          unzip -q "$archive" -d "$install_dir"
+          chmod +x "$install_dir/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64"
+          echo "GODOT_PATH=$install_dir/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_PYTHON_VERSION=$(python --version)" >> "$GITHUB_ENV"
+
+      - name: Ensure virtual X display is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Materialize exact Godot AI source plugin and package
+        shell: bash
+        run: |
+          set -euo pipefail
+          provider="$RUNNER_TEMP/godot-ai-source"
+          fixture="$RUNNER_TEMP/b2-godot-ai-fixture"
+          evidence="$RUNNER_TEMP/b2-godot-ai-evidence"
+          venv="$RUNNER_TEMP/b2-godot-ai-venv"
+          rm -rf "$provider" "$fixture" "$evidence" "$venv"
+          mkdir -p "$provider" "$evidence"
+
+          git -C "$provider" init -q
+          git -C "$provider" remote add origin https://github.com/hi-godot/godot-ai.git
+          git -C "$provider" fetch -q --depth 1 origin "$TRACE2D_B2_GODOT_AI_SOURCE_COMMIT"
+          git -C "$provider" checkout -q --detach FETCH_HEAD
+          test "$(git -C "$provider" rev-parse HEAD)" = "$TRACE2D_B2_GODOT_AI_SOURCE_COMMIT"
+          test "$(python -c 'import tomllib,sys; print(tomllib.load(open(sys.argv[1], "rb"))["project"]["version"])' "$provider/pyproject.toml")" = "$TRACE2D_B2_GODOT_AI_VERSION"
+
+          cp -a benchmarks/b2/qualification/gameplay_loop_fixture "$fixture"
+          mkdir -p "$fixture/addons"
+          cp -a "$provider/plugin/addons/godot_ai" "$fixture/addons/godot_ai"
+          cat >> "$fixture/project.godot" <<'EOF'
+
+          [editor_plugins]
+          enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg")
+          EOF
+
+          python -m venv "$venv"
+          "$venv/bin/python" -m pip install --upgrade pip
+          "$venv/bin/python" -m pip download --no-deps --dest "$evidence" "godot-ai==${TRACE2D_B2_GODOT_AI_VERSION}"
+          package_file="$(find "$evidence" -maxdepth 1 -type f \( -name 'godot_ai-3.1.5-*.whl' -o -name 'godot_ai-3.1.5.tar.gz' \) -print -quit)"
+          test -n "$package_file"
+          package_sha="$(sha256sum "$package_file" | awk '{print $1}')"
+          "$venv/bin/python" -m pip install "$package_file"
+          test "$("$venv/bin/godot-ai" --version)" = "godot-ai $TRACE2D_B2_GODOT_AI_VERSION"
+          printf '%s  %s\n' "$package_sha" "$(basename "$package_file")" > "$evidence/package-sha256.txt"
+          printf '%s\n' "$TRACE2D_B2_GODOT_AI_SOURCE_COMMIT" > "$evidence/source-commit.txt"
+
+          echo "TRACE2D_B2_GODOT_AI_PROVIDER=$provider" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_GODOT_AI_FIXTURE=$fixture" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_GODOT_AI_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_GODOT_AI_VENV=$venv" >> "$GITHUB_ENV"
+          echo "TRACE2D_B2_GODOT_AI_PACKAGE_IDENTITY=sha256:$package_sha" >> "$GITHUB_ENV"
+
+      - name: Start exact Godot AI server
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$TRACE2D_B2_GODOT_AI_VENV/bin/python" -m godot_ai \
+            --transport streamable-http \
+            --port 8000 \
+            >"$TRACE2D_B2_GODOT_AI_EVIDENCE/server.log" 2>&1 &
+          server_pid=$!
+          echo "$server_pid" > "$TRACE2D_B2_GODOT_AI_EVIDENCE/server.pid"
+          for _ in $(seq 1 45); do
+            if curl -sS -o /dev/null http://127.0.0.1:8000/mcp -X POST \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"trace2d-probe","version":"1.0"}}}'; then
+              exit 0
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$TRACE2D_B2_GODOT_AI_EVIDENCE/server.log"
+              exit 1
+            fi
+            sleep 1
+          done
+          cat "$TRACE2D_B2_GODOT_AI_EVIDENCE/server.log"
+          exit 1
+
+      - name: Launch Godot editor with exact source plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          xvfb-run -a "$GODOT_PATH" \
+            --editor \
+            --path "$TRACE2D_B2_GODOT_AI_FIXTURE" \
+            --rendering-method gl_compatibility \
+            >"$TRACE2D_B2_GODOT_AI_EVIDENCE/godot-editor.log" 2>&1 &
+          editor_pid=$!
+          echo "$editor_pid" > "$TRACE2D_B2_GODOT_AI_EVIDENCE/editor.pid"
+          sleep 3
+          if ! kill -0 "$editor_pid" 2>/dev/null; then
+            cat "$TRACE2D_B2_GODOT_AI_EVIDENCE/godot-editor.log"
+            exit 1
+          fi
+
+      - name: Prove Godot AI author-run-input-observe-capture loop
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/qualify_b2_godot_ai.py \
+            --source-fixture benchmarks/b2/qualification/gameplay_loop_fixture \
+            --evidence "$TRACE2D_B2_GODOT_AI_EVIDENCE/qualification.json"
+
+      - name: Validate Godot AI qualification evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - "$TRACE2D_B2_GODOT_AI_EVIDENCE/qualification.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert data["benchmark_id"] == "trace2d-b2"
+          assert data["qualification_id"] == "b2-gameplay-loop-qualification-v1"
+          assert data["scored"] is False
+          assert data["qualified"] is True
+          assert data["scored_task_prompt_exposed"] is False
+          assert data["candidate"]["id"] == "hi-godot/godot-ai"
+          assert data["candidate"]["version"] == "3.1.5"
+          assert data["candidate"]["source_commit"] == "09a1e3311015153d967710fbe6502ac519585a9b"
+          assert data["engine"]["version"] == "4.7.1-stable"
+          assert all(data["checks"].values())
+          assert data["fixture"]["source_tree_sha256_before"] == data["fixture"]["source_tree_sha256_after"]
+          assert data["independent_verifier"]["known_good"]["accepted"] is True
+          assert data["independent_verifier"]["known_bad"]["accepted"] is False
+          assert data["presentation_artifact"] == "godot-ai-presentation.png"
+          PY
+
+      - name: Syntax-check qualification driver
+        run: python3 -m py_compile scripts/qualify_b2_godot_ai.py
+
+      - name: Stop qualification processes
+        if: always()
+        shell: bash
+        run: |
+          if [[ -n "${TRACE2D_B2_GODOT_AI_EVIDENCE:-}" ]]; then
+            for file in editor.pid server.pid; do
+              pid_file="$TRACE2D_B2_GODOT_AI_EVIDENCE/$file"
+              if [[ -f "$pid_file" ]]; then
+                kill "$(cat "$pid_file")" 2>/dev/null || true
+              fi
+            done
+          fi
+
+      - name: Upload Godot AI non-scored qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: b2-godot-ai-qualification-${{ github.sha }}
+          path: ${{ env.TRACE2D_B2_GODOT_AI_EVIDENCE }}
+          if-no-files-found: error
+          retention-days: 90
