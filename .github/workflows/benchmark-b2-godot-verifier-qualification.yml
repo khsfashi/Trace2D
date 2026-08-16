@@ -1,0 +1,81 @@
+name: Benchmark B2 Godot Verifier Qualification
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/qualification/godot_verifier/**"
+      - "scripts/qualify_b2_godot_verifier.py"
+      - ".github/workflows/benchmark-b2-godot-verifier-qualification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/qualification/godot_verifier/**"
+      - "scripts/qualify_b2_godot_verifier.py"
+      - ".github/workflows/benchmark-b2-godot-verifier-qualification.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_B2_GODOT_VERSION: 4.7.1-stable
+
+jobs:
+  godot-lanes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download and verify pinned official Godot build
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip"
+          sums="$RUNNER_TEMP/SHA512-SUMS.txt"
+          base="https://github.com/godotengine/godot-builds/releases/download/${TRACE2D_B2_GODOT_VERSION}"
+          curl --fail --location --retry 3 "$base/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip" -o "$archive"
+          curl --fail --location --retry 3 "$base/SHA512-SUMS.txt" -o "$sums"
+          (cd "$RUNNER_TEMP" && grep "  Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64.zip$" "$sums" | sha512sum --check --strict)
+          mkdir -p "$RUNNER_TEMP/b2-godot-verifier-engine"
+          unzip -q "$archive" -d "$RUNNER_TEMP/b2-godot-verifier-engine"
+          godot="$RUNNER_TEMP/b2-godot-verifier-engine/Godot_v${TRACE2D_B2_GODOT_VERSION}_linux.x86_64"
+          chmod +x "$godot"
+          echo "TRACE2D_B2_GODOT=$godot" >> "$GITHUB_ENV"
+
+      - name: Compile Python qualification driver
+        shell: bash
+        run: python3 -m py_compile scripts/qualify_b2_godot_verifier.py
+
+      - name: Qualify known-good acceptance and known-bad rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/b2-godot-verifier-qualification"
+          python3 scripts/qualify_b2_godot_verifier.py \
+            --godot "$TRACE2D_B2_GODOT" \
+            --evidence-dir "$evidence"
+          python3 - "$evidence/godot-summary.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          assert d["scored"] is False and d["qualified"] is True
+          assert d["lane_family"] == "godot"
+          assert d["known_good"]["accepted"] is True
+          assert d["known_bad_cooldown"]["accepted"] is False
+          assert d["scoring_gate_opened"] is False
+          assert d["engine"]["reported_version"].startswith("4.7.1.stable")
+          PY
+
+      - name: Upload Godot verifier qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-b2-godot-verifier-qualification
+          path: ${{ runner.temp }}/b2-godot-verifier-qualification
+          if-no-files-found: error
+          retention-days: 30
