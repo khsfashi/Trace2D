@@ -115,6 +115,28 @@ Application::Application(Game& game, ApplicationConfig config)
     pendingInputEvents_.reserve(InitialPendingInputCapacity);
 }
 
+Application::Application(
+    Game& game,
+    const scene::ComponentRegistry& componentRegistry,
+    ApplicationConfig config)
+    : game_{game}
+    , runtime_{config.runtime}
+    , scene_{componentRegistry, std::move(config.scene)}
+    , ui_{config.uiWidth, config.uiHeight}
+    , context_{runtime_, scene_, input_, actions_, ui_}
+{
+    if (!componentRegistry.IsFrozen())
+    {
+        throw std::invalid_argument{"Application component registry must be frozen before construction."};
+    }
+    if (!ui_.HasValidSize())
+    {
+        throw std::invalid_argument{"Application UI dimensions must be within the supported UiDocument range."};
+    }
+
+    pendingInputEvents_.reserve(InitialPendingInputCapacity);
+}
+
 void Application::BindWorkContracts(
     const agent::WorkSpec* workSpec,
     agent::WorkResult* workResult) noexcept
