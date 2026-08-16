@@ -1,0 +1,30 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-msvc",
+      "displayName": "Trace2D B2 scored starter - Windows MSVC 2022 x64",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_PREFIX_PATH": "$env{TRACE2D_ROOT}",
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
+        "BUILD_TESTING": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-debug",
+      "configurePreset": "windows-msvc",
+      "configuration": "Debug"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b2_scored_execution_contract",
+  "benchmark_id": "trace2d-b2",
+  "issue": 104,
+  "state": "frozen_pre_score",
+  "frozen_from_main_commit": "80edeef32d593d02979f7dea86690fc857a115ed",
+  "scored_results_observed_before_execution_freeze": false,
+  "frozen_inputs": {
+    "preregistration": "benchmarks/b2/preregistration-v1.json",
+    "scored_cohort": "benchmarks/b2/scored-cohort-v1.json",
+    "verifier_qualification": "benchmarks/b2/verifier-qualification-v1.json",
+    "task_prompt": "benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md",
+    "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json"
+  },
+  "lane_starters": {
+    "godot.generic": {
+      "root": "benchmarks/b2/starters/godot",
+      "files": {
+        "project.godot": "0bc5a9463a6eb62645b82806ef04e15d7a26b98bf51ebd8f748ea76c4c63f3b1"
+      },
+      "shares_identical_project_with": "godot.agent"
+    },
+    "godot.agent": {
+      "root": "benchmarks/b2/starters/godot",
+      "files": {
+        "project.godot": "0bc5a9463a6eb62645b82806ef04e15d7a26b98bf51ebd8f748ea76c4c63f3b1"
+      },
+      "selected_bridge": {
+        "id": "hi-godot/godot-ai",
+        "version": "3.1.5",
+        "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+        "package_identity": "sha256:51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04"
+      }
+    },
+    "trace2d.agent": {
+      "root": "benchmarks/b2/starters/trace2d",
+      "files": {
+        "CMakeLists.txt": "529a83338c3eeb2b7e8cce41f3df2ac69615a6741b8543c3686cf6b44d819ad6",
+        "CMakePresets.json": "42ed06d67c98fd631848802761345da9e726532c04a685901e3d1ba23267730d",
+        "main.cpp": "a3824bbd4ea90fc1c95648389413d69c16df1cbb528279002a74b9a50ed0e17a",
+        "trace2d.project.json": "c887e060b2767702ecf713dea6a27c02056f69094f76ef4c5be403fbfb9fc548",
+        "content/main.trace2d.toml": "f85435e4f2e455552cfe8cbc6dc3f6c9c0d647648a760867d4b019bc8981d627",
+        "vcpkg.json": "aaf6b222daba30f3c4531ec77eeb09c9e938a9abf5f0fcedcbe08a5e1155baec"
+      }
+    }
+  },
+  "slots": [
+    {"slot": 1, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 2, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "godot.agent"},
+    {"slot": 3, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 4, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "godot.agent"},
+    {"slot": 5, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 6, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 7, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 8, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 9, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "godot.agent"}
+  ],
+  "execution_policy": {
+    "isolated_workspace_per_slot": true,
+    "append_only_hash_chained_raw_records": true,
+    "preserve_every_scheduled_attempt": true,
+    "automatic_retries_per_trial": 0,
+    "replacement_trials_for_infrastructure_failure": 0,
+    "early_stopping": false,
+    "best_of_n": false,
+    "independent_deterministic_verifier_after_agent": true,
+    "presentation_capture_required": true,
+    "candidate_owns_verdict": false
+  },
+  "human_feedback_policy": {
+    "initial_deterministic_acceptance_required_before_feedback": true,
+    "max_feedback_events": 1,
+    "shared_lane_agnostic_feedback_text": true,
+    "same_feedback_applied_to_every_eligible_lane": true,
+    "max_feedback_revision_cycles": 1,
+    "deterministic_reverification_after_revision": true
+  },
+  "fairness_guards": {
+    "starter_contains_task_solution_logic": false,
+    "starter_contains_frozen_semantic_actions": false,
+    "godot_lanes_share_byte_identical_starter": true,
+    "task_schedule_budget_retry_and_verifier_authority_changed": false,
+    "slot_execution_before_this_freeze": false
+  }
+}
