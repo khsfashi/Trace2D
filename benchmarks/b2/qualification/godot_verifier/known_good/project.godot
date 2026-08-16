@@ -1,0 +1,17 @@
+[application]
+config/name="Trace2D B2 Godot Verifier Qualification"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=320
+window/size/viewport_height=180
+
+[input]
+move_left={"deadzone": 0.5, "events": []}
+move_right={"deadzone": 0.5, "events": []}
+move_up={"deadzone": 0.5, "events": []}
+move_down={"deadzone": 0.5, "events": []}
+attack={"deadzone": 0.5, "events": []}
+
+[physics]
+common/physics_ticks_per_second=60
