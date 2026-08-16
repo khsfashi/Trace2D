@@ -124,3 +124,50 @@ set_tests_properties(
     BenchmarkB1FixtureQualification.Trace2D.Particle.KnownBad
     PROPERTIES LABELS "benchmark_b1_fixture_qualification"
 )
+
+# B2 P1c: qualify the independent Trace2D lane verifier itself before any scored
+# trial is allowed. Both candidates use the same public Application/Input/Scene/UI
+# path; only the seeded cooldown defect differs. The known-bad executable is
+# expected to return non-zero under the exact same verifier driver.
+set(B2_TRACE2D_VERIFIER_ROOT
+    "${CMAKE_SOURCE_DIR}/benchmarks/b2/qualification/trace2d_verifier")
+
+function(trace2d_add_b2_trace2d_verifier target candidate_dir)
+    add_executable(${target}
+        B2Trace2DVerifierMain.cpp
+        "${candidate_dir}/B2Candidate.cpp"
+    )
+    target_include_directories(${target} PRIVATE "${B2_TRACE2D_VERIFIER_ROOT}")
+    target_link_libraries(${target}
+        PRIVATE
+            Trace2D::Application
+            Trace2D::Agent
+    )
+    target_compile_features(${target} PRIVATE cxx_std_20)
+    trace2d_enable_warnings(${target})
+endfunction()
+
+trace2d_add_b2_trace2d_verifier(
+    trace2d_b2_trace2d_good_verify
+    "${B2_TRACE2D_VERIFIER_ROOT}/known_good")
+trace2d_add_b2_trace2d_verifier(
+    trace2d_b2_trace2d_bad_cooldown_verify
+    "${B2_TRACE2D_VERIFIER_ROOT}/known_bad_cooldown")
+
+add_test(
+    NAME BenchmarkB2VerifierQualification.Trace2D.KnownGood
+    COMMAND trace2d_b2_trace2d_good_verify
+)
+add_test(
+    NAME BenchmarkB2VerifierQualification.Trace2D.KnownBadCooldown
+    COMMAND trace2d_b2_trace2d_bad_cooldown_verify
+)
+set_tests_properties(
+    BenchmarkB2VerifierQualification.Trace2D.KnownBadCooldown
+    PROPERTIES WILL_FAIL TRUE
+)
+set_tests_properties(
+    BenchmarkB2VerifierQualification.Trace2D.KnownGood
+    BenchmarkB2VerifierQualification.Trace2D.KnownBadCooldown
+    PROPERTIES LABELS "benchmark_b2_verifier_qualification"
+)
