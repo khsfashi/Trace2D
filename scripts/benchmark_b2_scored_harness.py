@@ -173,10 +173,10 @@ def verify_starter(workspace: Path, lane: str, execution: dict[str, Any]) -> Non
 
 
 def agent_command(workspace: Path, prompt: Path, lane: str, result: Path) -> list[str]:
+    adapter = Path(__file__).resolve().with_name(ADAPTER_MODULE + ".py")
     return [
         sys.executable,
-        "-m",
-        ADAPTER_MODULE,
+        str(adapter),
         "run",
         "--workspace",
         str(workspace),
@@ -213,6 +213,59 @@ def verifier_command(repo_root: Path, workspace: Path, lane: str, output: Path, 
     if godot:
         command.extend(["--godot-bin", godot])
     return command
+
+
+def _required_file_from_env(names: tuple[str, ...], label: str) -> Path:
+    raw = next((os.environ.get(name, "").strip() for name in names if os.environ.get(name, "").strip()), "")
+    if not raw:
+        raise B2HarnessError(f"{label} requires one of: {', '.join(names)}")
+    path = Path(raw).expanduser().resolve()
+    if not path.is_file():
+        raise B2HarnessError(f"{label} not found: {path}")
+    return path
+
+
+def preflight_environment(lane: str) -> dict[str, Any]:
+    evidence: dict[str, Any] = {"lane": lane, "ready": True}
+    if lane.startswith("godot."):
+        godot = _required_file_from_env(
+            ("TRACE2D_B2_GODOT_BIN", "TRACE2D_BENCH_GODOT_BIN"), "pinned Godot executable"
+        )
+        version = run_process([str(godot), "--version"], cwd=godot.parent, timeout=30.0)
+        observed = str(version.get("stdout", "")).strip()
+        expected = "4.7.1.stable.official.a13da4feb"
+        if version["timed_out"] or version["return_code"] != 0 or observed != expected:
+            raise B2HarnessError(f"Godot identity mismatch: expected {expected!r}, got {observed!r}")
+        evidence["godot"] = {"path": str(godot), "version": observed}
+    if lane == "godot.agent":
+        python = _required_file_from_env(("TRACE2D_B2_GODOT_AI_PYTHON",), "B2 Godot Agent Python")
+        addon_raw = os.environ.get("TRACE2D_B2_GODOT_AI_ADDON_DIR", "").strip()
+        if not addon_raw:
+            raise B2HarnessError("godot.agent requires TRACE2D_B2_GODOT_AI_ADDON_DIR")
+        addon = Path(addon_raw).expanduser().resolve()
+        if not (addon / "plugin.cfg").is_file():
+            raise B2HarnessError(f"B2 Godot Agent addon plugin.cfg not found: {addon}")
+        version = run_process(
+            [str(python), "-c", "import importlib.metadata as m; print(m.version('godot-ai'))"],
+            cwd=python.parent,
+            timeout=30.0,
+        )
+        observed = str(version.get("stdout", "")).strip()
+        if version["timed_out"] or version["return_code"] != 0 or observed != "3.1.5":
+            raise B2HarnessError(
+                f"Godot Agent package version mismatch: expected '3.1.5', got {observed!r}"
+            )
+        evidence["godot_agent"] = {
+            "python": str(python),
+            "addon": str(addon),
+            "version": observed,
+            "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+            "package_identity": "sha256:51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04",
+        }
+    if lane == "trace2d.agent":
+        trace2d = _required_file_from_env(("TRACE2D_BENCH_TRACE2D_BIN",), "Trace2D public CLI")
+        evidence["trace2d"] = {"path": str(trace2d)}
+    return evidence
 
 
 def presentation_files(workspace: Path) -> list[dict[str, Any]]:
@@ -284,6 +337,7 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
 
     slot = int(expected["slot"])
     lane = str(expected["lane"])
+    environment_preflight = preflight_environment(lane)
     trial_id = f"slot-{slot:02d}-{lane.replace('.', '-')}-r{expected['repetition']}"
     trial_root = runs_root / "trials" / trial_id
     if trial_root.exists():
@@ -408,11 +462,14 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
         },
         "workspace_sha256": benchmark_b0_stable_harness.stable_tree_hash(workspace),
         "environment": {
+            "preflight": environment_preflight,
             "os": platform.system(),
             "os_release": platform.release(),
             "machine": platform.machine(),
             "python": platform.python_version(),
-            "godot_path": os.environ.get("TRACE2D_B2_GODOT_BIN", os.environ.get("TRACE2D_BENCH_GODOT_BIN", "")),
+            "godot_path": os.environ.get(
+                "TRACE2D_B2_GODOT_BIN", os.environ.get("TRACE2D_BENCH_GODOT_BIN", "")
+            ),
             "trace2d_path": os.environ.get("TRACE2D_BENCH_TRACE2D_BIN", ""),
         },
         "integrity": {
@@ -451,6 +508,22 @@ def next_slot(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def preflight_slot(args: argparse.Namespace) -> dict[str, Any]:
+    repo_root = repository_root()
+    execution, _, _ = load_contract(repo_root)
+    runs_root = Path(args.runs_root).expanduser().resolve()
+    records = existing_records(runs_root / "raw.jsonl", execution)
+    if len(records) == len(execution["slots"]):
+        return {"benchmark_id": BENCHMARK_ID, "initial_scoring_complete": True, "next_slot": None}
+    slot = execution["slots"][len(records)]
+    return {
+        "benchmark_id": BENCHMARK_ID,
+        "initial_scoring_complete": False,
+        "next_slot": slot,
+        "environment": preflight_environment(str(slot["lane"])),
+    }
+
+
 def validate(_: argparse.Namespace) -> dict[str, Any]:
     repo_root = repository_root()
     execution, prereg, profile = load_contract(repo_root)
@@ -474,6 +547,10 @@ def build_parser() -> argparse.ArgumentParser:
     upcoming = commands.add_parser("next-slot")
     upcoming.add_argument("--runs-root", required=True)
     upcoming.set_defaults(handler=next_slot)
+
+    preflight = commands.add_parser("preflight-slot")
+    preflight.add_argument("--runs-root", required=True)
+    preflight.set_defaults(handler=preflight_slot)
 
     run = commands.add_parser("run-slot")
     run.add_argument("--runs-root", required=True)
