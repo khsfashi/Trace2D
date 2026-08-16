@@ -1,0 +1,29 @@
+{
+  "format_version": 1,
+  "project_id": "trace2d.benchmark.b2-scored-starter",
+  "engine": {
+    "minimum_version": "0.1.0"
+  },
+  "startup": {
+    "scene": "content/main.trace2d.toml"
+  },
+  "content": {
+    "root": "content"
+  },
+  "build": {
+    "configure_preset": "windows-msvc",
+    "build_preset": "windows-debug",
+    "headless_target": "trace2d_b2_scored_starter",
+    "windowed_target": "trace2d_b2_scored_starter"
+  },
+  "assets": {
+    "texture": {
+      "color_space": "srgb-authored",
+      "gpu_format_policy": "rgba8-uncompressed-current-v1",
+      "mip_policy": "none-current-v1",
+      "max_size_policy": "reject-over-backend-limit",
+      "rescale_policy": "never-implicit",
+      "artifact_identity": "sha256"
+    }
+  }
+}

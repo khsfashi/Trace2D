@@ -1,0 +1,19 @@
+; Trace2D Benchmark B2 scored starter.
+; This project intentionally contains no task implementation or semantic input actions.
+config_version=5
+
+[application]
+
+config/name="Trace2D B2 Scored Starter"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=640
+window/size/window_height_override=360
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

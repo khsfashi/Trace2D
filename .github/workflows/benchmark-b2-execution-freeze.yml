@@ -1,0 +1,56 @@
+name: Benchmark B2 Scored Execution Freeze
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/execution-v1.json"
+      - "benchmarks/b2/EXECUTION.md"
+      - "benchmarks/b2/starters/**"
+      - "scripts/benchmark_b2_execution_freeze.py"
+      - "scripts/test_benchmark_b2_execution_freeze.py"
+      - ".github/workflows/benchmark-b2-execution-freeze.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/execution-v1.json"
+      - "benchmarks/b2/EXECUTION.md"
+      - "benchmarks/b2/starters/**"
+      - "scripts/benchmark_b2_execution_freeze.py"
+      - "scripts/test_benchmark_b2_execution_freeze.py"
+      - ".github/workflows/benchmark-b2-execution-freeze.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  execution-freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with history for B1 integrity anchor
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Revalidate frozen B2 scoring gate
+        run: python3 -m scripts.benchmark_b2_p1_freeze
+
+      - name: Validate pre-score execution inputs
+        run: python3 -m scripts.benchmark_b2_execution_freeze
+
+      - name: Run execution-freeze regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_execution_freeze
+
+      - name: Syntax-check execution-freeze tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_execution_freeze.py \
+            scripts/test_benchmark_b2_execution_freeze.py
