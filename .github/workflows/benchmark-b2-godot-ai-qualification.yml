@@ -2,9 +2,7 @@ name: Benchmark B2 Godot AI Qualification
 
 on:
   push:
-    branches:
-      - main
-      - "agent/**"
+    branches: [main, "agent/**"]
     paths:
       - "benchmarks/b2/qualification/**"
       - "scripts/qualify_b2_godot_ai.py"
@@ -12,8 +10,7 @@ on:
       - "scripts/qualify_godot_agent_mcp.py"
       - ".github/workflows/benchmark-b2-godot-ai-qualification.yml"
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "benchmarks/b2/qualification/**"
       - "scripts/qualify_b2_godot_ai.py"
@@ -107,7 +104,7 @@ jobs:
           test -n "$package_file"
           package_sha="$(sha256sum "$package_file" | awk '{print $1}')"
           "$venv/bin/python" -m pip install "$package_file"
-          test "$("$venv/bin/godot-ai" --version)" = "$TRACE2D_B2_GODOT_AI_VERSION"
+          test "$("$venv/bin/godot-ai" --version)" = "godot-ai $TRACE2D_B2_GODOT_AI_VERSION"
           printf '%s  %s\n' "$package_sha" "$(basename "$package_file")" > "$evidence/package-sha256.txt"
           printf '%s\n' "$TRACE2D_B2_GODOT_AI_SOURCE_COMMIT" > "$evidence/source-commit.txt"
 
