@@ -15,8 +15,8 @@ void PrintAuthoringUsage()
 {
     std::cout
         << "Usage:\n"
-        << "  trace2d author sprite ...\n"
-        << "  trace2d author particle ...\n";
+        << "  trace2d author <sprite|particle> ...\n"
+        << "Supported resource kinds: sprite, particle\n";
 }
 } // namespace
 
