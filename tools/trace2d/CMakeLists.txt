@@ -63,7 +63,7 @@ if(BUILD_TESTING)
     set_tests_properties(
         trace2d_cli_author_help
         PROPERTIES
-            PASS_REGULAR_EXPRESSION "trace2d author sprite.*trace2d author particle"
+            PASS_REGULAR_EXPRESSION "Supported resource kinds: sprite, particle"
     )
 
     add_test(
@@ -112,6 +112,15 @@ if(BUILD_TESTING)
         trace2d_cli_author_particle_unknown_property
         PROPERTIES
             PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown particle authoring option: --unknown-property"
+    )
+
+    add_test(
+        NAME trace2d_cli_author_particle_transaction
+        COMMAND ${CMAKE_COMMAND}
+            "-DTRACE2D_CLI=$<TARGET_FILE:trace2d>"
+            "-DSOURCE=${CMAKE_SOURCE_DIR}/tests/data/particle_authoring_fixture.trace2d.particle.toml"
+            "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/particle_authoring_cli_test"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/ParticleAuthoringCliTest.cmake"
     )
 
     add_test(
