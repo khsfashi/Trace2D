@@ -124,11 +124,11 @@ public:
     explicit Application(Game& game, ApplicationConfig config = {});
 
     // Use a caller-owned frozen registry when the root application scene needs custom typed
-    // components to remain available to normal Scene/Agent inspection. The registry must outlive
-    // the Application because Scene retains a non-owning pointer to it.
+    // components to remain available to normal Scene/Agent inspection. The non-const lvalue
+    // reference prevents temporary registries because Scene retains a non-owning pointer to it.
     Application(
         Game& game,
-        const scene::ComponentRegistry& componentRegistry,
+        scene::ComponentRegistry& componentRegistry,
         ApplicationConfig config = {});
 
     Application(const Application&) = delete;
