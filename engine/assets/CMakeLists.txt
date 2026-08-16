@@ -4,6 +4,7 @@ find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_assets STATIC
     src/ResourceRegistry.cpp
+    src/ResourceRegistryLookup.cpp
     src/SpriteAssets.cpp
     src/SpriteExtraction.cpp
     src/SpriteGeneration.cpp

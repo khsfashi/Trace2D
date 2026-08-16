@@ -32,4 +32,13 @@ struct UiLoadResult final
 [[nodiscard]] UiLoadResult LoadUiToml(
     std::string_view text,
     std::string_view sourceName = {});
+
+// U14 resource-aware authored loading is required only when kind = "image" is present. Progress and
+// every legacy kind remain loadable through the resource-free overload. Image lookup resolves an
+// already-ready project-relative texture through the canonical #86 ResourceRegistry; it never loads
+// or republishes resource bytes.
+[[nodiscard]] UiLoadResult LoadUiToml(
+    std::string_view text,
+    assets::ResourceRegistry& resources,
+    std::string_view sourceName = {});
 } // namespace trace2d::ui
