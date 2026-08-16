@@ -358,7 +358,7 @@ kind = "panel"
 parent = "root"
 bounds = [8, 80, 200, 60]
 name = "Inventory"
-scroll_content_size = [200, 120]
+scroll_content_size = [200, 100]
 
 [[elements]]
 id = "scrolled_label"
