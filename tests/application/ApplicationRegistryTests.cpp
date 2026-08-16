@@ -53,7 +53,8 @@ public:
         trace2d::scene::EntityDescriptor player{};
         player.semanticId = "player";
         const trace2d::scene::EntityId playerId = context.Scene().CreateEntity(std::move(player));
-        context.Scene().AddComponent(playerId, healthType_, HealthState{.current = 3});
+        static_cast<void>(
+            context.Scene().AddComponent(playerId, healthType_, HealthState{.current = 3}));
     }
 
     void OnFixedUpdate(
