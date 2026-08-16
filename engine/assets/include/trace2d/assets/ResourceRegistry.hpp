@@ -267,6 +267,11 @@ public:
         std::string_view projectRelativeReference,
         FontResource resource);
 
+    // U14 setup-time lookup reuses the same canonical identity table used by publication. It never
+    // loads or republishes bytes: callers receive only the current ready generation-safe handle.
+    [[nodiscard]] std::optional<ResourceHandle<TextureResource>> FindReadyTexture(
+        std::string_view projectRelativeReference);
+
     [[nodiscard]] ResourceOperationResult RecordLoadFailure(
         ResourceTypeDomain domain,
         std::string_view projectRelativeReference,
