@@ -22,6 +22,16 @@ namespace
 {
 constexpr std::int64_t UiFormatVersion = 1;
 
+enum class AuthoredUiKind : std::uint8_t
+{
+    Panel,
+    Label,
+    Button,
+    TextInput,
+    Progress,
+    Image,
+};
+
 struct ParsedUiElement final
 {
     std::size_t sourceIndex{0U};
@@ -30,6 +40,11 @@ struct ParsedUiElement final
     bool configureScrollViewport{false};
     std::uint32_t scrollContentWidth{0U};
     std::uint32_t scrollContentHeight{0U};
+    bool configureProgress{false};
+    std::uint32_t progressValue{0U};
+    std::uint32_t progressMaximum{0U};
+    bool configureImage{false};
+    std::string imageTextureReference{};
 };
 
 void AddDiagnostic(
@@ -229,6 +244,21 @@ void ValidateKnownKeys(
     return ReadUInt32(*node, path, diagnostics, true);
 }
 
+[[nodiscard]] std::optional<std::uint32_t> ReadRequiredNonNegativeUInt32(
+    const toml::table& table,
+    const std::string_view key,
+    const std::string_view path,
+    std::vector<UiTextDiagnostic>& diagnostics)
+{
+    const toml::node* const node = table.get(key);
+    if (node == nullptr)
+    {
+        AddDiagnostic(diagnostics, std::string{path}, "Required field is missing.");
+        return std::nullopt;
+    }
+    return ReadUInt32(*node, path, diagnostics, false);
+}
+
 [[nodiscard]] std::optional<std::uint32_t> ReadOptionalUInt32(
     const toml::table& table,
     const std::string_view key,
@@ -264,7 +294,7 @@ void ValidateKnownKeys(
     return value;
 }
 
-[[nodiscard]] std::optional<UiElementKind> ReadKind(
+[[nodiscard]] std::optional<AuthoredUiKind> ReadKind(
     const toml::table& table,
     const std::string_view path,
     std::vector<UiTextDiagnostic>& diagnostics)
@@ -285,27 +315,53 @@ void ValidateKnownKeys(
 
     if (*value == "panel")
     {
-        return UiElementKind::Panel;
+        return AuthoredUiKind::Panel;
     }
     if (*value == "label")
     {
-        return UiElementKind::Label;
+        return AuthoredUiKind::Label;
     }
     if (*value == "button")
     {
-        return UiElementKind::Button;
+        return AuthoredUiKind::Button;
     }
     if (*value == "text_input")
     {
-        return UiElementKind::TextInput;
+        return AuthoredUiKind::TextInput;
+    }
+    if (*value == "progress")
+    {
+        return AuthoredUiKind::Progress;
+    }
+    if (*value == "image")
+    {
+        return AuthoredUiKind::Image;
     }
 
     AddDiagnostic(
         diagnostics,
         std::string{path},
-        "Unsupported UI kind. Expected panel, label, button, or text_input.",
+        "Unsupported UI kind. Expected panel, label, button, text_input, progress, or image.",
         node);
     return std::nullopt;
+}
+
+[[nodiscard]] UiElementKind RuntimeKind(const AuthoredUiKind kind) noexcept
+{
+    switch (kind)
+    {
+    case AuthoredUiKind::Panel:
+    case AuthoredUiKind::Progress:
+    case AuthoredUiKind::Image:
+        return UiElementKind::Panel;
+    case AuthoredUiKind::Label:
+        return UiElementKind::Label;
+    case AuthoredUiKind::Button:
+        return UiElementKind::Button;
+    case AuthoredUiKind::TextInput:
+        return UiElementKind::TextInput;
+    }
+    return UiElementKind::Panel;
 }
 
 [[nodiscard]] std::optional<UiLayoutPlacementMode> ReadPlacementMode(
@@ -697,7 +753,10 @@ void ValidateDuplicateIds(
 }
 } // namespace
 
-UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sourceName)
+[[nodiscard]] static UiLoadResult LoadUiTomlImpl(
+    const std::string_view text,
+    const std::string_view sourceName,
+    assets::ResourceRegistry* const resources)
 {
     UiLoadResult result{};
     toml::table root{};
@@ -813,7 +872,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     elementPath,
                     {"id", "kind", "parent", "placement", "bounds", "anchor", "pivot", "offset", "size",
                      "layout", "padding", "spacing", "margin", "name", "text", "visible", "enabled",
-                     "clip_children", "scroll_content_size"},
+                     "clip_children", "scroll_content_size", "progress_value", "progress_maximum", "texture"},
                     result.diagnostics);
 
                 const std::optional<std::string> id = ReadRequiredString(
@@ -821,7 +880,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     "id",
                     elementPath + ".id",
                     result.diagnostics);
-                const std::optional<UiElementKind> kind = ReadKind(
+                const std::optional<AuthoredUiKind> kind = ReadKind(
                     *elementTable,
                     elementPath + ".kind",
                     result.diagnostics);
@@ -874,6 +933,62 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     result.diagnostics,
                     false);
 
+                const bool isProgress = kind.has_value() && *kind == AuthoredUiKind::Progress;
+                const bool isImage = kind.has_value() && *kind == AuthoredUiKind::Image;
+                std::optional<std::uint32_t> progressValue{};
+                std::optional<std::uint32_t> progressMaximum{};
+                std::optional<std::string> imageTextureReference{};
+
+                if (isProgress)
+                {
+                    progressValue = ReadRequiredNonNegativeUInt32(
+                        *elementTable,
+                        "progress_value",
+                        elementPath + ".progress_value",
+                        result.diagnostics);
+                    progressMaximum = ReadRequiredUInt32(
+                        *elementTable,
+                        "progress_maximum",
+                        elementPath + ".progress_maximum",
+                        result.diagnostics);
+                }
+                else
+                {
+                    if (elementTable->get("progress_value") != nullptr)
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".progress_value",
+                            "progress_value is only valid for kind = \"progress\".",
+                            elementTable->get("progress_value"));
+                    }
+                    if (elementTable->get("progress_maximum") != nullptr)
+                    {
+                        AddDiagnostic(
+                            result.diagnostics,
+                            elementPath + ".progress_maximum",
+                            "progress_maximum is only valid for kind = \"progress\".",
+                            elementTable->get("progress_maximum"));
+                    }
+                }
+
+                if (isImage)
+                {
+                    imageTextureReference = ReadRequiredString(
+                        *elementTable,
+                        "texture",
+                        elementPath + ".texture",
+                        result.diagnostics);
+                }
+                else if (elementTable->get("texture") != nullptr)
+                {
+                    AddDiagnostic(
+                        result.diagnostics,
+                        elementPath + ".texture",
+                        "texture is only valid for kind = \"image\".",
+                        elementTable->get("texture"));
+                }
+
                 const bool hasScrollContentSize = elementTable->get("scroll_content_size") != nullptr;
                 std::optional<std::array<std::uint32_t, 2U>> scrollContentSize{};
                 if (hasScrollContentSize)
@@ -884,7 +999,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                         elementPath + ".scroll_content_size",
                         result.diagnostics,
                         true);
-                    if (kind.has_value() && *kind != UiElementKind::Panel)
+                    if (kind.has_value() && *kind != AuthoredUiKind::Panel)
                     {
                         AddDiagnostic(
                             result.diagnostics,
@@ -971,7 +1086,9 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     !containerLayout.has_value() || !padding.has_value() || !spacing.has_value() ||
                     !elementName.has_value() || !elementText.has_value() || !visible.has_value() ||
                     !enabled.has_value() || !clipChildren.has_value() ||
-                    (hasScrollContentSize && !scrollContentSize.has_value()) || !hasGeometry)
+                    (hasScrollContentSize && !scrollContentSize.has_value()) ||
+                    (isProgress && (!progressValue.has_value() || !progressMaximum.has_value())) ||
+                    (isImage && !imageTextureReference.has_value()) || !hasGeometry)
                 {
                     continue;
                 }
@@ -991,7 +1108,7 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                 ParsedUiElement authored{};
                 authored.sourceIndex = index;
                 authored.element.id = *id;
-                authored.element.kind = *kind;
+                authored.element.kind = RuntimeKind(*kind);
                 authored.element.parentId = *parent;
                 authored.element.name = elementName->empty() ? *elementText : *elementName;
                 authored.element.text = *elementText;
@@ -1025,6 +1142,17 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
                     authored.scrollContentHeight = (*scrollContentSize)[1];
                     authored.layout.childContentWidth = authored.scrollContentWidth;
                     authored.layout.childContentHeight = authored.scrollContentHeight;
+                }
+                if (isProgress)
+                {
+                    authored.configureProgress = true;
+                    authored.progressValue = *progressValue;
+                    authored.progressMaximum = *progressMaximum;
+                }
+                if (isImage)
+                {
+                    authored.configureImage = true;
+                    authored.imageTextureReference = std::move(*imageTextureReference);
                 }
 
                 parsed.push_back(std::move(authored));
@@ -1174,10 +1302,80 @@ UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sour
         }
     }
 
+    // U14 specializes authored practical widgets only after the complete local document and U11
+    // scroll authority are established. Any failure discards this local document transactionally.
+    for (std::size_t index = 0U; index < parsed.size(); ++index)
+    {
+        const ParsedUiElement& authored = parsed[index];
+        if (authored.configureProgress)
+        {
+            const UiProgressResult progressResult = document.ConfigureProgress(
+                resolvedNodes[index].id,
+                authored.progressValue,
+                authored.progressMaximum);
+            if (progressResult != UiProgressResult::Success)
+            {
+                AddDiagnostic(
+                    result.diagnostics,
+                    "elements[" + std::to_string(authored.sourceIndex) + "].progress_value",
+                    "Authored Progress configuration failed: " + std::string{ToString(progressResult)} + ".");
+            }
+        }
+
+        if (!authored.configureImage)
+        {
+            continue;
+        }
+        if (resources == nullptr)
+        {
+            AddDiagnostic(
+                result.diagnostics,
+                "elements[" + std::to_string(authored.sourceIndex) + "].texture",
+                "Authored Image requires the resource-aware LoadUiToml overload.");
+            continue;
+        }
+
+        const std::optional<assets::ResourceHandle<assets::TextureResource>> texture =
+            resources->FindReadyTexture(authored.imageTextureReference);
+        if (!texture.has_value())
+        {
+            AddDiagnostic(
+                result.diagnostics,
+                "elements[" + std::to_string(authored.sourceIndex) + "].texture",
+                "Authored Image texture is invalid or is not a ready TextureResource.");
+            continue;
+        }
+
+        const UiImageResult imageResult = document.ConfigureImage(
+            resolvedNodes[index].id,
+            *texture,
+            *resources);
+        if (imageResult != UiImageResult::Success)
+        {
+            AddDiagnostic(
+                result.diagnostics,
+                "elements[" + std::to_string(authored.sourceIndex) + "].texture",
+                "Authored Image configuration failed: " + std::string{ToString(imageResult)} + ".");
+        }
+    }
+
     if (result.diagnostics.empty() && document.HasValidSize())
     {
         result.document = std::move(document);
     }
     return result;
+}
+
+UiLoadResult LoadUiToml(const std::string_view text, const std::string_view sourceName)
+{
+    return LoadUiTomlImpl(text, sourceName, nullptr);
+}
+
+UiLoadResult LoadUiToml(
+    const std::string_view text,
+    assets::ResourceRegistry& resources,
+    const std::string_view sourceName)
+{
+    return LoadUiTomlImpl(text, sourceName, &resources);
 }
 } // namespace trace2d::ui
