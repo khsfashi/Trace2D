@@ -75,6 +75,40 @@ struct UiScrollState final
     [[nodiscard]] bool operator==(const UiScrollState&) const noexcept = default;
 };
 
+class UiProgressState final
+{
+public:
+    [[nodiscard]] bool Active() const noexcept
+    {
+        return active_;
+    }
+
+    [[nodiscard]] std::uint32_t Value() const noexcept
+    {
+        return value_;
+    }
+
+    [[nodiscard]] std::uint32_t Maximum() const noexcept
+    {
+        return maximum_;
+    }
+
+    [[nodiscard]] std::uint64_t Revision() const noexcept
+    {
+        return revision_;
+    }
+
+    [[nodiscard]] bool operator==(const UiProgressState&) const noexcept = default;
+
+private:
+    bool active_{false};
+    std::uint32_t value_{0U};
+    std::uint32_t maximum_{0U};
+    std::uint64_t revision_{0U};
+
+    friend class UiDocument;
+};
+
 struct UiElement final
 {
     std::string id{};
@@ -95,6 +129,11 @@ struct UiElement final
     UiPresentationRect presentationBounds{};
     std::size_t scrollOwnerIndex{InvalidUiElementIndex};
     UiScrollState scroll{};
+
+    // U12 keeps practical Progress state on the same retained element rather than in a side cache.
+    // The state can only be activated/mutated through UiDocument, preserving maximum/value
+    // invariants while raster and Agent inspection consume direct retained values.
+    UiProgressState progress{};
 
     // U8 authored clipping is owned by the hierarchy, not by renderer-specific state.
     // clipChildren clips descendants to this element's resolved logical bounds. clipActive /
@@ -149,6 +188,15 @@ enum class UiActionResult : std::uint8_t
     UnsupportedScrollHierarchy,
 };
 
+enum class UiProgressResult : std::uint8_t
+{
+    Success,
+    NotFound,
+    InvalidTarget,
+    NotProgress,
+    InvalidRange,
+};
+
 enum class UiNavigationDirection : std::uint8_t
 {
     Left,
@@ -179,6 +227,7 @@ struct UiPointerRouteResult final
 
 [[nodiscard]] std::string_view ToString(UiElementKind kind) noexcept;
 [[nodiscard]] std::string_view ToString(UiActionResult result) noexcept;
+[[nodiscard]] std::string_view ToString(UiProgressResult result) noexcept;
 [[nodiscard]] std::string_view ToString(UiPointerRouteStatus status) noexcept;
 [[nodiscard]] bool IsFocusable(UiElementKind kind) noexcept;
 [[nodiscard]] bool IsActivatable(UiElementKind kind) noexcept;
@@ -209,6 +258,17 @@ public:
     [[nodiscard]] UiActionResult AddElement(UiElement element);
     [[nodiscard]] UiActionResult Focus(std::string_view id) noexcept;
     [[nodiscard]] UiActionResult Activate(std::string_view id) noexcept;
+
+    // U12 specializes an existing non-scroll Panel as a deterministic Progress visual. Mutation is
+    // explicit state work; unchanged value/maximum pairs do not advance revision or trigger layout.
+    [[nodiscard]] UiProgressResult ConfigureProgress(
+        std::string_view id,
+        std::uint32_t value,
+        std::uint32_t maximum) noexcept;
+    [[nodiscard]] UiProgressResult SetProgress(
+        std::string_view id,
+        std::uint32_t value,
+        std::uint32_t maximum) noexcept;
 
     // U9 configures an existing Panel as a clipped scroll viewport after hierarchy/layout setup.
     // Configuration may discover descendants once. Offset changes then update only retained signed
