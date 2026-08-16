@@ -39,6 +39,7 @@ jobs:
             scripts/benchmark_b2_scored_harness.py \
             scripts/benchmark_b2_codex_windows_acl_wrapper.py \
             scripts/verify_benchmark_b2_candidate.py
+          python scripts/verify_benchmark_b2_candidate.py --help >/dev/null
 
       - name: Validate frozen B2 execution contract
         run: python scripts/benchmark_b2_scored_harness.py validate
