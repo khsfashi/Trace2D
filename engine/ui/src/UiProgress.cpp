@@ -33,7 +33,8 @@ UiProgressResult UiDocument::ConfigureProgress(
     {
         return UiProgressResult::NotFound;
     }
-    if (element->kind != UiElementKind::Panel || element->scroll.viewport || element->progress.active_)
+    if (element->kind != UiElementKind::Panel || element->scroll.viewport ||
+        element->image.Active() || element->progress.active_)
     {
         return UiProgressResult::InvalidTarget;
     }
