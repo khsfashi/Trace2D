@@ -215,13 +215,41 @@ TEST(ParticleAuthoringTests, CommitsBoundedMutationAndPreservesUnspecifiedState)
     EXPECT_EQ(reloaded.asset->bursts[1], (particles::ParticleBurst{6U, 3U}));
 
     const std::string committedText = project.ReadEffectText();
-    EXPECT_EQ(CountOccurrences(committedText, "max_particles ="), 1U);
-    EXPECT_EQ(CountOccurrences(committedText, "duration_frames ="), 1U);
-    EXPECT_EQ(CountOccurrences(committedText, "frames ="), 1U);
+    EXPECT_EQ(CountOccurrences(committedText, "\nmax_particles ="), 1U);
+    EXPECT_EQ(CountOccurrences(committedText, "\nduration_frames ="), 1U);
+    EXPECT_EQ(CountOccurrences(committedText, "\nframes ="), 1U);
     const particles::ParticleEffectLoadResult reparsed = particles::ParseParticleEffectToml(
         committedText,
         EffectReference);
     EXPECT_TRUE(reparsed.Succeeded());
+}
+
+TEST(ParticleAuthoringTests, RepairsProductionValidEffectAgainstTighterTargetBudget)
+{
+    TempParticleAuthoringProject project{};
+
+    particles::ParticleReferenceLimits targetLimits{};
+    targetLimits.maxParticlesPerEmitter = 16U;
+
+    ParticleEffectMutation mutation{};
+    mutation.maxParticles = 16U;
+
+    const ParticleAuthoringResult result = MutateParticleEffectResource(
+        project.Root(),
+        EffectReference,
+        mutation,
+        targetLimits);
+
+    ASSERT_TRUE(result.Succeeded());
+    EXPECT_TRUE(result.validationPassed);
+    EXPECT_TRUE(result.committed);
+    EXPECT_EQ(result.changedFields, (std::vector<std::string>{"effect.max_particles"}));
+
+    particles::ParticleEffectCache cache{project.Root(), targetLimits};
+    const particles::ParticleEffectLoadResult reloaded = cache.Load(EffectReference);
+    ASSERT_TRUE(reloaded.Succeeded());
+    ASSERT_NE(reloaded.asset, nullptr);
+    EXPECT_EQ(reloaded.asset->definition.maxParticles, 16U);
 }
 
 TEST(ParticleAuthoringTests, RejectsCapacityBudgetViolationWithoutChangingResource)
