@@ -1,0 +1,51 @@
+name: Benchmark B2 Preregistration
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/**"
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "scripts/benchmark_b2_preregistration.py"
+      - "scripts/test_benchmark_b2_preregistration.py"
+      - ".github/workflows/benchmark-b2-preregistration.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/**"
+      - "benchmarks/b0/agent-profile.codex-0.144.6.json"
+      - "scripts/benchmark_b2_preregistration.py"
+      - "scripts/test_benchmark_b2_preregistration.py"
+      - ".github/workflows/benchmark-b2-preregistration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preregistration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout with history for B1 integrity anchor
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate B2 P0 freeze and B1 identity anchor
+        run: python3 scripts/benchmark_b2_preregistration.py
+
+      - name: Run preregistration regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_preregistration
+
+      - name: Syntax-check B2 policy tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_preregistration.py \
+            scripts/test_benchmark_b2_preregistration.py

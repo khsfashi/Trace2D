@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b2_preregistration",
+  "benchmark_id": "trace2d-b2",
+  "issue": 104,
+  "state": "task_frozen_baseline_pending",
+  "preregistration_base_commit": "156202991ecd7a27f9205b2f32a5a97c27ec3943",
+  "historical_b1_anchor": {
+    "benchmark_tree_git_sha1": "0a6ecca662ceb3a04794b6f08cbc1fb4d0fb96b4",
+    "scored_head": "6d6904e99ad7060341861cb3823e04591a579bf7",
+    "workflow_run_id": 31763107941,
+    "artifact_id": 9206626314,
+    "artifact_sha256": "74ab53220927f557621c96ee7b8df7395010e60c191d3959705ab7ba09f8d4d6",
+    "immutable": true,
+    "rerun_or_replacement_forbidden": true
+  },
+  "agent_identity": {
+    "profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
+    "canonical_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+    "same_agent_across_all_lanes": true,
+    "profile_budget_is_superseded_only_by_b2_budget_below": true
+  },
+  "task_freeze": {
+    "state": "frozen",
+    "task_ids": [
+      "b2-topdown-combat-v1"
+    ],
+    "prompt": "benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md",
+    "membership_or_semantic_change_after_this_commit_forbidden": true,
+    "new_held_out_task_not_derived_from_b1_scored_fixtures": true
+  },
+  "budget": {
+    "wall_seconds": 900,
+    "max_tool_calls": 120,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 1,
+    "max_feedback_revision_cycles": 1
+  },
+  "budget_rationale": {
+    "token_ceiling_inherited_from_b1": true,
+    "larger_token_budget_used_to_hide_b1_context_pressure": false,
+    "extra_wall_time_and_tool_calls_only": true
+  },
+  "retry_policy": {
+    "automatic_retries_per_trial": 0,
+    "replacement_trials_for_infrastructure_failure": 0,
+    "early_stopping": false,
+    "preserve_every_scheduled_attempt": true,
+    "infrastructure_failure_is_reported_not_rerolled": true,
+    "best_of_n": false
+  },
+  "verifier_authority": {
+    "deterministic": {
+      "independent_from_agent": true,
+      "authoritative_for_gameplay_pass_fail": true,
+      "required_checks": [
+        "semantic player and enemy identity",
+        "initial position and HP",
+        "eight-step normal-input movement to exact expected state",
+        "first attack damage",
+        "cooldown blocks early second damage",
+        "post-cooldown lethal second attack",
+        "single enemy death transition",
+        "player HP unchanged",
+        "HUD state reflects gameplay state",
+        "hit and death presentation hooks exist and are exercised"
+      ]
+    },
+    "presentation": {
+      "required": true,
+      "authoritative_for_deterministic_gameplay": false,
+      "captures_must_be_retained": true
+    },
+    "multimodal": {
+      "advisory_for_visual_quality_only": true,
+      "may_override_deterministic_failure": false
+    },
+    "human_review": {
+      "required_after_initial_deterministic_acceptance": true,
+      "blinded_to_lane_identity_where_practical": true,
+      "max_feedback_events": 1,
+      "shared_lane_agnostic_feedback_text": true,
+      "same_feedback_applied_to_every_eligible_lane": true,
+      "deterministic_reverification_after_revision": true,
+      "may_override_deterministic_failure": false
+    }
+  },
+  "baseline_selection": {
+    "candidates": "benchmarks/b2/baseline-candidates.json",
+    "selection_state": "pending_non_scored_qualification",
+    "selected_godot_agent_candidate": null,
+    "selection_must_be_frozen_before_scored_schedule": true
+  },
+  "planned_scored_cohort": {
+    "repetitions_per_task_lane": 3,
+    "lanes": [
+      "godot.generic",
+      "godot.agent",
+      "trace2d.agent"
+    ],
+    "planned_total_trials": 9,
+    "schedule_file": null,
+    "schedule_creation_forbidden_until_baseline_selected": true
+  },
+  "reporting_policy": {
+    "publish_raw_sample_count": true,
+    "publish_status_distribution": true,
+    "publish_token_tool_revision_distributions": true,
+    "publish_visual_feedback_calls": true,
+    "publish_human_interventions": true,
+    "publish_per_lane_results": true,
+    "separate_infrastructure_from_implementation": true,
+    "separate_deterministic_from_perceptual_review": true,
+    "weighted_composite_score": false,
+    "broad_superiority_claim_allowed": false
+  },
+  "scoring_gate": {
+    "allowed": false,
+    "scored_results_observed": false,
+    "requirements_before_opening": [
+      "non-scored strongest-baseline qualification passed",
+      "selected Godot Agent exact pin and dependency identity frozen",
+      "lane rotation and all nine scored slots committed",
+      "lane-specific independent verifiers qualified on known-good and known-bad",
+      "B1 historical anchor unchanged"
+    ]
+  }
+}
