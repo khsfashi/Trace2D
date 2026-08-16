@@ -18,6 +18,7 @@ add_executable(trace2d_ui_tests
     TextInputTests.cpp
     UiProductionTextTests.cpp
     UiPresentation2DTests.cpp
+    UiPresentationGpuSmokeTests.cpp
 )
 
 target_link_libraries(trace2d_ui_tests
