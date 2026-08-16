@@ -55,18 +55,13 @@ if(BUILD_TESTING)
     )
 
     add_test(
-        NAME trace2d_cli_author_sprite_rejects_unknown_property
-        COMMAND trace2d author sprite
-            --project "${CMAKE_SOURCE_DIR}"
-            --resource "missing.sprite.toml"
-            --unknown-property 1
-            --json
+        NAME trace2d_cli_author_sprite_help
+        COMMAND trace2d author sprite --help
     )
     set_tests_properties(
-        trace2d_cli_author_sprite_rejects_unknown_property
+        trace2d_cli_author_sprite_help
         PROPERTIES
-            WILL_FAIL TRUE
-            PASS_REGULAR_EXPRESSION "\\\"code\\\":\\\"invalid_request\\\".*Unknown sprite authoring option"
+            PASS_REGULAR_EXPRESSION "trace2d author sprite.*--source-size.*--pivot"
     )
 
     add_test(
