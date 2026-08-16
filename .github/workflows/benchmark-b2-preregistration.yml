@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
 
       - name: Validate B2 P1 strongest-baseline and scored-schedule freeze
-        run: python3 scripts/benchmark_b2_p1_freeze.py
+        run: python3 -m scripts.benchmark_b2_p1_freeze
 
       - name: Run P1 freeze regression tests
         run: python3 -m unittest scripts.test_benchmark_b2_p1_freeze
