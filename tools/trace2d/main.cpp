@@ -40,6 +40,7 @@ void PrintHelp()
               << "  trace2d run (--headless|--windowed) [--frames N] [--seed N] [--capture PATH] [--json]\n"
               << "  trace2d inspect --scene PATH [--frames N] [--seed N] [--json]\n"
               << "  trace2d query --scene PATH --selector SELECTOR [--one] [--frames N] [--seed N] [--json]\n"
+              << "  trace2d author sprite --project ROOT --resource PATH [--region ID] [--sampling nearest|linear] [--source-size W H] [--trim-offset X Y] [--trim-size W H] [--packed-rect X Y W H] [--pivot X Y DEN] [--json]\n"
               << "  trace2d public-alpha (--headless|--windowed) --scene PATH [--frames N] [--seed N] [--capture PATH] [--json]\n";
 }
 
@@ -415,6 +416,11 @@ int main(const int argc, char* argv[])
     if (command == "query")
     {
         return trace2d::tools::RunQueryCommand(argc, argv);
+    }
+
+    if (command == "author")
+    {
+        return trace2d::tools::RunAuthorCommand(argc, argv);
     }
 
     if (command == "public-alpha")
