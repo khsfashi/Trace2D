@@ -1,8 +1,10 @@
 find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_agent STATIC
+    src/AuthoringFileTransaction.cpp
     src/CameraInspection.cpp
     src/Inspection.cpp
+    src/ParticleAuthoring.cpp
     src/ParticleInspection.cpp
     src/Query.cpp
     src/SpriteAnimationInspection.cpp
