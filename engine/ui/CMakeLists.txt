@@ -11,6 +11,7 @@ add_library(trace2d_ui STATIC
     src/UiRaster.cpp
     src/UiText.cpp
     src/UiTextLayout.cpp
+    src/UiPresentation2D.cpp
 )
 
 add_library(Trace2D::Ui ALIAS trace2d_ui)
