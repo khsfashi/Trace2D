@@ -106,7 +106,8 @@
     }
   },
   "freeze_gate": {
-    "scored_suite_allowed": false,
-    "reason": "Strongest Godot Agent selection and scored schedule are frozen. Scoring remains blocked until lane-specific independent B2 verifiers are qualified on committed known-good and meaningful known-bad fixtures."
+    "scored_suite_allowed": true,
+    "verifier_qualification_evidence": "benchmarks/b2/verifier-qualification-v1.json",
+    "reason": "Strongest Godot Agent selection and scored schedule remain frozen, and both independent B2 runtime verifier families are now qualified on committed known-good and meaningful known-bad fixtures."
   }
 }
