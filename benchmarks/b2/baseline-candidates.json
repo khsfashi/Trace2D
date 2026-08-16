@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "benchmark_id": "trace2d-b2",
-  "state": "qualification_pending",
+  "state": "selected_frozen",
   "review_date": "2026-08-16",
   "godot_version": "4.7.1-stable",
   "selection_rule": {
@@ -31,13 +31,10 @@
       "version": "3.0.0",
       "source_commit": "7bc6062f90e2f96a04f997b202f7a24dd152a9fd",
       "license": "MIT",
-      "review_status": "primary_qualification_candidate",
+      "review_status": "not_qualified",
       "capability_notes": [
-        "bounded core feedback-loop surface",
-        "runtime input and structured observation",
-        "game_scenario and verify_project workflows",
-        "independent project test support",
-        "Godot 4.7 compatibility target"
+        "documented npx package path exited before answering MCP initialize during P1a",
+        "no internal package-entry workaround was substituted for the normal external-user path"
       ]
     },
     {
@@ -46,13 +43,13 @@
       "version": "3.1.5",
       "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
       "license": "MIT",
-      "review_status": "qualification_candidate",
+      "review_status": "qualified_selected",
       "capability_notes": [
         "broad scene/script/resource authoring",
         "animation and particle authoring",
         "running-game inspection and input",
         "editor and game screenshots",
-        "B1 predecessor lane was independently qualified at v3.0.6"
+        "passed P1a independent known-good and known-bad qualification"
       ]
     },
     {
@@ -61,13 +58,13 @@
       "version": "4.1.0",
       "source_commit": "1b7d40537240fd54300f54bf6fda1ea91f06c878",
       "license": "MIT",
-      "review_status": "qualification_candidate",
+      "review_status": "qualified_not_selected",
       "capability_notes": [
         "deterministic frozen-time playtesting",
         "structured live state",
         "input injection",
         "screenshots and profiler evidence",
-        "B1 predecessor pin failed a Godot 4.7 animation qualification and must be retested rather than carried forward"
+        "qualified in P1a but narrower ordinary authoring breadth than selected Godot AI for the B2 construction workload"
       ]
     },
     {
@@ -76,35 +73,40 @@
       "version": "3.2.2",
       "source_commit": "816b653117bdd6a432cb197e029b27d0a4f09540",
       "license": "MIT",
-      "review_status": "fallback_qualification_candidate",
+      "review_status": "fallback_not_selected",
       "capability_notes": [
         "headless editing",
         "runtime screenshots and input simulation",
-        "transient stock-Godot integration"
+        "published runtime-state path depends on arbitrary run_script GDScript rather than the stronger structured runtime surface required by the selected lane"
       ]
     }
   ],
   "qualification": {
     "fixture_id": "b2-gameplay-loop-qualification-v1",
-    "state": "not_run",
+    "state": "passed_selection_frozen",
     "scored_task_prompt_visible_to_qualification_agent": false,
-    "required_evidence": [
-      "exact source/package/engine identity",
-      "clean-project install and start",
-      "normal authoring without task-specific solution code",
-      "runtime launch plus structured state",
-      "player-like input path",
-      "presentation capture handoff",
-      "independent known-good acceptance",
-      "meaningful known-bad rejection",
-      "bounded teardown without retained benchmark mutation"
-    ],
-    "selected_candidate_id": null,
-    "selected_pin": null,
-    "evidence": null
+    "selected_candidate_id": "hi-godot/godot-ai",
+    "selected_pin": {
+      "version": "3.1.5",
+      "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+      "package_identity": "sha256:51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04",
+      "godot_version": "4.7.1-stable"
+    },
+    "selection_rationale": "Godot AI and satelliteoflove/godot-mcp both passed the non-scored fixture. Godot AI is selected because its broader normal scene/script/resource/animation/particle/UI authoring surface is the stronger conservative baseline for B2 construction; independent B2 verifiers, not the bridge, remain gameplay authority.",
+    "evidence": {
+      "qualification_head": "4568b50c0f1a8575b66b71b0f6b2d9dab8c18fe6",
+      "godot_ai_workflow_run_id": 31930609551,
+      "godot_ai_artifact_id": 9259154101,
+      "godot_ai_artifact_sha256": "7cc3439f506bc28ca064885c41b4c8432260e2c43e7e73f98650612be4d6a811",
+      "satellite_workflow_run_id": 31930609538,
+      "satellite_artifact_id": 9259152010,
+      "satellite_artifact_sha256": "6996cc06fc3e1a12ca5374cc8f6a969e69ae407c451767245ce4a21c1963180d",
+      "godot_agent_loop_artifact_id": 9259147776,
+      "godot_agent_loop_artifact_sha256": "e9223174fdf192eb8711491b0a480775b8965e5f6d9f0b5561a4f0653b376f71"
+    }
   },
   "freeze_gate": {
     "scored_suite_allowed": false,
-    "reason": "P0 freezes candidates and selection rules; a Trace2D-owned non-scored qualification must select and pin the strongest eligible lane before B2 scoring."
+    "reason": "Strongest Godot Agent selection and scored schedule are frozen. Scoring remains blocked until lane-specific independent B2 verifiers are qualified on committed known-good and meaningful known-bad fixtures."
   }
 }

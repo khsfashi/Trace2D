@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b2_scored_cohort_policy",
+  "cohort_id": "trace2d-b2-topdown-combat-scored-v1",
+  "state": "frozen_verifier_pending",
+  "task_id": "b2-topdown-combat-v1",
+  "task_prompt": "benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md",
+  "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
+  "agent_profile_canonical_sha256": "2407c4feccc334ab92f871fc5a870ae745713e37ccb3f4406fe4dca9d4f11708",
+  "godot": {
+    "version": "4.7.1-stable"
+  },
+  "selected_godot_agent": {
+    "id": "hi-godot/godot-ai",
+    "version": "3.1.5",
+    "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+    "package_identity": "sha256:51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04",
+    "qualification_workflow_run_id": 31930609551,
+    "qualification_artifact_id": 9259154101,
+    "qualification_artifact_sha256": "7cc3439f506bc28ca064885c41b4c8432260e2c43e7e73f98650612be4d6a811"
+  },
+  "repetitions_per_task_lane": 3,
+  "total_planned_trials": 9,
+  "lane_order_by_repetition": [
+    ["godot.generic", "godot.agent", "trace2d.agent"],
+    ["godot.agent", "trace2d.agent", "godot.generic"],
+    ["trace2d.agent", "godot.generic", "godot.agent"]
+  ],
+  "slots": [
+    {"slot": 1, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 2, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "godot.agent"},
+    {"slot": 3, "repetition": 1, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 4, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "godot.agent"},
+    {"slot": 5, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 6, "repetition": 2, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 7, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "trace2d.agent"},
+    {"slot": 8, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "godot.generic"},
+    {"slot": 9, "repetition": 3, "task": "b2-topdown-combat-v1", "lane": "godot.agent"}
+  ],
+  "budget": {
+    "wall_seconds": 900,
+    "max_tool_calls": 120,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "max_human_interventions": 1,
+    "max_feedback_revision_cycles": 1
+  },
+  "retry_policy": {
+    "automatic_retries_per_trial": 0,
+    "replacement_trials_for_infrastructure_failure": 0,
+    "early_stopping": false,
+    "preserve_every_scheduled_attempt": true,
+    "infrastructure_failure_is_reported_not_rerolled": true,
+    "best_of_n": false
+  },
+  "human_feedback_policy": {
+    "initial_deterministic_acceptance_required_before_feedback": true,
+    "max_feedback_events": 1,
+    "shared_lane_agnostic_feedback_text": true,
+    "same_feedback_applied_to_every_eligible_lane": true,
+    "max_feedback_revision_cycles": 1,
+    "deterministic_reverification_after_revision": true
+  },
+  "ordering_policy": {
+    "kind": "deterministic_rotating_lane_order",
+    "reason": "With one frozen B2 task, rotate each lane through first, second and third temporal position exactly once across the three repetitions. Commit all nine slots before any scored result is observed."
+  },
+  "scoring_gate": {
+    "allowed": false,
+    "remaining_blocker": "lane-specific independent verifier qualification"
+  }
+}

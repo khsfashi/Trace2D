@@ -3,7 +3,7 @@
   "kind": "trace2d_b2_preregistration",
   "benchmark_id": "trace2d-b2",
   "issue": 104,
-  "state": "task_frozen_baseline_pending",
+  "state": "baseline_frozen_verifier_pending",
   "preregistration_base_commit": "156202991ecd7a27f9205b2f32a5a97c27ec3943",
   "historical_b1_anchor": {
     "benchmark_tree_git_sha1": "0a6ecca662ceb3a04794b6f08cbc1fb4d0fb96b4",
@@ -22,9 +22,7 @@
   },
   "task_freeze": {
     "state": "frozen",
-    "task_ids": [
-      "b2-topdown-combat-v1"
-    ],
+    "task_ids": ["b2-topdown-combat-v1"],
     "prompt": "benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md",
     "membership_or_semantic_change_after_this_commit_forbidden": true,
     "new_held_out_task_not_derived_from_b1_scored_fixtures": true
@@ -88,20 +86,22 @@
   },
   "baseline_selection": {
     "candidates": "benchmarks/b2/baseline-candidates.json",
-    "selection_state": "pending_non_scored_qualification",
-    "selected_godot_agent_candidate": null,
+    "selection_state": "frozen",
+    "selected_godot_agent_candidate": "hi-godot/godot-ai",
+    "selected_pin": {
+      "version": "3.1.5",
+      "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+      "package_identity": "sha256:51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04",
+      "qualification_artifact_sha256": "7cc3439f506bc28ca064885c41b4c8432260e2c43e7e73f98650612be4d6a811"
+    },
     "selection_must_be_frozen_before_scored_schedule": true
   },
   "planned_scored_cohort": {
     "repetitions_per_task_lane": 3,
-    "lanes": [
-      "godot.generic",
-      "godot.agent",
-      "trace2d.agent"
-    ],
+    "lanes": ["godot.generic", "godot.agent", "trace2d.agent"],
     "planned_total_trials": 9,
-    "schedule_file": null,
-    "schedule_creation_forbidden_until_baseline_selected": true
+    "schedule_file": "benchmarks/b2/scored-cohort-v1.json",
+    "schedule_created_after_baseline_selection": true
   },
   "reporting_policy": {
     "publish_raw_sample_count": true,
@@ -118,12 +118,15 @@
   "scoring_gate": {
     "allowed": false,
     "scored_results_observed": false,
-    "requirements_before_opening": [
+    "completed_requirements": [
       "non-scored strongest-baseline qualification passed",
-      "selected Godot Agent exact pin and dependency identity frozen",
+      "selected Godot Agent exact pin and package identity frozen",
       "lane rotation and all nine scored slots committed",
-      "lane-specific independent verifiers qualified on known-good and known-bad",
       "B1 historical anchor unchanged"
-    ]
+    ],
+    "remaining_requirements_before_opening": [
+      "lane-specific independent verifiers qualified on committed known-good and meaningful known-bad fixtures"
+    ],
+    "reason": "P1 baseline and schedule freeze is complete, but scored execution remains forbidden until independent verifier qualification is committed."
   }
 }
