@@ -68,12 +68,7 @@ def find_probe_state(value: Any) -> dict[str, Any] | None:
 def probe_snapshot(client: base.McpClient) -> dict[str, Any]:
     digest = client.call_tool(
         "godot_runtime_state",
-        {
-            "action": "digest",
-            "select": "group",
-            "group": PROBE_GROUP,
-            "max_nodes": 4,
-        },
+        {"action": "digest", "select": "group", "group": PROBE_GROUP, "max_nodes": 4},
     )
     state = find_probe_state(digest)
     base.require(state is not None, f"qualification probe state not found: {digest!r}")
@@ -88,132 +83,71 @@ def run_live_candidate(args: argparse.Namespace) -> dict[str, Any]:
         server_info = init.get("serverInfo", {}) if isinstance(init, dict) else {}
         version = str(server_info.get("version", "unknown")) if isinstance(server_info, dict) else "unknown"
         base.require(version == EXPECTED_BRIDGE_VERSION, f"unexpected satellite bridge version: {version}")
-
         tools = client.list_tools()
         missing = sorted(REQUIRED_TOOLS - tools)
         base.require(not missing, f"satellite bridge is missing required tools: {missing}")
 
         editor_state = base.wait_for_editor(client)
-        base.require(
-            str(editor_state.get("godot_version", "")).startswith("4.7.1"),
-            f"editor is not the pinned Godot 4.7.1 build: {editor_state!r}",
-        )
+        base.require(str(editor_state.get("godot_version", "")).startswith("4.7.1"),
+                     f"editor is not pinned Godot 4.7.1: {editor_state!r}")
         client.call_tool("godot_scene", {"action": "open", "scene_path": "res://main.tscn"})
 
-        # Normal editor authoring probe: persist one typed node property, read it
-        # back, then restore it before runtime qualification.
-        before_props = client.call_tool(
-            "godot_node_read",
-            {"action": "get_properties", "node_path": PROBE_PATH},
-        )
+        before_props = client.call_tool("godot_node_read", {"action": "get_properties", "node_path": PROBE_PATH})
         base.require(isinstance(before_props, dict), "Probe properties were not structured")
         original_z = before_props.get("z_index")
         base.require(isinstance(original_z, int), f"unexpected Probe z_index: {original_z!r}")
         probe_z = original_z + 5
-        client.call_tool(
-            "godot_node_edit",
-            {"action": "update", "node_path": PROBE_PATH, "properties": {"z_index": probe_z}},
-        )
+        client.call_tool("godot_node_edit", {"action": "update", "node_path": PROBE_PATH, "properties": {"z_index": probe_z}})
         client.call_tool("godot_scene", {"action": "save"})
-        edited_props = client.call_tool(
-            "godot_node_read",
-            {"action": "get_properties", "node_path": PROBE_PATH},
-        )
-        base.require(
-            isinstance(edited_props, dict) and edited_props.get("z_index") == probe_z,
-            "satellite authoring mutation did not persist",
-        )
-        client.call_tool(
-            "godot_node_edit",
-            {"action": "update", "node_path": PROBE_PATH, "properties": {"z_index": original_z}},
-        )
+        edited_props = client.call_tool("godot_node_read", {"action": "get_properties", "node_path": PROBE_PATH})
+        base.require(isinstance(edited_props, dict) and edited_props.get("z_index") == probe_z,
+                     "satellite authoring mutation did not persist")
+        client.call_tool("godot_node_edit", {"action": "update", "node_path": PROBE_PATH, "properties": {"z_index": original_z}})
         client.call_tool("godot_scene", {"action": "save"})
-        restored_props = client.call_tool(
-            "godot_node_read",
-            {"action": "get_properties", "node_path": PROBE_PATH},
-        )
-        base.require(
-            isinstance(restored_props, dict) and restored_props.get("z_index") == original_z,
-            "satellite authoring restore failed",
-        )
+        restored_props = client.call_tool("godot_node_read", {"action": "get_properties", "node_path": PROBE_PATH})
+        base.require(isinstance(restored_props, dict) and restored_props.get("z_index") == original_z,
+                     "satellite authoring restore failed")
 
         _, frozen_status = b0_live.start_frozen_run(client)
         live_started = True
-
         input_map = client.call_tool("godot_input", {"action": "get_map"})
-        base.require(
-            MOVE_ACTION in json_text(input_map),
-            f"semantic action {MOVE_ACTION!r} was not discoverable in the running InputMap: {input_map!r}",
-        )
-
+        base.require(MOVE_ACTION in json_text(input_map),
+                     f"semantic action {MOVE_ACTION!r} was not discoverable: {input_map!r}")
         initial = probe_snapshot(client)
-        base.require(
-            base.as_number(initial.get("active_ticks"), "initial.active_ticks") == 0.0,
-            f"frozen run did not start at zero active ticks: {initial!r}",
-        )
-        base.require(
-            abs(base.as_number(initial.get("position_x"), "initial.position_x") - EXPECTED_START_X) <= 1e-9,
-            f"unexpected frozen initial position: {initial!r}",
-        )
+        base.require(base.as_number(initial.get("active_ticks"), "initial.active_ticks") == 0.0,
+                     f"frozen run did not start at zero ticks: {initial!r}")
+        base.require(abs(base.as_number(initial.get("position_x"), "initial.position_x") - EXPECTED_START_X) <= 1e-9,
+                     f"unexpected frozen initial position: {initial!r}")
 
         until = f'tree.get_nodes_in_group("{PROBE_GROUP}")[0].active_ticks >= {TARGET_TICKS}'
-        step = client.call_tool(
-            "godot_game_time",
-            {
-                "action": "step_until",
-                "until": until,
-                "max_ms": 1000,
-                "report": [
-                    f'tree.get_nodes_in_group("{PROBE_GROUP}")[0].active_ticks',
-                    f'tree.get_nodes_in_group("{PROBE_GROUP}")[0].position.x',
-                ],
-                "inputs": [
-                    {
-                        "action_name": MOVE_ACTION,
-                        "start_ms": 0,
-                        "duration_ms": 1000,
-                    }
-                ],
-            },
-            timeout=45.0,
-        )
+        step = client.call_tool("godot_game_time", {
+            "action": "step_until",
+            "until": until,
+            "max_ms": 1000,
+            "report": [
+                f'tree.get_nodes_in_group("{PROBE_GROUP}")[0].active_ticks',
+                f'tree.get_nodes_in_group("{PROBE_GROUP}")[0].position.x',
+            ],
+            "inputs": [{"action_name": MOVE_ACTION, "start_ms": 0, "duration_ms": 1000}],
+        }, timeout=45.0)
         base.require(isinstance(step, dict) and step.get("completed") is True, f"bounded step did not complete: {step!r}")
-        base.require(step.get("predicate_met") is True, f"semantic input never reached the target state: {step!r}")
-
+        base.require(step.get("predicate_met") is True, f"semantic input never reached target: {step!r}")
         final = probe_snapshot(client)
-        base.require(
-            base.as_number(final.get("active_ticks"), "final.active_ticks") == float(TARGET_TICKS),
-            f"deterministic input boundary overshot target ticks: {final!r}",
-        )
-        base.require(
-            abs(base.as_number(final.get("position_x"), "final.position_x") - EXPECTED_END_X) <= 1e-9,
-            f"semantic input produced wrong deterministic movement: {final!r}",
-        )
+        base.require(base.as_number(final.get("active_ticks"), "final.active_ticks") == float(TARGET_TICKS),
+                     f"deterministic input boundary overshot: {final!r}")
+        base.require(abs(base.as_number(final.get("position_x"), "final.position_x") - EXPECTED_END_X) <= 1e-9,
+                     f"semantic input produced wrong movement: {final!r}")
 
-        screenshot = client.call_tool(
-            "godot_editor_read",
-            {"action": "screenshot_game", "max_width": 320},
-            timeout=30.0,
-        )
+        screenshot = client.call_tool("godot_editor_read", {"action": "screenshot_game", "max_width": 320}, timeout=30.0)
         base.require(screenshot is not None, "screenshot_game returned no presentation evidence")
-        editor_errors = client.call_tool(
-            "godot_editor_read",
-            {"action": "get_log_messages", "severity": "error", "limit": 20},
-        )
-
+        editor_errors = client.call_tool("godot_editor_read", {"action": "get_log_messages", "severity": "error", "limit": 20})
         b0_live.stop_run(client)
         live_started = False
-
         return {
             "initialize": init,
             "advertised_tools": sorted(tools),
             "editor_state": editor_state,
-            "authoring": {
-                "property": "z_index",
-                "before": original_z,
-                "edited": probe_z,
-                "restored": restored_props.get("z_index"),
-            },
+            "authoring": {"property": "z_index", "before": original_z, "edited": probe_z, "restored": restored_props.get("z_index")},
             "frozen_status": frozen_status,
             "input_map": input_map,
             "initial_state": initial,
@@ -236,25 +170,16 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
     base.require(bool(godot_env), "GODOT_PATH must identify the pinned official Godot binary")
     godot = Path(godot_env).resolve()
     base.require(godot.is_file(), f"GODOT_PATH does not exist: {godot}")
-
     source_hash_before = base.tree_sha256(args.source_fixture)
     installed_hash_before = base.tree_sha256(args.project)
     independent = prove_independent_good_and_bad(godot, args.source_fixture, args.source_fixture)
     live = run_live_candidate(args)
     source_hash_after = base.tree_sha256(args.source_fixture)
     base.require(source_hash_after == source_hash_before, "candidate changed retained repository fixture source")
-
-    version_output = subprocess.run(
-        [str(godot), "--version"],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=15,
-        check=False,
-    )
+    version_output = subprocess.run([str(godot), "--version"], text=True, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, timeout=15, check=False)
     base.require(version_output.returncode == 0, f"Godot version probe failed: {version_output.stdout}")
     base.require(version_output.stdout.startswith("4.7.1.stable"), f"unexpected Godot version: {version_output.stdout}")
-
     return {
         "schema_version": 1,
         "benchmark_id": "trace2d-b2",
@@ -269,11 +194,7 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
             "source_commit": EXPECTED_SOURCE_COMMIT,
             "npm_integrity": os.environ.get("TRACE2D_B2_SATELLITE_INTEGRITY", "unknown"),
         },
-        "engine": {
-            "id": "godot",
-            "version": EXPECTED_GODOT_VERSION,
-            "reported_version": version_output.stdout.strip(),
-        },
+        "engine": {"id": "godot", "version": EXPECTED_GODOT_VERSION, "reported_version": version_output.stdout.strip()},
         "checks": {
             "host_file_authoring_surface": True,
             "editor_typed_authoring": True,
@@ -286,7 +207,7 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
             "independent_known_good_acceptance": True,
             "independent_known_bad_rejection": True,
             "retained_source_unchanged": True,
-            "privileged_reflection_or_code_execution_required": False,
+            "no_privileged_reflection_or_code_execution_required": True,
         },
         "fixture": {
             "source_tree_sha256_before": source_hash_before,
@@ -306,18 +227,14 @@ def run_qualification(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def parse_args() -> argparse.Namespace:
+def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", type=Path, required=True)
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--source-fixture", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--mcp-stderr", type=Path, required=True)
-    return parser.parse_args()
-
-
-def main() -> int:
-    args = parse_args()
+    args = parser.parse_args()
     try:
         evidence = run_qualification(args)
     except Exception as exc:
