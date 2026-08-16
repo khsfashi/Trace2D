@@ -13,6 +13,10 @@ namespace
 {
 [[nodiscard]] UiRole RoleForElement(const ui::UiElement& element) noexcept
 {
+    if (element.image.Active())
+    {
+        return UiRole::Image;
+    }
     if (element.progress.Active())
     {
         return UiRole::ProgressBar;
@@ -124,6 +128,10 @@ namespace
     snapshot.progressValue = element.progress.Value();
     snapshot.progressMaximum = element.progress.Maximum();
     snapshot.progressRevision = element.progress.Revision();
+    const auto imageTexture = element.image.Texture();
+    snapshot.imageTextureSlot = imageTexture.slot;
+    snapshot.imageTextureGeneration = imageTexture.generation;
+    snapshot.imageRevision = element.image.Revision();
     snapshot.clipChildren = element.clipChildren;
     snapshot.clipActive = element.clipActive;
     snapshot.clipBounds = UiRectSnapshot{
@@ -272,6 +280,8 @@ std::string_view ToString(const UiRole role) noexcept
         return "textbox";
     case UiRole::ProgressBar:
         return "progressbar";
+    case UiRole::Image:
+        return "image";
     }
 
     return "unknown";
@@ -629,6 +639,34 @@ UiAssertionResult AgentFacade::AssertUi(
             "progress_revision",
             std::to_string(*expected.progressRevision),
             std::to_string(observed.progressRevision));
+        return result;
+    }
+
+    if (expected.imageTextureSlot.has_value() && observed.imageTextureSlot != *expected.imageTextureSlot)
+    {
+        result.error = StateMismatch(
+            "image_texture_slot",
+            std::to_string(*expected.imageTextureSlot),
+            std::to_string(observed.imageTextureSlot));
+        return result;
+    }
+
+    if (expected.imageTextureGeneration.has_value() &&
+        observed.imageTextureGeneration != *expected.imageTextureGeneration)
+    {
+        result.error = StateMismatch(
+            "image_texture_generation",
+            std::to_string(*expected.imageTextureGeneration),
+            std::to_string(observed.imageTextureGeneration));
+        return result;
+    }
+
+    if (expected.imageRevision.has_value() && observed.imageRevision != *expected.imageRevision)
+    {
+        result.error = StateMismatch(
+            "image_revision",
+            std::to_string(*expected.imageRevision),
+            std::to_string(observed.imageRevision));
     }
 
     return result;
