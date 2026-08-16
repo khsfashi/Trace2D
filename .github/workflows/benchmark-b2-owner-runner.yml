@@ -1,0 +1,73 @@
+name: Benchmark B2 Owner Runner Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/OWNER_RUNNER.md"
+      - "scripts/benchmark_b2_scored_harness.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/verify_benchmark_b2_candidate.py"
+      - "tests/benchmark/CMakeLists.txt"
+      - ".github/workflows/benchmark-b2-owner-runner.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/OWNER_RUNNER.md"
+      - "scripts/benchmark_b2_scored_harness.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/verify_benchmark_b2_candidate.py"
+      - "tests/benchmark/CMakeLists.txt"
+      - ".github/workflows/benchmark-b2-owner-runner.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Compile owner-runner Python
+        run: |
+          python -m py_compile \
+            scripts/benchmark_b2_scored_harness.py \
+            scripts/benchmark_b2_codex_windows_acl_wrapper.py \
+            scripts/verify_benchmark_b2_candidate.py
+
+      - name: Validate frozen B2 execution contract
+        run: python scripts/benchmark_b2_scored_harness.py validate
+
+      - name: Confirm pristine next slot is slot 1
+        shell: bash
+        run: |
+          runs_root="$RUNNER_TEMP/b2-owner-runner-contract"
+          python scripts/benchmark_b2_scored_harness.py next-slot --runs-root "$runs_root" > "$RUNNER_TEMP/next-slot.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          data = json.loads((Path(os.environ["RUNNER_TEMP"]) / "next-slot.json").read_text(encoding="utf-8"))
+          slot = data.get("next_slot", {})
+          assert slot.get("slot") == 1, data
+          assert slot.get("repetition") == 1, data
+          assert slot.get("task") == "b2-topdown-combat-v1", data
+          assert slot.get("lane") == "godot.generic", data
+          PY
+
+      - name: Confirm slot skipping is rejected without running an Agent
+        shell: bash
+        run: |
+          runs_root="$RUNNER_TEMP/b2-owner-runner-contract"
+          set +e
+          python scripts/benchmark_b2_scored_harness.py run-slot --runs-root "$runs_root" --slot 2 > "$RUNNER_TEMP/skip.stdout" 2> "$RUNNER_TEMP/skip.stderr"
+          code=$?
+          set -e
+          test "$code" -eq 2
+          grep -F "next frozen B2 slot is 1 (godot.generic), not requested slot 2" "$RUNNER_TEMP/skip.stderr"
