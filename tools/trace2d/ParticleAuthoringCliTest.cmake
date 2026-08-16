@@ -41,17 +41,8 @@ foreach(required IN ITEMS
     endif()
 endforeach()
 
-file(READ "${WORK_DIR}/${resource}" committed_text)
-foreach(required IN ITEMS
-    "max_particles = 16"
-    "count = 1"
-    "frames = [1, 4]")
-    string(FIND "${committed_text}" "${required}" position)
-    if(position EQUAL -1)
-        message(FATAL_ERROR "Committed Particle resource is missing '${required}'")
-    endif()
-endforeach()
-
+# Replay the same semantic request instead of inspecting or regex-editing the authored TOML.
+# A validated no-op proves the canonical authority now contains the requested typed state.
 execute_process(
     COMMAND "${TRACE2D_CLI}" author particle
         --project "${WORK_DIR}"
@@ -67,13 +58,17 @@ execute_process(
 if(NOT second_result STREQUAL "0")
     message(FATAL_ERROR "Particle authoring no-op validation failed (${second_result}): ${second_stderr}${second_stdout}")
 endif()
-string(FIND "${second_stdout}" "\"committed\":false" no_op_position)
-if(no_op_position EQUAL -1)
-    message(FATAL_ERROR "Equivalent Particle mutation should not rewrite the resource: ${second_stdout}")
-endif()
-string(FIND "${second_stdout}" "\"program_fingerprint\":" fingerprint_position)
-if(fingerprint_position EQUAL -1)
-    message(FATAL_ERROR "Equivalent Particle mutation should still return deterministic compiler evidence: ${second_stdout}")
-endif()
+
+foreach(required IN ITEMS
+    "\"status\":\"ok\""
+    "\"committed\":false"
+    "\"validation_passed\":true"
+    "\"program_fingerprint\":"
+    "\"changed_fields\":[]")
+    string(FIND "${second_stdout}" "${required}" position)
+    if(position EQUAL -1)
+        message(FATAL_ERROR "Particle no-op validation is missing '${required}': ${second_stdout}")
+    endif()
+endforeach()
 
 file(REMOVE_RECURSE "${WORK_DIR}")
