@@ -7,13 +7,21 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Any
 
-import benchmark_b0_stable_harness
-import benchmark_b2_execution_freeze
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
+for _path in (REPO_ROOT, SCRIPT_DIR):
+    _value = str(_path)
+    if _value not in sys.path:
+        sys.path.insert(0, _value)
+
+import benchmark_b0_stable_harness  # noqa: E402
+import benchmark_b2_execution_freeze  # noqa: E402
 
 TASK_ID = "b2-topdown-combat-v1"
 LANES = ("godot.generic", "godot.agent", "trace2d.agent")
@@ -208,7 +216,7 @@ def verify_trace2d(
 
 
 def verify(args: argparse.Namespace) -> dict[str, Any]:
-    repo_root = Path(args.repo_root).resolve() if args.repo_root else Path(__file__).resolve().parents[1]
+    repo_root = Path(args.repo_root).resolve() if args.repo_root else REPO_ROOT
     try:
         benchmark_b2_execution_freeze.validate_repository(repo_root)
     except Exception as exc:
