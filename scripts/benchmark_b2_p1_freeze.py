@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Validate Benchmark B2 P1 strongest-baseline and scored-schedule freeze.
+"""Validate Benchmark B2 P1 freeze and explicit scoring-gate evidence.
 
-P1 freezes the selected Godot Agent identity and all nine scored slots while
-keeping scoring blocked until lane-specific independent verifiers are qualified.
+P1 freezes the selected Godot Agent identity and all nine scored slots. Scoring
+may open only after the independent Trace2D and Godot verifier families are
+qualified on committed known-good and meaningful known-bad fixtures.
 """
 from __future__ import annotations
 
@@ -12,8 +13,9 @@ from typing import Any
 
 from scripts import benchmark_b2_preregistration as p0
 
-EXPECTED_STATE = "baseline_frozen_verifier_pending"
+EXPECTED_STATE = "scoring_open"
 EXPECTED_CANDIDATE_STATE = "selected_frozen"
+EXPECTED_COHORT_STATE = "frozen_scoring_open"
 EXPECTED_SELECTED_ID = "hi-godot/godot-ai"
 EXPECTED_SELECTED_PIN = {
     "version": "3.1.5",
@@ -25,6 +27,21 @@ EXPECTED_QUALIFICATION = {
     "artifact_id": 9259154101,
     "artifact_sha256": "7cc3439f506bc28ca064885c41b4c8432260e2c43e7e73f98650612be4d6a811",
 }
+EXPECTED_TRACE_VERIFIER = {
+    "qualification_head": "12ada922f37fdd4e004a39cdb168dc610b8fdd4c",
+    "merged_main_commit": "50cf6dff53e700b6b7312f6032deaea84b88655d",
+    "workflow_run_id": 31938580902,
+    "artifact_id": 9261437919,
+    "artifact_sha256": "5c4bf6b0e253b480ddee5ad2a06836c96943d0b77def251d9481ff02f2707635",
+}
+EXPECTED_GODOT_VERIFIER = {
+    "qualification_head": "a11592be1da77867e6e6792f97de6dbc21ea6b23",
+    "merged_main_commit": "fd54588f3935d19a5d29ef2e473744b1154e7960",
+    "workflow_run_id": 31939889431,
+    "artifact_id": 9261721033,
+    "artifact_sha256": "a7934b2cf2c55894b969d3a429aeb8afbcdb4cca9fe9033328da5e2ebf83c3cb",
+}
+EXPECTED_EVIDENCE_PATH = "benchmarks/b2/verifier-qualification-v1.json"
 EXPECTED_LANE_ORDERS = [
     ["godot.generic", "godot.agent", "trace2d.agent"],
     ["godot.agent", "trace2d.agent", "godot.generic"],
@@ -41,10 +58,60 @@ def _load(path: Path) -> dict[str, Any]:
     return p0._load_json(path)
 
 
+def _validate_verifier_qualification(evidence: dict[str, Any]) -> None:
+    _require(evidence.get("schema_version") == 1, "verifier qualification schema_version must be 1")
+    _require(evidence.get("kind") == "trace2d_b2_verifier_qualification", "verifier qualification kind changed")
+    _require(evidence.get("benchmark_id") == p0.EXPECTED_BENCHMARK, "verifier qualification benchmark changed")
+    _require(evidence.get("state") == "qualified_for_scoring", "verifier qualification is not scoring-ready")
+    _require(evidence.get("scored_task_results_observed_before_qualification") is False,
+             "scored B2 results were observed before verifier qualification")
+
+    trace = evidence.get("trace2d", {})
+    _require(trace.get("lanes") == ["trace2d.agent"], "Trace2D verifier lane ownership changed")
+    for key, value in EXPECTED_TRACE_VERIFIER.items():
+        _require(trace.get(key) == value, f"Trace2D verifier {key} changed")
+    trace_good = trace.get("known_good", {})
+    trace_bad = trace.get("known_bad", {})
+    _require(trace_good.get("six_fixed_step_cooldown") is True and trace_good.get("accepted") is True,
+             "Trace2D known-good verifier qualification changed")
+    _require(trace_bad.get("five_fixed_step_cooldown") is True and trace_bad.get("rejected") is True,
+             "Trace2D known-bad verifier qualification changed")
+    _require(trace_bad.get("expected_failure_checkpoint") == "frame-14 early second attack",
+             "Trace2D known-bad checkpoint changed")
+
+    godot = evidence.get("godot", {})
+    _require(godot.get("lanes") == ["godot.generic", "godot.agent"], "Godot verifier lane ownership changed")
+    _require(godot.get("godot_version") == "4.7.1-stable", "Godot verifier version changed")
+    _require(godot.get("godot_engine_identity") == "4.7.1.stable.official.a13da4feb",
+             "Godot verifier engine identity changed")
+    for key, value in EXPECTED_GODOT_VERIFIER.items():
+        _require(godot.get(key) == value, f"Godot verifier {key} changed")
+    godot_good = godot.get("known_good", {})
+    godot_bad = godot.get("known_bad", {})
+    _require(godot_good.get("six_fixed_step_cooldown") is True and godot_good.get("accepted") is True,
+             "Godot known-good verifier qualification changed")
+    _require(godot_bad.get("five_fixed_step_cooldown") is True and godot_bad.get("rejected") is True,
+             "Godot known-bad verifier qualification changed")
+    _require(godot_bad.get("expected_failure_checkpoint") == "frame-14 early second attack",
+             "Godot known-bad checkpoint changed")
+
+    authority = evidence.get("authority", {})
+    _require(authority.get("candidate_owns_verdict") is False, "candidate may not own B2 verdict")
+    _require(authority.get("ordinary_semantic_input_path_required") is True, "ordinary semantic input path guard changed")
+    _require(authority.get("deterministic_gameplay_pass_fail_owned_by_independent_verifier") is True,
+             "independent deterministic verifier authority changed")
+    _require(authority.get("presentation_capture_still_required_during_scored_b2") is True,
+             "presentation evidence requirement changed")
+    _require(authority.get("multimodal_or_human_review_may_override_deterministic_failure") is False,
+             "perceptual review may not override deterministic failure")
+    _require(evidence.get("scoring_gate_eligible") is True, "verifier evidence does not permit scoring")
+
+
 def validate_data(
     policy: dict[str, Any],
     candidates: dict[str, Any],
     cohort: dict[str, Any],
+    verifier_qualification: dict[str, Any],
     *,
     agent_profile: dict[str, Any],
 ) -> None:
@@ -108,7 +175,7 @@ def validate_data(
 
     _require(cohort.get("schema_version") == 1, "cohort schema_version must be 1")
     _require(cohort.get("kind") == "trace2d_b2_scored_cohort_policy", "cohort kind changed")
-    _require(cohort.get("state") == "frozen_verifier_pending", "cohort must remain verifier-pending")
+    _require(cohort.get("state") == EXPECTED_COHORT_STATE, "cohort is not frozen with scoring open")
     _require(cohort.get("task_id") == p0.EXPECTED_TASK, "cohort task changed")
     _require(cohort.get("agent_profile_canonical_sha256") == p0.EXPECTED_AGENT_PROFILE_HASH, "cohort Agent changed")
     _require(cohort.get("lane_order_by_repetition") == EXPECTED_LANE_ORDERS, "lane rotation changed")
@@ -140,22 +207,39 @@ def validate_data(
             slot_id += 1
     _require(slots == expected_slots, "explicit nine-slot schedule changed")
 
+    _validate_verifier_qualification(verifier_qualification)
+
     scoring = policy.get("scoring_gate", {})
-    _require(scoring.get("allowed") is False, "scoring opened before verifier qualification")
-    _require(scoring.get("scored_results_observed") is False, "scored results observed before verifier qualification")
-    _require(scoring.get("remaining_requirements_before_opening") == [
-        "lane-specific independent verifiers qualified on committed known-good and meaningful known-bad fixtures"
-    ], "unexpected scoring blocker set")
-    _require(cohort.get("scoring_gate", {}).get("allowed") is False, "cohort scoring gate opened early")
-    _require(candidates.get("freeze_gate", {}).get("scored_suite_allowed") is False, "candidate gate opened early")
+    _require(scoring.get("allowed") is True, "scoring gate must be open after verifier qualification")
+    _require(scoring.get("scored_results_observed") is False, "scored results observed before scoring-gate freeze")
+    _require(scoring.get("qualification_evidence") == EXPECTED_EVIDENCE_PATH, "policy verifier evidence path changed")
+    _require(scoring.get("remaining_requirements_before_opening") == [], "scoring gate still has unresolved blockers")
+
+    cohort_gate = cohort.get("scoring_gate", {})
+    _require(cohort_gate.get("allowed") is True, "cohort scoring gate is not open")
+    _require(cohort_gate.get("scored_results_observed") is False, "cohort claims scored results before gate freeze")
+    _require(cohort_gate.get("qualification_evidence") == EXPECTED_EVIDENCE_PATH, "cohort verifier evidence path changed")
+    _require(cohort_gate.get("remaining_blocker") is None, "cohort still has a scoring blocker")
+
+    candidate_gate = candidates.get("freeze_gate", {})
+    _require(candidate_gate.get("scored_suite_allowed") is True, "candidate freeze gate did not open")
+    _require(candidate_gate.get("verifier_qualification_evidence") == EXPECTED_EVIDENCE_PATH,
+             "candidate verifier evidence path changed")
 
 
 def validate_repository(repo_root: Path) -> None:
     policy = _load(repo_root / "benchmarks/b2/preregistration-v1.json")
     candidates = _load(repo_root / "benchmarks/b2/baseline-candidates.json")
     cohort = _load(repo_root / "benchmarks/b2/scored-cohort-v1.json")
+    verifier_qualification = _load(repo_root / EXPECTED_EVIDENCE_PATH)
     agent_profile = _load(repo_root / "benchmarks/b0/agent-profile.codex-0.144.6.json")
-    validate_data(policy, candidates, cohort, agent_profile=agent_profile)
+    validate_data(
+        policy,
+        candidates,
+        cohort,
+        verifier_qualification,
+        agent_profile=agent_profile,
+    )
     p0._validate_repo_b1_tree(repo_root)
 
 
@@ -168,7 +252,7 @@ def main() -> int:
     except p0.PreregistrationError as exc:
         print(f"B2 P1 freeze invalid: {exc}")
         return 1
-    print("B2 P1 freeze valid: baseline and nine-slot schedule frozen; scoring remains blocked on verifier qualification.")
+    print("B2 P1 freeze valid: baseline, cohort, and independent verifier evidence frozen; scoring gate open.")
     return 0
 
 

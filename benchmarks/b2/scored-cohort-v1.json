@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "trace2d_b2_scored_cohort_policy",
   "cohort_id": "trace2d-b2-topdown-combat-scored-v1",
-  "state": "frozen_verifier_pending",
+  "state": "frozen_scoring_open",
   "task_id": "b2-topdown-combat-v1",
   "task_prompt": "benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md",
   "agent_profile": "benchmarks/b0/agent-profile.codex-0.144.6.json",
@@ -66,7 +66,9 @@
     "reason": "With one frozen B2 task, rotate each lane through first, second and third temporal position exactly once across the three repetitions. Commit all nine slots before any scored result is observed."
   },
   "scoring_gate": {
-    "allowed": false,
-    "remaining_blocker": "lane-specific independent verifier qualification"
+    "allowed": true,
+    "scored_results_observed": false,
+    "qualification_evidence": "benchmarks/b2/verifier-qualification-v1.json",
+    "remaining_blocker": null
   }
 }

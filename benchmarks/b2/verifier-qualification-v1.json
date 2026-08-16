@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b2_verifier_qualification",
+  "benchmark_id": "trace2d-b2",
+  "issue": 104,
+  "state": "qualified_for_scoring",
+  "scored_task_results_observed_before_qualification": false,
+  "trace2d": {
+    "lanes": ["trace2d.agent"],
+    "verifier": "Trace2D independent B2 runtime verifier",
+    "qualification_head": "12ada922f37fdd4e004a39cdb168dc610b8fdd4c",
+    "merged_main_commit": "50cf6dff53e700b6b7312f6032deaea84b88655d",
+    "workflow_run_id": 31938580902,
+    "artifact_id": 9261437919,
+    "artifact_name": "benchmark-b2-trace2d-verifier-qualification",
+    "artifact_sha256": "5c4bf6b0e253b480ddee5ad2a06836c96943d0b77def251d9481ff02f2707635",
+    "known_good": {
+      "fixture": "benchmarks/b2/qualification/trace2d_verifier/known_good",
+      "six_fixed_step_cooldown": true,
+      "accepted": true
+    },
+    "known_bad": {
+      "fixture": "benchmarks/b2/qualification/trace2d_verifier/known_bad_cooldown",
+      "five_fixed_step_cooldown": true,
+      "rejected": true,
+      "expected_failure_checkpoint": "frame-14 early second attack"
+    }
+  },
+  "godot": {
+    "lanes": ["godot.generic", "godot.agent"],
+    "shared_verifier_reason": "Both lanes execute the same Godot gameplay/runtime contract; the Agent bridge is not verifier authority.",
+    "verifier": "Trace2D-owned independent Godot B2 runtime verifier",
+    "godot_version": "4.7.1-stable",
+    "godot_engine_identity": "4.7.1.stable.official.a13da4feb",
+    "qualification_head": "a11592be1da77867e6e6792f97de6dbc21ea6b23",
+    "merged_main_commit": "fd54588f3935d19a5d29ef2e473744b1154e7960",
+    "workflow_run_id": 31939889431,
+    "artifact_id": 9261721033,
+    "artifact_name": "benchmark-b2-godot-verifier-qualification",
+    "artifact_sha256": "a7934b2cf2c55894b969d3a429aeb8afbcdb4cca9fe9033328da5e2ebf83c3cb",
+    "known_good": {
+      "fixture": "benchmarks/b2/qualification/godot_verifier/known_good",
+      "six_fixed_step_cooldown": true,
+      "accepted": true
+    },
+    "known_bad": {
+      "fixture": "benchmarks/b2/qualification/godot_verifier/known_bad_cooldown",
+      "five_fixed_step_cooldown": true,
+      "rejected": true,
+      "expected_failure_checkpoint": "frame-14 early second attack"
+    }
+  },
+  "authority": {
+    "candidate_owns_verdict": false,
+    "ordinary_semantic_input_path_required": true,
+    "deterministic_gameplay_pass_fail_owned_by_independent_verifier": true,
+    "presentation_capture_still_required_during_scored_b2": true,
+    "multimodal_or_human_review_may_override_deterministic_failure": false
+  },
+  "scoring_gate_eligible": true
+}
