@@ -740,6 +740,15 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
         }
     }
 
+    // A full rebuild mutates retained storage in place. Invalidate the previous cache identity
+    // before the first destructive write so any later diagnostic cannot leave an empty/partial frame
+    // reachable through the old signature on a subsequent update.
+    impl_->boundDocument = nullptr;
+    impl_->boundResources = nullptr;
+    impl_->signature = 0U;
+    impl_->progressPatchSignature = 0U;
+    impl_->hasSignature = false;
+
     impl_->presentations.clear();
     impl_->elementStates.clear();
     impl_->elementStates.resize(elements.size());
