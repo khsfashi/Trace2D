@@ -23,6 +23,7 @@ enum class UiPresentationErrorCode : std::uint8_t
     MissingTextInput,
     InvalidImageTexture,
     TextPresentationFailed,
+    ElementCapacityExceeded,
     PresentationCapacityExceeded,
     AllocationFailed,
 };
@@ -57,8 +58,10 @@ struct UiTextPresentationInput2D final
 
 struct UiPresentationCacheConfig final
 {
-    // All command storage is reserved once. Rebuilds inside the prepared bound never allocate.
+    // All retained element metadata and command/scratch storage are reserved once. Rebuilds inside
+    // the prepared bounds never allocate.
     std::size_t maxPresentations{4096U};
+    std::size_t maxElements{1024U};
 };
 
 struct UiPresentationDiagnostic final
@@ -83,8 +86,15 @@ struct UiPresentationUpdateResult final
 struct UiPresentationMetrics final
 {
     std::uint64_t updateCalls{0U};
+    // Any presentation-command rebuild. Unchanged frames leave this unchanged.
     std::uint64_t rebuilds{0U};
+    std::uint64_t fullRebuilds{0U};
+    std::uint64_t partialRebuilds{0U};
     std::uint64_t cacheHits{0U};
+    // Amount of retained state touched by rebuild work. A bounded Progress mutation can therefore
+    // prove that it patched one element instead of rebuilding the full document command list.
+    std::uint64_t elementsRebuilt{0U};
+    std::uint64_t presentationsRebuilt{0U};
     std::uint64_t solidPresentationsBuilt{0U};
     std::uint64_t imagePresentationsBuilt{0U};
     std::uint64_t textPresentationsBuilt{0U};
