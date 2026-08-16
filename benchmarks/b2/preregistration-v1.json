@@ -3,7 +3,7 @@
   "kind": "trace2d_b2_preregistration",
   "benchmark_id": "trace2d-b2",
   "issue": 104,
-  "state": "baseline_frozen_verifier_pending",
+  "state": "scoring_open",
   "preregistration_base_commit": "156202991ecd7a27f9205b2f32a5a97c27ec3943",
   "historical_b1_anchor": {
     "benchmark_tree_git_sha1": "0a6ecca662ceb3a04794b6f08cbc1fb4d0fb96b4",
@@ -116,17 +116,17 @@
     "broad_superiority_claim_allowed": false
   },
   "scoring_gate": {
-    "allowed": false,
+    "allowed": true,
     "scored_results_observed": false,
+    "qualification_evidence": "benchmarks/b2/verifier-qualification-v1.json",
     "completed_requirements": [
       "non-scored strongest-baseline qualification passed",
       "selected Godot Agent exact pin and package identity frozen",
       "lane rotation and all nine scored slots committed",
-      "B1 historical anchor unchanged"
-    ],
-    "remaining_requirements_before_opening": [
+      "B1 historical anchor unchanged",
       "lane-specific independent verifiers qualified on committed known-good and meaningful known-bad fixtures"
     ],
-    "reason": "P1 baseline and schedule freeze is complete, but scored execution remains forbidden until independent verifier qualification is committed."
+    "remaining_requirements_before_opening": [],
+    "reason": "P1 baseline, schedule, and both independent runtime verifier qualifications are committed and green. Scored execution may begin without changing the frozen task, lane identities, schedule, budget, retry policy, or verifier authority."
   }
 }
