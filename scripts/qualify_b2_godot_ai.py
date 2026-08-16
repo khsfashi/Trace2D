@@ -25,6 +25,7 @@ EXPECTED_GODOT_VERSION = "4.7.1-stable"
 PROBE_EDITOR_PATH = "/QualificationRoot/Probe"
 PROBE_RUNTIME_PATH = "/root/QualificationRoot/Probe"
 MOVE_ACTION = "qualification_move"
+EXPECTED_START_X = 32.0
 
 REQUIRED_TOOLS = {
     "editor_state", "scene_open", "scene_save", "scene_get_hierarchy",
@@ -129,6 +130,14 @@ def find_named_value(value: Any, name: str) -> Any:
     return None
 
 
+def position_x(node_info: Any, label: str) -> float:
+    position = find_named_value(node_info, "position")
+    base.require(isinstance(position, dict), f"{label}.position was not structured: {node_info!r}")
+    x = position.get("x")
+    base.require(isinstance(x, (int, float)) and not isinstance(x, bool), f"{label}.position.x was not numeric: {position!r}")
+    return float(x)
+
+
 def wait_for_editor(client: HttpMcpClient, timeout: float = 90.0) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
     last: Any = None
@@ -211,7 +220,8 @@ def run_live_candidate(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     initial_node = client.call_tool("game_manage", {
         "op": "get_node_info", "params": {"path": PROBE_RUNTIME_PATH, "include_properties": True},
     })
-    base.require(find_named_value(initial_node, "active_ticks") == 0, f"bad initial ticks: {initial_node!r}")
+    initial_x = position_x(initial_node, "initial")
+    base.require(abs(initial_x - EXPECTED_START_X) <= 1e-6, f"unexpected initial runtime position: {initial_node!r}")
 
     sequence = client.call_tool("game_manage", {
         "op": "input_sequence",
@@ -226,8 +236,14 @@ def run_live_candidate(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     final_node = client.call_tool("game_manage", {
         "op": "get_node_info", "params": {"path": PROBE_RUNTIME_PATH, "include_properties": True},
     })
-    final_ticks = find_named_value(final_node, "active_ticks")
-    base.require(isinstance(final_ticks, int) and final_ticks >= 1, f"semantic input not consumed: {final_node!r}")
+    final_x = position_x(final_node, "final")
+    delta_x = final_x - initial_x
+    base.require(delta_x >= 2.0, f"frame-timed semantic input did not move the probe: {final_node!r}")
+    # The fixture advances in exact two-unit gameplay increments. Godot AI does
+    # not expose the script-local tick counter via get_node_info, so verify the
+    # public structured engine state instead of relying on privileged eval.
+    base.require(abs((delta_x / 2.0) - round(delta_x / 2.0)) <= 1e-6,
+                 f"runtime movement was not aligned to the fixture step size: {final_node!r}")
 
     screenshot_result = client.call_tool_full(
         "editor_screenshot", {"source": "game", "include_image": True, "max_resolution": 320}, timeout=45.0
@@ -244,8 +260,9 @@ def run_live_candidate(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "initialize": initialized, "advertised_tools": sorted(tools), "editor_state": editor_state,
         "scene_open": opened, "authoring": {"before": original_z, "edited": edited_z, "restored": original_z},
         "input_map": input_map, "ensure_binding": binding, "project_run": project_run,
-        "live_state": live_state, "initial_node": initial_node, "input_sequence": sequence,
-        "final_node": final_node, "game_ui": game_ui, "project_stop": stopped,
+        "live_state": live_state, "initial_node": initial_node, "initial_position_x": initial_x,
+        "input_sequence": sequence, "final_node": final_node, "final_position_x": final_x,
+        "movement_delta_x": delta_x, "game_ui": game_ui, "project_stop": stopped,
     }, screenshot_path)
 
 
