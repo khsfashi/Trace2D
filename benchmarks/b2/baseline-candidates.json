@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "trace2d-b2",
+  "state": "qualification_pending",
+  "review_date": "2026-08-16",
+  "godot_version": "4.7.1-stable",
+  "selection_rule": {
+    "strongest_credible_normal_external_user_lane": true,
+    "non_scored_fixture_required": true,
+    "qualification_must_precede_selection_freeze": true,
+    "task_specific_solution_logic_forbidden": true,
+    "generic_coding_tools_allowed": true,
+    "paid_or_private_capability_required_for_core_acceptance_forbidden": true,
+    "readme_claims_alone_are_not_qualification": true
+  },
+  "required_capabilities": [
+    "ordinary project and scene/script/resource authoring",
+    "semantic input configuration",
+    "running-game launch and teardown",
+    "structured runtime observation",
+    "player-like input injection",
+    "bounded deterministic or independently replayable gameplay verification",
+    "screenshot or presentation capture",
+    "headless or independent known-good acceptance",
+    "meaningful known-bad rejection"
+  ],
+  "candidates": [
+    {
+      "id": "beremaran/godot-agent-loop",
+      "package": "@beremaran/godot-agent-loop",
+      "version": "3.0.0",
+      "source_commit": "7bc6062f90e2f96a04f997b202f7a24dd152a9fd",
+      "license": "MIT",
+      "review_status": "primary_qualification_candidate",
+      "capability_notes": [
+        "bounded core feedback-loop surface",
+        "runtime input and structured observation",
+        "game_scenario and verify_project workflows",
+        "independent project test support",
+        "Godot 4.7 compatibility target"
+      ]
+    },
+    {
+      "id": "hi-godot/godot-ai",
+      "package": "godot-ai",
+      "version": "3.1.5",
+      "source_commit": "09a1e3311015153d967710fbe6502ac519585a9b",
+      "license": "MIT",
+      "review_status": "qualification_candidate",
+      "capability_notes": [
+        "broad scene/script/resource authoring",
+        "animation and particle authoring",
+        "running-game inspection and input",
+        "editor and game screenshots",
+        "B1 predecessor lane was independently qualified at v3.0.6"
+      ]
+    },
+    {
+      "id": "satelliteoflove/godot-mcp",
+      "package": "@satelliteoflove/godot-mcp",
+      "version": "4.1.0",
+      "source_commit": "1b7d40537240fd54300f54bf6fda1ea91f06c878",
+      "license": "MIT",
+      "review_status": "qualification_candidate",
+      "capability_notes": [
+        "deterministic frozen-time playtesting",
+        "structured live state",
+        "input injection",
+        "screenshots and profiler evidence",
+        "B1 predecessor pin failed a Godot 4.7 animation qualification and must be retested rather than carried forward"
+      ]
+    },
+    {
+      "id": "Erodenn/godot-mcp-runtime",
+      "package": "godot-mcp-runtime",
+      "version": "3.2.2",
+      "source_commit": "816b653117bdd6a432cb197e029b27d0a4f09540",
+      "license": "MIT",
+      "review_status": "fallback_qualification_candidate",
+      "capability_notes": [
+        "headless editing",
+        "runtime screenshots and input simulation",
+        "transient stock-Godot integration"
+      ]
+    }
+  ],
+  "qualification": {
+    "fixture_id": "b2-gameplay-loop-qualification-v1",
+    "state": "not_run",
+    "scored_task_prompt_visible_to_qualification_agent": false,
+    "required_evidence": [
+      "exact source/package/engine identity",
+      "clean-project install and start",
+      "normal authoring without task-specific solution code",
+      "runtime launch plus structured state",
+      "player-like input path",
+      "presentation capture handoff",
+      "independent known-good acceptance",
+      "meaningful known-bad rejection",
+      "bounded teardown without retained benchmark mutation"
+    ],
+    "selected_candidate_id": null,
+    "selected_pin": null,
+    "evidence": null
+  },
+  "freeze_gate": {
+    "scored_suite_allowed": false,
+    "reason": "P0 freezes candidates and selection rules; a Trace2D-owned non-scored qualification must select and pin the strongest eligible lane before B2 scoring."
+  }
+}
