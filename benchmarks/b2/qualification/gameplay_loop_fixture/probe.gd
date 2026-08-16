@@ -22,6 +22,13 @@ func qualification_simulate(input_active: bool) -> void:
     if active_ticks == REPORT_TICKS:
         print("qualification-input-8")
 
+func _mcp_state() -> Dictionary:
+    return {
+        "semantic_id": "qualification_probe",
+        "position_x": position.x,
+        "active_ticks": active_ticks,
+    }
+
 func _refresh_status() -> void:
     var status := get_node_or_null("../Status") as Label
     if status != null:
