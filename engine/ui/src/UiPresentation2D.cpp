@@ -17,6 +17,7 @@ namespace trace2d::ui
 namespace
 {
 constexpr std::size_t MaxPreparedPresentations = 1U << 20U;
+constexpr std::size_t MaxPreparedElements = 1U << 20U;
 constexpr std::uint64_t FnvOffset = 14695981039346656037ULL;
 constexpr std::uint64_t FnvPrime = 1099511628211ULL;
 
@@ -286,7 +287,8 @@ void FlipScreenQuadToWorld(render::SpriteDrawQuad& quad, const float logicalHeig
     const UiDocument& document,
     const render::ResolvedViewport2D& viewport,
     const UiSolidTextureBinding2D solidTexture,
-    const std::span<const UiTextPresentationInput2D> textInputs) noexcept
+    const std::span<const UiTextPresentationInput2D> textInputs,
+    const bool includeProgressState) noexcept
 {
     std::uint64_t hash = FnvOffset;
     Mix(hash, document.Width());
@@ -324,9 +326,12 @@ void FlipScreenQuadToWorld(render::SpriteDrawQuad& quad, const float logicalHeig
         }
         Mix(hash, element.displayTextRevision);
         Mix(hash, element.scroll.revision);
-        Mix(hash, element.progress.Revision());
-        Mix(hash, element.progress.Value());
-        Mix(hash, element.progress.Maximum());
+        if (includeProgressState)
+        {
+            Mix(hash, element.progress.Revision());
+            Mix(hash, element.progress.Value());
+            Mix(hash, element.progress.Maximum());
+        }
         Mix(hash, element.image.Revision());
         MixHandle(hash, element.image.Texture());
     }
@@ -347,6 +352,171 @@ void FlipScreenQuadToWorld(render::SpriteDrawQuad& quad, const float logicalHeig
         }
     }
     return hash;
+}
+
+[[nodiscard]] bool AppendProgressSolid(
+    std::vector<render::SpritePresentationRenderData>& output,
+    const std::size_t maxPresentations,
+    const UiPresentationRect rect,
+    const UiRect clip,
+    const UiSolidTextureBinding2D solidTexture,
+    const UiColor color,
+    const float logicalHeight,
+    std::uint64_t& stableOrder) noexcept
+{
+    render::SpriteDrawQuad quad = MakeScreenQuad(rect);
+    if (ClipScreenQuad(quad, clip))
+    {
+        if (output.size() >= maxPresentations)
+        {
+            return false;
+        }
+        FlipScreenQuadToWorld(quad, logicalHeight);
+        render::SpritePresentationRenderData presentation{};
+        presentation.presentation.quad = quad;
+        presentation.presentation.appearance.tint = ToLinearRgba(color);
+        presentation.presentation.appearance.opacity = 1.0F;
+        presentation.presentation.appearance.sampler = render::SpriteSamplerCompatibility::Nearest;
+        presentation.presentation.appearance.blend = render::SpriteBlendCompatibility::Normal;
+        presentation.presentation.appearance.textureEncoding = solidTexture.encoding;
+        presentation.presentation.appearance.sourceAlphaMode = assets::SpriteAlphaMode::Straight;
+        presentation.presentation.appearance.sampleBounds = render::SpriteSampleBounds{
+            render::Float2{0.5F, 0.5F},
+            render::Float2{0.5F, 0.5F},
+        };
+        presentation.texture = solidTexture.texture;
+        presentation.order.stableOrder = stableOrder;
+        output.push_back(presentation);
+    }
+    ++stableOrder;
+    return true;
+}
+
+[[nodiscard]] bool AppendProgressBorder(
+    std::vector<render::SpritePresentationRenderData>& output,
+    const std::size_t maxPresentations,
+    const UiPresentationRect bounds,
+    const UiRect clip,
+    const UiSolidTextureBinding2D solidTexture,
+    const float logicalHeight,
+    std::uint64_t& stableOrder) noexcept
+{
+    if (bounds.width == 0U || bounds.height == 0U)
+    {
+        return true;
+    }
+    const UiPresentationRect top{bounds.x, bounds.y, bounds.width, 1U};
+    const UiPresentationRect bottom{
+        bounds.x,
+        static_cast<std::int32_t>(static_cast<std::int64_t>(bounds.y) + bounds.height - 1U),
+        bounds.width,
+        1U,
+    };
+    const UiPresentationRect left{bounds.x, bounds.y, 1U, bounds.height};
+    const UiPresentationRect right{
+        static_cast<std::int32_t>(static_cast<std::int64_t>(bounds.x) + bounds.width - 1U),
+        bounds.y,
+        1U,
+        bounds.height,
+    };
+    return AppendProgressSolid(
+               output,
+               maxPresentations,
+               top,
+               clip,
+               solidTexture,
+               BorderColor,
+               logicalHeight,
+               stableOrder) &&
+        AppendProgressSolid(
+               output,
+               maxPresentations,
+               bottom,
+               clip,
+               solidTexture,
+               BorderColor,
+               logicalHeight,
+               stableOrder) &&
+        AppendProgressSolid(
+               output,
+               maxPresentations,
+               left,
+               clip,
+               solidTexture,
+               BorderColor,
+               logicalHeight,
+               stableOrder) &&
+        AppendProgressSolid(
+               output,
+               maxPresentations,
+               right,
+               clip,
+               solidTexture,
+               BorderColor,
+               logicalHeight,
+               stableOrder);
+}
+
+[[nodiscard]] bool BuildProgressSegment(
+    const UiElement& element,
+    const UiRect clip,
+    const UiSolidTextureBinding2D solidTexture,
+    const float logicalHeight,
+    const std::uint64_t stableOrderBase,
+    const std::size_t maxPresentations,
+    std::vector<render::SpritePresentationRenderData>& output,
+    std::uint64_t& outStableOrderSpan) noexcept
+{
+    output.clear();
+    std::uint64_t stableOrder = stableOrderBase;
+    if (!AppendProgressSolid(
+            output,
+            maxPresentations,
+            element.presentationBounds,
+            clip,
+            solidTexture,
+            ProgressTrackColor,
+            logicalHeight,
+            stableOrder))
+    {
+        return false;
+    }
+
+    const std::uint64_t scaledWidth =
+        static_cast<std::uint64_t>(element.presentationBounds.width) * element.progress.Value();
+    const std::uint32_t fillWidth = static_cast<std::uint32_t>(
+        scaledWidth / static_cast<std::uint64_t>(element.progress.Maximum()));
+    if (fillWidth > 0U &&
+        !AppendProgressSolid(
+            output,
+            maxPresentations,
+            UiPresentationRect{
+                element.presentationBounds.x,
+                element.presentationBounds.y,
+                fillWidth,
+                element.presentationBounds.height,
+            },
+            clip,
+            solidTexture,
+            ProgressFillColor,
+            logicalHeight,
+            stableOrder))
+    {
+        return false;
+    }
+    if (!AppendProgressBorder(
+            output,
+            maxPresentations,
+            element.presentationBounds,
+            clip,
+            solidTexture,
+            logicalHeight,
+            stableOrder))
+    {
+        return false;
+    }
+    outStableOrderSpan = stableOrder - stableOrderBase;
+    return true;
 }
 
 [[nodiscard]] bool ValidateTextInputs(
@@ -380,13 +550,26 @@ void FlipScreenQuadToWorld(render::SpriteDrawQuad& quad, const float logicalHeig
 
 struct UiPresentationCache2D::Impl final
 {
+    struct ElementRetainedState final
+    {
+        std::size_t presentationOffset{0U};
+        std::size_t presentationCount{0U};
+        std::uint64_t stableOrderBase{0U};
+        std::uint64_t stableOrderSpan{0U};
+        std::uint64_t progressRevision{0U};
+        bool progressActive{false};
+    };
+
     UiPresentationCacheConfig config{};
     std::vector<render::SpritePresentationRenderData> presentations{};
+    std::vector<render::SpritePresentationRenderData> scratch{};
+    std::vector<ElementRetainedState> elementStates{};
     render::OrthographicCamera camera{};
     UiPresentationMetrics metrics{};
     const UiDocument* boundDocument{nullptr};
     const assets::ResourceRegistry* boundResources{nullptr};
     std::uint64_t signature{0U};
+    std::uint64_t progressPatchSignature{0U};
     bool hasSignature{false};
 };
 
@@ -452,6 +635,11 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
     }
 
     const std::span<const UiElement> elements = document.Elements();
+    if (elements.size() > impl_->config.maxElements)
+    {
+        result.diagnostic = Diagnostic(UiPresentationErrorCode::ElementCapacityExceeded, impl_->config.maxElements);
+        return result;
+    }
     UiPresentationDiagnostic textInputDiagnostic{};
     if (!ValidateTextInputs(elements, textInputs, textInputDiagnostic))
     {
@@ -459,7 +647,9 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
         return result;
     }
 
-    const std::uint64_t signature = BuildSignature(document, viewport, solidTexture, textInputs);
+    const std::uint64_t signature = BuildSignature(document, viewport, solidTexture, textInputs, true);
+    const std::uint64_t progressPatchSignature =
+        BuildSignature(document, viewport, solidTexture, textInputs, false);
     if (impl_->hasSignature && impl_->boundDocument == &document && impl_->boundResources == &resources &&
         impl_->signature == signature)
     {
@@ -468,7 +658,91 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
         return result;
     }
 
+    // Fast bounded mutation path: when every presentation-relevant input except Progress state is
+    // unchanged, patch only changed retained Progress segments. If a mutation changes segment count
+    // or stable-order footprint (for example 0 -> non-zero fill), fall back to the normal full build.
+    if (impl_->hasSignature && impl_->boundDocument == &document && impl_->boundResources == &resources &&
+        impl_->progressPatchSignature == progressPatchSignature &&
+        impl_->elementStates.size() == elements.size())
+    {
+        const float logicalHeight = static_cast<float>(document.Height());
+        const UiRect canvas{0U, 0U, document.Width(), document.Height()};
+        bool sawProgressChange = false;
+        bool canPatch = true;
+        std::uint64_t rebuiltElements = 0U;
+        std::uint64_t rebuiltPresentations = 0U;
+        for (std::size_t index = 0U; index < elements.size(); ++index)
+        {
+            const UiElement& element = elements[index];
+            Impl::ElementRetainedState& retained = impl_->elementStates[index];
+            if (element.progress.Revision() == retained.progressRevision)
+            {
+                continue;
+            }
+            sawProgressChange = true;
+
+            if (!retained.progressActive || !element.progress.Active() || element.image.Active())
+            {
+                canPatch = false;
+                break;
+            }
+
+            UiRect clip = canvas;
+            if (element.clipActive)
+            {
+                clip = IntersectRect(clip, element.clipBounds);
+            }
+            const UiRect visibleBounds = IntersectRect(PresentationExtent(element.presentationBounds), clip);
+            if (!element.visible || visibleBounds.width == 0U || visibleBounds.height == 0U)
+            {
+                // Structural/clip state is part of progressPatchSignature, so this element remains
+                // invisible and its presentation segment remains correctly empty.
+                retained.progressRevision = element.progress.Revision();
+                continue;
+            }
+
+            std::uint64_t stableOrderSpan = 0U;
+            if (!BuildProgressSegment(
+                    element,
+                    clip,
+                    solidTexture,
+                    logicalHeight,
+                    retained.stableOrderBase,
+                    impl_->config.maxPresentations,
+                    impl_->scratch,
+                    stableOrderSpan) ||
+                impl_->scratch.size() != retained.presentationCount ||
+                stableOrderSpan != retained.stableOrderSpan)
+            {
+                canPatch = false;
+                break;
+            }
+
+            std::copy(
+                impl_->scratch.begin(),
+                impl_->scratch.end(),
+                impl_->presentations.begin() + static_cast<std::ptrdiff_t>(retained.presentationOffset));
+            retained.progressRevision = element.progress.Revision();
+            ++rebuiltElements;
+            rebuiltPresentations += impl_->scratch.size();
+        }
+
+        if (canPatch && sawProgressChange)
+        {
+            impl_->signature = signature;
+            ++impl_->metrics.rebuilds;
+            ++impl_->metrics.partialRebuilds;
+            impl_->metrics.elementsRebuilt += rebuiltElements;
+            impl_->metrics.presentationsRebuilt += rebuiltPresentations;
+            impl_->metrics.solidPresentationsBuilt += rebuiltPresentations;
+            impl_->metrics.lastPresentationCount = impl_->presentations.size();
+            return result;
+        }
+    }
+
     impl_->presentations.clear();
+    impl_->elementStates.clear();
+    impl_->elementStates.resize(elements.size());
     impl_->metrics.lastPresentationCount = 0U;
     impl_->camera = BuildUiCamera(document, viewport);
     const float logicalHeight = static_cast<float>(document.Height());
@@ -574,6 +848,19 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
     for (std::size_t index = 0U; index < elements.size(); ++index)
     {
         const UiElement& element = elements[index];
+        const std::size_t elementPresentationStart = impl_->presentations.size();
+        const std::uint64_t elementStableOrderStart = stableOrder;
+        const auto finalizeElement = [&]() noexcept
+        {
+            Impl::ElementRetainedState& retained = impl_->elementStates[index];
+            retained.presentationOffset = elementPresentationStart;
+            retained.presentationCount = impl_->presentations.size() - elementPresentationStart;
+            retained.stableOrderBase = elementStableOrderStart;
+            retained.stableOrderSpan = stableOrder - elementStableOrderStart;
+            retained.progressRevision = element.progress.Revision();
+            retained.progressActive = element.progress.Active();
+        };
+
         while (textInputCursor < textInputs.size() && textInputs[textInputCursor].elementIndex < index)
         {
             ++textInputCursor;
@@ -585,6 +872,7 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
 
         if (!element.visible)
         {
+            finalizeElement();
             continue;
         }
 
@@ -596,6 +884,7 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
         const UiRect visibleBounds = IntersectRect(PresentationExtent(element.presentationBounds), clip);
         if (visibleBounds.width == 0U || visibleBounds.height == 0U)
         {
+            finalizeElement();
             continue;
         }
 
@@ -623,6 +912,7 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
             }
             ++stableOrder;
             ++impl_->metrics.imagePresentationsBuilt;
+            finalizeElement();
             continue;
         }
 
@@ -660,6 +950,7 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
                 return result;
             }
             impl_->metrics.solidPresentationsBuilt += impl_->presentations.size() - beforeBorder;
+            finalizeElement();
             continue;
         }
 
@@ -724,6 +1015,7 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
             (element.textLayout.valid && element.textLayout.glyphCount > 0U);
         if (!requiresText || !hasDisplayGlyphs)
         {
+            finalizeElement();
             continue;
         }
         if (textInput == nullptr)
@@ -817,13 +1109,18 @@ UiPresentationUpdateResult UiPresentationCache2D::Update(
         impl_->presentations.resize(write);
         impl_->metrics.textPresentationsBuilt += write - start;
         stableOrder += static_cast<std::uint64_t>(textInput->layout->Glyphs().size());
+        finalizeElement();
     }
 
     impl_->boundDocument = &document;
     impl_->boundResources = &resources;
     impl_->signature = signature;
+    impl_->progressPatchSignature = progressPatchSignature;
     impl_->hasSignature = true;
     ++impl_->metrics.rebuilds;
+    ++impl_->metrics.fullRebuilds;
+    impl_->metrics.elementsRebuilt += elements.size();
+    impl_->metrics.presentationsRebuilt += impl_->presentations.size();
     impl_->metrics.lastPresentationCount = impl_->presentations.size();
     return result;
 }
@@ -855,10 +1152,13 @@ void UiPresentationCache2D::Reset() noexcept
         return;
     }
     impl_->presentations.clear();
+    impl_->scratch.clear();
+    impl_->elementStates.clear();
     impl_->camera = {};
     impl_->boundDocument = nullptr;
     impl_->boundResources = nullptr;
     impl_->signature = 0U;
+    impl_->progressPatchSignature = 0U;
     impl_->hasSignature = false;
     impl_->metrics.lastPresentationCount = 0U;
 }
@@ -866,7 +1166,8 @@ void UiPresentationCache2D::Reset() noexcept
 UiPresentationCachePrepareResult PrepareUiPresentationCache(const UiPresentationCacheConfig config)
 {
     UiPresentationCachePrepareResult output{};
-    if (config.maxPresentations == 0U || config.maxPresentations > MaxPreparedPresentations)
+    if (config.maxPresentations == 0U || config.maxPresentations > MaxPreparedPresentations ||
+        config.maxElements == 0U || config.maxElements > MaxPreparedElements)
     {
         output.diagnostic = Diagnostic(UiPresentationErrorCode::InvalidConfig);
         return output;
@@ -876,6 +1177,8 @@ UiPresentationCachePrepareResult PrepareUiPresentationCache(const UiPresentation
         auto impl = std::make_unique<UiPresentationCache2D::Impl>();
         impl->config = config;
         impl->presentations.reserve(config.maxPresentations);
+        impl->scratch.reserve(config.maxPresentations);
+        impl->elementStates.reserve(config.maxElements);
         output.cache = std::unique_ptr<UiPresentationCache2D>(new UiPresentationCache2D(std::move(impl)));
     }
     catch (const std::bad_alloc&)
@@ -905,6 +1208,8 @@ std::string_view ToString(const UiPresentationErrorCode value) noexcept
         return "invalid_image_texture";
     case UiPresentationErrorCode::TextPresentationFailed:
         return "text_presentation_failed";
+    case UiPresentationErrorCode::ElementCapacityExceeded:
+        return "element_capacity_exceeded";
     case UiPresentationErrorCode::PresentationCapacityExceeded:
         return "presentation_capacity_exceeded";
     case UiPresentationErrorCode::AllocationFailed:
