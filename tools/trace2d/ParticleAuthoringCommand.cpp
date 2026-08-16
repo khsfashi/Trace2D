@@ -139,6 +139,7 @@ void PrintResultJson(const agent::ParticleAuthoringResult& result)
               << (result.Succeeded() ? "ok" : "error")
               << "\",\"committed\":" << (result.committed ? "true" : "false")
               << ",\"validation_passed\":" << (result.validationPassed ? "true" : "false")
+              << ",\"program_fingerprint\":" << result.programFingerprint
               << ",\"changed_fields\":[";
 
     for (std::size_t index = 0U; index < result.changedFields.size(); ++index)
@@ -189,6 +190,7 @@ void PrintResultHuman(const agent::ParticleAuthoringResult& result)
     std::cout << "Particle authoring\n"
               << "  resource: " << result.resource << '\n'
               << "  validation: passed\n"
+              << "  program fingerprint: " << result.programFingerprint << '\n'
               << "  committed: " << (result.committed ? "yes" : "no") << '\n'
               << "  changed fields: ";
     if (result.changedFields.empty())
