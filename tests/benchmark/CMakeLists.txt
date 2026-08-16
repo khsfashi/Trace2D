@@ -154,6 +154,25 @@ trace2d_add_b2_trace2d_verifier(
     trace2d_b2_trace2d_bad_cooldown_verify
     "${B2_TRACE2D_VERIFIER_ROOT}/known_bad_cooldown")
 
+# The owner-local B2 scored harness preserves each candidate outside the
+# repository and supplies that directory explicitly. Compile the candidate
+# through the same qualified verifier driver; no target exists in normal builds.
+set(TRACE2D_B2_CANDIDATE_DIR "" CACHE PATH
+    "Optional B2 scored Trace2D candidate directory containing B2Candidate.cpp")
+if(TRACE2D_B2_CANDIDATE_DIR)
+    get_filename_component(
+        B2_TRACE2D_CANDIDATE_DIR
+        "${TRACE2D_B2_CANDIDATE_DIR}"
+        ABSOLUTE)
+    if(NOT EXISTS "${B2_TRACE2D_CANDIDATE_DIR}/B2Candidate.cpp")
+        message(FATAL_ERROR
+            "TRACE2D_B2_CANDIDATE_DIR is missing B2Candidate.cpp: ${B2_TRACE2D_CANDIDATE_DIR}")
+    endif()
+    trace2d_add_b2_trace2d_verifier(
+        trace2d_b2_trace2d_candidate_verify
+        "${B2_TRACE2D_CANDIDATE_DIR}")
+endif()
+
 add_test(
     NAME BenchmarkB2VerifierQualification.Trace2D.KnownGood
     COMMAND trace2d_b2_trace2d_good_verify
