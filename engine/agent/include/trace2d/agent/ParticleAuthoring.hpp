@@ -2,6 +2,7 @@
 
 #include <trace2d/particles/ParticleEffect.hpp>
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -48,6 +49,7 @@ struct ParticleAuthoringResult final
     std::string resource{};
     bool committed = false;
     bool validationPassed = false;
+    std::uint64_t programFingerprint = 0U;
     std::vector<std::string> changedFields{};
     std::vector<ParticleAuthoringDiagnostic> diagnostics{};
 
@@ -57,8 +59,9 @@ struct ParticleAuthoringResult final
     }
 };
 
-// Applies one bounded typed Particle effect mutation. The existing production parser and
-// structural budgets remain authoritative. Validation failures never modify the resource.
+// Applies one bounded typed Particle effect mutation. The existing production parser,
+// compiler, and structural budgets remain authoritative. Validation failures never modify
+// the resource.
 [[nodiscard]] ParticleAuthoringResult MutateParticleEffectResource(
     const std::filesystem::path& projectRoot,
     std::string_view projectRelativeReference,
