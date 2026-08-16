@@ -16,6 +16,9 @@ or deterministic verifier authority.
   evidence and expose the already-qualified engine-specific verifier entry point.
 - Deterministic gameplay pass/fail is owned only by the qualified verifier.
   Presentation evidence is retained separately and cannot repair a deterministic failure.
+- `preflight-slot` validates the current slot's required local engine/tool identity
+  before a scored trial directory exists, so a simple owner setup mistake cannot consume
+  a frozen slot. Once the Agent turn starts, failures are recorded and are not rerolled.
 
 The execution handoff asks every lane to retain at least one final capture under
 `.trace2d-b2-evidence/presentation/`. For Godot, the qualified verifier loads
@@ -67,6 +70,14 @@ $Runs = Join-Path $env:LOCALAPPDATA "Trace2D\benchmark-b2-scored-v1"
 python scripts/benchmark_b2_scored_harness.py next-slot --runs-root $Runs
 ```
 
+Before every scored slot, run the non-scored local environment preflight. It checks
+the exact Godot identity for Godot lanes, the selected `godot-ai` package version
+for `godot.agent`, and the public Trace2D CLI path for `trace2d.agent`:
+
+```powershell
+python scripts/benchmark_b2_scored_harness.py preflight-slot --runs-root $Runs
+```
+
 The first result must report slot 1, repetition 1, lane `godot.generic`. Execute
 only that slot:
 
@@ -74,10 +85,11 @@ only that slot:
 python scripts/benchmark_b2_scored_harness.py run-slot --runs-root $Runs --slot 1
 ```
 
-After the attempt is appended, run `next-slot` again. Even if slot 1 fails due to
-implementation or infrastructure, do not rerun it: the next scheduled slot is
-slot 2. Preserve the entire result root for publication and later feedback/revision
-evidence.
+`run-slot` repeats the environment preflight before creating the trial directory.
+After the Agent turn starts and the attempt is appended, run `next-slot` again.
+Even if slot 1 fails due to implementation or infrastructure, do not rerun it:
+the next scheduled slot is slot 2. Preserve the entire result root for publication
+and later feedback/revision evidence.
 
 The single blinded human-feedback event and deterministic post-feedback
 re-verification are a later B2 phase. They must not be applied during these
