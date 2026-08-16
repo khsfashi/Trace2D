@@ -10,6 +10,12 @@ window/size/viewport_height=180
 window/size/window_width_override=320
 window/size/window_height_override=180
 
+[input]
+qualification_move={
+"deadzone": 0.5,
+"events": []
+}
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
