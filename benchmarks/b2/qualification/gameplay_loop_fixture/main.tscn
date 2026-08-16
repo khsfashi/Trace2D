@@ -18,7 +18,7 @@ offset_bottom = 98.0
 color = Color(0.13, 0.18, 0.25, 1)
 mouse_filter = 2
 
-[node name="Probe" type="Node2D" parent="."]
+[node name="Probe" type="Node2D" parent="." groups=["qualification_probe"]]
 position = Vector2(32, 90)
 script = ExtResource("1_probe")
 

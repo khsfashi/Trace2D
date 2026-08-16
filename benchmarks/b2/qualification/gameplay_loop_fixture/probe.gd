@@ -6,12 +6,12 @@ const REPORT_TICKS := 8
 var active_ticks := 0
 
 func _ready() -> void:
-    add_to_group("qualification_probe")
     _refresh_status()
     print("qualification-ready")
 
 func _physics_process(_delta: float) -> void:
-    qualification_simulate(Input.is_action_pressed("qualification_move"))
+    if InputMap.has_action("qualification_move"):
+        qualification_simulate(Input.is_action_pressed("qualification_move"))
 
 func qualification_simulate(input_active: bool) -> void:
     if not input_active:
