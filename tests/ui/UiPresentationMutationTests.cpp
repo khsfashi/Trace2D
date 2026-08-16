@@ -111,4 +111,56 @@ TEST(UiPresentationMutationTests, ProgressValuePatchesOnlyItsRetainedSegment)
     EXPECT_EQ(afterMutation.elementsRebuilt, beforeMutation.elementsRebuilt + 1U);
     EXPECT_EQ(afterMutation.presentationsRebuilt, beforeMutation.presentationsRebuilt + 6U);
 }
+
+TEST(UiPresentationMutationTests, FailedFullRebuildDoesNotReuseDestroyedPreviousFrame)
+{
+    assets::ResourceRegistry resources{"project"};
+    const render::TextureHandle whiteHandle = PublishMutationWhite(resources);
+    UiSolidTextureBinding2D white{};
+    ASSERT_TRUE(ResolveUiSolidTextureBinding2D(resources, whiteHandle, white));
+
+    UiDocument document(320U, 180U);
+    document.ReserveElements(1U);
+    ASSERT_EQ(
+        document.AddElement(UiElement{
+            .id = "health",
+            .kind = UiElementKind::Panel,
+            .bounds = UiRect{40U, 10U, 20U, 8U},
+        }),
+        UiActionResult::Success);
+    ASSERT_EQ(document.ConfigureProgress("health", 0U, 10U), UiProgressResult::Success);
+
+    // A zero-width fill is exactly five retained commands: track + four border quads.
+    UiPresentationCachePrepareResult prepared =
+        PrepareUiPresentationCache(UiPresentationCacheConfig{5U, 1U});
+    ASSERT_TRUE(prepared.Succeeded());
+    const render::ResolvedViewport2D viewport = ResolveMutationViewport();
+
+    const UiPresentationUpdateResult first = prepared.cache->Update(document, resources, viewport, white);
+    ASSERT_TRUE(first.Succeeded());
+    ASSERT_FALSE(first.reused);
+    ASSERT_EQ(prepared.cache->Frame().presentations.size(), 5U);
+
+    // Enabling the fill changes the retained segment to six commands. The bounded partial path
+    // falls back to a full rebuild, which then fails at the configured presentation capacity.
+    ASSERT_EQ(document.SetProgress("health", 1U, 10U), UiProgressResult::Success);
+    const UiPresentationUpdateResult failed = prepared.cache->Update(document, resources, viewport, white);
+    ASSERT_FALSE(failed.Succeeded());
+    ASSERT_TRUE(failed.diagnostic.has_value());
+    EXPECT_EQ(failed.diagnostic->code, UiPresentationErrorCode::PresentationCapacityExceeded);
+    EXPECT_TRUE(prepared.cache->Frame().presentations.empty());
+
+    // Restoring the exact original visual signature must rebuild the destroyed frame. Before the
+    // cache-invalidation fix, the stale signature incorrectly returned reused=true with zero draws.
+    ASSERT_EQ(document.SetProgress("health", 0U, 10U), UiProgressResult::Success);
+    const UiPresentationUpdateResult restored = prepared.cache->Update(document, resources, viewport, white);
+    ASSERT_TRUE(restored.Succeeded());
+    EXPECT_FALSE(restored.reused);
+    EXPECT_EQ(prepared.cache->Frame().presentations.size(), 5U);
+
+    const UiPresentationMetrics metrics = prepared.cache->Metrics();
+    EXPECT_EQ(metrics.rebuilds, 2U);
+    EXPECT_EQ(metrics.fullRebuilds, 2U);
+    EXPECT_EQ(metrics.cacheHits, 0U);
+}
 } // namespace trace2d::ui
