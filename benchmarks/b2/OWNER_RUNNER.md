@@ -54,6 +54,53 @@ accepted by the benchmark ACL adapter. Provide `TRACE2D_BENCH_TRACE2D_BIN`.
 The independent verifier builds from the repository through CMake; override
 `TRACE2D_B2_VERIFY_BUILD_ROOT` only when the default local build cache is unsuitable.
 
+## Preferred self-hosted owner automation
+
+The repository already has an owner Windows runner lane with labels
+`[self-hosted, windows, x64, trace2d-gpu]`. B2 reuses that trusted owner runner;
+a second runner registration is not required when that runner is online.
+
+`.github/workflows/benchmark-b2-owner-scored.yml` is intentionally
+`workflow_dispatch`-only and additionally refuses to run unless all of these are true:
+
+- repository is exactly `khsfashi/Trace2D`,
+- actor is exactly `khsfashi`,
+- dispatched ref is exactly `refs/heads/main`,
+- this is workflow attempt 1 (Actions rerun cannot accidentally consume the next slot).
+
+This matters because Trace2D is public and a persistent self-hosted runner must never
+execute arbitrary pull-request code merely because a fork can open a PR.
+
+The workflow automatically discovers the next frozen slot from the durable result root:
+
+```text
+%LOCALAPPDATA%\Trace2D\benchmark-b2-scored-v1
+```
+
+It then prepares only the toolchain required by that lane. The bootstrap script
+`scripts/prepare_benchmark_b2_owner_windows.ps1` uses a dedicated cache under
+`%ProgramData%\Trace2D\b2-owner-tools` and does **not** replace the machine-global
+Codex installation. It verifies/sets:
+
+- isolated Codex CLI `0.144.6` plus the existing Windows ACL-safe shell shim,
+- official Godot `4.7.1-stable`, verified against the release `SHA512-SUMS.txt`,
+  with runtime identity `4.7.1.stable.official.a13da4feb`,
+- for `godot.agent`, exact `godot-ai==3.1.5`, frozen source commit and package SHA-256,
+- for `trace2d.agent`, the pinned vcpkg baseline and a freshly built public `trace2d.exe`
+  from the exact dispatched `main` checkout.
+
+The local ChatGPT-managed Codex auth file remains local to the runner account. The
+workflow does not copy it into the repository, an Actions artifact, or a log.
+
+From GitHub Actions choose **Benchmark B2 Owner Scored Runner** and use:
+
+- `preflight` to prepare the exact next lane and stop after zero-score preflight,
+- `run-next` to prepare, preflight, then execute exactly one next frozen slot.
+
+There is no slot-number input on purpose. The append-only result root is the authority
+for which slot is next. `run-next` never loops into a second slot. If the started Agent
+attempt fails, retain that record and dispatch a new workflow later for the next slot.
+
 ## Commands
 
 Validate the frozen pre-score contract without executing a scored Agent turn:
