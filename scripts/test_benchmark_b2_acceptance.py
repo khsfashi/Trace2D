@@ -65,12 +65,13 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertIn("git -c protocol.version=2 fetch", workflow)
         self.assertIn("Node.js 24", workflow)
 
-    def test_diagnostic_workflow_is_read_only_and_non_authoritative(self) -> None:
+    def test_diagnostic_workflow_is_non_authoritative_and_isolates_image_publication(self) -> None:
         workflow = (
             acceptance.REPO_ROOT
             / ".github/workflows/benchmark-b2-owner-diagnostic.yml"
         ).read_text(encoding="utf-8")
         self.assertIn("/b2 accept-diagnostic", workflow)
+        self.assertIn("/b2 accept-diagnostic-publish", workflow)
         self.assertIn("benchmark-b2-acceptance-v1", workflow)
         self.assertEqual(workflow.count("benchmark-b2-scored-v1"), 1)
         self.assertIn("Contains('benchmark-b2-scored-v1')", workflow)
@@ -80,8 +81,13 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertIn("scored = $false", workflow)
         self.assertIn("Get-FileHash", workflow)
         self.assertIn("ReadAllBytes", workflow)
-        self.assertIn("contents: read", workflow)
+        self.assertIn("contents: write", workflow)
         self.assertIn("issues: write", workflow)
+        self.assertIn("b2-diagnostic-captures", workflow)
+        self.assertIn("/git/blobs", workflow)
+        self.assertIn("/git/trees", workflow)
+        self.assertIn("/git/refs", workflow)
+        self.assertIn("raw.githubusercontent.com", workflow)
         self.assertIn("TRACE2D_B2_DIAGNOSTIC_CAPTURE", workflow)
         self.assertIn("Invoke-RestMethod", workflow)
         self.assertNotIn("uses:", workflow)
