@@ -21,6 +21,38 @@ class StableHarnessTests(unittest.TestCase):
             second = stable.stable_tree_hash(root)
             self.assertEqual(first, second)
 
+    def test_workspace_hash_ignores_top_level_harness_godot_user_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as root_text:
+            root = Path(root_text)
+            (root / "main.tscn").write_text("authored", encoding="utf-8")
+            cache = (
+                root
+                / ".godot-user"
+                / ".appdata"
+                / "Godot"
+                / "app_userdata"
+                / "Trace2D B2 Scored Starter"
+                / "shader_cache"
+                / "shader.bin"
+            )
+            cache.parent.mkdir(parents=True)
+            cache.write_text("first", encoding="utf-8")
+            first = stable.stable_tree_hash(root)
+            cache.write_text("second", encoding="utf-8")
+            second = stable.stable_tree_hash(root)
+            self.assertEqual(first, second)
+
+    def test_workspace_hash_keeps_nested_godot_user_directory_authored(self) -> None:
+        with tempfile.TemporaryDirectory() as root_text:
+            root = Path(root_text)
+            nested = root / "content" / ".godot-user" / "data.txt"
+            nested.parent.mkdir(parents=True)
+            nested.write_text("one", encoding="utf-8")
+            first = stable.stable_tree_hash(root)
+            nested.write_text("two", encoding="utf-8")
+            second = stable.stable_tree_hash(root)
+            self.assertNotEqual(first, second)
+
     def test_workspace_hash_changes_for_authored_file(self) -> None:
         with tempfile.TemporaryDirectory() as root_text:
             root = Path(root_text)
