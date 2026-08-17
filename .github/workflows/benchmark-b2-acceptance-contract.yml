@@ -11,6 +11,7 @@ on:
       - "scripts/test_benchmark_b2_acceptance.py"
       - ".github/workflows/benchmark-b2-acceptance-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance.yml"
+      - ".github/workflows/benchmark-b2-owner-diagnostic.yml"
   pull_request:
     branches:
       - main
@@ -20,6 +21,7 @@ on:
       - "scripts/test_benchmark_b2_acceptance.py"
       - ".github/workflows/benchmark-b2-acceptance-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance.yml"
+      - ".github/workflows/benchmark-b2-owner-diagnostic.yml"
 
 permissions:
   contents: read
