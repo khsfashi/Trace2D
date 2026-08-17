@@ -1,8 +1,9 @@
 # Keep benchmark contracts and fixtures byte-stable across Windows/Linux checkouts.
-# B1 freeze-manifest SHA-256 values are computed from LF-normalized repository bytes.
+# B1/B2 freeze-manifest SHA-256 values are computed from LF-normalized repository bytes.
 benchmarks/**/*.json text eol=lf
 benchmarks/**/*.md text eol=lf
 benchmarks/**/*.gd text eol=lf
+benchmarks/**/*.godot text eol=lf
 benchmarks/**/*.tscn text eol=lf
 benchmarks/**/*.toml text eol=lf
 benchmarks/**/*.cpp text eol=lf
