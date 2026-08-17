@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import benchmark_b2_postscore_remediation as remediation
+from scripts import benchmark_b2_postscore_remediation as remediation
 
 
 class BenchmarkB2PostscoreRemediationTests(unittest.TestCase):
