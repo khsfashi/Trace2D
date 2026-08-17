@@ -20,21 +20,17 @@ jobs:
       github.run_attempt == 1 &&
       github.event.issue.number == 104 &&
       github.ref == 'refs/heads/main' &&
-      (
-        github.event.comment.body == '/b2 accept-diagnostic' ||
-        github.event.comment.body == '/b2 accept-diagnostic-publish'
-      )
+      github.event.comment.body == '/b2 accept-diagnostic'
     runs-on: [self-hosted, windows, x64, trace2d-gpu]
     timeout-minutes: 10
 
     steps:
-      - name: Emit existing failed-candidate captures diagnostically
+      - name: Emit existing failed-candidate captures read-only
         shell: pwsh
         env:
           TRACE2D_DIAGNOSTIC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRACE2D_DIAGNOSTIC_REPOSITORY: ${{ github.repository }}
           TRACE2D_DIAGNOSTIC_ISSUE: ${{ github.event.issue.number }}
-          TRACE2D_DIAGNOSTIC_COMMENT: ${{ github.event.comment.body }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
@@ -59,14 +55,9 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
             'User-Agent' = 'Trace2D-B2-Diagnostic'
           }
-          $apiRoot = "https://api.github.com/repos/$env:TRACE2D_DIAGNOSTIC_REPOSITORY"
-          $commentsUri = "$apiRoot/issues/$env:TRACE2D_DIAGNOSTIC_ISSUE/comments"
-          $publishImages = $env:TRACE2D_DIAGNOSTIC_COMMENT -eq '/b2 accept-diagnostic-publish'
-          $evidenceBranch = 'b2-diagnostic-captures'
-          $treeItems = @()
-          $imageRows = @()
-          $emitted = 0
+          $commentsUri = "https://api.github.com/repos/$env:TRACE2D_DIAGNOSTIC_REPOSITORY/issues/$env:TRACE2D_DIAGNOSTIC_ISSUE/comments"
 
+          $emitted = 0
           foreach ($recordFile in $records) {
             $record = Get-Content -Raw -Encoding utf8 -LiteralPath $recordFile.FullName | ConvertFrom-Json
             if ($record.scored -ne $false) {
@@ -82,10 +73,7 @@ jobs:
               throw "Retained workspace escaped the non-scored durable root: $workspace"
             }
 
-            $captures = @($record.presentation.captures)
-            $captureIndex = 0
-            foreach ($capture in $captures) {
-              $captureIndex += 1
+            foreach ($capture in @($record.presentation.captures)) {
               $relative = [string]$capture.path
               if ([string]::IsNullOrWhiteSpace($relative)) {
                 throw "Capture path missing for trial $($record.trial_id)"
@@ -131,38 +119,16 @@ jobs:
               Write-Host 'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
               Write-Host 'TRACE2D_B2_DIAGNOSTIC_CAPTURE_END'
 
-              if ($publishImages) {
-                $blobPayload = @{ content = $base64; encoding = 'base64' } | ConvertTo-Json -Compress
-                $blob = Invoke-RestMethod -Uri "$apiRoot/git/blobs" -Method Post -Headers $headers -ContentType 'application/json' -Body $blobPayload
-                $runLabel = '{0:D2}' -f [int]$record.run_index
-                $captureLabel = '{0:D2}' -f $captureIndex
-                $repoPath = "diagnostics/b2/acceptance-v1/ember-hall-initial-$runLabel-capture-$captureLabel.png"
-                $treeItems += @{
-                  path = $repoPath
-                  mode = '100644'
-                  type = 'blob'
-                  sha = [string]$blob.sha
-                }
-                $rawUrl = "https://raw.githubusercontent.com/$env:TRACE2D_DIAGNOSTIC_REPOSITORY/$evidenceBranch/$repoPath"
-                $imageRows += [ordered]@{
-                  trial_id = [string]$record.trial_id
-                  run_index = [int]$record.run_index
-                  status = [string]$record.status
-                  capture_sha256 = $sha
-                  raw_url = $rawUrl
-                }
-              } else {
-                $commentBody = @(
-                  '<!-- TRACE2D_B2_DIAGNOSTIC_CAPTURE -->',
-                  'Diagnostic-only retained B2 acceptance capture. This is not scoring or acceptance authority.',
-                  "TRACE2D_B2_DIAGNOSTIC_METADATA=$metadataJson",
-                  'TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN',
-                  $base64,
-                  'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
-                ) -join "`n"
-                $payload = @{ body = $commentBody } | ConvertTo-Json -Compress
-                Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
-              }
+              $commentBody = @(
+                '<!-- TRACE2D_B2_DIAGNOSTIC_CAPTURE -->',
+                'Diagnostic-only retained B2 acceptance capture. This is not scoring or acceptance authority.',
+                "TRACE2D_B2_DIAGNOSTIC_METADATA=$metadataJson",
+                'TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN',
+                $base64,
+                'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
+              ) -join "`n"
+              $payload = @{ body = $commentBody } | ConvertTo-Json -Compress
+              Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
               $emitted += 1
             }
           }
@@ -170,50 +136,163 @@ jobs:
           if ($emitted -eq 0) {
             throw 'Retained records exist but contain no presentation captures.'
           }
+          Write-Host "TRACE2D_B2_DIAGNOSTIC_CAPTURE_COUNT=$emitted"
 
-          if ($publishImages) {
-            if ($treeItems.Count -eq 0) { throw 'No SHA-verified diagnostic captures were staged for publication.' }
-            $mainCommit = Invoke-RestMethod -Uri "$apiRoot/git/commits/$env:GITHUB_SHA" -Method Get -Headers $headers
-            $treePayload = @{
-              base_tree = [string]$mainCommit.tree.sha
-              tree = @($treeItems)
-            } | ConvertTo-Json -Depth 8 -Compress
-            $newTree = Invoke-RestMethod -Uri "$apiRoot/git/trees" -Method Post -Headers $headers -ContentType 'application/json' -Body $treePayload
-            $commitPayload = @{
-              message = 'chore(b2): publish non-scored diagnostic captures'
-              tree = [string]$newTree.sha
-              parents = @($env:GITHUB_SHA)
-            } | ConvertTo-Json -Depth 5 -Compress
-            $newCommit = Invoke-RestMethod -Uri "$apiRoot/git/commits" -Method Post -Headers $headers -ContentType 'application/json' -Body $commitPayload
+  hosted-image-publish:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 accept-diagnostic-publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
-            $refUri = "$apiRoot/git/ref/heads/$evidenceBranch"
-            $refsUri = "$apiRoot/git/refs/heads/$evidenceBranch"
-            try {
-              Invoke-RestMethod -Uri $refUri -Method Get -Headers $headers | Out-Null
-              $updateRefPayload = @{ sha = [string]$newCommit.sha; force = $true } | ConvertTo-Json -Compress
-              Invoke-RestMethod -Uri $refsUri -Method Patch -Headers $headers -ContentType 'application/json' -Body $updateRefPayload | Out-Null
-            } catch {
-              if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
-              $createRefPayload = @{ ref = "refs/heads/$evidenceBranch"; sha = [string]$newCommit.sha } | ConvertTo-Json -Compress
-              Invoke-RestMethod -Uri "$apiRoot/git/refs" -Method Post -Headers $headers -ContentType 'application/json' -Body $createRefPayload | Out-Null
-            }
+    steps:
+      - name: Publish retained diagnostic comments as exact PNG evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACE2D_DIAGNOSTIC_REPOSITORY: ${{ github.repository }}
+          TRACE2D_DIAGNOSTIC_ISSUE: ${{ github.event.issue.number }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.error
+          import urllib.request
 
-            $lines = @(
-              '<!-- TRACE2D_B2_DIAGNOSTIC_IMAGES -->',
-              '## B2 non-scored diagnostic captures',
-              '',
-              '> Diagnostic only. These images are **not** scoring or acceptance authority and do not change the frozen B2 cohort or acceptance result.',
-              ''
-            )
-            foreach ($row in $imageRows) {
-              $lines += "### $($row.trial_id) — $($row.status)"
-              $lines += "SHA-256: `$($row.capture_sha256)`"
-              $lines += "![Diagnostic capture $($row.run_index)]($($row.raw_url))"
-              $lines += ''
-            }
-            $lines += "Evidence branch: `$evidenceBranch` @ `$([string]$newCommit.sha)`"
-            $publishComment = @{ body = ($lines -join "`n") } | ConvertTo-Json -Compress
-            Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $publishComment | Out-Null
+          token = os.environ["GH_TOKEN"]
+          repo = os.environ["TRACE2D_DIAGNOSTIC_REPOSITORY"]
+          issue = os.environ["TRACE2D_DIAGNOSTIC_ISSUE"]
+          main_sha = os.environ["GITHUB_SHA"]
+          evidence_branch = "b2-diagnostic-captures"
+          api_root = f"https://api.github.com/repos/{repo}"
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "Trace2D-B2-Diagnostic-Publisher",
           }
 
-          Write-Host "TRACE2D_B2_DIAGNOSTIC_CAPTURE_COUNT=$emitted"
+          def api(method: str, url: str, payload=None):
+              data = None
+              req_headers = dict(headers)
+              if payload is not None:
+                  data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+                  req_headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(url, data=data, headers=req_headers, method=method)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  raw = response.read()
+                  if not raw:
+                      return None
+                  return json.loads(raw.decode("utf-8"))
+
+          comments = []
+          page = 1
+          while True:
+              batch = api("GET", f"{api_root}/issues/{issue}/comments?per_page=100&page={page}")
+              comments.extend(batch)
+              if len(batch) < 100:
+                  break
+              page += 1
+
+          latest = {}
+          marker = "<!-- TRACE2D_B2_DIAGNOSTIC_CAPTURE -->"
+          meta_prefix = "TRACE2D_B2_DIAGNOSTIC_METADATA="
+          begin_marker = "TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN"
+          end_marker = "TRACE2D_B2_DIAGNOSTIC_BASE64_END"
+
+          for comment in comments:
+              body = comment.get("body") or ""
+              if marker not in body:
+                  continue
+              lines = body.splitlines()
+              meta_line = next((line for line in lines if line.startswith(meta_prefix)), None)
+              if meta_line is None or begin_marker not in lines or end_marker not in lines:
+                  continue
+              begin = lines.index(begin_marker)
+              end = lines.index(end_marker, begin + 1)
+              encoded = "".join(lines[begin + 1 : end]).strip()
+              metadata = json.loads(meta_line[len(meta_prefix) :])
+              if metadata.get("diagnostic_only") is not True:
+                  raise RuntimeError("Diagnostic comment lost diagnostic_only=true.")
+              if metadata.get("acceptance_authority") is not False:
+                  raise RuntimeError("Diagnostic comment unexpectedly has acceptance authority.")
+              if metadata.get("scored") is not False:
+                  raise RuntimeError("Diagnostic comment unexpectedly has scored=true.")
+              data = base64.b64decode(encoded, validate=True)
+              sha = hashlib.sha256(data).hexdigest()
+              if sha != metadata.get("capture_sha256"):
+                  raise RuntimeError(f"SHA mismatch for {metadata.get('trial_id')}: {sha}")
+              if len(data) != int(metadata.get("byte_count", -1)):
+                  raise RuntimeError(f"Byte-count mismatch for {metadata.get('trial_id')}")
+              if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+                  raise RuntimeError(f"Not a PNG: {metadata.get('trial_id')}")
+              latest[str(metadata["trial_id"])] = (metadata, encoded)
+
+          expected = {
+              "accept-initial-01-trace2d-agent",
+              "accept-initial-02-trace2d-agent",
+          }
+          missing = expected.difference(latest)
+          if missing:
+              raise RuntimeError(f"Missing retained diagnostic comments: {sorted(missing)}")
+
+          tree_items = []
+          rows = []
+          for trial_id in sorted(expected):
+              metadata, encoded = latest[trial_id]
+              blob = api("POST", f"{api_root}/git/blobs", {"content": encoded, "encoding": "base64"})
+              run_index = int(metadata["run_index"])
+              repo_path = f"diagnostics/b2/acceptance-v1/ember-hall-initial-{run_index:02d}.png"
+              tree_items.append({"path": repo_path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
+              raw_url = f"https://raw.githubusercontent.com/{repo}/{evidence_branch}/{repo_path}"
+              rows.append((metadata, raw_url))
+
+          main_commit = api("GET", f"{api_root}/git/commits/{main_sha}")
+          tree = api("POST", f"{api_root}/git/trees", {"base_tree": main_commit["tree"]["sha"], "tree": tree_items})
+          commit = api(
+              "POST",
+              f"{api_root}/git/commits",
+              {
+                  "message": "chore(b2): publish non-scored diagnostic captures",
+                  "tree": tree["sha"],
+                  "parents": [main_sha],
+              },
+          )
+
+          try:
+              api("GET", f"{api_root}/git/ref/heads/{evidence_branch}")
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                  raise
+              api("POST", f"{api_root}/git/refs", {"ref": f"refs/heads/{evidence_branch}", "sha": commit["sha"]})
+          else:
+              api("PATCH", f"{api_root}/git/refs/heads/{evidence_branch}", {"sha": commit["sha"], "force": True})
+
+          lines = [
+              "<!-- TRACE2D_B2_DIAGNOSTIC_IMAGES -->",
+              "## B2 non-scored diagnostic captures",
+              "",
+              "> Diagnostic only. These images are **not** scoring or acceptance authority and do not change the frozen B2 cohort or acceptance result.",
+              "",
+          ]
+          for metadata, raw_url in rows:
+              lines.extend(
+                  [
+                      f"### {metadata['trial_id']} — {metadata['status']}",
+                      f"SHA-256: `{metadata['capture_sha256']}`",
+                      f"![Diagnostic capture {metadata['run_index']}]({raw_url})",
+                      "",
+                  ]
+              )
+          lines.append(f"Evidence branch: `{evidence_branch}` @ `{commit['sha']}`")
+          api("POST", f"{api_root}/issues/{issue}/comments", {"body": "\n".join(lines)})
+          print(f"TRACE2D_B2_DIAGNOSTIC_IMAGE_BRANCH={evidence_branch}")
+          print(f"TRACE2D_B2_DIAGNOSTIC_IMAGE_COMMIT={commit['sha']}")
+          print(f"TRACE2D_B2_DIAGNOSTIC_IMAGE_COUNT={len(rows)}")
+          PY
