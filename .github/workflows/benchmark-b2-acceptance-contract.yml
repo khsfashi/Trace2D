@@ -12,6 +12,7 @@ on:
       - ".github/workflows/benchmark-b2-acceptance-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance.yml"
       - ".github/workflows/benchmark-b2-owner-diagnostic.yml"
+      - ".github/workflows/benchmark-b2-owner-diagnostic-publish.yml"
   pull_request:
     branches:
       - main
@@ -22,6 +23,7 @@ on:
       - ".github/workflows/benchmark-b2-acceptance-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance.yml"
       - ".github/workflows/benchmark-b2-owner-diagnostic.yml"
+      - ".github/workflows/benchmark-b2-owner-diagnostic-publish.yml"
 
 permissions:
   contents: read
