@@ -5,7 +5,7 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
@@ -20,17 +20,21 @@ jobs:
       github.run_attempt == 1 &&
       github.event.issue.number == 104 &&
       github.ref == 'refs/heads/main' &&
-      github.event.comment.body == '/b2 accept-diagnostic'
+      (
+        github.event.comment.body == '/b2 accept-diagnostic' ||
+        github.event.comment.body == '/b2 accept-diagnostic-publish'
+      )
     runs-on: [self-hosted, windows, x64, trace2d-gpu]
     timeout-minutes: 10
 
     steps:
-      - name: Emit existing failed-candidate captures read-only
+      - name: Emit existing failed-candidate captures diagnostically
         shell: pwsh
         env:
           TRACE2D_DIAGNOSTIC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRACE2D_DIAGNOSTIC_REPOSITORY: ${{ github.repository }}
           TRACE2D_DIAGNOSTIC_ISSUE: ${{ github.event.issue.number }}
+          TRACE2D_DIAGNOSTIC_COMMENT: ${{ github.event.comment.body }}
         run: |
           $ErrorActionPreference = 'Stop'
           Set-StrictMode -Version Latest
@@ -55,9 +59,14 @@ jobs:
             'X-GitHub-Api-Version' = '2022-11-28'
             'User-Agent' = 'Trace2D-B2-Diagnostic'
           }
-          $commentsUri = "https://api.github.com/repos/$env:TRACE2D_DIAGNOSTIC_REPOSITORY/issues/$env:TRACE2D_DIAGNOSTIC_ISSUE/comments"
-
+          $apiRoot = "https://api.github.com/repos/$env:TRACE2D_DIAGNOSTIC_REPOSITORY"
+          $commentsUri = "$apiRoot/issues/$env:TRACE2D_DIAGNOSTIC_ISSUE/comments"
+          $publishImages = $env:TRACE2D_DIAGNOSTIC_COMMENT -eq '/b2 accept-diagnostic-publish'
+          $evidenceBranch = 'b2-diagnostic-captures'
+          $treeItems = @()
+          $imageRows = @()
           $emitted = 0
+
           foreach ($recordFile in $records) {
             $record = Get-Content -Raw -Encoding utf8 -LiteralPath $recordFile.FullName | ConvertFrom-Json
             if ($record.scored -ne $false) {
@@ -74,7 +83,9 @@ jobs:
             }
 
             $captures = @($record.presentation.captures)
+            $captureIndex = 0
             foreach ($capture in $captures) {
+              $captureIndex += 1
               $relative = [string]$capture.path
               if ([string]::IsNullOrWhiteSpace($relative)) {
                 throw "Capture path missing for trial $($record.trial_id)"
@@ -120,16 +131,38 @@ jobs:
               Write-Host 'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
               Write-Host 'TRACE2D_B2_DIAGNOSTIC_CAPTURE_END'
 
-              $commentBody = @(
-                '<!-- TRACE2D_B2_DIAGNOSTIC_CAPTURE -->',
-                'Diagnostic-only retained B2 acceptance capture. This is not scoring or acceptance authority.',
-                "TRACE2D_B2_DIAGNOSTIC_METADATA=$metadataJson",
-                'TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN',
-                $base64,
-                'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
-              ) -join "`n"
-              $payload = @{ body = $commentBody } | ConvertTo-Json -Compress
-              Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+              if ($publishImages) {
+                $blobPayload = @{ content = $base64; encoding = 'base64' } | ConvertTo-Json -Compress
+                $blob = Invoke-RestMethod -Uri "$apiRoot/git/blobs" -Method Post -Headers $headers -ContentType 'application/json' -Body $blobPayload
+                $runLabel = '{0:D2}' -f [int]$record.run_index
+                $captureLabel = '{0:D2}' -f $captureIndex
+                $repoPath = "diagnostics/b2/acceptance-v1/ember-hall-initial-$runLabel-capture-$captureLabel.png"
+                $treeItems += @{
+                  path = $repoPath
+                  mode = '100644'
+                  type = 'blob'
+                  sha = [string]$blob.sha
+                }
+                $rawUrl = "https://raw.githubusercontent.com/$env:TRACE2D_DIAGNOSTIC_REPOSITORY/$evidenceBranch/$repoPath"
+                $imageRows += [ordered]@{
+                  trial_id = [string]$record.trial_id
+                  run_index = [int]$record.run_index
+                  status = [string]$record.status
+                  capture_sha256 = $sha
+                  raw_url = $rawUrl
+                }
+              } else {
+                $commentBody = @(
+                  '<!-- TRACE2D_B2_DIAGNOSTIC_CAPTURE -->',
+                  'Diagnostic-only retained B2 acceptance capture. This is not scoring or acceptance authority.',
+                  "TRACE2D_B2_DIAGNOSTIC_METADATA=$metadataJson",
+                  'TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN',
+                  $base64,
+                  'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
+                ) -join "`n"
+                $payload = @{ body = $commentBody } | ConvertTo-Json -Compress
+                Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+              }
               $emitted += 1
             }
           }
@@ -137,4 +170,50 @@ jobs:
           if ($emitted -eq 0) {
             throw 'Retained records exist but contain no presentation captures.'
           }
+
+          if ($publishImages) {
+            if ($treeItems.Count -eq 0) { throw 'No SHA-verified diagnostic captures were staged for publication.' }
+            $mainCommit = Invoke-RestMethod -Uri "$apiRoot/git/commits/$env:GITHUB_SHA" -Method Get -Headers $headers
+            $treePayload = @{
+              base_tree = [string]$mainCommit.tree.sha
+              tree = @($treeItems)
+            } | ConvertTo-Json -Depth 8 -Compress
+            $newTree = Invoke-RestMethod -Uri "$apiRoot/git/trees" -Method Post -Headers $headers -ContentType 'application/json' -Body $treePayload
+            $commitPayload = @{
+              message = 'chore(b2): publish non-scored diagnostic captures'
+              tree = [string]$newTree.sha
+              parents = @($env:GITHUB_SHA)
+            } | ConvertTo-Json -Depth 5 -Compress
+            $newCommit = Invoke-RestMethod -Uri "$apiRoot/git/commits" -Method Post -Headers $headers -ContentType 'application/json' -Body $commitPayload
+
+            $refUri = "$apiRoot/git/ref/heads/$evidenceBranch"
+            $refsUri = "$apiRoot/git/refs/heads/$evidenceBranch"
+            try {
+              Invoke-RestMethod -Uri $refUri -Method Get -Headers $headers | Out-Null
+              $updateRefPayload = @{ sha = [string]$newCommit.sha; force = $true } | ConvertTo-Json -Compress
+              Invoke-RestMethod -Uri $refsUri -Method Patch -Headers $headers -ContentType 'application/json' -Body $updateRefPayload | Out-Null
+            } catch {
+              if ($_.Exception.Response.StatusCode.value__ -ne 404) { throw }
+              $createRefPayload = @{ ref = "refs/heads/$evidenceBranch"; sha = [string]$newCommit.sha } | ConvertTo-Json -Compress
+              Invoke-RestMethod -Uri "$apiRoot/git/refs" -Method Post -Headers $headers -ContentType 'application/json' -Body $createRefPayload | Out-Null
+            }
+
+            $lines = @(
+              '<!-- TRACE2D_B2_DIAGNOSTIC_IMAGES -->',
+              '## B2 non-scored diagnostic captures',
+              '',
+              '> Diagnostic only. These images are **not** scoring or acceptance authority and do not change the frozen B2 cohort or acceptance result.',
+              ''
+            )
+            foreach ($row in $imageRows) {
+              $lines += "### $($row.trial_id) — $($row.status)"
+              $lines += "SHA-256: `$($row.capture_sha256)`"
+              $lines += "![Diagnostic capture $($row.run_index)]($($row.raw_url))"
+              $lines += ''
+            }
+            $lines += "Evidence branch: `$evidenceBranch` @ `$([string]$newCommit.sha)`"
+            $publishComment = @{ body = ($lines -join "`n") } | ConvertTo-Json -Compress
+            Invoke-RestMethod -Uri $commentsUri -Method Post -Headers $headers -ContentType 'application/json' -Body $publishComment | Out-Null
+          }
+
           Write-Host "TRACE2D_B2_DIAGNOSTIC_CAPTURE_COUNT=$emitted"
