@@ -98,6 +98,28 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertNotIn("Set-Content", workflow)
         self.assertNotIn("Out-File", workflow)
 
+    def test_independent_hosted_publisher_cannot_queue_behind_self_hosted_capture(self) -> None:
+        workflow = (
+            acceptance.REPO_ROOT
+            / ".github/workflows/benchmark-b2-owner-diagnostic-publish.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/b2 accept-diagnostic-publish-hosted", workflow)
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertIn("trace2d-owner-b2-nonscored-diagnostic-hosted-publish", workflow)
+        self.assertNotIn("self-hosted", workflow)
+        self.assertNotIn("benchmark-b2-acceptance-v1", workflow)
+        self.assertNotIn("benchmark-b2-scored-v1", workflow)
+        self.assertIn("TRACE2D_B2_DIAGNOSTIC_METADATA=", workflow)
+        self.assertIn("base64.b64decode", workflow)
+        self.assertIn("hashlib.sha256", workflow)
+        self.assertIn("diagnostic_only", workflow)
+        self.assertIn("acceptance_authority", workflow)
+        self.assertIn("scored", workflow)
+        self.assertIn("b2-diagnostic-captures", workflow)
+        self.assertIn("raw.githubusercontent.com", workflow)
+        self.assertIn("TRACE2D_B2_DIAGNOSTIC_IMAGES", workflow)
+        self.assertNotIn("uses:", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
