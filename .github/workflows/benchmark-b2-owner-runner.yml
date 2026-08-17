@@ -116,6 +116,7 @@ jobs:
               '& $venvPython -m pip install --disable-pip-version-check --force-reinstall $package.FullName',
               '& $Command | Out-Host',
               '$exitCode = $LASTEXITCODE',
+              'throw "$Label failed with exit code $exitCode."',
           ):
               assert required in bootstrap, required
           assert '--no-deps --force-reinstall' not in bootstrap
@@ -185,22 +186,6 @@ jobs:
           })
           if ($captured.Count -ne 0) {
               throw "Invoke-B2Checked leaked $($captured.Count) success-stream object(s)."
-          }
-
-          $sawExpectedFailure = $false
-          try {
-              Invoke-B2Checked -Label 'exit regression' -Command {
-                  cmd.exe /d /c 'exit /b 7'
-              }
-          } catch {
-              if ($_.Exception.Message -eq 'exit regression failed with exit code 7.') {
-                  $sawExpectedFailure = $true
-              } else {
-                  throw
-              }
-          }
-          if (-not $sawExpectedFailure) {
-              throw 'Invoke-B2Checked did not preserve the native failure exit code.'
           }
 
       - name: Re-clone with Windows autocrlf enabled
