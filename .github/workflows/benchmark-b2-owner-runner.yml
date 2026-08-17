@@ -8,7 +8,10 @@ on:
     paths:
       - ".gitattributes"
       - "benchmarks/b2/OWNER_RUNNER.md"
+      - "scripts/benchmark_b0_stable_harness.py"
+      - "scripts/test_benchmark_b0_stable_harness.py"
       - "scripts/benchmark_b2_scored_harness.py"
+      - "scripts/test_benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/prepare_benchmark_b2_owner_windows.ps1"
       - "scripts/verify_benchmark_b2_candidate.py"
@@ -21,7 +24,10 @@ on:
     paths:
       - ".gitattributes"
       - "benchmarks/b2/OWNER_RUNNER.md"
+      - "scripts/benchmark_b0_stable_harness.py"
+      - "scripts/test_benchmark_b0_stable_harness.py"
       - "scripts/benchmark_b2_scored_harness.py"
+      - "scripts/test_benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/prepare_benchmark_b2_owner_windows.ps1"
       - "scripts/verify_benchmark_b2_candidate.py"
@@ -42,10 +48,18 @@ jobs:
       - name: Compile owner-runner Python
         run: |
           python -m py_compile \
+            scripts/benchmark_b0_stable_harness.py \
+            scripts/test_benchmark_b0_stable_harness.py \
             scripts/benchmark_b2_scored_harness.py \
+            scripts/test_benchmark_b2_scored_harness.py \
             scripts/benchmark_b2_codex_windows_acl_wrapper.py \
             scripts/verify_benchmark_b2_candidate.py
           python scripts/verify_benchmark_b2_candidate.py --help >/dev/null
+
+      - name: Run owner-runner recovery regression tests
+        run: |
+          python scripts/test_benchmark_b0_stable_harness.py
+          python scripts/test_benchmark_b2_scored_harness.py
 
       - name: Validate frozen B2 execution contract
         run: python scripts/benchmark_b2_scored_harness.py validate
@@ -154,3 +168,5 @@ jobs:
           git -c core.autocrlf=true clone . $clone
           Set-Location $clone
           python scripts/benchmark_b2_scored_harness.py validate
+          python scripts/test_benchmark_b0_stable_harness.py
+          python scripts/test_benchmark_b2_scored_harness.py
