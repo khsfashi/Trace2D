@@ -1,0 +1,44 @@
+name: Benchmark B2 Non-Scored Acceptance Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/**"
+      - "scripts/benchmark_b2_acceptance.py"
+      - "scripts/test_benchmark_b2_acceptance.py"
+      - ".github/workflows/benchmark-b2-acceptance-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/**"
+      - "scripts/benchmark_b2_acceptance.py"
+      - "scripts/test_benchmark_b2_acceptance.py"
+      - ".github/workflows/benchmark-b2-acceptance-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate frozen non-scored acceptance contract
+        run: python3 scripts/benchmark_b2_acceptance.py validate-contract
+
+      - name: Run acceptance isolation regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_acceptance
+
+      - name: Syntax-check acceptance tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance.py \
+            scripts/test_benchmark_b2_acceptance.py

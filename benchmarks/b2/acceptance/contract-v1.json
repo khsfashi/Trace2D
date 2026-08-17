@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_b2_nonscored_acceptance_contract",
+  "benchmark_id": "trace2d-b2",
+  "issue": 104,
+  "state": "frozen_pre_acceptance",
+  "scored": false,
+  "task_id": "b2-acceptance-ember-hall-v1",
+  "task_prompt": "benchmarks/b2/acceptance/tasks/ember-hall-v1/PROMPT.md",
+  "task_prompt_sha256": "5dfe07520dd17726b779f5054200122073aa7e9dcf0f7ea6135276fe6e272df7",
+  "held_out_policy": {
+    "frozen_before_first_execution": true,
+    "post_score_validation_only": true,
+    "derived_from_scored_candidate_output": false,
+    "presentation_variant_not_observed_in_scored_cohort": true
+  },
+  "lane": "trace2d.agent",
+  "initial_runs": 2,
+  "deterministic_contract_task_id": "b2-topdown-combat-v1",
+  "deterministic_verifier": "scripts/verify_benchmark_b2_candidate.py",
+  "selection_policy": {
+    "review_target": "lowest run_index with deterministic pass, valid agent identity, and retained presentation capture",
+    "best_of_n_scoring": false,
+    "automatic_retries": 0,
+    "replacement_trials": 0
+  },
+  "feedback_policy": {
+    "perceptual_review_required_before_human_feedback": true,
+    "perceptual_review_advisory_only": true,
+    "human_feedback_events": 1,
+    "feedback_revision_cycles": 1,
+    "deterministic_reverification_required": true,
+    "human_feedback_must_be_real_owner_feedback": true
+  },
+  "budget": {
+    "wall_seconds": 900,
+    "max_tool_calls": 120,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "budget_is_recorded_not_deterministic_gameplay_authority": true
+  },
+  "isolation": {
+    "durable_root_name": "benchmark-b2-acceptance-v1",
+    "scored_durable_root_name": "benchmark-b2-scored-v1",
+    "scored_record_write_forbidden": true,
+    "scored_raw_jsonl_forbidden": true,
+    "repository_worktree_durable_state_forbidden": true
+  },
+  "acceptance": {
+    "matched_multi_run_initial_evidence_required": true,
+    "at_least_one_deterministic_initial_acceptance_required": true,
+    "presentation_capture_required": true,
+    "perceptual_review_required": true,
+    "human_feedback_required": true,
+    "agent_revision_required": true,
+    "workspace_change_required": true,
+    "deterministic_reverification_pass_required": true,
+    "scored_cohort_must_remain_immutable": true
+  }
+}
