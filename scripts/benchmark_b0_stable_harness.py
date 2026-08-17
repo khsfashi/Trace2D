@@ -6,6 +6,8 @@ pre-eligibility corrections discovered by the real unscored Windows run:
 
 - project-generated Godot ``.godot`` cache content is not part of the authored
   candidate artifact hash and may disappear asynchronously after Godot exits;
+  B2's harness-owned top-level ``.godot-user`` redirect is the same class of
+  engine-generated state and is excluded for the same reason;
 - a provider turn that completes but exceeds the frozen task budget is a
   ``budget_exceeded`` implementation outcome, not a transport failure.
 
@@ -23,6 +25,7 @@ import benchmark_b0 as core
 
 WORKSPACE_HASH_POLICY = "authored_files_excluding_godot_cache_v1"
 _VOLATILE_DIRECTORY_NAMES = {".godot"}
+_ROOT_VOLATILE_DIRECTORY_NAMES = {".godot-user"}
 _ORIGINAL_CLASSIFY_AGENT_RESULT = core.classify_agent_result
 
 
@@ -40,12 +43,15 @@ def stable_tree_hash(root: Path) -> str:
         followlinks=False,
         onerror=_walk_error,
     ):
+        current_path = Path(current)
+        volatile_names = _VOLATILE_DIRECTORY_NAMES
+        if current_path == root:
+            volatile_names = volatile_names | _ROOT_VOLATILE_DIRECTORY_NAMES
         directories[:] = sorted(
             name
             for name in directories
-            if name.casefold() not in _VOLATILE_DIRECTORY_NAMES
+            if name.casefold() not in volatile_names
         )
-        current_path = Path(current)
         for name in sorted(files):
             path = current_path / name
             if path.is_symlink():

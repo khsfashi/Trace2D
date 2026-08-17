@@ -42,6 +42,8 @@ PROMPT_PATH = Path("benchmarks/b2/tasks/b2-topdown-combat-v1/PROMPT.md")
 PROFILE_PATH = Path("benchmarks/b0/agent-profile.codex-0.144.6.json")
 PRESENTATION_ROOT = Path(".trace2d-b2-evidence/presentation")
 PRESENTATION_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+ATTEMPT_START_CHECKPOINT = "attempt-start.json"
+AGENT_PROCESS_CHECKPOINT = "agent-process.json"
 GODOT_ENGINE_ID = "4.7.1.stable.official.a13da4feb"
 GODOT_AI_VERSION = "3.1.5"
 GODOT_AI_COMMIT = "09a1e3311015153d967710fbe6502ac519585a9b"
@@ -76,6 +78,17 @@ def load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise B2HarnessError(f"expected JSON object: {path}")
     return value
+
+
+def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    encoded = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
+    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(encoded)
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
 
 
 def sha256_file(path: Path) -> str:
@@ -339,6 +352,195 @@ def classify(
     return status, FAILURE_DOMAINS[status]
 
 
+def _valid_checkpoint(
+    path: Path, *, kind: str, trial_id: str, slot: int, lane: str
+) -> dict[str, Any] | None:
+    if not path.is_file() or path.is_symlink():
+        return None
+    try:
+        data = load_json(path)
+    except B2HarnessError:
+        return None
+    if (
+        data.get("kind") != kind
+        or data.get("trial_id") != trial_id
+        or data.get("slot") != slot
+        or data.get("lane_id") != lane
+    ):
+        return None
+    return data
+
+
+def _retained_artifact_fingerprints(trial_root: Path) -> list[dict[str, Any]]:
+    names = (
+        ATTEMPT_START_CHECKPOINT,
+        AGENT_PROCESS_CHECKPOINT,
+        "agent-result.json",
+        "verifier-result.json",
+        "adapter.stdout.txt",
+        "adapter.stderr.txt",
+        "verifier.stdout.txt",
+        "verifier.stderr.txt",
+        "codex-events.jsonl",
+        "codex.stderr.txt",
+        "effective-agent-prompt.md",
+        "godot-ai-server.log",
+        "godot-editor.log",
+    )
+    result: list[dict[str, Any]] = []
+    for name in names:
+        path = trial_root / name
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            result.append({"path": name, "sha256": sha256_file(path), "bytes": path.stat().st_size})
+        except OSError as exc:
+            result.append({"path": name, "error": f"{type(exc).__name__}: {exc}"})
+    return result
+
+
+def _safe_workspace_hash(workspace: Path) -> tuple[str | None, str | None]:
+    if not workspace.is_dir():
+        return None, "workspace directory missing"
+    try:
+        return benchmark_b0_stable_harness.stable_tree_hash(workspace), None
+    except (OSError, RuntimeError) as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def seal_interrupted_trial(
+    *,
+    runs_root: Path,
+    records: list[dict[str, Any]],
+    expected: dict[str, Any],
+    profile: dict[str, Any],
+    trial_root: Path,
+) -> dict[str, Any]:
+    slot = int(expected["slot"])
+    lane = str(expected["lane"])
+    trial_id = f"slot-{slot:02d}-{lane.replace('.', '-')}-r{expected['repetition']}"
+    start_checkpoint = _valid_checkpoint(
+        trial_root / ATTEMPT_START_CHECKPOINT,
+        kind="trace2d_b2_attempt_start",
+        trial_id=trial_id,
+        slot=slot,
+        lane=lane,
+    )
+    process_checkpoint = _valid_checkpoint(
+        trial_root / AGENT_PROCESS_CHECKPOINT,
+        kind="trace2d_b2_agent_process",
+        trial_id=trial_id,
+        slot=slot,
+        lane=lane,
+    )
+    legacy_process_evidence = all(
+        (trial_root / name).is_file() for name in ("adapter.stdout.txt", "adapter.stderr.txt")
+    )
+    if start_checkpoint is None and not legacy_process_evidence:
+        raise B2HarnessError(
+            "slot trial directory exists without proof that the Agent attempt started; "
+            f"refusing both rerun and automatic recovery: {trial_root}"
+        )
+
+    workspace = trial_root / "workspace"
+    workspace_hash, workspace_hash_error = _safe_workspace_hash(workspace)
+    wall_ms: float | None = None
+    if process_checkpoint is not None and isinstance(process_checkpoint.get("duration_ms"), (int, float)):
+        wall_ms = float(process_checkpoint["duration_ms"])
+    started_at = start_checkpoint.get("started_at") if start_checkpoint is not None else None
+    agent_finished_at = process_checkpoint.get("finished_at") if process_checkpoint is not None else None
+    recovered_at = utc_now()
+    retained = _retained_artifact_fingerprints(trial_root)
+
+    record = {
+        "schema_version": 1,
+        "kind": "trace2d_b2_scored_attempt",
+        "benchmark_id": BENCHMARK_ID,
+        "phase": "initial",
+        "scored": True,
+        "slot": slot,
+        "repetition": int(expected["repetition"]),
+        "task_id": TASK_ID,
+        "lane_id": lane,
+        "trial_id": trial_id,
+        "started_at": started_at,
+        "finished_at": recovered_at,
+        "execution_contract_sha256": sha256_file(REPO_ROOT / EXECUTION_PATH),
+        "preregistration_sha256": sha256_file(REPO_ROOT / PREREG_PATH),
+        "task_prompt_sha256": sha256_file(REPO_ROOT / PROMPT_PATH),
+        "agent_profile_sha256": benchmark_b0.sha256_json(profile),
+        "status": "benchmark_integrity_failure",
+        "failure_domain": FAILURE_DOMAINS["benchmark_integrity_failure"],
+        "agent_identity_ok": None,
+        "agent_result": None,
+        "metrics": {
+            "available": False,
+            "revisions": None,
+            "tool_calls": None,
+            "input_tokens": None,
+            "output_tokens": None,
+            "visual_feedback_calls": None,
+            "human_interventions": None,
+            "wall_ms": wall_ms,
+            "verifier_ms": None,
+            "normalized_operations": None,
+            "engine_native_operations": None,
+        },
+        "deterministic_verifier": None,
+        "presentation": {
+            "required": True,
+            "authoritative_for_gameplay": False,
+            "capture_root": PRESENTATION_ROOT.as_posix(),
+            "captures": [],
+            "retained_candidate_outputs_not_reinterpreted": True,
+        },
+        "workspace_sha256": workspace_hash,
+        "workspace_hash_policy": benchmark_b0_stable_harness.WORKSPACE_HASH_POLICY,
+        "environment": {
+            "os": platform.system(),
+            "os_release": platform.release(),
+            "machine": platform.machine(),
+            "python": platform.python_version(),
+            "recovery_only": True,
+        },
+        "integrity": {
+            "schedule_prefix_length_before": len(records),
+            "schedule_prefix_valid": True,
+            "repo_freeze_unchanged_after_agent": None,
+            "automatic_retries": 0,
+            "replacement_trials": 0,
+            "interrupted_attempt_recovered": True,
+            "agent_reexecuted": False,
+            "verifier_reexecuted": False,
+        },
+        "recovery": {
+            "reason": "existing_consumed_trial_missing_raw_record",
+            "recovered_at": recovered_at,
+            "agent_finished_at": agent_finished_at,
+            "start_checkpoint_valid": start_checkpoint is not None,
+            "process_checkpoint_valid": process_checkpoint is not None,
+            "legacy_process_evidence": legacy_process_evidence,
+            "workspace_hash_error": workspace_hash_error,
+            "retained_artifacts": retained,
+            "candidate_result_reused": False,
+            "candidate_verdict_reused": False,
+        },
+        "artifacts": {
+            "trial_root": str(trial_root),
+            "workspace": str(workspace),
+            "attempt_start": str(trial_root / ATTEMPT_START_CHECKPOINT),
+            "agent_process": str(trial_root / AGENT_PROCESS_CHECKPOINT),
+            "agent_result": str(trial_root / "agent-result.json"),
+            "verifier_result": str(trial_root / "verifier-result.json"),
+            "adapter_stdout": str(trial_root / "adapter.stdout.txt"),
+            "adapter_stderr": str(trial_root / "adapter.stderr.txt"),
+            "verifier_stdout": str(trial_root / "verifier.stdout.txt"),
+            "verifier_stderr": str(trial_root / "verifier.stderr.txt"),
+        },
+    }
+    return benchmark_b0.append_hash_chained_jsonl(runs_root / "raw.jsonl", record)
+
+
 def run_slot(args: argparse.Namespace) -> dict[str, Any]:
     execution, prereg, profile = load_contract()
     runs_root = Path(args.runs_root).expanduser().resolve()
@@ -353,11 +555,18 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
 
     slot = int(expected["slot"])
     lane = str(expected["lane"])
-    environment_preflight = preflight_environment(lane)
     trial_id = f"slot-{slot:02d}-{lane.replace('.', '-')}-r{expected['repetition']}"
     trial_root = runs_root / "trials" / trial_id
     if trial_root.exists():
-        raise B2HarnessError(f"slot trial directory already exists; rerun forbidden: {trial_root}")
+        return seal_interrupted_trial(
+            runs_root=runs_root,
+            records=records,
+            expected=expected,
+            profile=profile,
+            trial_root=trial_root,
+        )
+
+    environment_preflight = preflight_environment(lane)
     trial_root.mkdir(parents=True)
 
     workspace = trial_root / "workspace"
@@ -373,6 +582,24 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
     verifier_result_path = trial_root / "verifier-result.json"
     budget = prereg["budget"]
     started_at = utc_now()
+    write_json_atomic(
+        trial_root / ATTEMPT_START_CHECKPOINT,
+        {
+            "schema_version": 1,
+            "kind": "trace2d_b2_attempt_start",
+            "benchmark_id": BENCHMARK_ID,
+            "trial_id": trial_id,
+            "slot": slot,
+            "repetition": int(expected["repetition"]),
+            "task_id": TASK_ID,
+            "lane_id": lane,
+            "started_at": started_at,
+            "execution_contract_sha256": sha256_file(REPO_ROOT / EXECUTION_PATH),
+            "preregistration_sha256": sha256_file(REPO_ROOT / PREREG_PATH),
+            "task_prompt_sha256": sha256_file(REPO_ROOT / PROMPT_PATH),
+            "agent_profile_sha256": benchmark_b0.sha256_json(profile),
+        },
+    )
     process = run_process(
         agent_command(workspace, prompt, lane, agent_result_path),
         cwd=workspace,
@@ -389,6 +616,25 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
             "TRACE2D_BENCH_MAX_INPUT_TOKENS": str(budget["max_input_tokens"]),
             "TRACE2D_BENCH_MAX_OUTPUT_TOKENS": str(budget["max_output_tokens"]),
             "TRACE2D_BENCH_WRAPPER_TIMEOUT": str(max(1, int(budget["wall_seconds"]) - 15)),
+        },
+    )
+    agent_finished_at = utc_now()
+    write_json_atomic(
+        trial_root / AGENT_PROCESS_CHECKPOINT,
+        {
+            "schema_version": 1,
+            "kind": "trace2d_b2_agent_process",
+            "benchmark_id": BENCHMARK_ID,
+            "trial_id": trial_id,
+            "slot": slot,
+            "repetition": int(expected["repetition"]),
+            "task_id": TASK_ID,
+            "lane_id": lane,
+            "started_at": started_at,
+            "finished_at": agent_finished_at,
+            "return_code": process["return_code"],
+            "timed_out": process["timed_out"],
+            "duration_ms": float(process["duration_ms"]),
         },
     )
     (trial_root / "adapter.stdout.txt").write_text(process["stdout"], encoding="utf-8")
@@ -475,6 +721,7 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
             "captures": captures,
         },
         "workspace_sha256": benchmark_b0_stable_harness.stable_tree_hash(workspace),
+        "workspace_hash_policy": benchmark_b0_stable_harness.WORKSPACE_HASH_POLICY,
         "environment": {
             "preflight": environment_preflight,
             "os": platform.system(),
@@ -492,6 +739,8 @@ def run_slot(args: argparse.Namespace) -> dict[str, Any]:
         "artifacts": {
             "trial_root": str(trial_root),
             "workspace": str(workspace),
+            "attempt_start": str(trial_root / ATTEMPT_START_CHECKPOINT),
+            "agent_process": str(trial_root / AGENT_PROCESS_CHECKPOINT),
             "agent_result": str(agent_result_path),
             "verifier_result": str(verifier_result_path),
             "adapter_stdout": str(trial_root / "adapter.stdout.txt"),
