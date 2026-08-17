@@ -1,0 +1,114 @@
+name: Benchmark B2 Non-Scored Diagnostic Capture Export
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b2-nonscored-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  owner-windows-diagnostic:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 accept-diagnostic'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 10
+
+    steps:
+      - name: Emit existing failed-candidate captures read-only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $runsRoot = [System.IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v1'))
+          if ($runsRoot.ToLowerInvariant().Contains('benchmark-b2-scored-v1')) {
+            throw 'Diagnostic export must never read the scored durable root.'
+          }
+          $initialRoot = Join-Path $runsRoot 'initial'
+          if (-not (Test-Path -LiteralPath $initialRoot -PathType Container)) {
+            throw "Acceptance initial root is missing: $initialRoot"
+          }
+
+          $records = @(Get-ChildItem -LiteralPath $initialRoot -Filter 'record.json' -Recurse -File | Sort-Object FullName)
+          if ($records.Count -eq 0) {
+            throw 'No retained non-scored acceptance records were found.'
+          }
+
+          $emitted = 0
+          foreach ($recordFile in $records) {
+            $record = Get-Content -Raw -Encoding utf8 -LiteralPath $recordFile.FullName | ConvertFrom-Json
+            if ($record.scored -ne $false) {
+              throw "Refusing non-diagnostic record with scored != false: $($recordFile.FullName)"
+            }
+            if ([string]$record.kind -ne 'trace2d_b2_nonscored_acceptance_initial') {
+              throw "Unexpected acceptance record kind: $($record.kind)"
+            }
+
+            $workspace = [System.IO.Path]::GetFullPath([string]$record.artifacts.workspace)
+            $rootPrefix = $runsRoot.TrimEnd('\') + '\'
+            if (-not $workspace.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+              throw "Retained workspace escaped the non-scored durable root: $workspace"
+            }
+
+            $captures = @($record.presentation.captures)
+            foreach ($capture in $captures) {
+              $relative = [string]$capture.path
+              if ([string]::IsNullOrWhiteSpace($relative)) {
+                throw "Capture path missing for trial $($record.trial_id)"
+              }
+              $candidate = [System.IO.Path]::GetFullPath((Join-Path $workspace ($relative -replace '/', '\')))
+              $workspacePrefix = $workspace.TrimEnd('\') + '\'
+              if (-not $candidate.StartsWith($workspacePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Capture escaped retained workspace: $candidate"
+              }
+              if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
+                throw "Retained capture is missing: $candidate"
+              }
+
+              $sha = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash.ToLowerInvariant()
+              $expectedSha = ([string]$capture.sha256).ToLowerInvariant()
+              if ($sha -ne $expectedSha) {
+                throw "Retained capture SHA-256 mismatch for $($record.trial_id): expected $expectedSha, got $sha"
+              }
+
+              $bytes = [System.IO.File]::ReadAllBytes($candidate)
+              $metadata = [ordered]@{
+                schema_version = 1
+                kind = 'trace2d_b2_nonscored_diagnostic_capture'
+                diagnostic_only = $true
+                acceptance_authority = $false
+                scored = $false
+                trial_id = [string]$record.trial_id
+                run_index = [int]$record.run_index
+                status = [string]$record.status
+                deterministic_pass = ([string]$record.deterministic_verifier.verdict.status -eq 'pass')
+                agent_identity_ok = [bool]$record.agent_identity_ok
+                capture_path = $relative
+                capture_sha256 = $sha
+                byte_count = $bytes.Length
+              }
+
+              Write-Host 'TRACE2D_B2_DIAGNOSTIC_CAPTURE_BEGIN'
+              Write-Host ($metadata | ConvertTo-Json -Compress)
+              Write-Host 'TRACE2D_B2_DIAGNOSTIC_BASE64_BEGIN'
+              Write-Host ([Convert]::ToBase64String($bytes))
+              Write-Host 'TRACE2D_B2_DIAGNOSTIC_BASE64_END'
+              Write-Host 'TRACE2D_B2_DIAGNOSTIC_CAPTURE_END'
+              $emitted += 1
+            }
+          }
+
+          if ($emitted -eq 0) {
+            throw 'Retained records exist but contain no presentation captures.'
+          }
+          Write-Host "TRACE2D_B2_DIAGNOSTIC_CAPTURE_COUNT=$emitted"
