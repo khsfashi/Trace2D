@@ -1,0 +1,122 @@
+name: Benchmark B2 Owner Scored Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Prepare only, or execute exactly the next frozen B2 slot"
+        required: true
+        default: preflight
+        type: choice
+        options:
+          - preflight
+          - run-next
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b2-scored
+  cancel-in-progress: false
+
+jobs:
+  owner-windows:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 180
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact dispatched main head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          clean: true
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: x64
+
+      - name: Set up Node.js 24 for isolated Codex install
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Discover exact next frozen slot
+        id: next
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-scored-v1'
+          New-Item -ItemType Directory -Force -Path $runsRoot | Out-Null
+
+          $json = (& python scripts/benchmark_b2_scored_harness.py next-slot --runs-root $runsRoot | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "B2 next-slot failed with exit code $LASTEXITCODE." }
+          $data = $json | ConvertFrom-Json
+          if ($null -eq $data.next_slot) {
+            throw 'All nine frozen B2 initial slots are already recorded.'
+          }
+
+          $slot = [int]$data.next_slot.slot
+          $lane = [string]$data.next_slot.lane
+          if ($slot -lt 1 -or $slot -gt 9) { throw "Invalid frozen B2 slot: $slot" }
+          if ($lane -notin @('godot.generic', 'godot.agent', 'trace2d.agent')) { throw "Invalid frozen B2 lane: $lane" }
+
+          "TRACE2D_B2_RUNS_ROOT=$runsRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TRACE2D_B2_SLOT=$slot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TRACE2D_B2_LANE=$lane" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "slot=$slot" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "lane=$lane" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          "## B2 next frozen slot" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "- slot: ``$slot``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "- lane: ``$lane``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "- mode: ``${{ inputs.mode }}``" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Prepare exact lane toolchain without touching global Codex
+        shell: pwsh
+        run: |
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane $env:TRACE2D_B2_LANE -PersistForActions
+
+      - name: Run zero-score environment preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane $env:TRACE2D_B2_LANE
+          & python scripts/benchmark_b2_scored_harness.py preflight-slot --runs-root $env:TRACE2D_B2_RUNS_ROOT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Execute exactly the next frozen scored slot
+        if: inputs.mode == 'run-next'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Reapply in this exact process so Codex inherits the sandbox-safe shell PATH.
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane $env:TRACE2D_B2_LANE
+          $slot = [int]$env:TRACE2D_B2_SLOT
+          & python scripts/benchmark_b2_scored_harness.py run-slot --runs-root $env:TRACE2D_B2_RUNS_ROOT --slot $slot
+          exit $LASTEXITCODE
+
+      - name: Report retained schedule state
+        if: always()
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TRACE2D_B2_RUNS_ROOT)) { exit 0 }
+          "## Retained B2 schedule state" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          & python scripts/benchmark_b2_scored_harness.py next-slot --runs-root $env:TRACE2D_B2_RUNS_ROOT |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

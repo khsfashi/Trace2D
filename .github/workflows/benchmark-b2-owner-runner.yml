@@ -10,9 +10,11 @@ on:
       - "benchmarks/b2/OWNER_RUNNER.md"
       - "scripts/benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/prepare_benchmark_b2_owner_windows.ps1"
       - "scripts/verify_benchmark_b2_candidate.py"
       - "tests/benchmark/CMakeLists.txt"
       - ".github/workflows/benchmark-b2-owner-runner.yml"
+      - ".github/workflows/benchmark-b2-owner-scored.yml"
   pull_request:
     branches:
       - main
@@ -21,9 +23,11 @@ on:
       - "benchmarks/b2/OWNER_RUNNER.md"
       - "scripts/benchmark_b2_scored_harness.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/prepare_benchmark_b2_owner_windows.ps1"
       - "scripts/verify_benchmark_b2_candidate.py"
       - "tests/benchmark/CMakeLists.txt"
       - ".github/workflows/benchmark-b2-owner-runner.yml"
+      - ".github/workflows/benchmark-b2-owner-scored.yml"
 
 permissions:
   contents: read
@@ -45,6 +49,49 @@ jobs:
 
       - name: Validate frozen B2 execution contract
         run: python scripts/benchmark_b2_scored_harness.py validate
+
+      - name: Confirm self-hosted workflow safety and frozen tool pins
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/benchmark-b2-owner-scored.yml').read_text(encoding='utf-8')
+          bootstrap = Path('scripts/prepare_benchmark_b2_owner_windows.ps1').read_text(encoding='utf-8')
+
+          for required in (
+              'workflow_dispatch:',
+              "github.repository == 'khsfashi/Trace2D'",
+              "github.actor == 'khsfashi'",
+              "github.ref == 'refs/heads/main'",
+              'github.run_attempt == 1',
+              'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
+              'cancel-in-progress: false',
+              'run-next',
+              'benchmark_b2_scored_harness.py run-slot',
+              '$slot = [int]$env:TRACE2D_B2_SLOT',
+              '--slot $slot',
+          ):
+              assert required in workflow, required
+          assert '--slot ([int]$env:TRACE2D_B2_SLOT)' not in workflow
+
+          for required in (
+              "$codexVersion = '0.144.6'",
+              "$godotRelease = '4.7.1-stable'",
+              "$godotIdentity = '4.7.1.stable.official.a13da4feb'",
+              "$godotAiVersion = '3.1.5'",
+              "$godotAiCommit = '09a1e3311015153d967710fbe6502ac519585a9b'",
+              "$godotAiPackageSha256 = '51863ba177c66299808aa19ef6cd9069768915b2434d7787b9300e40c3620b04'",
+              'SHA512-SUMS.txt',
+              'TRACE2D_BENCH_CODEX_BIN',
+              'TRACE2D_B2_GODOT_BIN',
+              'TRACE2D_B2_GODOT_AI_PYTHON',
+              'TRACE2D_BENCH_TRACE2D_BIN',
+              '& $venvPython -m pip install --disable-pip-version-check --force-reinstall $package.FullName',
+          ):
+              assert required in bootstrap, required
+          assert '--no-deps --force-reinstall' not in bootstrap
+          PY
 
       - name: Confirm pristine next slot is slot 1
         shell: bash
@@ -80,6 +127,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Parse B2 owner bootstrap PowerShell
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $content = Get-Content -LiteralPath scripts\prepare_benchmark_b2_owner_windows.ps1 -Raw
+          [void][scriptblock]::Create($content)
 
       - name: Re-clone with Windows autocrlf enabled
         shell: pwsh
