@@ -65,6 +65,26 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertIn("git -c protocol.version=2 fetch", workflow)
         self.assertIn("Node.js 24", workflow)
 
+    def test_diagnostic_workflow_is_read_only_and_non_authoritative(self) -> None:
+        workflow = (
+            acceptance.REPO_ROOT
+            / ".github/workflows/benchmark-b2-owner-diagnostic.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("/b2 accept-diagnostic", workflow)
+        self.assertIn("benchmark-b2-acceptance-v1", workflow)
+        self.assertEqual(workflow.count("benchmark-b2-scored-v1"), 1)
+        self.assertIn("Contains('benchmark-b2-scored-v1')", workflow)
+        self.assertIn("Diagnostic export must never read the scored durable root.", workflow)
+        self.assertIn("diagnostic_only = $true", workflow)
+        self.assertIn("acceptance_authority = $false", workflow)
+        self.assertIn("scored = $false", workflow)
+        self.assertIn("Get-FileHash", workflow)
+        self.assertIn("ReadAllBytes", workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertNotIn("uses:", workflow)
+        self.assertNotIn("Set-Content", workflow)
+        self.assertNotIn("Out-File", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
