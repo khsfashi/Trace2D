@@ -9,8 +9,14 @@ on:
       - "benchmarks/b2/execution-v1.json"
       - "benchmarks/b2/EXECUTION.md"
       - "benchmarks/b2/starters/**"
+      - "docs/AGENT_PUBLIC_API.md"
+      - "docs/agent-public-api-v1.json"
       - "scripts/benchmark_b2_execution_freeze.py"
       - "scripts/test_benchmark_b2_execution_freeze.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b2_postscore_remediation.py"
+      - "scripts/benchmark_b2_postscore_report.py"
+      - "scripts/test_benchmark_b2_postscore_remediation.py"
       - ".github/workflows/benchmark-b2-execution-freeze.yml"
   pull_request:
     branches:
@@ -19,8 +25,14 @@ on:
       - "benchmarks/b2/execution-v1.json"
       - "benchmarks/b2/EXECUTION.md"
       - "benchmarks/b2/starters/**"
+      - "docs/AGENT_PUBLIC_API.md"
+      - "docs/agent-public-api-v1.json"
       - "scripts/benchmark_b2_execution_freeze.py"
       - "scripts/test_benchmark_b2_execution_freeze.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b2_postscore_remediation.py"
+      - "scripts/benchmark_b2_postscore_report.py"
+      - "scripts/test_benchmark_b2_postscore_remediation.py"
       - ".github/workflows/benchmark-b2-execution-freeze.yml"
 
 permissions:
@@ -49,8 +61,15 @@ jobs:
       - name: Run execution-freeze regression tests
         run: python3 -m unittest scripts.test_benchmark_b2_execution_freeze
 
-      - name: Syntax-check execution-freeze tooling
+      - name: Run post-score remediation regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
+
+      - name: Syntax-check B2 tooling
         run: |
           python3 -m py_compile \
             scripts/benchmark_b2_execution_freeze.py \
-            scripts/test_benchmark_b2_execution_freeze.py
+            scripts/test_benchmark_b2_execution_freeze.py \
+            scripts/benchmark_b2_codex_windows_acl_wrapper.py \
+            scripts/benchmark_b2_postscore_remediation.py \
+            scripts/benchmark_b2_postscore_report.py \
+            scripts/test_benchmark_b2_postscore_remediation.py

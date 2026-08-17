@@ -19,6 +19,7 @@ from pathlib import Path
 import benchmark_b1_codex_windows_acl_wrapper as base
 import benchmark_b0_codex_wrapper as core
 import benchmark_b0_codex_windows_acl_wrapper as windows
+import benchmark_b2_postscore_remediation as remediation
 
 GODOT_AI_ID = "hi-godot/godot-ai"
 GODOT_AI_VERSION = "3.1.5"
@@ -51,8 +52,11 @@ B2 owner-runner execution handoff (mechanics only; the frozen task above is unch
 """
     if lane.startswith("godot."):
         return shared + "- The qualified Godot verifier loads the playable entry scene from `res://main.tscn`.\n"
-    return shared + """- The qualified Trace2D verifier links `B2Candidate.cpp` from the workspace.
-  That source must expose the normal game through exactly:
+    game_header = remediation.public_api_include("trace2d::application::Game")
+    return shared + f"""- Resolve public Trace2D C++ symbols from the repository-owned Agent public API index and canonical external example rather than inferring per-type headers.
+  `trace2d::application::Game` is declared by `#include <{game_header}>`; there is no
+  `trace2d/application/Game.hpp` per-type header to infer.
+  The candidate source must expose the normal game through exactly:
   `std::unique_ptr<trace2d::application::Game>
   trace2d::benchmark::b2::CreateCandidate(trace2d::scene::ComponentRegistry&)`.
   This is only the verifier handoff boundary; gameplay must still use normal public engine paths.
@@ -70,6 +74,10 @@ def configure_b2() -> None:
     base.GODOT_AI_VERSION = GODOT_AI_VERSION
     base.GODOT_AI_COMMIT = GODOT_AI_COMMIT
     base.B1_PERMISSION_PROFILE = B2_PERMISSION_PROFILE
+    # Post-score repair: B2 Godot Agent can register a game_helper autoload while
+    # the injected addon is active. Remove every harness-owned addon reference
+    # before the independent verifier sees the retained candidate.
+    base.remove_injected_godot_ai_plugin = remediation.remove_injected_godot_ai_plugin
     base.configure()
 
 
@@ -151,6 +159,8 @@ def main() -> int:
         OSError,
         subprocess.SubprocessError,
         json.JSONDecodeError,
+        KeyError,
+        ValueError,
     ) as exc:
         print(f"B2 Codex wrapper error: {exc}", file=sys.stderr)
         return 2
