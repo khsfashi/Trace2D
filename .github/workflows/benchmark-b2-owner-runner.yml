@@ -69,8 +69,11 @@ jobs:
               'cancel-in-progress: false',
               'run-next',
               'benchmark_b2_scored_harness.py run-slot',
+              '$slot = [int]$env:TRACE2D_B2_SLOT',
+              '--slot $slot',
           ):
               assert required in workflow, required
+          assert '--slot ([int]$env:TRACE2D_B2_SLOT)' not in workflow
 
           for required in (
               "$codexVersion = '0.144.6'",
@@ -84,8 +87,10 @@ jobs:
               'TRACE2D_B2_GODOT_BIN',
               'TRACE2D_B2_GODOT_AI_PYTHON',
               'TRACE2D_BENCH_TRACE2D_BIN',
+              '& $venvPython -m pip install --disable-pip-version-check --force-reinstall $package.FullName',
           ):
               assert required in bootstrap, required
+          assert '--no-deps --force-reinstall' not in bootstrap
           PY
 
       - name: Confirm pristine next slot is slot 1
