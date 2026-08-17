@@ -61,18 +61,27 @@ jobs:
 
           for required in (
               'workflow_dispatch:',
+              'issue_comment:',
               "github.repository == 'khsfashi/Trace2D'",
               "github.actor == 'khsfashi'",
               "github.ref == 'refs/heads/main'",
               'github.run_attempt == 1',
+              'github.event.issue.number == 271',
+              "github.event.comment.body == '/b2 preflight'",
+              'github.event.issue.number == 272',
+              "github.event.comment.body == '/b2 run-next'",
               'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
               'cancel-in-progress: false',
+              'TRACE2D_B2_MODE',
+              'TRACE2D_B2_PYTHON',
+              '& py -3.13',
               'run-next',
               'benchmark_b2_scored_harness.py run-slot',
               '$slot = [int]$env:TRACE2D_B2_SLOT',
               '--slot $slot',
           ):
               assert required in workflow, required
+          assert 'actions/setup-python@' not in workflow
           assert '--slot ([int]$env:TRACE2D_B2_SLOT)' not in workflow
 
           for required in (
