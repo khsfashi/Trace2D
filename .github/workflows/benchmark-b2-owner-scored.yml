@@ -108,7 +108,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           # Reapply in this exact process so Codex inherits the sandbox-safe shell PATH.
           . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane $env:TRACE2D_B2_LANE
-          & python scripts/benchmark_b2_scored_harness.py run-slot --runs-root $env:TRACE2D_B2_RUNS_ROOT --slot ([int]$env:TRACE2D_B2_SLOT)
+          $slot = [int]$env:TRACE2D_B2_SLOT
+          & python scripts/benchmark_b2_scored_harness.py run-slot --runs-root $env:TRACE2D_B2_RUNS_ROOT --slot $slot
           exit $LASTEXITCODE
 
       - name: Report retained schedule state
