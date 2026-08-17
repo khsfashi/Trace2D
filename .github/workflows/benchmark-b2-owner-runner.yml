@@ -114,6 +114,9 @@ jobs:
               'TRACE2D_B2_GODOT_AI_PYTHON',
               'TRACE2D_BENCH_TRACE2D_BIN',
               '& $venvPython -m pip install --disable-pip-version-check --force-reinstall $package.FullName',
+              '& $Command | Out-Host',
+              '$exitCode = $LASTEXITCODE',
+              'throw "$Label failed with exit code $exitCode."',
           ):
               assert required in bootstrap, required
           assert '--no-deps --force-reinstall' not in bootstrap
@@ -160,6 +163,30 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $content = Get-Content -LiteralPath scripts\prepare_benchmark_b2_owner_windows.ps1 -Raw
           [void][scriptblock]::Create($content)
+
+      - name: Verify checked native output stays out of return streams
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $content = Get-Content -LiteralPath scripts\prepare_benchmark_b2_owner_windows.ps1 -Raw
+          $ast = [scriptblock]::Create($content).Ast
+          $function = $ast.Find({
+              param($node)
+              $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+                  $node.Name -eq 'Invoke-B2Checked'
+          }, $true)
+          if ($null -eq $function) {
+              throw 'Invoke-B2Checked function was not found.'
+          }
+          Invoke-Expression $function.Extent.Text
+
+          $captured = @(Invoke-B2Checked -Label 'stdout regression' -Command {
+              cmd.exe /d /c 'echo noisy-success-output'
+          })
+          if ($captured.Count -ne 0) {
+              throw "Invoke-B2Checked leaked $($captured.Count) success-stream object(s)."
+          }
 
       - name: Re-clone with Windows autocrlf enabled
         shell: pwsh

@@ -42,9 +42,10 @@ function Invoke-B2Checked {
         [Parameter(Mandatory = $true)][scriptblock]$Command
     )
 
-    & $Command
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Label failed with exit code $LASTEXITCODE."
+    & $Command | Out-Host
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        throw "$Label failed with exit code $exitCode."
     }
 }
 
