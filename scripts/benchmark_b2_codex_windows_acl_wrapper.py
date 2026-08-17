@@ -52,9 +52,9 @@ B2 owner-runner execution handoff (mechanics only; the frozen task above is unch
 """
     if lane.startswith("godot."):
         return shared + "- The qualified Godot verifier loads the playable entry scene from `res://main.tscn`.\n"
-    return shared + f"""- The qualified Trace2D verifier links `B2Candidate.cpp` from the workspace.
-  `trace2d::application::Game` is declared by the public header
-  `#include <{remediation.TRACE2D_GAME_PUBLIC_HEADER}>`; there is no
+    game_header = remediation.public_api_include("trace2d::application::Game")
+    return shared + f"""- Resolve public Trace2D C++ symbols from the repository-owned Agent public API index and canonical external example rather than inferring per-type headers.
+  `trace2d::application::Game` is declared by `#include <{game_header}>`; there is no
   `trace2d/application/Game.hpp` per-type header to infer.
   The candidate source must expose the normal game through exactly:
   `std::unique_ptr<trace2d::application::Game>
@@ -159,6 +159,8 @@ def main() -> int:
         OSError,
         subprocess.SubprocessError,
         json.JSONDecodeError,
+        KeyError,
+        ValueError,
     ) as exc:
         print(f"B2 Codex wrapper error: {exc}", file=sys.stderr)
         return 2

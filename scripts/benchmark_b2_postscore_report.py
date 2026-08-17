@@ -20,9 +20,13 @@ def build_report(raw_path: Path) -> dict[str, object]:
     records = benchmark_b0.verify_jsonl_chain(raw_path)
     attempts: list[dict[str, object]] = []
     counts: Counter[str] = Counter()
+    integrity_failures = 0
     for record in records:
         diagnostic = remediation.diagnostic_classification(record)
+        integrity = remediation.integrity_diagnostics(record)
         counts[str(diagnostic["diagnostic_status"])] += 1
+        if not integrity["valid"]:
+            integrity_failures += 1
         attempts.append(
             {
                 "slot": record.get("slot"),
@@ -30,7 +34,9 @@ def build_report(raw_path: Path) -> dict[str, object]:
                 "trial_id": record.get("trial_id"),
                 "record_sha256": record.get("record_sha256"),
                 "classification": diagnostic,
+                "terminal_evidence": remediation.terminal_evidence(record),
                 "budget": remediation.budget_diagnostics(record),
+                "integrity": integrity,
             }
         )
     return {
@@ -40,6 +46,7 @@ def build_report(raw_path: Path) -> dict[str, object]:
         "raw_records_mutated": False,
         "attempt_count": len(attempts),
         "diagnostic_status_counts": dict(sorted(counts.items())),
+        "integrity_failure_count": integrity_failures,
         "attempts": attempts,
     }
 

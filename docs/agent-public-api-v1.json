@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d_agent_public_api_index",
+  "purpose": "Machine-readable discovery of supported public C++ symbols, headers, and canonical external-consumer examples. Agents must not infer a per-type header from a C++ symbol name.",
+  "policy": {
+    "public_include_root": "engine",
+    "infer_per_type_headers": false,
+    "missing_symbol_means_supported": false,
+    "canonical_example_root": "examples/e0_external_game"
+  },
+  "symbols": [
+    {
+      "qualified_name": "trace2d::application::Game",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/ExampleGame.hpp",
+      "role": "User game lifecycle interface"
+    },
+    {
+      "qualified_name": "trace2d::application::GameContext",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/ExampleGame.cpp",
+      "role": "Public game-to-engine context"
+    },
+    {
+      "qualified_name": "trace2d::application::FixedUpdate",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/ExampleGame.cpp",
+      "role": "Fixed-step game update input"
+    },
+    {
+      "qualified_name": "trace2d::application::Application",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/HeadlessMain.cpp",
+      "role": "Application runtime root"
+    }
+  ]
+}
