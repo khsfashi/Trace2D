@@ -252,7 +252,7 @@ function Prepare-B2GodotAi {
     $installed = (& $venvPython -c 'import importlib.metadata as m; print(m.version("godot-ai"))' 2>$null | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or $installed -ne $godotAiVersion) {
         Invoke-B2Checked -Label 'godot-ai exact package install' -Command {
-            & $venvPython -m pip install --disable-pip-version-check --no-deps --force-reinstall $package.FullName
+            & $venvPython -m pip install --disable-pip-version-check --force-reinstall $package.FullName
         }
     }
     $installed = (& $venvPython -c 'import importlib.metadata as m; print(m.version("godot-ai"))' | Out-String).Trim()
