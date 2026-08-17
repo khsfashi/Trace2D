@@ -51,7 +51,7 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertIn(feedback, prompt)
         self.assertIn("Preserve every deterministic gameplay semantic", prompt)
 
-    def test_owner_workflow_is_acceptance_only(self) -> None:
+    def test_owner_workflow_is_acceptance_only_and_action_archive_free(self) -> None:
         workflow = (
             acceptance.REPO_ROOT
             / ".github/workflows/benchmark-b2-owner-acceptance.yml"
@@ -61,6 +61,9 @@ class B2AcceptanceContractTests(unittest.TestCase):
         self.assertIn("/b2 accept-start", workflow)
         self.assertIn("/b2 accept-review ", workflow)
         self.assertIn("/b2 accept-feedback ", workflow)
+        self.assertNotIn("uses:", workflow)
+        self.assertIn("git -c protocol.version=2 fetch", workflow)
+        self.assertIn("Node.js 24", workflow)
 
 
 if __name__ == "__main__":

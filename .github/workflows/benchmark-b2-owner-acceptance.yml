@@ -34,13 +34,26 @@ jobs:
           $ErrorActionPreference = 'Stop'
           Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 
-      - name: Checkout exact main head for this owner trigger
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.sha }}
-          clean: true
-          fetch-depth: 0
-          persist-credentials: false
+      - name: Checkout exact main head without action archive downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          Push-Location $env:GITHUB_WORKSPACE
+          try {
+            git init
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git remote add origin https://github.com/khsfashi/Trace2D.git
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git checkout --detach FETCH_HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $head = (git rev-parse HEAD | Out-String).Trim()
+            if ($head -ne $env:GITHUB_SHA) { throw "Owner acceptance checkout drifted: expected $env:GITHUB_SHA, got $head" }
+          } finally {
+            Pop-Location
+          }
 
       - name: Resolve acceptance mode and durable root
         shell: pwsh
@@ -97,6 +110,43 @@ jobs:
           if (Test-Path $pythonScripts -PathType Container) { $pythonScripts | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
           "TRACE2D_B2_ACCEPT_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Bind cached Node.js 24 without action downloads
+        if: env.TRACE2D_B2_ACCEPT_MODE != 'review'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $node = $null
+          $current = Get-Command node.exe -ErrorAction SilentlyContinue
+          if ($null -ne $current) {
+            $version = (& $current.Source --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $version -match '^v24\.\d+\.\d+$') {
+              $node = [System.IO.Path]::GetFullPath($current.Source)
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) {
+            foreach ($toolName in @('node', 'Node')) {
+              $nodeRoot = Join-Path $env:RUNNER_TOOL_CACHE $toolName
+              if (-not (Test-Path $nodeRoot -PathType Container)) { continue }
+              $candidate = Get-ChildItem -LiteralPath $nodeRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending |
+                ForEach-Object { Join-Path $_.FullName 'x64\node.exe' } |
+                Where-Object { Test-Path $_ -PathType Leaf } |
+                Select-Object -First 1
+              if ($null -ne $candidate) { $node = [System.IO.Path]::GetFullPath($candidate); break }
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) { throw 'No Node.js 24 executable found in PATH or RUNNER_TOOL_CACHE.' }
+          $nodeDir = Split-Path -Parent $node
+          $nodeDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$nodeDir;$env:PATH"
+          $observed = (& $node --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observed -notmatch '^v24\.\d+\.\d+$') { throw "Node.js 24 verification failed: $observed" }
+          $npm = Join-Path $nodeDir 'npm.cmd'
+          if (-not (Test-Path $npm -PathType Leaf)) { throw "npm.cmd missing beside cached Node.js: $nodeDir" }
+          Write-Host "Acceptance Node: $node ($observed)"
+
       - name: Decode review payload
         if: env.TRACE2D_B2_ACCEPT_MODE == 'review'
         shell: pwsh
@@ -107,12 +157,6 @@ jobs:
           [IO.File]::WriteAllBytes($path, $bytes)
           & $env:TRACE2D_B2_ACCEPT_PYTHON scripts/benchmark_b2_acceptance.py record-review --runs-root $env:TRACE2D_B2_ACCEPT_ROOT --review-file $path
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Set up Node.js 24 for isolated Codex install
-        if: env.TRACE2D_B2_ACCEPT_MODE != 'review'
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
 
       - name: Prepare Trace2D acceptance toolchain
         if: env.TRACE2D_B2_ACCEPT_MODE != 'review'
@@ -165,6 +209,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $summary = Get-Content -Raw -Encoding utf8 (Join-Path $env:TRACE2D_B2_ACCEPT_ROOT 'initial-summary.json') | ConvertFrom-Json
+          Write-Host 'TRACE2D_B2_ACCEPT_INITIAL_SUMMARY_BEGIN'
+          Write-Host ($summary | ConvertTo-Json -Depth 20 -Compress)
+          Write-Host 'TRACE2D_B2_ACCEPT_INITIAL_SUMMARY_END'
           if ($null -eq $summary.review_target) { Write-Host 'TRACE2D_B2_ACCEPT_NO_REVIEW_TARGET'; exit 0 }
           $workspace = [string]$summary.review_target.workspace
           $relative = [string]$summary.review_target.captures[0].path
@@ -182,6 +229,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $record = Get-Content -Raw -Encoding utf8 (Join-Path $env:TRACE2D_B2_ACCEPT_ROOT 'revision-record.json') | ConvertFrom-Json
+          Write-Host 'TRACE2D_B2_ACCEPT_REVISION_RECORD_BEGIN'
+          Write-Host ($record | ConvertTo-Json -Depth 20 -Compress)
+          Write-Host 'TRACE2D_B2_ACCEPT_REVISION_RECORD_END'
           if ($record.presentation.captures.Count -eq 0) { exit 0 }
           $summary = Get-Content -Raw -Encoding utf8 (Join-Path $env:TRACE2D_B2_ACCEPT_ROOT 'initial-summary.json') | ConvertFrom-Json
           $workspace = [string]$summary.review_target.workspace
@@ -193,36 +243,6 @@ jobs:
           Write-Host 'TRACE2D_B2_ACCEPT_REVISED_PREVIEW_BASE64_BEGIN'
           Write-Host ([Convert]::ToBase64String($bytes))
           Write-Host 'TRACE2D_B2_ACCEPT_REVISED_PREVIEW_BASE64_END'
-
-      - name: Stage compact acceptance evidence
-        if: always()
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Continue'
-          $out = Join-Path $env:GITHUB_WORKSPACE '.trace2d-b2-acceptance-artifact'
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          foreach ($name in @('initial-summary.json', 'perceptual-review.json', 'revision-record.json')) {
-            $source = Join-Path $env:TRACE2D_B2_ACCEPT_ROOT $name
-            if (Test-Path $source -PathType Leaf) { Copy-Item -LiteralPath $source -Destination $out -Force }
-          }
-          $initialRoot = Join-Path $env:TRACE2D_B2_ACCEPT_ROOT 'initial'
-          if (Test-Path $initialRoot -PathType Container) {
-            Get-ChildItem -LiteralPath $initialRoot -Filter 'record.json' -Recurse -File | ForEach-Object {
-              Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $out ("initial-" + $_.Directory.Name + "-record.json")) -Force
-            }
-            Get-ChildItem -LiteralPath $initialRoot -Recurse -File | Where-Object { $_.FullName -match '[\\/]\.trace2d-b2-evidence[\\/]presentation[\\/]' } | ForEach-Object {
-              Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $out ("presentation-" + $_.Name)) -Force
-            }
-          }
-
-      - name: Upload non-scored acceptance evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-b2-nonscored-acceptance-${{ github.run_id }}
-          path: .trace2d-b2-acceptance-artifact
-          if-no-files-found: warn
-          retention-days: 30
 
       - name: Report acceptance state
         if: always()
