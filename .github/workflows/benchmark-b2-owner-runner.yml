@@ -74,7 +74,9 @@ jobs:
               'cancel-in-progress: false',
               'TRACE2D_B2_MODE',
               'TRACE2D_B2_PYTHON',
-              '& py -3.13',
+              "Join-Path $env:RUNNER_TOOL_CACHE 'Python'",
+              "^3\\.12\\.\\d+$",
+              "import sys,json,pathlib,hashlib,subprocess,tempfile,venv",
               'run-next',
               'benchmark_b2_scored_harness.py run-slot',
               '$slot = [int]$env:TRACE2D_B2_SLOT',
@@ -82,6 +84,7 @@ jobs:
           ):
               assert required in workflow, required
           assert 'actions/setup-python@' not in workflow
+          assert '& py -3.13' not in workflow
           assert '--slot ([int]$env:TRACE2D_B2_SLOT)' not in workflow
 
           for required in (
