@@ -121,6 +121,46 @@ class BenchmarkB2AcceptanceV4Tests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, workflow, forbidden)
 
+    def test_read_only_diagnostic_workflow_cannot_execute_or_mutate_acceptance(self) -> None:
+        workflow_path = (
+            Path(v4.__file__).resolve().parent.parent
+            / ".github"
+            / "workflows"
+            / "benchmark-b2-owner-acceptance-v4-diagnostics.yml"
+        )
+        workflow = workflow_path.read_text(encoding="utf-8")
+        for required in (
+            "github.repository == 'khsfashi/Trace2D'",
+            "github.actor == 'khsfashi'",
+            "github.run_attempt == 1",
+            "github.event.issue.number == 104",
+            "github.ref == 'refs/heads/main'",
+            "github.event.comment.body == '/b2 accept-v4-diagnose'",
+            "runs-on: [self-hosted, windows, x64, trace2d-gpu]",
+            "benchmark-b2-acceptance-v4",
+            "benchmark-b2-scored-v1",
+            "benchmark-b2-acceptance-v1",
+            "benchmark-b2-acceptance-v2",
+            "benchmark-b2-acceptance-v3",
+            "Expected exactly two consumed acceptance-v4 initial records",
+            "trace2d_b2_nonscored_acceptance_v4_initial",
+            "TRACE2D_B2_ACCEPT_V4_DIAGNOSTIC_RECORD_BEGIN",
+            "TRACE2D_B2_ACCEPT_V4_TRIAL_LOG_BEGIN",
+            "TRACE2D_B2_ACCEPT_V4_SOURCE_BEGIN",
+            "$logText = [IO.File]::ReadAllText($logPath)",
+            "$text = [IO.File]::ReadAllText($file.FullName)",
+        ):
+            self.assertIn(required, workflow, required)
+        for forbidden in (
+            "benchmark_b2_acceptance_v4.py start",
+            "/b2 accept-v4-start",
+            "record-review --runs-root",
+            "feedback --runs-root",
+            "record-final-review --runs-root",
+            "workflow_dispatch:",
+        ):
+            self.assertNotIn(forbidden, workflow, forbidden)
+
 
 if __name__ == "__main__":
     unittest.main()
