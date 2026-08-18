@@ -217,7 +217,9 @@ int main()
             const Clock::time_point now = Clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - previous);
             previous = now;
-            elapsed = std::min(elapsed, 250ms);
+            elapsed = std::min(
+                elapsed,
+                std::chrono::duration_cast<std::chrono::nanoseconds>(250ms));
             static_cast<void>(application.AdvanceElapsed(elapsed));
             static_cast<void>(application.Present());
             std::this_thread::sleep_for(1ms);
