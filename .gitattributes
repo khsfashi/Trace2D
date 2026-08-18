@@ -9,3 +9,10 @@ benchmarks/**/*.toml text eol=lf
 benchmarks/**/*.cpp text eol=lf
 benchmarks/**/*.hpp text eol=lf
 benchmarks/**/*.txt text eol=lf
+
+# B2 readiness provenance freezes Git blob identities for workflow/tooling files.
+# Keep their checked-out bytes identical on Windows so strict blob validation does
+# not mistake CRLF worktree conversion for provenance drift.
+.github/workflows/*.yml text eol=lf
+.github/workflows/*.yaml text eol=lf
+scripts/*.py text eol=lf
