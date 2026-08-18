@@ -17,6 +17,7 @@ on:
       - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
       - "scripts/test_benchmark_b2_acceptance_v3.py"
       - ".github/workflows/benchmark-b2-acceptance-v3-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v3-qualification.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v3.yml"
   pull_request:
     branches:
@@ -33,6 +34,7 @@ on:
       - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
       - "scripts/test_benchmark_b2_acceptance_v3.py"
       - ".github/workflows/benchmark-b2-acceptance-v3-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v3-qualification.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v3.yml"
 
 permissions:
@@ -91,6 +93,31 @@ jobs:
           assert 'workflow_dispatch:' not in workflow
           assert 'rerun' not in workflow.casefold()
           assert 'retry' not in workflow.casefold()
+          PY
+
+      - name: Confirm qualification cannot create a candidate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/benchmark-b2-owner-acceptance-v3-qualification.yml').read_text(encoding='utf-8')
+          for required in (
+              "github.repository == 'khsfashi/Trace2D'",
+              "github.actor == 'khsfashi'",
+              "github.run_attempt == 1",
+              "github.event.issue.number == 104",
+              "github.ref == 'refs/heads/main'",
+              "github.event.comment.body == '/b2 accept-v3-qualify'",
+              'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
+              'benchmark_b2_acceptance_v3.py preflight',
+              "throw 'Candidate-free V3 preflight unexpectedly created durable state.'",
+          ):
+              assert required in workflow, required
+          assert 'benchmark_b2_acceptance_v3.py start' not in workflow
+          assert 'record-review' not in workflow
+          assert 'feedback --runs-root' not in workflow
+          assert 'record-final-review' not in workflow
+          assert 'workflow_dispatch:' not in workflow
           PY
 
       - name: Syntax-check V3 tooling
