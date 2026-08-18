@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+  "source_event": "merge",
+  "event_id": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+        "authored_at": "2026-08-18T11:35:47+09:00",
+        "subject": "feat(b2): add isolated acceptance v3 owner loop (#292)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/358df7531dd08f76ab5d011bdfcfd35bbab9832c"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [],
+    "constraints": [],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "manual diff/contract audit; runner root isolation, consumed-root refusal, exact two-attempt/no-retry guards, machine/freeze eligibility ordering, owner-loop main/run-attempt guards, and candidate-free qualification structure reviewed",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/358df7531dd08f76ab5d011bdfcfd35bbab9832c"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "GitHub-hosted PR workflows remained globally queued and did not start during this session",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/358df7531dd08f76ab5d011bdfcfd35bbab9832c"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "do not run `/b2 accept-v3-start` immediately after merge; first run `/b2 accept-v3-qualify` and require full self-hosted qualification success with no v3 durable root created",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/358df7531dd08f76ab5d011bdfcfd35bbab9832c"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": [
+      {
+        "id": "supersedes-001",
+        "text": "none",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "358df7531dd08f76ab5d011bdfcfd35bbab9832c",
+            "trailer": "Supersedes",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/358df7531dd08f76ab5d011bdfcfd35bbab9832c"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
