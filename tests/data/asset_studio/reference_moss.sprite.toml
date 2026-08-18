@@ -1,0 +1,20 @@
+schema = "trace2d.sprite"
+version = 1
+sampling = "nearest"
+
+[[pages]]
+id = "main"
+texture = "tests/data/asset_studio/reference_moss.png"
+size = [64, 64]
+color_space = "srgb"
+alpha_mode = "straight"
+
+[[regions]]
+id = "reference_moss"
+page = "main"
+source_size = [64, 64]
+trim_offset = [0, 0]
+trim_size = [64, 64]
+packed_rect = [0, 0, 64, 64]
+pivot = [32, 32, 64]
+packed_rotation = "none"
