@@ -1,0 +1,72 @@
+name: Benchmark B2 Non-Scored Acceptance V5 Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/contract-v4.json"
+      - "benchmarks/b2/acceptance/contract-v5.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "scripts/benchmark_b2_acceptance_v5_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v5.py"
+      - "scripts/benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_acceptance_v5_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v5.py"
+      - "scripts/test_benchmark_b2_agent_outcome.py"
+      - ".github/workflows/benchmark-b2-acceptance-v5-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5-qualification.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/contract-v4.json"
+      - "benchmarks/b2/acceptance/contract-v5.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "scripts/benchmark_b2_acceptance_v5_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v5.py"
+      - "scripts/benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_acceptance_v5_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v5.py"
+      - "scripts/test_benchmark_b2_agent_outcome.py"
+      - ".github/workflows/benchmark-b2-acceptance-v5-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5-qualification.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Validate frozen V5 contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v5_freeze
+      - name: Validate V5 harness contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v5 validate-contract
+      - name: Run V5 and Agent outcome regressions
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v5_freeze
+          python3 -m unittest scripts.test_benchmark_b2_agent_outcome
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v5
+      - name: Revalidate consumed V4 boundary
+        run: |
+          python3 -m scripts.benchmark_b2_acceptance_v4_freeze
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v4_freeze
+      - name: Syntax-check V5 tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance_v5.py \
+            scripts/test_benchmark_b2_acceptance_v5.py
