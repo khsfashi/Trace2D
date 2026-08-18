@@ -69,6 +69,15 @@ class BenchmarkB2AcceptanceV5FreezeTests(unittest.TestCase):
         with self.assertRaisesRegex(freeze.AcceptanceV5FreezeError, "historical immutability"):
             freeze.validate_contract_data(candidate, self.v4)
 
+    def test_provenance_files_are_forced_to_lf_on_all_platforms(self) -> None:
+        attributes = (freeze.REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
+        for required in (
+            ".github/workflows/*.yml text eol=lf",
+            ".github/workflows/*.yaml text eol=lf",
+            "scripts/*.py text eol=lf",
+        ):
+            self.assertIn(required, attributes, required)
+
 
 if __name__ == "__main__":
     unittest.main()
