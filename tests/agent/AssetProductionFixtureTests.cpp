@@ -1,5 +1,6 @@
 #include <trace2d/agent/AssetProductionSpec.hpp>
 #include <trace2d/agent/WorkSpec.hpp>
+#include <trace2d/assets/SpriteAssets.hpp>
 
 #include <gtest/gtest.h>
 
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 namespace
 {
@@ -57,7 +59,22 @@ TEST(AssetProductionFixtureTests, CommittedTenAssetProofRecoversWithoutChatState
     }
 
     ASSERT_EQ(production.spec->artProfiles.size(), 1U);
-    EXPECT_EQ(production.spec->artProfiles[0].approvedReferences.size(), 2U);
+    const trace2d::agent::ArtProfile& profile = production.spec->artProfiles[0];
+    ASSERT_EQ(profile.approvedReferences.size(), 2U);
+
+    constexpr std::string_view testDataPrefix = "tests/data/";
+    for (const std::string& reference : profile.approvedReferences)
+    {
+        ASSERT_TRUE(std::string_view{reference}.starts_with(testDataPrefix));
+        const std::string referenceText = ReadTestData(
+            std::string_view{reference}.substr(testDataPrefix.size()));
+        const auto sprite = trace2d::assets::ParseSpriteAssetToml(
+            referenceText,
+            reference,
+            "asset-studio-approved-reference");
+        EXPECT_TRUE(sprite.Succeeded()) << reference;
+    }
+
     ASSERT_EQ(work.spec->acceptance.size(), 2U);
     EXPECT_EQ(work.spec->acceptance[1].verification, trace2d::agent::VerificationClass::Human);
 }
