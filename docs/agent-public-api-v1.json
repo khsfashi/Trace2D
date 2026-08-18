@@ -36,6 +36,48 @@
       "source": "engine/application/include/trace2d/application/Application.hpp",
       "canonical_example": "examples/e0_external_game/HeadlessMain.cpp",
       "role": "Application runtime root"
+    },
+    {
+      "qualified_name": "trace2d::application::Application::SetPresentationCallback",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Bind ordinary windowed presentation to the Application frame lifecycle"
+    },
+    {
+      "qualified_name": "trace2d::platform::Platform",
+      "include": "trace2d/platform/Platform.hpp",
+      "source": "engine/platform/include/trace2d/platform/Platform.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Window, event, and native input host for an external game"
+    },
+    {
+      "qualified_name": "trace2d::render::Renderer",
+      "include": "trace2d/render/Renderer.hpp",
+      "source": "engine/render/include/trace2d/render/Renderer.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Production renderer and explicit frame/capture entry point"
+    },
+    {
+      "qualified_name": "trace2d::render::Rgba8TextureData",
+      "include": "trace2d/render/Renderer.hpp",
+      "source": "engine/render/include/trace2d/render/Renderer.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Caller-owned RGBA8 upload view used by the production Renderer"
+    },
+    {
+      "qualified_name": "trace2d::render::OrthographicCamera",
+      "include": "trace2d/render/RenderData.hpp",
+      "source": "engine/render/include/trace2d/render/RenderData.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Backend-independent orthographic camera input for 2D presentation"
+    },
+    {
+      "qualified_name": "trace2d::render::SpriteRenderData",
+      "include": "trace2d/render/RenderData.hpp",
+      "source": "engine/render/include/trace2d/render/RenderData.hpp",
+      "canonical_example": "examples/e0_external_game/WindowedMain.cpp",
+      "role": "Minimal production sprite submission payload"
     }
   ]
 }
