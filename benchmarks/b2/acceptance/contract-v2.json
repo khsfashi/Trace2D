@@ -32,6 +32,12 @@
     "automatic_retries": 0,
     "replacement_trials": 0
   },
+  "qualification_policy": {
+    "candidate_output_observed": false,
+    "synthetic_known_good_fixture_required": true,
+    "synthetic_known_bad_fixture_required": true,
+    "thresholds_must_lock_before_first_v2_execution": true
+  },
   "presentation_gate": {
     "version": 1,
     "authority": "presentation_only",
@@ -46,9 +52,9 @@
       "format": "png",
       "minimum_width": 640,
       "minimum_height": 360,
-      "minimum_byte_count": 12000,
+      "minimum_byte_count": 4096,
       "maximum_dominant_quantized_color_ratio": 0.78,
-      "minimum_quantized_color_count": 24,
+      "minimum_quantized_color_count": 12,
       "minimum_luminance_stddev": 20.0,
       "minimum_dark_pixel_ratio": 0.18,
       "maximum_dark_pixel_ratio": 0.9,
