@@ -59,6 +59,7 @@
     {"id": "sprite-agent-authoring", "issue": 178},
     {"id": "particle-agent-authoring", "issue": 179},
     {"id": "B2", "issue": 104},
+    {"id": "tiny-external-playable-product-proof", "issue": 315},
     {"id": "material-shader", "issue": 89},
     {"id": "tween", "issue": 90},
     {"id": "physics", "issue": 76},
