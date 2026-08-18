@@ -15,10 +15,12 @@ on:
       - "scripts/benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_acceptance_v5_freeze.py"
       - "scripts/test_benchmark_b2_acceptance_v5.py"
+      - "scripts/test_benchmark_b2_acceptance_v5_diagnostics.py"
       - "scripts/test_benchmark_b2_agent_outcome.py"
       - ".github/workflows/benchmark-b2-acceptance-v5-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v5-qualification.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v5.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5-diagnostics.yml"
   pull_request:
     branches:
       - main
@@ -32,10 +34,12 @@ on:
       - "scripts/benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_acceptance_v5_freeze.py"
       - "scripts/test_benchmark_b2_acceptance_v5.py"
+      - "scripts/test_benchmark_b2_acceptance_v5_diagnostics.py"
       - "scripts/test_benchmark_b2_agent_outcome.py"
       - ".github/workflows/benchmark-b2-acceptance-v5-contract.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v5-qualification.yml"
       - ".github/workflows/benchmark-b2-owner-acceptance-v5.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v5-diagnostics.yml"
 
 permissions:
   contents: read
@@ -63,6 +67,7 @@ jobs:
           python3 -m unittest scripts.test_benchmark_b2_acceptance_v5_freeze
           python3 -m unittest scripts.test_benchmark_b2_agent_outcome
           python3 -m unittest scripts.test_benchmark_b2_acceptance_v5
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v5_diagnostics
       - name: Revalidate consumed V4 boundary
         run: |
           python3 -m scripts.benchmark_b2_acceptance_v4_freeze
@@ -71,4 +76,5 @@ jobs:
         run: |
           python3 -m py_compile \
             scripts/benchmark_b2_acceptance_v5.py \
-            scripts/test_benchmark_b2_acceptance_v5.py
+            scripts/test_benchmark_b2_acceptance_v5.py \
+            scripts/test_benchmark_b2_acceptance_v5_diagnostics.py
