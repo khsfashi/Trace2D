@@ -1,0 +1,34 @@
+format_version = 1
+
+[work]
+id = "asset-studio-forest-monsters"
+intent = "Produce ten coherent 64x64 forest-monster Sprites with idle, walk, and attack deliverables."
+state = "planned"
+constraints = [
+    "Use only committed Art Profile references for project style memory.",
+    "Keep provider choice outside project completion truth.",
+]
+
+[[deliverables]]
+id = "forest-monster-set"
+description = "Ten coherent forest-monster Sprite assets"
+state = "planned"
+
+[[acceptance]]
+id = "canonical-import"
+deliverable = "forest-monster-set"
+description = "Accepted outputs import through canonical Sprite contracts."
+verification = "deterministic"
+state = "planned"
+
+[[acceptance]]
+id = "owner-style-approval"
+deliverable = "forest-monster-set"
+description = "Owner approves the visual coherence and quality of the set."
+verification = "human"
+state = "planned"
+
+[[external_truth]]
+id = "owner-approval"
+kind = "human_approval"
+description = "Final visual approval remains live owner state."

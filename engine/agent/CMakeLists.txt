@@ -1,6 +1,7 @@
 find_package(tomlplusplus CONFIG REQUIRED)
 
 add_library(trace2d_agent STATIC
+    src/AssetProductionSpec.cpp
     src/AuthoringFileTransaction.cpp
     src/CameraInspection.cpp
     src/Inspection.cpp
