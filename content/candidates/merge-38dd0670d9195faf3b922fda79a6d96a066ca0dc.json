@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+  "source_event": "merge",
+  "event_id": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+        "authored_at": "2026-08-18T11:06:20+09:00",
+        "subject": "ci(b2): add read-only acceptance v2 inspector (#288)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/38dd0670d9195faf3b922fda79a6d96a066ca0dc"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [],
+    "constraints": [],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "B0 Godot Agent Oracle; B0 Codex Wrapper; Sprite S0 Contract; Sprite SA0 Contract; External Consumer SDK",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/38dd0670d9195faf3b922fda79a6d96a066ca0dc"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "umbrella CI and Content Evidence remained GitHub-hosted queued at merge time; the one-file inspector does not affect compile/content evidence paths",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/38dd0670d9195faf3b922fda79a6d96a066ca0dc"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "preserve the one-shot acceptance-v2 cohort; inspector may only read durable v2 state and re-emit evidence",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/38dd0670d9195faf3b922fda79a6d96a066ca0dc"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": [
+      {
+        "id": "supersedes-001",
+        "text": "none",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "38dd0670d9195faf3b922fda79a6d96a066ca0dc",
+            "trailer": "Supersedes",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/38dd0670d9195faf3b922fda79a6d96a066ca0dc"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
