@@ -7,12 +7,27 @@ This is the deliberately narrow external product proof for Trace2D issue #315. I
 Run `trace2d_p0_tiny_playable_windowed.exe` from the retained Windows artifact.
 
 - `A` / `D`: move left / right
-- red vertical gate: active hazard; touching it costs one health segment and resets the player
-- when the red gate lifts upward, cross during the safe window
-- `Space` or `Enter` beside the yellow beacon: claim the objective
+- glowing red ruin gate: active hazard; touching it costs one health segment and resets the player
+- cross while the gate retracts into its safe position
+- `Space` or `Enter` beside the beacon: claim the objective
 - `Esc` or close the window: quit
 
-The left top bar is health. The right top bar fills when the beacon is claimed.
+The top-left hearts mirror the canonical health progress state. The top-right objective medallion changes when the beacon is claimed. A sparkle appears over the beacon while the player is in interaction range.
+
+## Owner loop retained by #315
+
+The initial owner-playable artifact deliberately used only solid rectangle textures. The owner verified that movement, safe-gate crossing and beacon interaction all worked, but rejected the product presentation as effectively "shape play" rather than something that reads as a game.
+
+That initial result remains retained as a **technical PASS / product-quality REJECT**. The first owner feedback revision keeps the gameplay and semantic authority unchanged while replacing the rectangle presentation with a small authored ruins scene:
+
+- procedural pixel-art backdrop with forest, moon, path and ruins;
+- recognizable courier character sprite with shadow;
+- distinct active/safe ruin-gate sprites;
+- pending/completed beacon sprites;
+- rock and grass scene dressing;
+- heart health HUD, objective medallion, interaction sparkle and completion feedback.
+
+The art is authored as ordinary RGBA8 texture data through the existing `ResourceRegistry` + `Renderer` texture path. No new engine or renderer subsystem was added for the revision.
 
 ## Deterministic proof
 
@@ -21,7 +36,7 @@ The left top bar is health. The right top bar fills when the beacon is claimed.
 1. collide with the active gate and assert health plus player reset from engine-owned `UiDocument` / `Scene` state;
 2. wait for the safe pulse, cross, interact at the beacon, and assert full health plus completed objective from the same canonical state.
 
-No screenshot is used as gameplay authority. The windowed renderer is presentation evidence for owner review; the headless executable is the deterministic gameplay gate.
+No screenshot is used as gameplay authority. The windowed renderer is presentation evidence for owner review; the headless executable is the deterministic gameplay gate. The visual revision does not alter these scenarios or their authority.
 
 ## Installed-SDK consumer proof
 
@@ -37,4 +52,4 @@ The P0 product-proof workflow first builds and installs the candidate Trace2D SD
 
 ## Scope
 
-The source stays under `examples/`, outside `engine/`. It uses existing Application, Scene, Input Actions, UI progress state, ResourceRegistry, Platform and Renderer APIs. Material2D/Shader2D, Physics2D, Audio, Save, Mesh and other breadth remain intentionally out of scope until the owner loop produces concrete blocking evidence.
+The source stays under `examples/`, outside `engine/`. It uses existing Application, Scene, Input Actions, UI progress state, ResourceRegistry, Platform and Renderer APIs. Material2D/Shader2D, Physics2D, Audio, Save, Mesh, Skeleton and other breadth remain intentionally out of scope for this revision.
