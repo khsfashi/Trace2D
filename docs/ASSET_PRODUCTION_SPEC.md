@@ -11,7 +11,7 @@ It is an **extension anchored to #97 WorkSpec identity**, not a second workflow/
 The ownership split is intentionally strict:
 
 - `WorkSpec` owns task identity, deliverables, dependencies, verification classes, completion/review state and external human approval requirements.
-- `AssetProductionSpec` owns only set-level creative production intent: requested items, dimensions, animation/direction requirements, explicit constraints, bounded candidate/provider-call budgets and Art Profile references.
+- `AssetProductionSpec` owns only set-level creative production intent: requested items, dimensions, animation/direction requirements, explicit constraints, bounded candidate/provider-call budgets, the identity of the existing human-review acceptance, and Art Profile references.
 - `WorkResult` owns produced/revised evidence.
 - Workspace owns review/showroom presentation.
 - SPP5 remains the replaceable provider boundary.
@@ -56,10 +56,10 @@ format_version = 1
 [production_set]
 id = "forest-monsters-v1"
 work_spec = "forest-monsters-work"
+owner_review_acceptance = "owner-approval"
 art_profile = "forest-monsters"
 candidates_per_item = 3
 max_provider_calls = 30
-owner_review_required = true
 
 [[items]]
 id = "mossling"
@@ -100,10 +100,12 @@ The requested asset count is the number of `[[items]]` entries. It is not duplic
 
 - `id`: stable production-set identity.
 - `work_spec`: existing #97 `WorkSpec.id` that owns task/review/completion truth.
+- `owner_review_acceptance`: exact existing `WorkSpec.acceptance.id` that owns final human review. Cross-contract validation requires this acceptance to exist and use `verification = "human"`; the production spec therefore cannot invent a second review-required boolean or review state.
 - `art_profile`: one declared `[[art_profiles]].id`.
 - `candidates_per_item`: positive bounded intent for how many alternatives may be produced per item.
 - `max_provider_calls`: positive set-level provider-call ceiling. It is provider-neutral and does not imply one candidate per call.
-- `owner_review_required`: explicit creative-review requirement for production orchestration. The actual review/approval state remains `WorkSpec`/`WorkResult`/Workspace authority.
+
+`ValidateAssetProductionSpecAgainstWorkSpec()` performs the explicit setup-time identity/verification-class check. Parsing alone remains side-effect free and does not inspect project files.
 
 ### `items`
 
@@ -128,15 +130,16 @@ The parser intentionally rejects unknown fields such as `aesthetic_score` or pro
 
 Approved asset references must be lexical project-relative identities using `/` separators. Absolute paths, drive-letter paths, backslashes, empty path segments, `.` and `..` segments are rejected.
 
-The parser does not touch the filesystem and does not resolve/import assets. Existence and canonical resource resolution belong to explicit project tooling so parsing remains deterministic, side-effect free and outside runtime hot paths.
+The parser does not touch the filesystem and does not resolve/import assets. Existence and canonical resource resolution belong to explicit project tooling so parsing remains deterministic, side-effect free and outside runtime hot paths. The committed #320 fixture additionally parses its referenced manifests through the existing canonical Sprite parser to keep the representative proof honest.
 
 ## Performance boundary
 
 This format is setup/tooling state only:
 
 ```text
-read committed spec
- -> parse once for production work
+read committed production spec + WorkSpec
+ -> parse once
+ -> validate identity + human acceptance linkage once
  -> generate/process/review through Agent tooling
  -> import approved canonical assets
  -> runtime uses normal Sprite/resource state
