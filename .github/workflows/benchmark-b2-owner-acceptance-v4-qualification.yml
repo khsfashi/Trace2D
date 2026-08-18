@@ -1,0 +1,173 @@
+name: Benchmark B2 Acceptance V4 Candidate-Free Qualification
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: trace2d-owner-b2-nonscored-acceptance-v4-qualification
+  cancel-in-progress: false
+
+jobs:
+  qualify-windows-v4:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 accept-v4-qualify'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 30
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact main head without action archive downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          Push-Location $env:GITHUB_WORKSPACE
+          try {
+            git init
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git remote add origin https://github.com/khsfashi/Trace2D.git
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git checkout --detach FETCH_HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $head = (git rev-parse HEAD | Out-String).Trim()
+            if ($head -ne $env:GITHUB_SHA) { throw "Acceptance-v4 qualification checkout drifted: expected $env:GITHUB_SHA, got $head" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Publish candidate-free qualification locator
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACE2D_REPOSITORY: ${{ github.repository }}
+          TRACE2D_RUN_ID: ${{ github.run_id }}
+          TRACE2D_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runUrl = "https://github.com/$env:TRACE2D_REPOSITORY/actions/runs/$env:TRACE2D_RUN_ID"
+          $comment = "B2 acceptance-v4 candidate-free qualification: run=$runUrl"
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'trace2d-b2-acceptance-v4-qualification'
+          }
+          $uri = "https://api.github.com/repos/$env:TRACE2D_REPOSITORY/issues/$env:TRACE2D_ISSUE_NUMBER/comments"
+          $payload = @{ body = $comment } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+
+      - name: Bind proven runner Python 3.12 cache
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TOOL_CACHE)) { throw 'RUNNER_TOOL_CACHE is required.' }
+          $pythonRoot = Join-Path $env:RUNNER_TOOL_CACHE 'Python'
+          $candidates = @(Get-ChildItem -LiteralPath $pythonRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^3\.12\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\python.exe' } |
+            Where-Object { Test-Path $_ -PathType Leaf })
+          $python = $null
+          foreach ($candidate in $candidates) {
+            $probe = (& $candidate -I -c "import sys,json,pathlib,hashlib,subprocess,tempfile,venv,zlib,struct; print('.'.join(str(v) for v in sys.version_info[:3]))" 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $probe -match '^3\.12\.\d+$') { $python = [System.IO.Path]::GetFullPath($candidate); break }
+          }
+          if ([string]::IsNullOrWhiteSpace($python)) { throw 'No healthy cached Python 3.12 interpreter found.' }
+          $pythonDir = Split-Path -Parent $python
+          $pythonDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $pythonScripts = Join-Path $pythonDir 'Scripts'
+          if (Test-Path $pythonScripts -PathType Container) { $pythonScripts | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          "TRACE2D_B2_ACCEPT_V4_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Bind cached Node.js 24 without action downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $node = $null
+          $current = Get-Command node.exe -ErrorAction SilentlyContinue
+          if ($null -ne $current) {
+            $version = (& $current.Source --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $version -match '^v24\.\d+\.\d+$') { $node = [System.IO.Path]::GetFullPath($current.Source) }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) {
+            foreach ($toolName in @('node', 'Node')) {
+              $nodeRoot = Join-Path $env:RUNNER_TOOL_CACHE $toolName
+              if (-not (Test-Path $nodeRoot -PathType Container)) { continue }
+              $candidate = Get-ChildItem -LiteralPath $nodeRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending |
+                ForEach-Object { Join-Path $_.FullName 'x64\node.exe' } |
+                Where-Object { Test-Path $_ -PathType Leaf } |
+                Select-Object -First 1
+              if ($null -ne $candidate) { $node = [System.IO.Path]::GetFullPath($candidate); break }
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) { throw 'No Node.js 24 executable found.' }
+          $nodeDir = Split-Path -Parent $node
+          $nodeDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$nodeDir;$env:PATH"
+          $observed = (& $node --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observed -notmatch '^v24\.\d+\.\d+$') { throw "Node.js 24 verification failed: $observed" }
+
+      - name: Run V4 freeze and regression qualification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON -m scripts.benchmark_b2_acceptance_v4_freeze
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON -m unittest scripts.test_benchmark_b2_acceptance_v4_freeze
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON -m unittest scripts.test_benchmark_b2_acceptance_v4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON -m scripts.benchmark_b2_acceptance_v3_freeze
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON -m unittest scripts.test_benchmark_b2_postscore_remediation
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Prepare exact Trace2D owner toolchain without running an Agent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonDir = Split-Path -Parent $env:TRACE2D_B2_ACCEPT_V4_PYTHON
+          $env:PATH = "$pythonDir;$(Join-Path $pythonDir 'Scripts');$env:PATH"
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent -PersistForActions
+
+      - name: Run candidate-free V4 preflight
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v4'
+          if (Test-Path -LiteralPath $runsRoot) {
+            throw "Acceptance-v4 durable root already exists before qualification: $runsRoot"
+          }
+          & $env:TRACE2D_B2_ACCEPT_V4_PYTHON scripts/benchmark_b2_acceptance_v4.py preflight --runs-root $runsRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path -LiteralPath $runsRoot) {
+            throw 'Candidate-free V4 preflight unexpectedly created durable state.'
+          }
+
+      - name: Report qualification success
+        shell: pwsh
+        run: |
+          "## B2 acceptance-v4 candidate-free qualification" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "PASS: v4 freeze, regressions, exact owner toolchain, and candidate-free preflight succeeded without creating the v4 durable root." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
