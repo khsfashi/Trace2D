@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """Append-only non-scored B2 acceptance-v5 harness.
 
-V5 preserves the frozen v4 task/gates/budget but fixes evidence classification:
-an upstream Agent timeout/transport/identity/result failure is authoritative before
-any deterministic candidate verifier result. In those cases verifier and
-presentation work are skipped rather than manufacturing secondary failures.
+V5 reuses the frozen v4 task, deterministic verifier, presentation gate, rubric,
+feedback policy, remediation surface, and advisory budget. The only execution
+semantic added here is fail-closed Agent outcome precedence: a true upstream
+Agent timeout/transport/result/identity failure is recorded before any downstream
+deterministic verifier or presentation gate is allowed to classify the workspace.
+
+The frozen Codex wrapper currently reports an otherwise completed turn as
+``tool_transport_failure`` when only the advisory acceptance budget is exceeded.
+Because the v4/v5 contract explicitly keeps budget non-authoritative for gameplay,
+V5 recognizes only the explicit tuple return_code=0 + turn_completed=true +
+budget_ok=false as ``completed_over_budget`` and still permits deterministic
+verification. This preserves the unchanged v4 budget policy without weakening
+true transport failure handling.
 """
 from __future__ import annotations
 
@@ -30,7 +39,6 @@ import benchmark_b2_acceptance as v1  # noqa: E402
 import benchmark_b2_acceptance_v2 as v2  # noqa: E402
 import benchmark_b2_acceptance_v5_freeze as freeze  # noqa: E402
 import benchmark_b2_agent_outcome as outcome  # noqa: E402
-import benchmark_b2_execution_freeze  # noqa: E402
 import benchmark_b2_scored_harness as scored  # noqa: E402
 
 CONTRACT_PATH = Path("benchmarks/b2/acceptance/contract-v5.json")
@@ -51,6 +59,7 @@ PERCEPTUAL_REVIEW = "perceptual-review.json"
 REVISION_RECORD = "revision-record.json"
 FINAL_REVIEW_TARGET = "final-review-target.json"
 FINAL_REVIEW = "final-perceptual-review.json"
+COMPLETED_OVER_BUDGET = "completed_over_budget"
 
 
 class AcceptanceV5Error(RuntimeError):
@@ -76,15 +85,15 @@ def validate_contract() -> dict[str, Any]:
         raise AcceptanceV5Error("acceptance-v5 must retain exactly two initial attempts")
     if contract.get("task_id") != ACCEPTANCE_TASK_ID:
         raise AcceptanceV5Error("acceptance-v5 task identity drifted")
+    if contract.get("deterministic_contract_task_id") != SCORING_TASK_ID:
+        raise AcceptanceV5Error("acceptance-v5 deterministic task identity drifted")
+    qualification = contract.get("qualification_policy", {})
+    if qualification.get("agent_transport_failure_must_precede_deterministic_verifier_classification") is not True:
+        raise AcceptanceV5Error("acceptance-v5 Agent outcome precedence guard is disabled")
     isolation = contract.get("isolation", {})
     if isolation.get("durable_root_name") != ROOT_TOKEN:
         raise AcceptanceV5Error("acceptance-v5 durable root drifted")
-    if isolation.get("historical_acceptance_root_names") != [
-        "benchmark-b2-acceptance-v1",
-        "benchmark-b2-acceptance-v2",
-        "benchmark-b2-acceptance-v3",
-        "benchmark-b2-acceptance-v4",
-    ]:
+    if isolation.get("historical_acceptance_root_names") != list(FORBIDDEN_ROOT_TOKENS[1:]):
         raise AcceptanceV5Error("acceptance-v5 historical root guard drifted")
     return contract
 
@@ -125,30 +134,84 @@ def _capture_refs(gate: dict[str, Any]) -> dict[str, dict[str, Any]]:
             "width": result["width"],
             "height": result["height"],
         }
-        for role, result in gate["captures"].items()
+        for role, result in gate.get("captures", {}).items()
     }
 
 
-def _not_run_presentation_gate(reason: str) -> dict[str, Any]:
+def _skipped_process(reason: str) -> dict[str, Any]:
     return {
+        "skipped": True,
+        "skip_reason": reason,
+        "duration_ms": 0.0,
+        "stdout": "",
+        "stderr": "",
+    }
+
+
+def _skipped_gate(reason: str) -> dict[str, Any]:
+    return {
+        "version": 1,
         "passed": False,
-        "failures": [reason],
+        "skipped": True,
+        "skip_reason": reason,
+        "failures": [f"skipped:{reason}"],
         "captures": {},
         "authority": "presentation_only",
-        "not_run": True,
     }
 
 
+def _classify_agent_execution(
+    process: dict[str, Any],
+    agent_result: dict[str, Any] | None,
+    identity_ok: bool,
+) -> dict[str, Any]:
+    """Return acceptance-specific Agent execution authority.
+
+    True timeout/transport/result/identity failures remain fail-closed through the
+    frozen generic classifier. The one explicit override preserves the already
+    frozen acceptance budget semantics: an Agent process that returned 0 and
+    emitted a completed turn but exceeded only the advisory budget may still be
+    deterministically verified.
+    """
+    process_timed_out = bool(process.get("timed_out"))
+    classified = outcome.classify_agent_execution(
+        agent_result=agent_result,
+        agent_identity_ok=identity_ok,
+        process_timed_out=process_timed_out,
+    )
+    if process_timed_out or not identity_ok or not isinstance(agent_result, dict):
+        return classified
+
+    wrapper = agent_result.get("wrapper") if isinstance(agent_result.get("wrapper"), dict) else {}
+    budget_only_completion = (
+        wrapper.get("process_return_code") == 0
+        and wrapper.get("turn_completed") is True
+        and wrapper.get("budget_ok") is False
+    )
+    if budget_only_completion:
+        return {
+            "status": COMPLETED_OVER_BUDGET,
+            "failure_domain": "budget",
+            "deterministic_verifier_authoritative": True,
+            "reason": "agent_turn_completed_over_advisory_acceptance_budget",
+            "base_classifier_status": classified.get("status"),
+            "agent_evidence": {
+                "agent_status": agent_result.get("status"),
+                "process_return_code": 0,
+                "turn_completed": True,
+                "budget_ok": False,
+            },
+        }
+    return classified
+
+
+# Backward-compatible helper name introduced by PR #308.
 def _agent_execution(
     process: dict[str, Any],
     agent_result: dict[str, Any] | None,
     identity_ok: bool,
 ) -> dict[str, Any]:
-    return outcome.classify_agent_execution(
-        agent_result=agent_result,
-        agent_identity_ok=identity_ok,
-        process_timed_out=bool(process.get("timed_out")),
-    )
+    return _classify_agent_execution(process, agent_result, identity_ok)
 
 
 def _initial_status(
@@ -158,7 +221,14 @@ def _initial_status(
     freeze_valid: bool,
 ) -> str:
     if agent_execution.get("deterministic_verifier_authoritative") is not True:
-        return str(agent_execution.get("status", outcome.RESULT_FAILURE))
+        status = agent_execution.get("status")
+        return {
+            outcome.TIMEOUT: "agent_timeout",
+            outcome.TRANSPORT_FAILURE: "agent_transport_failure",
+            outcome.IDENTITY_FAILURE: "agent_identity_failure",
+            outcome.RESULT_FAILURE: "agent_result_failure",
+            outcome.BUDGET_FAILURE: "agent_budget_classification_failure",
+        }.get(status, "agent_execution_failure")
     if not v1.deterministic_pass(verifier):
         return "deterministic_failure"
     if not gate.get("passed"):
@@ -166,6 +236,22 @@ def _initial_status(
     if not freeze_valid:
         return "integrity_failure"
     return "accepted_for_perceptual_review"
+
+
+def _machine_evidence(
+    *,
+    workspace: Path,
+    verifier_result_path: Path,
+    build_slot: int,
+    contract: dict[str, Any],
+    agent_execution: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None, dict[str, Any]]:
+    if agent_execution.get("deterministic_verifier_authoritative") is not True:
+        reason = str(agent_execution.get("status", "agent_execution_failure"))
+        return _skipped_process(reason), None, _skipped_gate(reason)
+    verifier_process, verifier = v1.run_verifier(workspace, verifier_result_path, build_slot)
+    gate = v2.presentation_gate(workspace, contract)
+    return verifier_process, verifier, gate
 
 
 def initial_record(
@@ -208,22 +294,20 @@ def initial_record(
     (trial_root / "adapter.stderr.txt").write_text(str(process.get("stderr", "")), encoding="utf-8")
     agent_result = v1.load_optional_result(agent_result_path)
     identity_ok = v1.agent_identity_ok(agent_result, profile)
-    agent_execution = _agent_execution(process, agent_result, identity_ok)
+    agent_execution = _classify_agent_execution(process, agent_result, identity_ok)
 
-    verifier_process: dict[str, Any] = {}
-    verifier: dict[str, Any] | None = None
-    if agent_execution["deterministic_verifier_authoritative"]:
-        verifier_process, verifier = v1.run_verifier(workspace, verifier_result_path, 900 + run_index)
-        (trial_root / "verifier.stdout.txt").write_text(str(verifier_process.get("stdout", "")), encoding="utf-8")
-        (trial_root / "verifier.stderr.txt").write_text(str(verifier_process.get("stderr", "")), encoding="utf-8")
-        gate = v2.presentation_gate(workspace, contract)
-    else:
-        (trial_root / "verifier.stdout.txt").write_text("not run: upstream Agent execution incomplete\n", encoding="utf-8")
-        (trial_root / "verifier.stderr.txt").write_text("", encoding="utf-8")
-        gate = _not_run_presentation_gate("not_run_agent_execution_incomplete")
-
+    verifier_process, verifier, gate = _machine_evidence(
+        workspace=workspace,
+        verifier_result_path=verifier_result_path,
+        build_slot=900 + run_index,
+        contract=contract,
+        agent_execution=agent_execution,
+    )
+    (trial_root / "verifier.stdout.txt").write_text(str(verifier_process.get("stdout", "")), encoding="utf-8")
+    (trial_root / "verifier.stderr.txt").write_text(str(verifier_process.get("stderr", "")), encoding="utf-8")
     freeze_valid = _freeze_valid()
     status = _initial_status(agent_execution, verifier, gate, freeze_valid)
+
     record = {
         "schema_version": 5,
         "kind": "trace2d_b2_nonscored_acceptance_v5_initial",
@@ -258,9 +342,11 @@ def initial_record(
             "acceptance_v3_write_forbidden": True,
             "acceptance_v4_write_forbidden": True,
             "v5_freeze_valid_after_agent": freeze_valid,
+            "agent_transport_failure_precedes_verifier": True,
+            "downstream_verifier_skipped_when_agent_incomplete": True,
+            "verifier_skipped_due_to_agent_execution": agent_execution.get("deterministic_verifier_authoritative") is not True,
             "automatic_retries": 0,
             "replacement_trials": 0,
-            "downstream_verifier_skipped_when_agent_incomplete": True,
         },
         "environment": {
             "os": platform.system(),
@@ -320,7 +406,8 @@ def start(args: argparse.Namespace) -> dict[str, Any]:
                 "run_index": record["run_index"],
                 "trial_id": record["trial_id"],
                 "status": record["status"],
-                "agent_execution": record["agent_execution"],
+                "agent_execution_status": record["agent_execution"]["status"],
+                "deterministic_verifier_authoritative": record["agent_execution"]["deterministic_verifier_authoritative"],
                 "deterministic_pass": v1.deterministic_pass(record["deterministic_verifier"]),
                 "presentation_gate_pass": record["presentation_gate"]["passed"],
                 "presentation_gate_failures": record["presentation_gate"]["failures"],
@@ -434,30 +521,32 @@ def feedback(args: argparse.Namespace) -> dict[str, Any]:
     (revision_root / "adapter.stderr.txt").write_text(str(process.get("stderr", "")), encoding="utf-8")
     agent_result = v1.load_optional_result(result_path)
     identity_ok = v1.agent_identity_ok(agent_result, v1.load_profile())
-    agent_execution = _agent_execution(process, agent_result, identity_ok)
-
-    verifier_process: dict[str, Any] = {}
-    verifier: dict[str, Any] | None = None
-    if agent_execution["deterministic_verifier_authoritative"]:
-        verifier_process, verifier = v1.run_verifier(workspace, verifier_path, 1001)
-        (revision_root / "verifier.stdout.txt").write_text(str(verifier_process.get("stdout", "")), encoding="utf-8")
-        (revision_root / "verifier.stderr.txt").write_text(str(verifier_process.get("stderr", "")), encoding="utf-8")
-        gate = v2.presentation_gate(workspace, contract)
-    else:
-        (revision_root / "verifier.stdout.txt").write_text("not run: upstream Agent execution incomplete\n", encoding="utf-8")
-        (revision_root / "verifier.stderr.txt").write_text("", encoding="utf-8")
-        gate = _not_run_presentation_gate("not_run_agent_execution_incomplete")
-
+    agent_execution = _classify_agent_execution(process, agent_result, identity_ok)
+    verifier_process, verifier, gate = _machine_evidence(
+        workspace=workspace,
+        verifier_result_path=verifier_path,
+        build_slot=980,
+        contract=contract,
+        agent_execution=agent_execution,
+    )
+    (revision_root / "verifier.stdout.txt").write_text(str(verifier_process.get("stdout", "")), encoding="utf-8")
+    (revision_root / "verifier.stderr.txt").write_text(str(verifier_process.get("stderr", "")), encoding="utf-8")
     after_hash = benchmark_b0_stable_harness.stable_tree_hash(workspace)
     freeze_valid = _freeze_valid()
     machine_success = (
-        agent_execution["deterministic_verifier_authoritative"]
+        agent_execution.get("deterministic_verifier_authoritative") is True
         and v1.deterministic_pass(verifier)
         and gate["passed"]
         and after_hash != before_hash
         and freeze_valid
     )
-    failure_status = str(agent_execution.get("status")) if not agent_execution["deterministic_verifier_authoritative"] else "revision_failed_acceptance_v5"
+    if machine_success:
+        revision_status = "awaiting_final_perceptual_confirmation"
+    elif agent_execution.get("deterministic_verifier_authoritative") is not True:
+        revision_status = f"revision_{agent_execution.get('status', 'agent_execution_failure')}"
+    else:
+        revision_status = "revision_failed_acceptance_v5"
+
     record = {
         "schema_version": 5,
         "kind": "trace2d_b2_nonscored_acceptance_v5_revision",
@@ -469,7 +558,7 @@ def feedback(args: argparse.Namespace) -> dict[str, Any]:
         "target_trial_id": target["trial_id"],
         "started_at": started_at,
         "finished_at": v1.utc_now(),
-        "status": "awaiting_final_perceptual_confirmation" if machine_success else failure_status,
+        "status": revision_status,
         "agent_identity_ok": identity_ok,
         "agent_execution": agent_execution,
         "human_feedback": {
@@ -494,9 +583,11 @@ def feedback(args: argparse.Namespace) -> dict[str, Any]:
             "acceptance_v3_write_forbidden": True,
             "acceptance_v4_write_forbidden": True,
             "v5_freeze_valid_after": freeze_valid,
+            "agent_transport_failure_precedes_verifier": True,
+            "downstream_verifier_skipped_when_agent_incomplete": True,
+            "verifier_skipped_due_to_agent_execution": agent_execution.get("deterministic_verifier_authoritative") is not True,
             "human_feedback_events": 1,
             "feedback_revision_cycles": 1,
-            "downstream_verifier_skipped_when_agent_incomplete": True,
         },
         "machine_acceptance_passed": machine_success,
         "full_loop_passed": False,
