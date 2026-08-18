@@ -42,10 +42,15 @@ TEST(AssetProductionFixtureTests, CommittedTenAssetProofRecoversWithoutChatState
     ASSERT_TRUE(work.spec.has_value());
 
     EXPECT_EQ(production.spec->workSpecId, work.spec->id);
+    EXPECT_EQ(production.spec->ownerReviewAcceptanceId, "owner-style-approval");
     EXPECT_EQ(production.spec->items.size(), 10U);
     EXPECT_EQ(production.spec->candidatesPerItem, 3U);
     EXPECT_EQ(production.spec->maxProviderCalls, 30U);
-    EXPECT_TRUE(production.spec->ownerReviewRequired);
+
+    const auto linkDiagnostics = trace2d::agent::ValidateAssetProductionSpecAgainstWorkSpec(
+        *production.spec,
+        *work.spec);
+    EXPECT_TRUE(linkDiagnostics.empty());
 
     for (const trace2d::agent::AssetProductionItem& item : production.spec->items)
     {
