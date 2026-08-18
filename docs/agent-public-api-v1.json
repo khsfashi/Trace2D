@@ -17,6 +17,13 @@
       "role": "User game lifecycle interface"
     },
     {
+      "qualified_name": "trace2d::application::Game::OnFixedUpdate",
+      "include": "trace2d/application/Application.hpp",
+      "source": "engine/application/include/trace2d/application/Application.hpp",
+      "canonical_example": "examples/e0_external_game/ExampleGame.hpp",
+      "role": "Required pure-virtual fixed-step callback that every concrete Game must override"
+    },
+    {
       "qualified_name": "trace2d::application::GameContext",
       "include": "trace2d/application/Application.hpp",
       "source": "engine/application/include/trace2d/application/Application.hpp",
@@ -36,6 +43,13 @@
       "source": "engine/application/include/trace2d/application/Application.hpp",
       "canonical_example": "examples/e0_external_game/HeadlessMain.cpp",
       "role": "Application runtime root"
+    },
+    {
+      "qualified_name": "trace2d::scene::ComponentRegistry",
+      "include": "trace2d/scene/Components.hpp",
+      "source": "engine/scene/include/trace2d/scene/Components.hpp",
+      "canonical_example": "examples/e0_external_game/ExampleGame.hpp",
+      "role": "Caller-owned registry for stable scene and custom component type registration"
     },
     {
       "qualified_name": "trace2d::application::Application::SetPresentationCallback",

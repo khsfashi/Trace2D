@@ -21,11 +21,32 @@ For the current application boundary, the canonical declaration is:
 
 class MyGame final : public trace2d::application::Game
 {
-    // ...
+public:
+    void OnFixedUpdate(
+        trace2d::application::GameContext& context,
+        const trace2d::application::FixedUpdate& update) override
+    {
+        (void)context;
+        (void)update;
+    }
 };
 ```
 
+`Game::OnFixedUpdate(GameContext&, const FixedUpdate&)` is the one required pure-virtual lifecycle callback. `OnStart(GameContext&)` and `OnStop(GameContext&)` are optional overrides. A concrete external `Game` that omits `OnFixedUpdate` is intentionally abstract and cannot be instantiated.
+
 The canonical external-consumer implementation is under `examples/e0_external_game/`; it is ordinary public API usage, not benchmark-only scaffolding.
+
+## Scene component registry discovery
+
+`trace2d::scene::ComponentRegistry` is declared by the scene component header, not a per-type header:
+
+```cpp
+#include <trace2d/scene/Components.hpp>
+
+trace2d::scene::ComponentRegistry registry{};
+```
+
+Use the machine-readable `trace2d::scene::ComponentRegistry` entry when an external host or factory needs the registry type. Do not infer `trace2d/scene/ComponentRegistry.hpp`; that file is not part of the public API. `examples/e0_external_game/ExampleGame.hpp` includes the canonical header directly and shows registry-backed component declarations without relying on transitive includes.
 
 ## Windowed presentation discovery
 

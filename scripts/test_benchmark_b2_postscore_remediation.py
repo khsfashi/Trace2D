@@ -135,7 +135,7 @@ class BenchmarkB2PostscoreRemediationTests(unittest.TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(len(result["failed"]), 4)
 
-    def test_public_api_index_points_game_to_real_header_and_canonical_example(self) -> None:
+    def test_public_api_index_points_game_to_real_header_and_required_callback(self) -> None:
         symbol = remediation.public_api_symbol("trace2d::application::Game")
         self.assertEqual(symbol["include"], "trace2d/application/Application.hpp")
         self.assertNotEqual(symbol["include"], "trace2d/application/Game.hpp")
@@ -146,6 +146,26 @@ class BenchmarkB2PostscoreRemediationTests(unittest.TestCase):
         example_text = example.read_text(encoding="utf-8")
         self.assertIn("#include <trace2d/application/Application.hpp>", example_text)
         self.assertIn("public trace2d::application::Game", example_text)
+        self.assertIn("void OnFixedUpdate(", example_text)
+        self.assertIn("const trace2d::application::FixedUpdate& update) override", example_text)
+
+        callback = remediation.public_api_symbol("trace2d::application::Game::OnFixedUpdate")
+        self.assertEqual(callback["include"], symbol["include"])
+        self.assertEqual(callback["canonical_example"], symbol["canonical_example"])
+        self.assertIn("Required pure-virtual", callback["role"])
+
+    def test_public_api_index_points_component_registry_to_real_header(self) -> None:
+        symbol = remediation.public_api_symbol("trace2d::scene::ComponentRegistry")
+        self.assertEqual(symbol["include"], "trace2d/scene/Components.hpp")
+        self.assertNotEqual(symbol["include"], "trace2d/scene/ComponentRegistry.hpp")
+        source = remediation.REPO_ROOT / symbol["source"]
+        example = remediation.REPO_ROOT / symbol["canonical_example"]
+        self.assertTrue(source.is_file())
+        self.assertTrue(example.is_file())
+        self.assertIn("class ComponentRegistry final", source.read_text(encoding="utf-8"))
+        example_text = example.read_text(encoding="utf-8")
+        self.assertIn("#include <trace2d/scene/Components.hpp>", example_text)
+        self.assertIn("trace2d::scene::ComponentRegistry& registry", example_text)
 
     def test_public_api_index_exposes_canonical_windowed_presentation_path(self) -> None:
         expected = {
