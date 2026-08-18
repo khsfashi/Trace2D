@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-3b074941dda37c7e03d48136dd386bb8c26d9813",
+  "source_event": "merge",
+  "event_id": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [
+      {
+        "number": 324,
+        "url": "https://github.com/khsfashi/Trace2D/pull/324"
+      }
+    ],
+    "commits": [
+      {
+        "sha": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+        "authored_at": "2026-08-19T01:31:25+09:00",
+        "subject": "docs: require reference benchmarking before invention (#324)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/3b074941dda37c7e03d48136dd386bb8c26d9813"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "benchmark mature current GitHub/public implementations before inventing substantive Trace2D solutions.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/3b074941dda37c7e03d48136dd386bb8c26d9813"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "external references cannot reorder the core lane, waive gates, or justify unapproved dependencies/features.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/3b074941dda37c7e03d48136dd386bb8c26d9813"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "when a proven adjacent capability is discovered, ask the owner whether Trace2D should adapt it; do not implement or create roadmap work without approval.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/3b074941dda37c7e03d48136dd386bb8c26d9813"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "CI, Benchmark B1 Contract, External Consumer SDK all green on PR head.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "3b074941dda37c7e03d48136dd386bb8c26d9813",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/3b074941dda37c7e03d48136dd386bb8c26d9813"
+          }
+        ]
+      }
+    ],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "PR #324"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
