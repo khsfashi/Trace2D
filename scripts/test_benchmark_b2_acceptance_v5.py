@@ -4,6 +4,7 @@ import argparse
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts import benchmark_b2_acceptance_v5 as v5
 from scripts import benchmark_b2_agent_outcome as outcome
@@ -15,8 +16,14 @@ class BenchmarkB2AcceptanceV5Tests(unittest.TestCase):
         self.assertEqual(contract["acceptance_version"], 5)
         self.assertEqual(contract["initial_runs"], 2)
         self.assertEqual(contract["budget"]["max_input_tokens"], 100000)
+        self.assertTrue(contract["budget"]["budget_is_recorded_not_deterministic_gameplay_authority"])
         self.assertEqual(contract["presentation_gate"]["image"]["maximum_dark_pixel_ratio"], 0.9)
         self.assertEqual(contract["isolation"]["durable_root_name"], "benchmark-b2-acceptance-v5")
+        self.assertTrue(
+            contract["qualification_policy"][
+                "agent_transport_failure_must_precede_deterministic_verifier_classification"
+            ]
+        )
 
     def test_root_accepts_only_v5_and_rejects_all_historical_roots(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -42,45 +49,136 @@ class BenchmarkB2AcceptanceV5Tests(unittest.TestCase):
             with self.assertRaisesRegex(v5.AcceptanceV5Error, "already consumed"):
                 v5.start(args)
 
-    def test_agent_transport_failure_precedes_deterministic_verifier(self) -> None:
-        execution = v5._agent_execution(
-            {"timed_out": False},
-            {
-                "status": "tool_transport_failure",
-                "wrapper": {"process_return_code": 1, "turn_completed": False, "budget_ok": True},
+    def test_true_transport_failure_is_non_authoritative(self) -> None:
+        result = {
+            "status": "tool_transport_failure",
+            "wrapper": {
+                "process_return_code": 1,
+                "turn_completed": False,
+                "budget_ok": True,
             },
-            True,
-        )
-        self.assertEqual(execution["status"], outcome.TRANSPORT_FAILURE)
-        self.assertFalse(execution["deterministic_verifier_authoritative"])
-        passing_gate = {"passed": True}
-        passing_verifier = {"verdict": {"status": "pass"}}
+        }
+        classified = v5._classify_agent_execution({"timed_out": False}, result, True)
+        self.assertEqual(classified["status"], outcome.TRANSPORT_FAILURE)
+        self.assertFalse(classified["deterministic_verifier_authoritative"])
         self.assertEqual(
-            v5._initial_status(execution, passing_verifier, passing_gate, True),
-            outcome.TRANSPORT_FAILURE,
+            v5._initial_status(classified, None, v5._skipped_gate("transport"), True),
+            "agent_transport_failure",
         )
 
-    def test_completed_agent_still_requires_deterministic_and_presentation_pass(self) -> None:
-        execution = {
+    def test_timeout_is_non_authoritative_even_if_partial_result_exists(self) -> None:
+        result = {
+            "status": "completed",
+            "wrapper": {"process_return_code": 0, "turn_completed": True, "budget_ok": True},
+        }
+        classified = v5._classify_agent_execution({"timed_out": True}, result, True)
+        self.assertEqual(classified["status"], outcome.TIMEOUT)
+        self.assertFalse(classified["deterministic_verifier_authoritative"])
+
+    def test_completed_budget_only_overage_preserves_v4_gameplay_authority(self) -> None:
+        result = {
+            "status": "tool_transport_failure",
+            "wrapper": {
+                "process_return_code": 0,
+                "turn_completed": True,
+                "budget_ok": False,
+            },
+        }
+        classified = v5._classify_agent_execution({"timed_out": False}, result, True)
+        self.assertEqual(classified["status"], v5.COMPLETED_OVER_BUDGET)
+        self.assertTrue(classified["deterministic_verifier_authoritative"])
+        self.assertEqual(classified["failure_domain"], "budget")
+        self.assertEqual(classified["base_classifier_status"], outcome.TRANSPORT_FAILURE)
+
+    def test_budget_override_requires_explicit_completed_turn(self) -> None:
+        for wrapper in (
+            {"process_return_code": 1, "turn_completed": True, "budget_ok": False},
+            {"process_return_code": 0, "turn_completed": False, "budget_ok": False},
+            {"process_return_code": 0, "turn_completed": None, "budget_ok": False},
+        ):
+            result = {"status": "tool_transport_failure", "wrapper": wrapper}
+            classified = v5._classify_agent_execution({"timed_out": False}, result, True)
+            self.assertFalse(classified["deterministic_verifier_authoritative"])
+            self.assertNotEqual(classified["status"], v5.COMPLETED_OVER_BUDGET)
+
+    def test_identity_failure_remains_non_authoritative(self) -> None:
+        result = {
+            "status": "completed",
+            "wrapper": {"process_return_code": 0, "turn_completed": True, "budget_ok": True},
+        }
+        classified = v5._classify_agent_execution({"timed_out": False}, result, False)
+        self.assertEqual(classified["status"], outcome.IDENTITY_FAILURE)
+        self.assertFalse(classified["deterministic_verifier_authoritative"])
+
+    def test_machine_evidence_does_not_invoke_verifier_after_transport_failure(self) -> None:
+        classified = {
+            "status": outcome.TRANSPORT_FAILURE,
+            "deterministic_verifier_authoritative": False,
+        }
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            v5.v1, "run_verifier", side_effect=AssertionError("verifier must stay skipped")
+        ), mock.patch.object(
+            v5.v2, "presentation_gate", side_effect=AssertionError("presentation gate must stay skipped")
+        ):
+            process, verifier, gate = v5._machine_evidence(
+                workspace=Path(temporary),
+                verifier_result_path=Path(temporary) / "verifier.json",
+                build_slot=999,
+                contract=v5.validate_contract(),
+                agent_execution=classified,
+            )
+        self.assertTrue(process["skipped"])
+        self.assertIsNone(verifier)
+        self.assertTrue(gate["skipped"])
+        self.assertFalse(gate["passed"])
+
+    def test_completed_budget_overage_does_invoke_machine_evidence(self) -> None:
+        classified = {
+            "status": v5.COMPLETED_OVER_BUDGET,
+            "deterministic_verifier_authoritative": True,
+        }
+        fake_process = {"duration_ms": 1.0, "stdout": "", "stderr": ""}
+        fake_verifier = {"verdict": {"status": "pass"}}
+        fake_gate = {"passed": True, "failures": [], "captures": {}}
+        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
+            v5.v1, "run_verifier", return_value=(fake_process, fake_verifier)
+        ) as verifier_call, mock.patch.object(
+            v5.v2, "presentation_gate", return_value=fake_gate
+        ) as gate_call:
+            process, verifier, gate = v5._machine_evidence(
+                workspace=Path(temporary),
+                verifier_result_path=Path(temporary) / "verifier.json",
+                build_slot=998,
+                contract=v5.validate_contract(),
+                agent_execution=classified,
+            )
+        verifier_call.assert_called_once()
+        gate_call.assert_called_once()
+        self.assertIs(process, fake_process)
+        self.assertIs(verifier, fake_verifier)
+        self.assertIs(gate, fake_gate)
+
+    def test_initial_status_never_promotes_machine_or_integrity_failure(self) -> None:
+        completed = {
             "status": outcome.COMPLETED,
             "deterministic_verifier_authoritative": True,
         }
         passing_gate = {"passed": True}
         failing_gate = {"passed": False}
         passing_verifier = {"verdict": {"status": "pass"}}
-        self.assertEqual(v5._initial_status(execution, None, passing_gate, True), "deterministic_failure")
-        self.assertEqual(v5._initial_status(execution, passing_verifier, failing_gate, True), "presentation_gate_failure")
-        self.assertEqual(v5._initial_status(execution, passing_verifier, passing_gate, False), "integrity_failure")
-        self.assertEqual(v5._initial_status(execution, passing_verifier, passing_gate, True), "accepted_for_perceptual_review")
-
-    def test_incomplete_agent_skips_downstream_verifier_and_presentation_work(self) -> None:
-        source = Path(v5.__file__).read_text(encoding="utf-8")
-        self.assertIn('if agent_execution["deterministic_verifier_authoritative"]:', source)
-        self.assertIn('gate = _not_run_presentation_gate("not_run_agent_execution_incomplete")', source)
-        self.assertIn('"downstream_verifier_skipped_when_agent_incomplete": True', source)
-        classify_index = source.index("agent_execution = _agent_execution(process, agent_result, identity_ok)")
-        verifier_index = source.index("v1.run_verifier(workspace, verifier_result_path")
-        self.assertLess(classify_index, verifier_index)
+        self.assertEqual(v5._initial_status(completed, None, passing_gate, True), "deterministic_failure")
+        self.assertEqual(
+            v5._initial_status(completed, passing_verifier, failing_gate, True),
+            "presentation_gate_failure",
+        )
+        self.assertEqual(
+            v5._initial_status(completed, passing_verifier, passing_gate, False),
+            "integrity_failure",
+        )
+        self.assertEqual(
+            v5._initial_status(completed, passing_verifier, passing_gate, True),
+            "accepted_for_perceptual_review",
+        )
 
     def test_human_revision_prompt_preserves_machine_authorities(self) -> None:
         prompt = v5.build_revision_prompt("Make the HUD easier to read.", {"recommendation": "Increase contrast."})
@@ -95,6 +193,8 @@ class BenchmarkB2AcceptanceV5Tests(unittest.TestCase):
         self.assertIn('"automatic_retries": 0', source)
         self.assertIn('"replacement_trials": 0', source)
         self.assertIn('"acceptance_v4_write_forbidden": True', source)
+        self.assertIn("agent_transport_failure_precedes_verifier", source)
+        self.assertIn('"downstream_verifier_skipped_when_agent_incomplete": True', source)
         self.assertNotIn("while retry", source.casefold())
         self.assertNotIn("best_of", source.casefold())
 
