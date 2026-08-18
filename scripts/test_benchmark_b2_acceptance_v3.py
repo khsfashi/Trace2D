@@ -105,8 +105,8 @@ class BenchmarkB2AcceptanceV3Tests(unittest.TestCase):
             "TRACE2D_B2_ACCEPT_V3_DIAGNOSTIC_RECORD_BEGIN",
             "TRACE2D_B2_ACCEPT_V3_TRIAL_LOG_BEGIN",
             "TRACE2D_B2_ACCEPT_V3_SOURCE_BEGIN",
-            "$logText = [string](Get-Content -Raw -Encoding utf8 -LiteralPath $logPath)",
-            "$text = [string](Get-Content -Raw -Encoding utf8 -LiteralPath $file.FullName)",
+            "$logText = [IO.File]::ReadAllText($logPath)",
+            "$text = [IO.File]::ReadAllText($file.FullName)",
         ):
             self.assertIn(required, workflow, required)
         for forbidden in (
@@ -116,6 +116,8 @@ class BenchmarkB2AcceptanceV3Tests(unittest.TestCase):
             "feedback --runs-root",
             "record-final-review --runs-root",
             "workflow_dispatch:",
+            "Get-Content -Raw -Encoding utf8 -LiteralPath $logPath",
+            "Get-Content -Raw -Encoding utf8 -LiteralPath $file.FullName",
         ):
             self.assertNotIn(forbidden, workflow, forbidden)
 
