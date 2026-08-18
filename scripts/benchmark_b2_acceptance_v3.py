@@ -128,6 +128,7 @@ def _initial_status(
     identity_ok: bool,
     verifier: dict[str, Any] | None,
     gate: dict[str, Any],
+    freeze_valid: bool,
 ) -> str:
     if process.get("timed_out"):
         return "agent_timeout"
@@ -137,6 +138,8 @@ def _initial_status(
         return "deterministic_failure"
     if not gate.get("passed"):
         return "presentation_gate_failure"
+    if not freeze_valid:
+        return "integrity_failure"
     return "accepted_for_perceptual_review"
 
 
@@ -186,7 +189,7 @@ def initial_record(
     (trial_root / "verifier.stderr.txt").write_text(str(verifier_process.get("stderr", "")), encoding="utf-8")
     gate = v2.presentation_gate(workspace, contract)
     freeze_valid = _freeze_valid()
-    status = _initial_status(process, identity_ok, verifier, gate)
+    status = _initial_status(process, identity_ok, verifier, gate, freeze_valid)
 
     record = {
         "schema_version": 3,
