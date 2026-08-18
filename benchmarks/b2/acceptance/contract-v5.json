@@ -1,0 +1,188 @@
+{
+  "schema_version": 5,
+  "kind": "trace2d_b2_nonscored_acceptance_contract",
+  "benchmark_id": "trace2d-b2",
+  "issue": 104,
+  "state": "frozen_pre_acceptance",
+  "scored": false,
+  "acceptance_version": 5,
+  "supersedes_acceptance_version": 4,
+  "does_not_reinterpret": [
+    "benchmark-b2-scored-v1",
+    "benchmark-b2-acceptance-v1",
+    "benchmark-b2-acceptance-v2",
+    "benchmark-b2-acceptance-v3",
+    "benchmark-b2-acceptance-v4"
+  ],
+  "change_reason": "Acceptance-v4 consumed exactly two fresh Trace2D attempts but both Agent turns ended before authoring because the pinned model was at capacity; retained workspaces were unchanged and downstream verifier failures were therefore secondary. PR #304 added fail-closed Agent execution classification plus a candidate-free readiness canary, PR #305 decoupled that probe from unrelated engine-binary requirements, and PR #306 placed its external canary under the existing explicit ACL protected-root mechanism. Candidate-free readiness run 32105655474 on exact main 3f20c2e39ccfc3a55048c005ee4c7c98c4f501c9 then proved a completed pinned-model tool turn, workspace write, observed external read attempt, ACL denial, and zero secret leakage without exposing the B2 task or creating an acceptance candidate. V5 reuses the v4 task, deterministic verifier, presentation thresholds, rubric, feedback policy, selection policy, remediation surface and budget unchanged.",
+  "task_id": "b2-acceptance-ember-hall-playable-v2",
+  "task_prompt": "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md",
+  "task_prompt_sha256": "af6904c5a8060ce16620660893e090946b56a6fa44b0542f43ae4ae28f776315",
+  "held_out_policy": {
+    "post_score_validation_only": true,
+    "acceptance_v4_candidate_output_observed_before_v5_freeze": true,
+    "no_v5_candidate_output_observed_before_freeze": true,
+    "v4_failure_was_upstream_agent_transport_not_candidate_gameplay": true,
+    "task_prompt_reused_byte_identical_from_v4": true,
+    "presentation_thresholds_reused_unchanged_from_v4": true,
+    "budget_reused_unchanged_from_v4": true,
+    "scored_and_acceptance_v1_through_v4_evidence_remain_historical_only": true
+  },
+  "lane": "trace2d.agent",
+  "initial_runs": 2,
+  "deterministic_contract_task_id": "b2-topdown-combat-v1",
+  "deterministic_verifier": "scripts/verify_benchmark_b2_candidate.py",
+  "selection_policy": {
+    "review_target": "lowest run_index with deterministic pass, valid agent identity, machine presentation gate pass, and all four retained captures",
+    "best_of_n_scoring": false,
+    "automatic_retries": 0,
+    "replacement_trials": 0
+  },
+  "qualification_policy": {
+    "v5_candidate_output_observed": false,
+    "reuse_v4_synthetic_presentation_gate_qualification": true,
+    "deterministic_verifier_unchanged_from_v4": true,
+    "task_threshold_budget_rubric_must_match_v4": true,
+    "readiness_provenance_must_lock_before_first_v5_execution": true,
+    "agent_transport_failure_must_precede_deterministic_verifier_classification": true
+  },
+  "remediation": {
+    "source_pull_request": 299,
+    "required_main_commit": "4095bdaf118594f8dd5af1445a5e16fbeaf5a13e",
+    "bridge_handoff_file": "B2Candidate.cpp",
+    "bridge_factory": "trace2d::benchmark::b2::CreateCandidate(trace2d::scene::ComponentRegistry&)",
+    "public_api_index": "docs/agent-public-api-v1.json",
+    "required_public_api_symbols": [
+      "trace2d::application::Game",
+      "trace2d::application::Game::OnFixedUpdate",
+      "trace2d::scene::ComponentRegistry",
+      "trace2d::application::Application::SetPresentationCallback",
+      "trace2d::platform::Platform",
+      "trace2d::render::Renderer",
+      "trace2d::render::OrthographicCamera",
+      "trace2d::render::SpriteRenderData"
+    ],
+    "gameplay_solution_injected": false,
+    "presentation_solution_injected": false,
+    "task_relaxed": false,
+    "deterministic_verifier_relaxed": false,
+    "presentation_gate_relaxed": false,
+    "budget_relaxed": false
+  },
+  "agent_readiness": {
+    "source_pull_requests": [304, 305, 306],
+    "required_main_commit": "3f20c2e39ccfc3a55048c005ee4c7c98c4f501c9",
+    "workflow_run_id": 32105655474,
+    "candidate_free": true,
+    "benchmark_task_prompt_used": false,
+    "acceptance_candidate_created": false,
+    "codex_cli_version": "0.144.6",
+    "model_id": "gpt-5.5",
+    "reasoning_effort": "high",
+    "permission_profile": ":workspace+windows_ntfs_acl_v1_elevated",
+    "passed": true,
+    "workspace_write_proved": true,
+    "external_read_attempt_observed": true,
+    "external_read_denied": true,
+    "canary_secret_leaked": false,
+    "codex_return_code": 0,
+    "turn_completed": true,
+    "readiness_workflow_git_blob_sha": "331e188c23d7647ddcb278064d7be73dca2fe791",
+    "b2_wrapper_git_blob_sha": "68031349f4313cd998353dd9204cd227e5486b02",
+    "agent_outcome_classifier_git_blob_sha": "b586c19f40ad139aba79cc43c184eaeab1f0564e"
+  },
+  "presentation_gate": {
+    "version": 1,
+    "authority": "presentation_only",
+    "may_override_deterministic_failure": false,
+    "required_capture_roles": {
+      "overview": ".trace2d-b2-evidence/presentation/ember-hall-overview.png",
+      "attack": ".trace2d-b2-evidence/presentation/ember-hall-attack.png",
+      "hit": ".trace2d-b2-evidence/presentation/ember-hall-hit.png",
+      "death": ".trace2d-b2-evidence/presentation/ember-hall-death.png"
+    },
+    "image": {
+      "format": "png",
+      "minimum_width": 640,
+      "minimum_height": 360,
+      "minimum_byte_count": 4096,
+      "maximum_dominant_quantized_color_ratio": 0.78,
+      "minimum_quantized_color_count": 12,
+      "minimum_luminance_stddev": 20.0,
+      "minimum_dark_pixel_ratio": 0.18,
+      "maximum_dark_pixel_ratio": 0.9,
+      "minimum_hud_bright_pixel_ratio": 0.01,
+      "minimum_hud_luminance_stddev": 18.0
+    },
+    "visual_families": {
+      "minimum_cool_player_ratio": 0.0008,
+      "minimum_hostile_enemy_ratio": 0.0008,
+      "minimum_ember_orange_ratio": 0.0008,
+      "overview_requires_all_three": true
+    },
+    "state_change": {
+      "minimum_pairwise_sample_difference_ratio": 0.003,
+      "all_capture_sha256_values_must_be_distinct": true
+    }
+  },
+  "perceptual_review": {
+    "reviewer": "ChatGPT",
+    "model": "GPT-5.6 Sol",
+    "rubric": [
+      "reads_as_game_screen",
+      "player_enemy_distinguishable",
+      "room_and_spatial_hierarchy_clear",
+      "hud_legible_and_non_obstructive",
+      "combat_feedback_readable",
+      "not_debug_or_test_harness_presentation"
+    ],
+    "all_rubric_items_must_pass": true,
+    "required_before_human_feedback": true,
+    "final_confirmation_required_after_revision": true
+  },
+  "feedback_policy": {
+    "human_feedback_events": 1,
+    "feedback_revision_cycles": 1,
+    "deterministic_reverification_required": true,
+    "presentation_gate_reverification_required": true,
+    "human_feedback_must_be_real_owner_feedback": true
+  },
+  "budget": {
+    "wall_seconds": 900,
+    "max_tool_calls": 120,
+    "max_input_tokens": 100000,
+    "max_output_tokens": 20000,
+    "budget_is_recorded_not_deterministic_gameplay_authority": true
+  },
+  "isolation": {
+    "durable_root_name": "benchmark-b2-acceptance-v5",
+    "historical_acceptance_root_names": [
+      "benchmark-b2-acceptance-v1",
+      "benchmark-b2-acceptance-v2",
+      "benchmark-b2-acceptance-v3",
+      "benchmark-b2-acceptance-v4"
+    ],
+    "scored_durable_root_name": "benchmark-b2-scored-v1",
+    "scored_record_write_forbidden": true,
+    "scored_raw_jsonl_forbidden": true,
+    "historical_acceptance_write_forbidden": true,
+    "repository_worktree_durable_state_forbidden": true
+  },
+  "acceptance": {
+    "matched_multi_run_initial_evidence_required": true,
+    "at_least_one_deterministic_initial_acceptance_required": true,
+    "machine_presentation_gate_pass_required": true,
+    "perceptual_review_pass_required": true,
+    "human_feedback_required": true,
+    "agent_revision_required": true,
+    "workspace_change_required": true,
+    "deterministic_reverification_pass_required": true,
+    "presentation_gate_reverification_pass_required": true,
+    "final_perceptual_confirmation_required": true,
+    "scored_cohort_must_remain_immutable": true,
+    "acceptance_v1_must_remain_immutable": true,
+    "acceptance_v2_must_remain_immutable": true,
+    "acceptance_v3_must_remain_immutable": true,
+    "acceptance_v4_must_remain_immutable": true
+  }
+}
