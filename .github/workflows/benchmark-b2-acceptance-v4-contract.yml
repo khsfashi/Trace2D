@@ -1,0 +1,128 @@
+name: Benchmark B2 Non-Scored Acceptance V4 Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/contract-v4.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "scripts/benchmark_b2_acceptance_v4_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v4.py"
+      - "scripts/test_benchmark_b2_acceptance_v4_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v4.py"
+      - ".github/workflows/benchmark-b2-acceptance-v4-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v4-qualification.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v4.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/contract-v4.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "scripts/benchmark_b2_acceptance_v4_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v4.py"
+      - "scripts/test_benchmark_b2_acceptance_v4_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v4.py"
+      - ".github/workflows/benchmark-b2-acceptance-v4-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v4-qualification.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v4.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate frozen V4 contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v4_freeze
+
+      - name: Validate V4 harness contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v4 validate-contract
+
+      - name: Run V4 regressions
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v4_freeze
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v4
+
+      - name: Revalidate consumed V3 and remediation contracts
+        run: |
+          python3 -m scripts.benchmark_b2_acceptance_v3_freeze
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v3_freeze
+          python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
+
+      - name: Confirm owner loop cannot retry or run off main
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/benchmark-b2-owner-acceptance-v4.yml').read_text(encoding='utf-8')
+          for required in (
+              "github.repository == 'khsfashi/Trace2D'",
+              "github.actor == 'khsfashi'",
+              "github.run_attempt == 1",
+              "github.event.issue.number == 104",
+              "github.ref == 'refs/heads/main'",
+              "github.event.comment.body == '/b2 accept-v4-start'",
+              "startsWith(github.event.comment.body, '/b2 accept-v4-review ')",
+              "startsWith(github.event.comment.body, '/b2 accept-v4-feedback ')",
+              "startsWith(github.event.comment.body, '/b2 accept-v4-final-review ')",
+              'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
+              'cancel-in-progress: false',
+              'benchmark-b2-acceptance-v4',
+              'benchmark_b2_acceptance_v4.py start',
+          ):
+              assert required in workflow, required
+          assert 'workflow_dispatch:' not in workflow
+          assert 'rerun' not in workflow.casefold()
+          assert 'retry' not in workflow.casefold()
+          PY
+
+      - name: Confirm qualification cannot create a candidate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/benchmark-b2-owner-acceptance-v4-qualification.yml').read_text(encoding='utf-8')
+          for required in (
+              "github.repository == 'khsfashi/Trace2D'",
+              "github.actor == 'khsfashi'",
+              "github.run_attempt == 1",
+              "github.event.issue.number == 104",
+              "github.ref == 'refs/heads/main'",
+              "github.event.comment.body == '/b2 accept-v4-qualify'",
+              'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
+              'benchmark_b2_acceptance_v4.py preflight',
+              "throw 'Candidate-free V4 preflight unexpectedly created durable state.'",
+          ):
+              assert required in workflow, required
+          assert 'benchmark_b2_acceptance_v4.py start' not in workflow
+          assert 'record-review' not in workflow
+          assert 'feedback --runs-root' not in workflow
+          assert 'record-final-review' not in workflow
+          assert 'workflow_dispatch:' not in workflow
+          PY
+
+      - name: Syntax-check V4 tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance_v4.py \
+            scripts/test_benchmark_b2_acceptance_v4.py
