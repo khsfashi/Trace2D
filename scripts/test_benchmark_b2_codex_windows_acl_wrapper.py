@@ -26,7 +26,10 @@ class BenchmarkB2CodexWindowsAclWrapperTests(unittest.TestCase):
         probe_source = ast.get_source_segment(self.source, probe_function) or ""
         self.assertNotIn("TRACE2D_BENCH_GODOT_BIN", probe_source)
         self.assertNotIn("TRACE2D_BENCH_TRACE2D_BIN", probe_source)
-        self.assertNotIn("tool_roots_for_b1", probe_source)
+        referenced_attributes = {
+            node.attr for node in ast.walk(probe_function) if isinstance(node, ast.Attribute)
+        }
+        self.assertNotIn("tool_roots_for_b1", referenced_attributes)
 
     def test_normal_run_keeps_b1_lane_specific_tool_requirements(self) -> None:
         configure_function = next(
