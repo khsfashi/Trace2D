@@ -1,0 +1,66 @@
+name: Benchmark B2 Acceptance V3 Freeze
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/README.md"
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "examples/e0_external_game/WindowedMain.cpp"
+      - "scripts/benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b2_execution_freeze.py"
+      - ".github/workflows/benchmark-b2-acceptance-v3-freeze.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/README.md"
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "examples/e0_external_game/WindowedMain.cpp"
+      - "scripts/benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b2_execution_freeze.py"
+      - ".github/workflows/benchmark-b2-acceptance-v3-freeze.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate append-only V3 freeze
+        run: python3 -m scripts.benchmark_b2_acceptance_v3_freeze
+
+      - name: Run V3 freeze regressions
+        run: python3 -m unittest scripts.test_benchmark_b2_acceptance_v3_freeze
+
+      - name: Revalidate consumed V2 contract and post-score remediation
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v2
+          python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
+
+      - name: Syntax-check V3 freeze tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance_v3_freeze.py \
+            scripts/test_benchmark_b2_acceptance_v3_freeze.py
