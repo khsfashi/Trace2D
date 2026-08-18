@@ -1,0 +1,150 @@
+name: Benchmark B2 Acceptance V2 Read-Only Inspector
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: trace2d-owner-b2-nonscored-acceptance-v2
+  cancel-in-progress: false
+
+jobs:
+  inspect-windows-v2:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 accept-v2-inspect'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 15
+
+    steps:
+      - name: Publish read-only inspector locator
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACE2D_REPOSITORY: ${{ github.repository }}
+          TRACE2D_RUN_ID: ${{ github.run_id }}
+          TRACE2D_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v2'
+          $initialPath = Join-Path $runsRoot 'initial-summary.json'
+          $revisionPath = Join-Path $runsRoot 'revision-record.json'
+          $finalTargetPath = Join-Path $runsRoot 'final-review-target.json'
+          $runUrl = "https://github.com/$env:TRACE2D_REPOSITORY/actions/runs/$env:TRACE2D_RUN_ID"
+
+          $rootExists = Test-Path -LiteralPath $runsRoot -PathType Container
+          $initialExists = Test-Path -LiteralPath $initialPath -PathType Leaf
+          $revisionExists = Test-Path -LiteralPath $revisionPath -PathType Leaf
+          $finalTargetExists = Test-Path -LiteralPath $finalTargetPath -PathType Leaf
+
+          $comment = @"
+          B2 acceptance-v2 read-only inspector
+
+          - run: $runUrl
+          - durable root exists: $rootExists
+          - initial summary exists: $initialExists
+          - revision record exists: $revisionExists
+          - final review target exists: $finalTargetExists
+
+          This inspector only reads the isolated acceptance-v2 durable root. It does not start, retry, replace, rescore, review, or revise any candidate.
+          "@
+
+          $uri = "https://api.github.com/repos/$env:TRACE2D_REPOSITORY/issues/$env:TRACE2D_ISSUE_NUMBER/comments"
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'trace2d-b2-acceptance-v2-inspector'
+          }
+          $payload = @{ body = $comment } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+
+      - name: Emit persisted acceptance-v2 evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v2'
+          Write-Host "TRACE2D_B2_ACCEPT_V2_INSPECTOR_RUN_ID=$env:GITHUB_RUN_ID"
+
+          if (-not (Test-Path -LiteralPath $runsRoot -PathType Container)) {
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_INSPECT_NO_DURABLE_ROOT'
+            exit 0
+          }
+
+          $initialPath = Join-Path $runsRoot 'initial-summary.json'
+          if (Test-Path -LiteralPath $initialPath -PathType Leaf) {
+            $summary = Get-Content -Raw -Encoding utf8 -LiteralPath $initialPath | ConvertFrom-Json
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_INITIAL_SUMMARY_BEGIN'
+            Write-Host ($summary | ConvertTo-Json -Depth 30 -Compress)
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_INITIAL_SUMMARY_END'
+
+            if ($null -eq $summary.review_target) {
+              Write-Host 'TRACE2D_B2_ACCEPT_V2_NO_REVIEW_TARGET'
+            } else {
+              foreach ($property in $summary.review_target.captures.PSObject.Properties) {
+                $role = [string]$property.Name
+                $capture = [string]$property.Value.path
+                $expectedSha = ([string]$property.Value.sha256).ToLowerInvariant()
+                if (-not (Test-Path -LiteralPath $capture -PathType Leaf)) {
+                  throw "Persisted acceptance-v2 capture is missing: role=$role path=$capture"
+                }
+                $observedSha = (Get-FileHash -LiteralPath $capture -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($observedSha -ne $expectedSha) {
+                  throw "Persisted acceptance-v2 capture digest drift: role=$role expected=$expectedSha observed=$observedSha"
+                }
+                $bytes = [IO.File]::ReadAllBytes($capture)
+                Write-Host "TRACE2D_B2_ACCEPT_V2_CAPTURE_BEGIN role=$role sha256=$expectedSha"
+                Write-Host ([Convert]::ToBase64String($bytes))
+                Write-Host "TRACE2D_B2_ACCEPT_V2_CAPTURE_END role=$role"
+              }
+            }
+          } else {
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_INSPECT_NO_INITIAL_SUMMARY'
+          }
+
+          $revisionPath = Join-Path $runsRoot 'revision-record.json'
+          if (Test-Path -LiteralPath $revisionPath -PathType Leaf) {
+            $record = Get-Content -Raw -Encoding utf8 -LiteralPath $revisionPath | ConvertFrom-Json
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_REVISION_RECORD_BEGIN'
+            Write-Host ($record | ConvertTo-Json -Depth 30 -Compress)
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_REVISION_RECORD_END'
+          }
+
+          $finalTargetPath = Join-Path $runsRoot 'final-review-target.json'
+          if (Test-Path -LiteralPath $finalTargetPath -PathType Leaf) {
+            $target = Get-Content -Raw -Encoding utf8 -LiteralPath $finalTargetPath | ConvertFrom-Json
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_FINAL_REVIEW_TARGET_BEGIN'
+            Write-Host ($target | ConvertTo-Json -Depth 30 -Compress)
+            Write-Host 'TRACE2D_B2_ACCEPT_V2_FINAL_REVIEW_TARGET_END'
+
+            if ($null -ne $target.review_target) {
+              foreach ($property in $target.review_target.captures.PSObject.Properties) {
+                $role = [string]$property.Name
+                $capture = [string]$property.Value.path
+                $expectedSha = ([string]$property.Value.sha256).ToLowerInvariant()
+                if (-not (Test-Path -LiteralPath $capture -PathType Leaf)) {
+                  throw "Persisted revised acceptance-v2 capture is missing: role=$role path=$capture"
+                }
+                $observedSha = (Get-FileHash -LiteralPath $capture -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($observedSha -ne $expectedSha) {
+                  throw "Persisted revised acceptance-v2 capture digest drift: role=$role expected=$expectedSha observed=$observedSha"
+                }
+                $bytes = [IO.File]::ReadAllBytes($capture)
+                Write-Host "TRACE2D_B2_ACCEPT_V2_REVISED_CAPTURE_BEGIN role=$role sha256=$expectedSha"
+                Write-Host ([Convert]::ToBase64String($bytes))
+                Write-Host "TRACE2D_B2_ACCEPT_V2_REVISED_CAPTURE_END role=$role"
+              }
+            }
+          }
