@@ -59,7 +59,17 @@ The minimum external-game sequence through B2 is complete:
  -> #104 Benchmark B2
 ```
 
-The complete Sprite program through SPP5/SE2E/SPERF remains frozen production continuity. In particular, Asset Studio must reuse existing Sprite processing, extraction, quality/repair, import, generator interop, provider-neutral generation orchestration, canonical SpriteAsset, animation and renderer authority rather than creating parallel systems.
+## Frozen Sprite continuity
+
+The completed production Sprite program remains frozen continuity for Asset Studio and later work. In particular:
+
+- **#144 / SA0** deterministic Sprite animation timing/frame/event contract remains complete and frozen,
+- SA1-SA4 remain the authoritative deterministic Sprite animation continuation built on SA0,
+- SR0-SR8 remain the production Sprite renderer/presentation authority,
+- SPP0-SPP5 remain the deterministic processing, extraction, quality/repair, import, generator-manifest and provider-neutral generation-orchestration authority,
+- SE2E/SPERF remain end-to-end and performance evidence continuity.
+
+Asset Studio must reuse these contracts rather than creating parallel Sprite truth or weakening frozen animation/runtime semantics.
 
 ## Immutable benchmark lessons
 
