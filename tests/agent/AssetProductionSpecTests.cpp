@@ -13,10 +13,10 @@ format_version = 1
 [production_set]
 id = "forest-monsters-v1"
 work_spec = "forest-monsters-work"
+owner_review_acceptance = "owner-approval"
 art_profile = "forest-monsters"
 candidates_per_item = 3
 max_provider_calls = 30
-owner_review_required = true
 
 [[items]]
 id = "mossling"
@@ -49,9 +49,7 @@ approved_references = [
 ]
 )toml";
 
-TEST(AssetProductionSpecTests, RecoversSetIntentAndArtProfileWithoutOwningCompletionState)
-{
-    constexpr std::string_view workSpecText = R"toml(
+constexpr std::string_view RepresentativeWorkSpec = R"toml(
 format_version = 1
 [work]
 id = "forest-monsters-work"
@@ -65,6 +63,13 @@ description = "Forest-monster asset set"
 state = "planned"
 
 [[acceptance]]
+id = "structural-proof"
+deliverable = "asset-set"
+description = "Canonical import verifies."
+verification = "deterministic"
+state = "planned"
+
+[[acceptance]]
 id = "owner-approval"
 deliverable = "asset-set"
 description = "Owner approves the visual set."
@@ -72,10 +77,14 @@ verification = "human"
 state = "planned"
 )toml";
 
+TEST(AssetProductionSpecTests, RecoversSetIntentAndReferencesWorkSpecHumanApproval)
+{
     const auto production = trace2d::agent::ParseAssetProductionSpecToml(
         RepresentativeProductionSpec,
         "forest.asset-production.toml");
-    const auto work = trace2d::agent::ParseWorkSpecToml(workSpecText, "forest.work.toml");
+    const auto work = trace2d::agent::ParseWorkSpecToml(
+        RepresentativeWorkSpec,
+        "forest.work.toml");
 
     ASSERT_TRUE(production.Succeeded());
     ASSERT_TRUE(work.Succeeded());
@@ -84,10 +93,10 @@ state = "planned"
 
     EXPECT_EQ(production.spec->id, "forest-monsters-v1");
     EXPECT_EQ(production.spec->workSpecId, work.spec->id);
+    EXPECT_EQ(production.spec->ownerReviewAcceptanceId, "owner-approval");
     EXPECT_EQ(production.spec->artProfileId, "forest-monsters");
     EXPECT_EQ(production.spec->candidatesPerItem, 3U);
     EXPECT_EQ(production.spec->maxProviderCalls, 30U);
-    EXPECT_TRUE(production.spec->ownerReviewRequired);
     ASSERT_EQ(production.spec->items.size(), 2U);
     EXPECT_EQ(production.spec->items[0].width, 64U);
     EXPECT_EQ(production.spec->items[0].height, 64U);
@@ -95,9 +104,11 @@ state = "planned"
     EXPECT_EQ(production.spec->items[0].requiredAnimations[2], "attack");
     ASSERT_EQ(production.spec->artProfiles.size(), 1U);
     ASSERT_EQ(production.spec->artProfiles[0].approvedReferences.size(), 2U);
-    EXPECT_EQ(
-        production.spec->artProfiles[0].approvedReferences[0],
-        "assets/monsters/approved/moss_golem.sprite.toml");
+
+    const auto linkDiagnostics = trace2d::agent::ValidateAssetProductionSpecAgainstWorkSpec(
+        *production.spec,
+        *work.spec);
+    EXPECT_TRUE(linkDiagnostics.empty());
 }
 
 TEST(AssetProductionSpecTests, RejectsProviderSpecificConfiguration)
@@ -107,10 +118,10 @@ format_version = 1
 [production_set]
 id = "provider-coupled"
 work_spec = "work"
+owner_review_acceptance = "approval"
 art_profile = "profile"
 candidates_per_item = 2
 max_provider_calls = 4
-owner_review_required = true
 provider_model = "vendor/model"
 
 [[items]]
@@ -138,10 +149,10 @@ format_version = 1
 [production_set]
 id = "scored-style"
 work_spec = "work"
+owner_review_acceptance = "approval"
 art_profile = "profile"
 candidates_per_item = 2
 max_provider_calls = 4
-owner_review_required = true
 
 [[items]]
 id = "item"
@@ -169,10 +180,10 @@ format_version = 1
 [production_set]
 id = "missing-profile"
 work_spec = "work"
+owner_review_acceptance = "approval"
 art_profile = "missing"
 candidates_per_item = 1
 max_provider_calls = 1
-owner_review_required = true
 
 [[items]]
 id = "item"
@@ -199,10 +210,10 @@ format_version = 1
 [production_set]
 id = "unsafe-reference"
 work_spec = "work"
+owner_review_acceptance = "approval"
 art_profile = "profile"
 candidates_per_item = 1
 max_provider_calls = 1
-owner_review_required = true
 
 [[items]]
 id = "item"
@@ -229,10 +240,10 @@ format_version = 1
 [production_set]
 id = "unbounded"
 work_spec = "work"
+owner_review_acceptance = "approval"
 art_profile = "profile"
 candidates_per_item = 0
 max_provider_calls = 0
-owner_review_required = true
 
 [[items]]
 id = "item"
@@ -249,5 +260,43 @@ approved_references = ["assets/reference.sprite.toml"]
     const auto parsed = trace2d::agent::ParseAssetProductionSpecToml(text);
     EXPECT_FALSE(parsed.Succeeded());
     ASSERT_GE(parsed.diagnostics.size(), 2U);
+}
+
+TEST(AssetProductionSpecTests, CrossValidationRejectsUnknownReviewAcceptance)
+{
+    const auto production = trace2d::agent::ParseAssetProductionSpecToml(RepresentativeProductionSpec);
+    const auto work = trace2d::agent::ParseWorkSpecToml(RepresentativeWorkSpec);
+    ASSERT_TRUE(production.Succeeded());
+    ASSERT_TRUE(work.Succeeded());
+    ASSERT_TRUE(production.spec.has_value());
+    ASSERT_TRUE(work.spec.has_value());
+
+    auto modified = *production.spec;
+    modified.ownerReviewAcceptanceId = "missing-approval";
+    const auto diagnostics = trace2d::agent::ValidateAssetProductionSpecAgainstWorkSpec(
+        modified,
+        *work.spec);
+
+    ASSERT_EQ(diagnostics.size(), 1U);
+    EXPECT_EQ(diagnostics[0].path, "production_set.owner_review_acceptance");
+}
+
+TEST(AssetProductionSpecTests, CrossValidationRejectsDeterministicReviewAcceptance)
+{
+    const auto production = trace2d::agent::ParseAssetProductionSpecToml(RepresentativeProductionSpec);
+    const auto work = trace2d::agent::ParseWorkSpecToml(RepresentativeWorkSpec);
+    ASSERT_TRUE(production.Succeeded());
+    ASSERT_TRUE(work.Succeeded());
+    ASSERT_TRUE(production.spec.has_value());
+    ASSERT_TRUE(work.spec.has_value());
+
+    auto modified = *production.spec;
+    modified.ownerReviewAcceptanceId = "structural-proof";
+    const auto diagnostics = trace2d::agent::ValidateAssetProductionSpecAgainstWorkSpec(
+        modified,
+        *work.spec);
+
+    ASSERT_EQ(diagnostics.size(), 1U);
+    EXPECT_EQ(diagnostics[0].path, "production_set.owner_review_acceptance");
 }
 } // namespace
