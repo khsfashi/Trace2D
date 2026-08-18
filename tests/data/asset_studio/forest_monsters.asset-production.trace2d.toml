@@ -1,0 +1,112 @@
+format_version = 1
+
+[production_set]
+id = "forest-monsters-v1"
+work_spec = "asset-studio-forest-monsters"
+art_profile = "forest-monsters"
+candidates_per_item = 3
+max_provider_calls = 30
+owner_review_required = true
+
+[[items]]
+id = "mossling"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "thornboar"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "fernwing"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "rootjaw"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "capcrawler"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "barkhorn"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "sporetoad"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "vinecat"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "lichenstag"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[items]]
+id = "bramblebat"
+asset_class = "sprite"
+width = 64
+height = 64
+required_animations = ["idle", "walk", "attack"]
+required_directions = ["right"]
+constraints = ["transparent background", "readable silhouette"]
+
+[[art_profiles]]
+id = "forest-monsters"
+description = "Approved forest-monster references for the initial Asset Studio proof."
+creative_constraints = [
+    "pixel-art clusters remain readable at native resolution",
+    "single upper-left lighting direction",
+    "strong silhouette separation at 64x64",
+]
+approved_references = [
+    "tests/data/asset_studio/reference_moss.sprite.toml",
+    "tests/data/asset_studio/reference_thorn.sprite.toml",
+]
