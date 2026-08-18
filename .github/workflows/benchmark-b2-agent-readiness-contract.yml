@@ -9,6 +9,7 @@ on:
       - "scripts/benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_agent_readiness.py"
+      - "scripts/test_benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b0_codex_wrapper.py"
       - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
@@ -21,6 +22,7 @@ on:
       - "scripts/benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_agent_outcome.py"
       - "scripts/test_benchmark_b2_agent_readiness.py"
+      - "scripts/test_benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
       - "scripts/benchmark_b0_codex_wrapper.py"
       - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
@@ -48,6 +50,9 @@ jobs:
       - name: Test candidate-free readiness boundary
         run: python3 -m unittest scripts.test_benchmark_b2_agent_readiness
 
+      - name: Test engine-independent readiness probe dispatch
+        run: python3 -m unittest scripts.test_benchmark_b2_codex_windows_acl_wrapper
+
       - name: Revalidate B2 post-score remediation and V4 historical boundary
         run: |
           python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
@@ -59,4 +64,6 @@ jobs:
           python3 -m py_compile \
             scripts/benchmark_b2_agent_outcome.py \
             scripts/test_benchmark_b2_agent_outcome.py \
-            scripts/test_benchmark_b2_agent_readiness.py
+            scripts/test_benchmark_b2_agent_readiness.py \
+            scripts/test_benchmark_b2_codex_windows_acl_wrapper.py \
+            scripts/benchmark_b2_codex_windows_acl_wrapper.py
