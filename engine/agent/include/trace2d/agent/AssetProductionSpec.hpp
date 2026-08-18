@@ -9,6 +9,8 @@
 
 namespace trace2d::agent
 {
+struct WorkSpec;
+
 struct AssetProductionDiagnostic final
 {
     std::string path{};
@@ -40,10 +42,10 @@ struct AssetProductionSpec final
 {
     std::string id{};
     std::string workSpecId{};
+    std::string ownerReviewAcceptanceId{};
     std::string artProfileId{};
     std::uint32_t candidatesPerItem{0};
     std::uint32_t maxProviderCalls{0};
-    bool ownerReviewRequired{true};
     std::vector<AssetProductionItem> items{};
     std::vector<ArtProfile> artProfiles{};
 };
@@ -65,4 +67,10 @@ struct AssetProductionSpecParseResult final
 [[nodiscard]] AssetProductionSpecParseResult ParseAssetProductionSpecToml(
     std::string_view text,
     std::string_view sourceName = {});
+
+// Cross-contract validation is explicit tooling/setup work. The production
+// spec references, rather than duplicates, WorkSpec human-review authority.
+[[nodiscard]] std::vector<AssetProductionDiagnostic> ValidateAssetProductionSpecAgainstWorkSpec(
+    const AssetProductionSpec& spec,
+    const WorkSpec& workSpec);
 } // namespace trace2d::agent
