@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-85c1bbb6dd8e402eb99dfd06573948841366dcce",
+  "source_event": "merge",
+  "event_id": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+        "authored_at": "2026-08-18T11:10:47+09:00",
+        "subject": "ci(b2): add read-only acceptance v2 failure diagnostics (#289)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/85c1bbb6dd8e402eb99dfd06573948841366dcce"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [],
+    "constraints": [],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "pattern validated by merged #288 inspector on the same self-hosted durable root and concurrency lane; PR is mergeable and contains one isolated workflow file",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/85c1bbb6dd8e402eb99dfd06573948841366dcce"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "generic PR workflows remained GitHub-hosted queued at merge time",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/85c1bbb6dd8e402eb99dfd06573948841366dcce"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "diagnostic must read exactly two consumed v2 initial records and may not start, retry, replace, rescore, review, or revise candidates",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/85c1bbb6dd8e402eb99dfd06573948841366dcce"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": [
+      {
+        "id": "supersedes-001",
+        "text": "none",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "85c1bbb6dd8e402eb99dfd06573948841366dcce",
+            "trailer": "Supersedes",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/85c1bbb6dd8e402eb99dfd06573948841366dcce"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
