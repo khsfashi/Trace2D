@@ -147,9 +147,12 @@ jobs:
           if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $root | Out-Null
           $workspace = Join-Path $root 'workspace'
-          $canary = Join-Path $root 'outside-workspace-canary.txt'
+          $protectedRoot = Join-Path $root 'protected'
+          New-Item -ItemType Directory -Force -Path $protectedRoot | Out-Null
+          $canary = Join-Path $protectedRoot 'outside-workspace-canary.txt'
           $evidence = Join-Path $root 'readiness-evidence.json'
           [IO.File]::WriteAllText($canary, "DENIED-CANARY-$([Guid]::NewGuid().ToString('N'))")
+          $env:TRACE2D_BENCH_ACL_EXTRA_PROTECTED_ROOTS = $protectedRoot
           "TRACE2D_B2_READINESS_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "TRACE2D_B2_READINESS_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -178,7 +181,7 @@ jobs:
         shell: pwsh
         run: |
           "## B2 candidate-free Agent readiness" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-          "PASS: the pinned real model completed a tool-using turn, wrote only inside the temporary workspace, and was denied the external canary. No benchmark prompt or acceptance candidate was used." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "PASS: the pinned real model completed a tool-using turn, wrote only inside the temporary workspace, and was denied the explicitly protected external canary. No benchmark prompt or acceptance candidate was used." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Remove readiness scratch state
         if: always()
