@@ -1,1 +1,2 @@
 add_subdirectory(e0_external_game)
+add_subdirectory(p0_tiny_playable)

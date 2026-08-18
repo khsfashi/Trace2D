@@ -1,0 +1,100 @@
+name: P0 Tiny Playable Product Proof
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/p0_tiny_playable/**"
+      - "examples/CMakeLists.txt"
+      - ".github/workflows/product-proof-p0.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "examples/p0_tiny_playable/**"
+      - "examples/CMakeLists.txt"
+      - ".github/workflows/product-proof-p0.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-p0-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  windows-playable:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pinned vcpkg
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
+          & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure Trace2D SDK source tree
+        run: cmake --preset windows-msvc
+
+      - name: Build SDK closure and in-tree proof
+        run: >-
+          cmake --build --preset windows-debug --parallel
+          --target trace2d_application trace2d_agent trace2d_platform trace2d_render trace2d_tile trace2d_text
+          trace2d_p0_tiny_playable_headless trace2d_p0_tiny_playable_windowed
+
+      - name: Verify in-tree canonical gameplay state
+        run: ctest --preset windows-debug -R "^trace2d_p0_tiny_playable_headless$" --output-on-failure
+
+      - name: Install candidate Trace2D SDK
+        shell: pwsh
+        run: |
+          $installRoot = Join-Path $env:RUNNER_TEMP "trace2d-p0-sdk"
+          cmake --install "build/windows-msvc" --config Debug --prefix $installRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "TRACE2D_ROOT=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure P0 as a clean installed-SDK consumer
+        working-directory: examples/p0_tiny_playable
+        run: cmake --preset windows-msvc
+
+      - name: Build P0 as a clean installed-SDK consumer
+        working-directory: examples/p0_tiny_playable
+        run: cmake --build --preset windows-debug --parallel
+
+      - name: Verify standalone canonical gameplay state
+        working-directory: examples/p0_tiny_playable
+        run: ctest --preset windows-debug
+
+      - name: List owner-playable standalone package
+        shell: pwsh
+        run: Get-ChildItem -Recurse "examples/p0_tiny_playable/build/windows-msvc/Debug" | Select-Object FullName, Length
+
+      - name: Upload owner-playable Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trace2d-p0-tiny-playable-windows
+          path: |
+            examples/p0_tiny_playable/build/windows-msvc/Debug
+            examples/p0_tiny_playable/README.md
+          if-no-files-found: error
+          retention-days: 30
