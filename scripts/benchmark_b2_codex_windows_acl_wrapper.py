@@ -56,10 +56,13 @@ B2 owner-runner execution handoff (mechanics only; the frozen task above is unch
     return shared + f"""- Resolve public Trace2D C++ symbols from the repository-owned Agent public API index and canonical external example rather than inferring per-type headers.
   `trace2d::application::Game` is declared by `#include <{game_header}>`; there is no
   `trace2d/application/Game.hpp` per-type header to infer.
-  The candidate source must expose the normal game through exactly:
+- The qualified verifier compiles the workspace-root file `B2Candidate.cpp`. Put the verifier
+  handoff factory in that file; other authored sources may remain separate normal project files.
+  `B2Candidate.cpp` must expose the normal game through exactly:
   `std::unique_ptr<trace2d::application::Game>
   trace2d::benchmark::b2::CreateCandidate(trace2d::scene::ComponentRegistry&)`.
-  This is only the verifier handoff boundary; gameplay must still use normal public engine paths.
+  This filename/signature requirement is execution plumbing only; gameplay must still use normal
+  public engine paths and the factory must not assign verifier state or encode benchmark shortcuts.
 """
 
 
