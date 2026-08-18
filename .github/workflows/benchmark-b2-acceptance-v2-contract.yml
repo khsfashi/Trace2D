@@ -6,6 +6,7 @@ on:
       - main
       - "agent/**"
     paths:
+      - "benchmarks/b2/acceptance/README.md"
       - "benchmarks/b2/acceptance/contract-v2.json"
       - "benchmarks/b2/acceptance/tasks/ember-hall-v2/**"
       - "scripts/benchmark_b2_acceptance_v2.py"
@@ -16,6 +17,7 @@ on:
     branches:
       - main
     paths:
+      - "benchmarks/b2/acceptance/README.md"
       - "benchmarks/b2/acceptance/contract-v2.json"
       - "benchmarks/b2/acceptance/tasks/ember-hall-v2/**"
       - "scripts/benchmark_b2_acceptance_v2.py"
