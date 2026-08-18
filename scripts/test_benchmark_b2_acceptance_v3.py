@@ -39,26 +39,30 @@ class BenchmarkB2AcceptanceV3Tests(unittest.TestCase):
             with self.assertRaisesRegex(v3.AcceptanceV3Error, "already consumed"):
                 v3.start(args)
 
-    def test_initial_status_never_promotes_deterministic_or_presentation_failure(self) -> None:
+    def test_initial_status_never_promotes_machine_or_integrity_failure(self) -> None:
         process = {"timed_out": False}
         passing_gate = {"passed": True}
         failing_gate = {"passed": False}
+        passing_verifier = {"verdict": {"status": "pass"}}
         self.assertEqual(
-            v3._initial_status(process, False, None, passing_gate),
+            v3._initial_status(process, False, None, passing_gate, True),
             "agent_identity_or_result_failure",
         )
         self.assertEqual(
-            v3._initial_status(process, True, None, passing_gate),
+            v3._initial_status(process, True, None, passing_gate, True),
             "deterministic_failure",
         )
-        # A missing verifier verdict cannot be repaired by presentation evidence.
-        self.assertNotEqual(
-            v3._initial_status(process, True, None, passing_gate),
-            "accepted_for_perceptual_review",
+        self.assertEqual(
+            v3._initial_status(process, True, passing_verifier, failing_gate, True),
+            "presentation_gate_failure",
         )
         self.assertEqual(
-            v3._initial_status(process, True, {"verdict": {"status": "pass"}}, failing_gate),
-            "presentation_gate_failure",
+            v3._initial_status(process, True, passing_verifier, passing_gate, False),
+            "integrity_failure",
+        )
+        self.assertEqual(
+            v3._initial_status(process, True, passing_verifier, passing_gate, True),
+            "accepted_for_perceptual_review",
         )
 
     def test_human_revision_prompt_preserves_machine_authorities(self) -> None:
