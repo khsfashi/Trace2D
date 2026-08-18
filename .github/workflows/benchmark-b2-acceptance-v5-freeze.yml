@@ -6,6 +6,7 @@ on:
       - main
       - "agent/**"
     paths:
+      - ".gitattributes"
       - "benchmarks/b2/acceptance/contract-v4.json"
       - "benchmarks/b2/acceptance/contract-v5.json"
       - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
@@ -22,6 +23,7 @@ on:
     branches:
       - main
     paths:
+      - ".gitattributes"
       - "benchmarks/b2/acceptance/contract-v4.json"
       - "benchmarks/b2/acceptance/contract-v5.json"
       - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
