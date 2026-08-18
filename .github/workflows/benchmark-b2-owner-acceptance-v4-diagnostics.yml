@@ -48,7 +48,7 @@ jobs:
           - run: $runUrl
           - retained initial records: $recordCount
 
-          This diagnostic only reads consumed acceptance-v4 records, bounded adapter/verifier logs, and authored workspace text. It cannot start, retry, replace, rescore, review, or revise a candidate.
+          This diagnostic only reads consumed acceptance-v4 records, bounded adapter/verifier/Codex trajectory logs, and authored workspace text. It cannot start, retry, replace, rescore, review, or revise a candidate.
           "@
           $headers = @{
             Accept = 'application/vnd.github+json'
@@ -88,7 +88,7 @@ jobs:
           }
 
           $allowedExtensions = @('.cpp', '.cc', '.cxx', '.h', '.hpp', '.json', '.toml', '.yaml', '.yml', '.md', '.txt', '.cmake')
-          $allowedTrialLogs = @('adapter.stdout.txt', 'adapter.stderr.txt', 'verifier.stdout.txt', 'verifier.stderr.txt')
+          $allowedTrialLogs = @('adapter.stdout.txt', 'adapter.stderr.txt', 'verifier.stdout.txt', 'verifier.stderr.txt', 'codex-events.jsonl')
           $maxFileChars = 65536
           $maxTrialLogChars = 131072
           $maxWorkspaceChars = 393216
