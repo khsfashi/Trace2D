@@ -1,0 +1,160 @@
+name: Benchmark B2 Acceptance V2 Read-Only Diagnostics
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: trace2d-owner-b2-nonscored-acceptance-v2
+  cancel-in-progress: false
+
+jobs:
+  diagnose-windows-v2:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 accept-v2-diagnose'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 15
+
+    steps:
+      - name: Publish read-only diagnostics locator
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACE2D_REPOSITORY: ${{ github.repository }}
+          TRACE2D_RUN_ID: ${{ github.run_id }}
+          TRACE2D_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v2'
+          $recordCount = 0
+          $initialRoot = Join-Path $runsRoot 'initial'
+          if (Test-Path -LiteralPath $initialRoot -PathType Container) {
+            $recordCount = @(Get-ChildItem -LiteralPath $initialRoot -Filter 'record.json' -Recurse -File).Count
+          }
+          $runUrl = "https://github.com/$env:TRACE2D_REPOSITORY/actions/runs/$env:TRACE2D_RUN_ID"
+          $comment = @"
+          B2 acceptance-v2 read-only diagnostics
+
+          - run: $runUrl
+          - retained initial records: $recordCount
+
+          This diagnostic only reads consumed acceptance-v2 records and authored workspaces. It cannot start, retry, replace, rescore, review, or revise a candidate.
+          "@
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'trace2d-b2-acceptance-v2-diagnostics'
+          }
+          $uri = "https://api.github.com/repos/$env:TRACE2D_REPOSITORY/issues/$env:TRACE2D_ISSUE_NUMBER/comments"
+          $payload = @{ body = $comment } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+
+      - name: Emit retained trial records and authored text sources
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $runsRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v2'))
+          $lowerRoot = $runsRoot.ToLowerInvariant()
+          if ($lowerRoot.Contains('benchmark-b2-scored-v1') -or $lowerRoot.Contains('benchmark-b2-acceptance-v1')) {
+            throw 'Acceptance-v2 diagnostics must never read scored or v1 durable roots.'
+          }
+          $initialRoot = Join-Path $runsRoot 'initial'
+          if (-not (Test-Path -LiteralPath $initialRoot -PathType Container)) {
+            throw "Acceptance-v2 initial root is missing: $initialRoot"
+          }
+
+          $records = @(Get-ChildItem -LiteralPath $initialRoot -Filter 'record.json' -Recurse -File | Sort-Object FullName)
+          if ($records.Count -ne 2) {
+            throw "Expected exactly two consumed acceptance-v2 initial records, found $($records.Count)."
+          }
+
+          $allowedExtensions = @('.cpp', '.cc', '.cxx', '.h', '.hpp', '.json', '.toml', '.yaml', '.yml', '.md', '.txt', '.cmake')
+          $maxFileChars = 65536
+          $maxWorkspaceChars = 393216
+
+          foreach ($recordFile in $records) {
+            $record = Get-Content -Raw -Encoding utf8 -LiteralPath $recordFile.FullName | ConvertFrom-Json
+            if ($record.scored -ne $false) {
+              throw "Refusing record with scored != false: $($recordFile.FullName)"
+            }
+            if ([string]$record.kind -ne 'trace2d_b2_nonscored_acceptance_v2_initial') {
+              throw "Unexpected acceptance-v2 record kind: $($record.kind)"
+            }
+
+            $workspace = [IO.Path]::GetFullPath([string]$record.artifacts.workspace)
+            $rootPrefix = $runsRoot.TrimEnd('\') + '\'
+            if (-not $workspace.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+              throw "Retained workspace escaped acceptance-v2 durable root: $workspace"
+            }
+
+            $diagnostic = [ordered]@{
+              schema_version = 1
+              kind = 'trace2d_b2_acceptance_v2_read_only_diagnostic'
+              diagnostic_only = $true
+              acceptance_authority = $false
+              scored = $false
+              run_index = [int]$record.run_index
+              trial_id = [string]$record.trial_id
+              status = [string]$record.status
+              eligible_for_perceptual_review = [bool]$record.eligible_for_perceptual_review
+              agent_identity_ok = [bool]$record.agent_identity_ok
+              agent_result = $record.agent_result
+              budget = $record.budget
+              metrics = $record.metrics
+              deterministic_verifier = $record.deterministic_verifier
+              presentation_gate = $record.presentation_gate
+              workspace_sha256 = [string]$record.workspace_sha256
+              workspace_hash_policy = $record.workspace_hash_policy
+              artifacts = $record.artifacts
+            }
+            Write-Host "TRACE2D_B2_ACCEPT_V2_DIAGNOSTIC_RECORD_BEGIN run_index=$($record.run_index) trial_id=$($record.trial_id)"
+            Write-Host ($diagnostic | ConvertTo-Json -Depth 40 -Compress)
+            Write-Host "TRACE2D_B2_ACCEPT_V2_DIAGNOSTIC_RECORD_END run_index=$($record.run_index)"
+
+            $manifest = @()
+            $emittedChars = 0
+            $files = @(Get-ChildItem -LiteralPath $workspace -Recurse -File | Sort-Object FullName)
+            foreach ($file in $files) {
+              $relative = [IO.Path]::GetRelativePath($workspace, $file.FullName).Replace('\', '/')
+              if ($relative.StartsWith('.git/', [StringComparison]::OrdinalIgnoreCase) -or
+                  $relative.StartsWith('build/', [StringComparison]::OrdinalIgnoreCase) -or
+                  $relative.StartsWith('.trace2d-b2-evidence/', [StringComparison]::OrdinalIgnoreCase)) {
+                continue
+              }
+              $extension = [IO.Path]::GetExtension($file.Name).ToLowerInvariant()
+              $isCMakeLists = $file.Name -eq 'CMakeLists.txt'
+              if (-not $isCMakeLists -and -not $allowedExtensions.Contains($extension)) {
+                continue
+              }
+              $sha = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $manifest += [ordered]@{ path = $relative; byte_count = $file.Length; sha256 = $sha }
+
+              if ($file.Length -gt $maxFileChars -or $emittedChars -ge $maxWorkspaceChars) {
+                continue
+              }
+              $text = Get-Content -Raw -Encoding utf8 -LiteralPath $file.FullName
+              if ($text.Length -gt $maxFileChars -or ($emittedChars + $text.Length) -gt $maxWorkspaceChars) {
+                continue
+              }
+              Write-Host "TRACE2D_B2_ACCEPT_V2_SOURCE_BEGIN run_index=$($record.run_index) path=$relative sha256=$sha"
+              Write-Host $text
+              Write-Host "TRACE2D_B2_ACCEPT_V2_SOURCE_END run_index=$($record.run_index) path=$relative"
+              $emittedChars += $text.Length
+            }
+            Write-Host "TRACE2D_B2_ACCEPT_V2_SOURCE_MANIFEST_BEGIN run_index=$($record.run_index)"
+            Write-Host ($manifest | ConvertTo-Json -Depth 8 -Compress)
+            Write-Host "TRACE2D_B2_ACCEPT_V2_SOURCE_MANIFEST_END run_index=$($record.run_index)"
+          }
