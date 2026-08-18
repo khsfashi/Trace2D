@@ -70,7 +70,43 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def configure_b2() -> None:
+def _probe_tool_roots(
+    codex: str,
+    workspace: Path,
+    lane: str,
+) -> tuple[list[Path], dict[str, Path | None]]:
+    """Return only transport/isolation roots for the candidate-free canary.
+
+    ``core.run_isolation_probe`` intentionally uses the synthetic
+    ``godot.generic`` lane label so it can reuse the frozen config surface. The
+    probe itself does not launch Godot, Trace2D, or an MCP server. Reusing B1's
+    normal lane resolver here would therefore make a provider/ACL readiness
+    canary depend on an unrelated engine binary and can fail before Codex is
+    invoked.
+
+    Normal B2 ``run`` commands continue to use ``base.tool_roots_for_b1`` and
+    retain all existing lane-specific binary requirements.
+    """
+    del lane
+    roots: list[Path] = [Path(codex).resolve().parent]
+    package_root = core.discover_codex_package_root(codex, workspace)
+    if package_root is not None:
+        roots.append(package_root)
+
+    extra = os.environ.get("TRACE2D_BENCH_CODEX_READ_ROOTS", "")
+    for item in extra.split(os.pathsep):
+        if item.strip():
+            roots.append(Path(item.strip()))
+
+    return core.unique_roots(roots), {
+        "godot_bin": None,
+        "trace2d_bin": None,
+        "godot_ai_python": None,
+        "godot_ai_addon": None,
+    }
+
+
+def configure_b2(*, probe_only: bool = False) -> None:
     _alias_env("TRACE2D_B1_GODOT_AI_PYTHON", "TRACE2D_B2_GODOT_AI_PYTHON")
     _alias_env("TRACE2D_B1_GODOT_AI_ADDON_DIR", "TRACE2D_B2_GODOT_AI_ADDON_DIR")
     base.GODOT_AI_ID = GODOT_AI_ID
@@ -82,6 +118,8 @@ def configure_b2() -> None:
     # before the independent verifier sees the retained candidate.
     base.remove_injected_godot_ai_plugin = remediation.remove_injected_godot_ai_plugin
     base.configure()
+    if probe_only:
+        core.tool_roots_for_lane = _probe_tool_roots
 
 
 def run_b2_trial(args: argparse.Namespace) -> int:
@@ -151,9 +189,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    args = build_parser().parse_args()
     try:
-        configure_b2()
-        args = build_parser().parse_args()
+        configure_b2(probe_only=args.command == "probe-isolation")
         return int(args.handler(args))
     except (
         B2WrapperError,
