@@ -144,6 +144,7 @@ class BenchmarkB2AcceptanceV4Tests(unittest.TestCase):
             "benchmark-b2-acceptance-v3",
             "Expected exactly two consumed acceptance-v4 initial records",
             "trace2d_b2_nonscored_acceptance_v4_initial",
+            "codex-events.jsonl",
             "TRACE2D_B2_ACCEPT_V4_DIAGNOSTIC_RECORD_BEGIN",
             "TRACE2D_B2_ACCEPT_V4_TRIAL_LOG_BEGIN",
             "TRACE2D_B2_ACCEPT_V4_SOURCE_BEGIN",
