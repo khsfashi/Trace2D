@@ -18,6 +18,29 @@ Product optimization target:
 
 > **Author -> Run -> Observe -> Verify -> Revise through a compact semantic surface.**
 
+## Global engineering benchmark rule
+
+All non-trivial Trace2D work must follow `docs/EXTERNAL_REFERENCE_PROTOCOL.md` before the design is frozen.
+
+The default is:
+
+```text
+recover Trace2D decisions
+ -> benchmark mature current GitHub/public implementations
+ -> check whether direct reuse is practical
+ -> ADOPT / ADAPT / REJECT / DEFER
+ -> implement only the smallest missing Trace2D-owned part
+ -> verify the borrowed lesson with Trace2D evidence
+```
+
+Do not independently rebuild an already-solved engineering capability merely because custom implementation is possible. Prefer mature, maintained, well-tested implementations or proven contracts when their license, dependency weight, runtime cost, portability and authority model fit Trace2D. GitHub popularity is a discovery signal, not proof; relevance, maintenance, real use and evidence matter more.
+
+While doing this mandatory benchmark pass, agents should also notice adjacent **already-proven** capabilities that could materially improve Trace2D. When one is genuinely compelling, finish/report the active task first and then ask the owner whether to adapt it, for example:
+
+> `<project>` has a proven `<feature>` that solves `<problem>`. Trace2D could adapt it into `<specific feature>` for `<benefit>`. **이 기능을 토대로 Trace2D에 <specific feature>를 만들어보는 건 어때요?**
+
+Such a suggestion is advisory only. It must not create an issue, reorder the core lane, add a dependency or start implementation until the owner explicitly approves it.
+
 ## Current product interpretation
 
 Trace2D is not only the runtime engine. It also owns the **human-facing AI-operated production experience** built on the same canonical project/Agent/WorkResult state.
