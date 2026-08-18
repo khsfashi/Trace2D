@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+  "source_event": "merge",
+  "event_id": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+        "authored_at": "2026-08-18T12:25:29+09:00",
+        "subject": "ci: cancel superseded hosted workflow runs (#293)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [],
+    "constraints": [],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [
+      {
+        "id": "tested-001",
+        "text": "all PR-head workflows passed, including all seven CI jobs and External Consumer SDK.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+            "trailer": "Tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2"
+          }
+        ]
+      }
+    ],
+    "not_tested": [
+      {
+        "id": "not-tested-001",
+        "text": "forced cancellation via an intentionally superseding commit was avoided to prevent wasting hosted runner capacity.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+            "trailer": "Not-tested",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2"
+          }
+        ]
+      }
+    ],
+    "gates": [
+      {
+        "id": "gates-001",
+        "text": "none.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+            "trailer": "Gate",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2"
+          }
+        ]
+      }
+    ],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": [
+      {
+        "id": "supersedes-001",
+        "text": "none.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2",
+            "trailer": "Supersedes",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/fb35aaa0537ca772fdfa2d8a0c821d957e9f8ad2"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
