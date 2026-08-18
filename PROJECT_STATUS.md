@@ -2,7 +2,7 @@
 
 Last explanatory handoff update: **2026-08-18**
 
-This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state. When they disagree, live repository state and the committed lane win.
+This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state.
 
 ## Product rule
 
@@ -18,9 +18,28 @@ Product optimization target:
 
 > **Author -> Run -> Observe -> Verify -> Revise through a compact semantic surface.**
 
-Trace2D does not compete on MCP tool count or mature-engine feature count. The product moat to prove is low Agent discovery/context/revision cost plus deterministic engine-owned verification and a real human-playable review loop. See `docs/PRODUCT_DIRECTION.md`.
+## Current product interpretation
 
-## Completed production foundation relevant to B2
+Trace2D is not only the runtime engine. It also owns the **human-facing AI-operated production experience** built on the same canonical project/Agent/WorkResult state.
+
+For visual assets, that product direction is now explicit as **Asset Studio** / issue #318:
+
+```text
+asset-production request
+ -> replaceable generator candidates
+ -> existing deterministic Sprite processing/import
+ -> Workspace showroom / review queue
+ -> owner choose / feedback / approve
+ -> approved project asset library
+ -> canonical SpriteAsset / animation
+ -> game use
+```
+
+Asset Studio is a Trace2D responsibility, not a standalone TracePixel editor product. Contract: `docs/ASSET_STUDIO.md`.
+
+TracePixel may remain a separate deterministic raster R&D lab and may upstream a technique only after matched evidence shows a concrete Trace2D benefit.
+
+## Completed production foundation
 
 The minimum external-game sequence through B2 is complete:
 
@@ -42,94 +61,33 @@ The minimum external-game sequence through B2 is complete:
 
 ## Frozen Sprite continuity
 
-The completed production Sprite program remains frozen continuity for later work. In particular:
+The completed production Sprite program remains frozen continuity for Asset Studio and later work. In particular:
 
-- #144 / SA0 deterministic Sprite animation timing/frame/event contract remains complete and frozen,
-- SR8 renderer conformance and SA4 animation conformance remain trusted,
-- SPERF performance evidence remains the production Sprite baseline.
+- **#144 / SA0** deterministic Sprite animation timing/frame/event contract remains complete and frozen,
+- SA1-SA4 remain the authoritative deterministic Sprite animation continuation built on SA0,
+- SR0-SR8 remain the production Sprite renderer/presentation authority,
+- SPP0-SPP5 remain the deterministic processing, extraction, quality/repair, import, generator-manifest and provider-neutral generation-orchestration authority,
+- SE2E/SPERF remain end-to-end and performance evidence continuity.
 
-Later work must not weaken these contracts.
+Asset Studio must reuse these contracts rather than creating parallel Sprite truth or weakening frozen animation/runtime semantics.
 
-## Benchmark B1 — immutable baseline
+## Immutable benchmark lessons
 
-B1 remains immutable pre-improvement evidence:
+### B1
 
-- exact scored head: `6d6904e99ad7060341861cb3823e04591a579bf7`,
-- owner scored workflow: `31763107941`,
-- scored artifact id: `9206626314`,
-- artifact SHA-256: `74ab53220927f557621c96ee7b8df7395010e60c191d3959705ab7ba09f8d4d6`,
-- Godot Generic: 5/9,
-- Trace2D Agent: 3/9,
-- selected Godot Agent: 0/9.
+B1 remains immutable pre-improvement evidence. Its important product lesson is that runtime correctness and Agent usability are separate: several Trace2D final workspaces verified successfully despite Agent-budget failure. Do not rerun B1 to obtain a preferred score.
 
-The #175 postmortem remains the important interpretation: all six scored-unsuccessful Trace2D slots exceeded the 100k input-token budget while their final workspaces independently verified successfully. This is evidence that runtime capability and Agent usability are separate product properties.
+### B2
 
-Do not rerun, replace, repair or reinterpret B1.
+B2 and acceptance-v1-v5 remain consumed evidence. V5 ended in Agent/CLI completion-result timeout after partial workspace side effects; no gameplay-verifier or presentation-quality defect was demonstrated by that run. Do not create V6 merely to force a pass.
 
-## Agent Complexity Budget
-
-For demonstrated deterministic authoring/repair classes, preserve the direction:
-
-- one discoverable public Trace2D authoring root,
-- no mandatory Git metadata,
-- typed semantic mutation instead of mandatory raw representation editing where a production authority exists,
-- bounded validation and output,
-- low authored revision count,
-- zero visual-feedback calls for facts the engine can verify directly,
-- no normal-frame repository parsing or Agent tooling work.
-
-Measure discovery time, files/rereads, tokens, tool calls, raw edits versus semantic transactions, revisions, validation calls, visual calls, evidence bytes and human interventions. Do not solve context pressure by merely increasing prompts/budgets or proliferating benchmark-shaped tools.
-
-## Benchmark B2 — complete with full-loop acceptance not proven
-
-B2's original scored benchmark is complete and immutable:
-
-- task: `b2-topdown-combat-v1`,
-- three lanes: Godot Generic / selected Godot Agent / Trace2D Agent,
-- three trials per lane,
-- **9/9 scored slots consumed**,
-- automatic retries: 0,
-- replacement trials: 0,
-- no scored candidate reached deterministic acceptance, so the preregistered human-feedback phase could not begin.
-
-Post-score acceptance v1-v5 preserved scored evidence and repaired only demonstrated general surfaces.
-
-### Acceptance-v5 final diagnosis
-
-V5 is consumed and must not be rerun.
-
-Candidate-free qualification passed on run `32111766482`. The actual initial cohort ran once on `32112146580` and consumed exactly two attempts.
-
-Read-only diagnostic run `32123441180` established the common V5 failure:
-
-- both retained attempts are `agent_result_failure`, failure domain `infrastructure`,
-- both `codex exec` subprocesses timed out after exactly 885 seconds,
-- `agent-result.json` and `codex-events.jsonl` were absent,
-- no valid Agent identity/result completed,
-- deterministic verifier authority was false and verifier execution was correctly skipped,
-- presentation review was correctly skipped,
-- both workspaces nevertheless contained partial authoring side effects.
-
-The last point is important: V5 was not a clean "no authoring happened" failure. The Agent/CLI mutated each workspace but did not complete a valid authoritative turn. Those partial workspaces remain diagnostic evidence only; they must not be retroactively promoted, verified as accepted V5 candidates, or used to reinterpret the consumed cohort.
-
-No Trace2D gameplay-verifier or presentation-quality defect was demonstrated by V5. The common blocker is Agent/CLI completion-result delivery after side effects. The read-only evidence does not justify an automatic V6.
-
-B2 therefore closes with:
-
-- scored benchmark complete and immutable,
-- post-score general remediations preserved,
-- final full-loop acceptance **not proven**,
-- V5 Agent execution/result timeout retained as the final acceptance outcome.
-
-Do not create V6 merely to obtain a passing run. A future successor requires a separately demonstrated general defect, independent qualification and explicit owner promotion.
+These results reinforce the need for real product proofs and compact Agent surfaces instead of benchmark-shaped architecture growth.
 
 ## Current core lane — #315 playable product proof
 
-After #104 closes, the exact next core-lane item is:
+The exact current product item is:
 
 > **#315 — tiny external playable product proof**
-
-#315 comes **before #89 Material2D/Shader2D** and intentionally uses current capabilities.
 
 Required owner loop:
 
@@ -146,15 +104,51 @@ human intent
  -> owner approval or preserved rejection
 ```
 
-This is not another scored benchmark. New engine breadth is blocked during this checkpoint unless the playable proof demonstrates a concrete blocker and the owner explicitly promotes the minimum general fix.
+#315 intentionally uses current capabilities. New broad engine subsystems remain blocked unless #315 proves a concrete blocker and the owner promotes the minimum general fix.
 
-The later #12 flagship game remains the broad production proof after more subsystems mature.
+## Exact successor — #318 Asset Studio
 
-## Evidence-gated follow-ups
+After #315 closes, the next product checkpoint is now:
 
-#312 Semantic Project Graph / Project Index remains `BLOCKED / RESEARCH-GATED` until the frozen TraceResearch R01 pilot and postmortem justify a retrieval experiment. Do not insert it into the product lane merely because a code graph appears useful.
+> **#318 — Asset Studio: AI-operated sprite production, showroom and asset library**
 
-Security/determinism separation and developer-Agent versus shipped-runtime capability separation remain architectural constraints. Renderer breadth remains evidence-gated; #89 should preserve only bounded seams justified for later 2D work rather than introducing a generic render graph.
+This comes **before #89 Material2D/Shader2D**.
+
+The first #318 stage is AS0 contract/responsibility gap analysis. It must map the desired production experience against existing Trace2D SPP/Sprite/Workspace/WorkResult/#178 contracts before adding new implementation.
+
+AS0 should answer:
+
+- what Trace2D already solves,
+- what production-orchestration state is genuinely missing,
+- what Workspace/showroom state is genuinely missing,
+- what project asset-library metadata is genuinely missing,
+- whether one external generator adapter is required for a real proof,
+- which TracePixel/external-tool ideas are research-only or redundant.
+
+Do not begin by adding multiple providers, another raster QA stack or a GUI-only asset database.
+
+## Asset Studio target experience
+
+The product north star is set-level asset production, for example:
+
+```text
+"현재 프로젝트 스타일로 64x64 숲 몬스터 10종을 만들고
+idle / walk / attack까지 준비해줘."
+```
+
+Expected flow:
+
+```text
+AI creates a bounded candidate set
+ -> objective failures are rejected cheaply
+ -> Workspace shows surviving candidates and evidence
+ -> owner picks / rejects / asks for alternatives or targeted changes
+ -> revisions remain bound to exact results
+ -> approved assets enter the project library
+ -> game can use canonical assets immediately
+```
+
+Aesthetic approval remains human. Do not implement `generate until aesthetic_score >= threshold`.
 
 ## Fixed continuation lane
 
@@ -162,6 +156,7 @@ The owner-fixed continuation is now:
 
 ```text
 #315 tiny external playable product proof
+ -> #318 Asset Studio AS0 / owner-approved slices
  -> #89 Material2D / Shader2D
  -> #90 deterministic tween
  -> #76 Physics2D
@@ -177,12 +172,14 @@ The owner-fixed continuation is now:
  -> #61 Spine license gate
 ```
 
+#312 Semantic Project Graph / Project Index remains research-gated and does not enter this lane automatically.
+
 ## Continuation rule
 
 The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
 
-- If #104 is still open only for administrative closure, preserve all B2 evidence and close it; do not create V6 automatically.
-- Once #104 is closed, #315 is the exact next product item.
-- During #315, do not jump to #89 or add new broad subsystems unless #315 demonstrates a concrete blocker and the owner explicitly changes the lane.
-- Only after #315 closes does the core lane advance to #89.
-- If live GitHub state conflicts with this handoff, live issue/PR/CI state plus `config/trace2d.core-lane.json` wins.
+- While #315 is open, continue #315; do not jump to #318.
+- Once #315 closes, #318 AS0 is the exact next product checkpoint.
+- AS0 is a contract/gap-analysis stage, not authorization for a large Asset Studio implementation.
+- Only after #318's owner-approved checkpoint/slices close does normal breadth resume at #89.
+- Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
