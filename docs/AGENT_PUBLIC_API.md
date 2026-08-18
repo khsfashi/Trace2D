@@ -27,6 +27,21 @@ class MyGame final : public trace2d::application::Game
 
 The canonical external-consumer implementation is under `examples/e0_external_game/`; it is ordinary public API usage, not benchmark-only scaffolding.
 
+## Windowed presentation discovery
+
+Do not bypass Trace2D with a second host renderer merely because the application example first discovered is headless. The same canonical external-consumer example contains a complete ordinary windowed path in `examples/e0_external_game/WindowedMain.cpp`.
+
+For a small external 2D game, discover these stable symbols directly from the machine-readable index instead of repository-wide search:
+
+- `trace2d::platform::Platform` for the window and native event/input host,
+- `trace2d::render::Renderer` for production GPU presentation and capture,
+- `trace2d::render::OrthographicCamera` and `trace2d::render::SpriteRenderData` for the minimal 2D draw path,
+- `trace2d::application::Application::SetPresentationCallback` to bind presentation to the same fixed-step `Application` lifecycle as headless verification.
+
+`WindowedMain.cpp` demonstrates the intended integration order: create the public `Platform` and `Renderer`, construct the same `Game`/`Application` used for deterministic execution, bind one presentation callback, feed `Platform` input into `Application`, step the application, and present through `Renderer`. This keeps gameplay state, input, verification, and presentation on one engine-owned path.
+
+Higher-level retained Sprite/Text/UI presentation contracts remain independently discoverable through their public headers. Prefer those production contracts when the game needs their semantics; the minimal `SpriteRenderData` example is a compact starting point, not a replacement for retained presentation features.
+
 ## Scope
 
 This index is intentionally small and evidence-backed. Add a symbol only when its public contract and canonical usage are stable enough to help agents avoid repository search/guessing. It is a discovery aid, not a generated reflection database, ABI promise, or substitute for compiling code and tests.
