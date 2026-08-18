@@ -1,0 +1,251 @@
+name: Benchmark B2 Non-Scored Acceptance V2 Owner Loop
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-owner-b2-nonscored-acceptance-v2
+  cancel-in-progress: false
+
+jobs:
+  owner-windows-v2:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      (
+        github.event.comment.body == '/b2 accept-v2-start' ||
+        startsWith(github.event.comment.body, '/b2 accept-v2-review ') ||
+        startsWith(github.event.comment.body, '/b2 accept-v2-feedback ') ||
+        startsWith(github.event.comment.body, '/b2 accept-v2-final-review ')
+      )
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 90
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact main head without action archive downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          Push-Location $env:GITHUB_WORKSPACE
+          try {
+            git init
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git remote add origin https://github.com/khsfashi/Trace2D.git
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git checkout --detach FETCH_HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $head = (git rev-parse HEAD | Out-String).Trim()
+            if ($head -ne $env:GITHUB_SHA) { throw "Owner acceptance-v2 checkout drifted: expected $env:GITHUB_SHA, got $head" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Resolve acceptance-v2 mode and isolated durable root
+        shell: pwsh
+        env:
+          TRACE2D_B2_ACCEPT_V2_COMMENT: ${{ github.event.comment.body }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $body = [string]$env:TRACE2D_B2_ACCEPT_V2_COMMENT
+          if ($body -eq '/b2 accept-v2-start') {
+            $mode = 'start'; $payload = ''
+          } elseif ($body.StartsWith('/b2 accept-v2-review ')) {
+            $mode = 'review'; $payload = $body.Substring('/b2 accept-v2-review '.Length).Trim()
+          } elseif ($body.StartsWith('/b2 accept-v2-feedback ')) {
+            $mode = 'feedback'; $payload = $body.Substring('/b2 accept-v2-feedback '.Length).Trim()
+          } elseif ($body.StartsWith('/b2 accept-v2-final-review ')) {
+            $mode = 'final-review'; $payload = $body.Substring('/b2 accept-v2-final-review '.Length).Trim()
+          } else {
+            throw 'Unrecognized B2 acceptance-v2 trigger.'
+          }
+          if ($mode -ne 'start' -and [string]::IsNullOrWhiteSpace($payload)) {
+            throw "Acceptance-v2 $mode payload is empty."
+          }
+          $runsRoot = Join-Path $env:LOCALAPPDATA 'Trace2D\benchmark-b2-acceptance-v2'
+          New-Item -ItemType Directory -Force -Path (Split-Path -Parent $runsRoot) | Out-Null
+          "TRACE2D_B2_ACCEPT_V2_MODE=$mode" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TRACE2D_B2_ACCEPT_V2_ROOT=$runsRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          if ($payload) {
+            "TRACE2D_B2_ACCEPT_V2_PAYLOAD=$payload" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          }
+
+      - name: Bind proven runner Python 3.12 cache
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TOOL_CACHE)) { throw 'RUNNER_TOOL_CACHE is required.' }
+          $pythonRoot = Join-Path $env:RUNNER_TOOL_CACHE 'Python'
+          $candidates = @(Get-ChildItem -LiteralPath $pythonRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^3\.12\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\python.exe' } |
+            Where-Object { Test-Path $_ -PathType Leaf })
+          $python = $null
+          foreach ($candidate in $candidates) {
+            $probe = (& $candidate -I -c "import sys,json,pathlib,hashlib,subprocess,tempfile,venv,zlib,struct; print('.'.join(str(v) for v in sys.version_info[:3]))" 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $probe -match '^3\.12\.\d+$') { $python = [System.IO.Path]::GetFullPath($candidate); break }
+          }
+          if ([string]::IsNullOrWhiteSpace($python)) { throw 'No healthy cached Python 3.12 interpreter found.' }
+          $pythonDir = Split-Path -Parent $python
+          $pythonDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $pythonScripts = Join-Path $pythonDir 'Scripts'
+          if (Test-Path $pythonScripts -PathType Container) { $pythonScripts | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          "TRACE2D_B2_ACCEPT_V2_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Bind cached Node.js 24 without action downloads
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'start' || env.TRACE2D_B2_ACCEPT_V2_MODE == 'feedback'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $node = $null
+          $current = Get-Command node.exe -ErrorAction SilentlyContinue
+          if ($null -ne $current) {
+            $version = (& $current.Source --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $version -match '^v24\.\d+\.\d+$') { $node = [System.IO.Path]::GetFullPath($current.Source) }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) {
+            foreach ($toolName in @('node', 'Node')) {
+              $nodeRoot = Join-Path $env:RUNNER_TOOL_CACHE $toolName
+              if (-not (Test-Path $nodeRoot -PathType Container)) { continue }
+              $candidate = Get-ChildItem -LiteralPath $nodeRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending |
+                ForEach-Object { Join-Path $_.FullName 'x64\node.exe' } |
+                Where-Object { Test-Path $_ -PathType Leaf } |
+                Select-Object -First 1
+              if ($null -ne $candidate) { $node = [System.IO.Path]::GetFullPath($candidate); break }
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) { throw 'No Node.js 24 executable found.' }
+          $nodeDir = Split-Path -Parent $node
+          $nodeDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$nodeDir;$env:PATH"
+          $observed = (& $node --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observed -notmatch '^v24\.\d+\.\d+$') { throw "Node.js 24 verification failed: $observed" }
+
+      - name: Decode and record initial perceptual review
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'review'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:GITHUB_WORKSPACE 'acceptance-v2-review.json'
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:TRACE2D_B2_ACCEPT_V2_PAYLOAD))
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py record-review --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT --review-file $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Decode and record final perceptual confirmation
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'final-review'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:GITHUB_WORKSPACE 'acceptance-v2-final-review.json'
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:TRACE2D_B2_ACCEPT_V2_PAYLOAD))
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py record-final-review --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT --review-file $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Prepare Trace2D acceptance-v2 toolchain
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'start' || env.TRACE2D_B2_ACCEPT_V2_MODE == 'feedback'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonDir = Split-Path -Parent $env:TRACE2D_B2_ACCEPT_V2_PYTHON
+          $env:PATH = "$pythonDir;$(Join-Path $pythonDir 'Scripts');$env:PATH"
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent -PersistForActions
+
+      - name: Run zero-score acceptance-v2 preflight
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'start' || env.TRACE2D_B2_ACCEPT_V2_MODE == 'feedback'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py preflight --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run matched non-scored acceptance-v2 initial cohort
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'start'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py start --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Decode and apply exactly one owner feedback revision
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'feedback'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:GITHUB_WORKSPACE 'acceptance-v2-owner-feedback.txt'
+          [IO.File]::WriteAllBytes($path, [Convert]::FromBase64String($env:TRACE2D_B2_ACCEPT_V2_PAYLOAD))
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py feedback --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT --feedback-file $path
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Emit acceptance-v2 initial review captures
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'start'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $summary = Get-Content -Raw -Encoding utf8 (Join-Path $env:TRACE2D_B2_ACCEPT_V2_ROOT 'initial-summary.json') | ConvertFrom-Json
+          Write-Host 'TRACE2D_B2_ACCEPT_V2_INITIAL_SUMMARY_BEGIN'
+          Write-Host ($summary | ConvertTo-Json -Depth 30 -Compress)
+          Write-Host 'TRACE2D_B2_ACCEPT_V2_INITIAL_SUMMARY_END'
+          if ($null -eq $summary.review_target) { Write-Host 'TRACE2D_B2_ACCEPT_V2_NO_REVIEW_TARGET'; exit 0 }
+          foreach ($property in $summary.review_target.captures.PSObject.Properties) {
+            $role = [string]$property.Name
+            $capture = [string]$property.Value.path
+            $sha = [string]$property.Value.sha256
+            $bytes = [IO.File]::ReadAllBytes($capture)
+            Write-Host "TRACE2D_B2_ACCEPT_V2_CAPTURE_BEGIN role=$role sha256=$sha"
+            Write-Host ([Convert]::ToBase64String($bytes))
+            Write-Host "TRACE2D_B2_ACCEPT_V2_CAPTURE_END role=$role"
+          }
+
+      - name: Emit acceptance-v2 revised review captures
+        if: env.TRACE2D_B2_ACCEPT_V2_MODE == 'feedback'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $record = Get-Content -Raw -Encoding utf8 (Join-Path $env:TRACE2D_B2_ACCEPT_V2_ROOT 'revision-record.json') | ConvertFrom-Json
+          Write-Host 'TRACE2D_B2_ACCEPT_V2_REVISION_RECORD_BEGIN'
+          Write-Host ($record | ConvertTo-Json -Depth 30 -Compress)
+          Write-Host 'TRACE2D_B2_ACCEPT_V2_REVISION_RECORD_END'
+          $targetPath = Join-Path $env:TRACE2D_B2_ACCEPT_V2_ROOT 'final-review-target.json'
+          if (-not (Test-Path $targetPath -PathType Leaf)) { exit 0 }
+          $target = Get-Content -Raw -Encoding utf8 $targetPath | ConvertFrom-Json
+          foreach ($property in $target.review_target.captures.PSObject.Properties) {
+            $role = [string]$property.Name
+            $capture = [string]$property.Value.path
+            $sha = [string]$property.Value.sha256
+            $bytes = [IO.File]::ReadAllBytes($capture)
+            Write-Host "TRACE2D_B2_ACCEPT_V2_REVISED_CAPTURE_BEGIN role=$role sha256=$sha"
+            Write-Host ([Convert]::ToBase64String($bytes))
+            Write-Host "TRACE2D_B2_ACCEPT_V2_REVISED_CAPTURE_END role=$role"
+          }
+
+      - name: Report acceptance-v2 state
+        if: always()
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TRACE2D_B2_ACCEPT_V2_ROOT) -or [string]::IsNullOrWhiteSpace($env:TRACE2D_B2_ACCEPT_V2_PYTHON)) { exit 0 }
+          "## B2 non-scored acceptance-v2 state" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          & $env:TRACE2D_B2_ACCEPT_V2_PYTHON scripts/benchmark_b2_acceptance_v2.py status --runs-root $env:TRACE2D_B2_ACCEPT_V2_ROOT | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append

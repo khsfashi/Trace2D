@@ -1,0 +1,54 @@
+name: Benchmark B2 Non-Scored Acceptance V2 Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/README.md"
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/**"
+      - "scripts/benchmark_b2_acceptance_v2.py"
+      - "scripts/test_benchmark_b2_acceptance_v2.py"
+      - ".github/workflows/benchmark-b2-acceptance-v2-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v2.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/README.md"
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/**"
+      - "scripts/benchmark_b2_acceptance_v2.py"
+      - "scripts/test_benchmark_b2_acceptance_v2.py"
+      - ".github/workflows/benchmark-b2-acceptance-v2-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Revalidate immutable acceptance-v1 contract
+        run: python3 scripts/benchmark_b2_acceptance.py validate-contract
+
+      - name: Validate frozen acceptance-v2 contract
+        run: python3 scripts/benchmark_b2_acceptance_v2.py validate-contract
+
+      - name: Run acceptance-v1 isolation regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_acceptance
+
+      - name: Run playable presentation v2 regression tests
+        run: python3 -m unittest scripts.test_benchmark_b2_acceptance_v2
+
+      - name: Syntax-check acceptance-v2 tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance_v2.py \
+            scripts/test_benchmark_b2_acceptance_v2.py
