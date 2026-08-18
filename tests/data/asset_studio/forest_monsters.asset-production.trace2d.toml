@@ -3,10 +3,10 @@ format_version = 1
 [production_set]
 id = "forest-monsters-v1"
 work_spec = "asset-studio-forest-monsters"
+owner_review_acceptance = "owner-style-approval"
 art_profile = "forest-monsters"
 candidates_per_item = 3
 max_provider_calls = 30
-owner_review_required = true
 
 [[items]]
 id = "mossling"
