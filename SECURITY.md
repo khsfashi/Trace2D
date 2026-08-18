@@ -48,6 +48,48 @@ Trace2D's deterministic/Agent-verifiable design improves observability but is **
 - build scripts, compilers, package managers and third-party SDKs remain part of the host developer environment,
 - screenshots/replays/structured diagnostics are evidence artifacts, not secret-storage mechanisms.
 
+### Determinism is not a security primitive
+
+Trace2D follows this boundary:
+
+> **Deterministic where reproducibility is authority. Unpredictable where unpredictability is security.**
+
+Deterministic simulation, replay, tie-break rules, structural verification and explicit simulation RNG may be reproducible by design. Security-sensitive randomness must not be derived from deterministic simulation seeds, replay seeds or predictable PRNG state.
+
+Security-sensitive examples include authentication/session tokens, nonces/challenges, capability identifiers where unpredictability matters, and secret/key material. Future APIs should keep deterministic simulation randomness and cryptographically secure randomness as distinct concepts rather than exposing one generic source that can be reused accidentally.
+
+A deterministic client is not automatically an authoritative or trustworthy client. Networking, if later promoted, must define its own authority, validation, authentication and anti-replay boundaries for the demonstrated game model.
+
+### Developer tooling is not shipped runtime authority
+
+Agent-first inspection and mutation are development capabilities. A packaged runtime must not automatically expose:
+
+- an MCP/Agent endpoint,
+- arbitrary project/repository mutation,
+- unrestricted component/project inspection,
+- repository-wide semantic indexing,
+- verifier internals or private diagnostic evidence.
+
+Exact build/configuration mechanisms are feature-specific, but developer tooling authority and shipped-game authority must remain separable.
+
+### Semantic indexes and diagnostics must not become secret stores
+
+Future semantic project indexes, graphs, replays and diagnostics must enforce authorized workspace roots and must not intentionally ingest or expose secrets such as:
+
+- `.env` credentials,
+- authentication tokens,
+- private keys,
+- OS credential stores,
+- Codex/GitHub/local authentication state,
+- raw private evidence,
+- files outside the authorized project/workspace roots.
+
+Path normalization, traversal rejection, bounded result sizes and secret/evidence scrubbing belong in the design of those developer surfaces rather than being added after exposure.
+
+### Untrusted structured input remains untrusted
+
+Deterministic parsing does not make project/scene/asset/import data safe. Parsers and importers should use bounded sizes/counts/depth, overflow-safe size calculations, path validation and allocation limits appropriate to the format. Fuzzing, malformed-input regression tests and sanitizers should be added where a concrete parser/importer surface justifies them.
+
 ## Disclosure and fixes
 
 For a confirmed vulnerability, the project will aim to:
@@ -59,3 +101,5 @@ For a confirmed vulnerability, the project will aim to:
 5. update dependency/security guidance when the root cause is in the supply chain rather than Trace2D code.
 
 Security tooling such as CodeQL and OpenSSF Scorecard is defense in depth. A green scanner or a numeric score is not a claim that Trace2D is vulnerability-free.
+
+See `docs/LLM_FIRST_ARCHITECTURE_FOLLOWUPS.md` for the broader evidence-gated architecture direction around semantic project retrieval, developer/runtime capability separation and rendering evolution.
