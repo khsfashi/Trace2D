@@ -39,7 +39,15 @@ The minimum external-game sequence required before B2 is complete:
  -> #179 Particle transactional Agent authoring
 ```
 
-The completed production Sprite program remains frozen continuity. Later work must not weaken its renderer, animation, QA or performance contracts.
+## Frozen Sprite continuity
+
+The completed production Sprite program remains frozen continuity for later work. In particular:
+
+- #144 / SA0 deterministic Sprite animation timing/frame/event contract remains complete and frozen,
+- SR8 renderer conformance and SA4 animation conformance remain trusted,
+- SPERF performance evidence remains the production Sprite baseline.
+
+Later work must not weaken these contracts.
 
 ## Benchmark B1 — immutable baseline
 
