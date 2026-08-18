@@ -47,6 +47,13 @@ class BenchmarkB2AgentReadinessTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, workflow, forbidden)
 
+    def test_readiness_canary_is_inside_an_explicit_acl_protected_root(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("$protectedRoot = Join-Path $root 'protected'", workflow)
+        self.assertIn("$canary = Join-Path $protectedRoot 'outside-workspace-canary.txt'", workflow)
+        self.assertIn("$env:TRACE2D_BENCH_ACL_EXTRA_PROTECTED_ROOTS = $protectedRoot", workflow)
+        self.assertNotIn("$canary = Join-Path $root 'outside-workspace-canary.txt'", workflow)
+
     def test_readiness_scratch_state_uses_runner_temp_and_is_cleaned(self) -> None:
         workflow = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("$env:RUNNER_TEMP", workflow)
