@@ -148,7 +148,7 @@ jobs:
                 continue
               }
               $logSha = (Get-FileHash -LiteralPath $logPath -Algorithm SHA256).Hash.ToLowerInvariant()
-              $logText = [string](Get-Content -Raw -Encoding utf8 -LiteralPath $logPath)
+              $logText = [IO.File]::ReadAllText($logPath)
               if ($logText.Length -gt $maxFileChars -or ($trialLogChars + $logText.Length) -gt $maxTrialLogChars) {
                 Write-Host "TRACE2D_B2_ACCEPT_V3_TRIAL_LOG_OMITTED run_index=$($record.run_index) name=$logName chars=$($logText.Length) sha256=$logSha"
                 continue
@@ -180,7 +180,7 @@ jobs:
               if ($file.Length -gt $maxFileChars -or $emittedChars -ge $maxWorkspaceChars) {
                 continue
               }
-              $text = [string](Get-Content -Raw -Encoding utf8 -LiteralPath $file.FullName)
+              $text = [IO.File]::ReadAllText($file.FullName)
               if ($text.Length -gt $maxFileChars -or ($emittedChars + $text.Length) -gt $maxWorkspaceChars) {
                 continue
               }
