@@ -1,0 +1,100 @@
+name: Benchmark B2 Non-Scored Acceptance V3 Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "scripts/benchmark_b2_acceptance_v2.py"
+      - "scripts/benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v3.py"
+      - "scripts/test_benchmark_b2_acceptance_v2.py"
+      - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v3.py"
+      - ".github/workflows/benchmark-b2-acceptance-v3-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v3.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "benchmarks/b2/acceptance/contract-v2.json"
+      - "benchmarks/b2/acceptance/contract-v3.json"
+      - "benchmarks/b2/acceptance/tasks/ember-hall-v2/PROMPT.md"
+      - "docs/agent-public-api-v1.json"
+      - "scripts/benchmark_b2_acceptance_v2.py"
+      - "scripts/benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/benchmark_b2_acceptance_v3.py"
+      - "scripts/test_benchmark_b2_acceptance_v2.py"
+      - "scripts/test_benchmark_b2_acceptance_v3_freeze.py"
+      - "scripts/test_benchmark_b2_acceptance_v3.py"
+      - ".github/workflows/benchmark-b2-acceptance-v3-contract.yml"
+      - ".github/workflows/benchmark-b2-owner-acceptance-v3.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Validate frozen V3 contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v3_freeze
+
+      - name: Validate V3 harness contract
+        run: python3 -m scripts.benchmark_b2_acceptance_v3 validate-contract
+
+      - name: Run V3 regressions
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v3_freeze
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v3
+
+      - name: Revalidate historical V2 and remediation contracts
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v2
+          python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
+
+      - name: Confirm owner loop cannot retry or run off main
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/benchmark-b2-owner-acceptance-v3.yml').read_text(encoding='utf-8')
+          for required in (
+              "github.repository == 'khsfashi/Trace2D'",
+              "github.actor == 'khsfashi'",
+              "github.run_attempt == 1",
+              "github.event.issue.number == 104",
+              "github.ref == 'refs/heads/main'",
+              "github.event.comment.body == '/b2 accept-v3-start'",
+              "startsWith(github.event.comment.body, '/b2 accept-v3-review ')",
+              "startsWith(github.event.comment.body, '/b2 accept-v3-feedback ')",
+              "startsWith(github.event.comment.body, '/b2 accept-v3-final-review ')",
+              'runs-on: [self-hosted, windows, x64, trace2d-gpu]',
+              'cancel-in-progress: false',
+              "benchmark-b2-acceptance-v3",
+              'benchmark_b2_acceptance_v3.py start',
+          ):
+              assert required in workflow, required
+          assert 'workflow_dispatch:' not in workflow
+          assert 'rerun' not in workflow.casefold()
+          assert 'retry' not in workflow.casefold()
+          PY
+
+      - name: Syntax-check V3 tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_acceptance_v3.py \
+            scripts/test_benchmark_b2_acceptance_v3.py
