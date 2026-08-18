@@ -1,0 +1,62 @@
+name: Benchmark B2 Agent Readiness Contract
+
+on:
+  push:
+    branches:
+      - main
+      - "agent/**"
+    paths:
+      - "scripts/benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_agent_readiness.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b0_codex_wrapper.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - ".github/workflows/benchmark-b2-owner-agent-readiness.yml"
+      - ".github/workflows/benchmark-b2-agent-readiness-contract.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_agent_outcome.py"
+      - "scripts/test_benchmark_b2_agent_readiness.py"
+      - "scripts/benchmark_b2_codex_windows_acl_wrapper.py"
+      - "scripts/benchmark_b0_codex_wrapper.py"
+      - "scripts/benchmark_b1_codex_windows_acl_wrapper.py"
+      - ".github/workflows/benchmark-b2-owner-agent-readiness.yml"
+      - ".github/workflows/benchmark-b2-agent-readiness-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Test Agent execution classification precedence
+        run: python3 -m unittest scripts.test_benchmark_b2_agent_outcome
+
+      - name: Test candidate-free readiness boundary
+        run: python3 -m unittest scripts.test_benchmark_b2_agent_readiness
+
+      - name: Revalidate B2 post-score remediation and V4 historical boundary
+        run: |
+          python3 -m unittest scripts.test_benchmark_b2_postscore_remediation
+          python3 -m scripts.benchmark_b2_acceptance_v4_freeze
+          python3 -m unittest scripts.test_benchmark_b2_acceptance_v4_freeze
+
+      - name: Syntax-check readiness tooling
+        run: |
+          python3 -m py_compile \
+            scripts/benchmark_b2_agent_outcome.py \
+            scripts/test_benchmark_b2_agent_outcome.py \
+            scripts/test_benchmark_b2_agent_readiness.py

@@ -1,0 +1,190 @@
+name: Benchmark B2 Owner Agent Readiness Canary
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: trace2d-owner-b2-agent-readiness
+  cancel-in-progress: false
+
+jobs:
+  readiness-windows:
+    if: >-
+      github.repository == 'khsfashi/Trace2D' &&
+      github.actor == 'khsfashi' &&
+      github.run_attempt == 1 &&
+      github.event.issue.number == 104 &&
+      github.ref == 'refs/heads/main' &&
+      github.event.comment.body == '/b2 agent-readiness'
+    runs-on: [self-hosted, windows, x64, trace2d-gpu]
+    timeout-minutes: 20
+
+    steps:
+      - name: Purge persistent self-hosted workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+
+      - name: Checkout exact main head without action archive downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          Push-Location $env:GITHUB_WORKSPACE
+          try {
+            git init
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git remote add origin https://github.com/khsfashi/Trace2D.git
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git -c protocol.version=2 fetch --no-tags --depth=1 origin $env:GITHUB_SHA
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git checkout --detach FETCH_HEAD
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $head = (git rev-parse HEAD | Out-String).Trim()
+            if ($head -ne $env:GITHUB_SHA) { throw "B2 Agent readiness checkout drifted: expected $env:GITHUB_SHA, got $head" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Publish readiness locator
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRACE2D_REPOSITORY: ${{ github.repository }}
+          TRACE2D_RUN_ID: ${{ github.run_id }}
+          TRACE2D_ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $runUrl = "https://github.com/$env:TRACE2D_REPOSITORY/actions/runs/$env:TRACE2D_RUN_ID"
+          $comment = "B2 candidate-free Agent readiness canary: run=$runUrl"
+          $headers = @{
+            Accept = 'application/vnd.github+json'
+            Authorization = "Bearer $env:GH_TOKEN"
+            'X-GitHub-Api-Version' = '2022-11-28'
+            'User-Agent' = 'trace2d-b2-agent-readiness'
+          }
+          $uri = "https://api.github.com/repos/$env:TRACE2D_REPOSITORY/issues/$env:TRACE2D_ISSUE_NUMBER/comments"
+          $payload = @{ body = $comment } | ConvertTo-Json -Compress
+          Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType 'application/json' -Body $payload | Out-Null
+
+      - name: Bind proven runner Python 3.12 cache
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          if ([string]::IsNullOrWhiteSpace($env:RUNNER_TOOL_CACHE)) { throw 'RUNNER_TOOL_CACHE is required.' }
+          $pythonRoot = Join-Path $env:RUNNER_TOOL_CACHE 'Python'
+          $candidates = @(Get-ChildItem -LiteralPath $pythonRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^3\.12\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64\python.exe' } |
+            Where-Object { Test-Path $_ -PathType Leaf })
+          $python = $null
+          foreach ($candidate in $candidates) {
+            $probe = (& $candidate -I -c "import sys,json,pathlib,hashlib,subprocess,tempfile,venv,zlib,struct; print('.'.join(str(v) for v in sys.version_info[:3]))" 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $probe -match '^3\.12\.\d+$') { $python = [System.IO.Path]::GetFullPath($candidate); break }
+          }
+          if ([string]::IsNullOrWhiteSpace($python)) { throw 'No healthy cached Python 3.12 interpreter found.' }
+          $pythonDir = Split-Path -Parent $python
+          $pythonDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $pythonScripts = Join-Path $pythonDir 'Scripts'
+          if (Test-Path $pythonScripts -PathType Container) { $pythonScripts | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append }
+          "TRACE2D_B2_READINESS_PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Bind cached Node.js 24 without action downloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          $node = $null
+          $current = Get-Command node.exe -ErrorAction SilentlyContinue
+          if ($null -ne $current) {
+            $version = (& $current.Source --version 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $version -match '^v24\.\d+\.\d+$') { $node = [System.IO.Path]::GetFullPath($current.Source) }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) {
+            foreach ($toolName in @('node', 'Node')) {
+              $nodeRoot = Join-Path $env:RUNNER_TOOL_CACHE $toolName
+              if (-not (Test-Path $nodeRoot -PathType Container)) { continue }
+              $candidate = Get-ChildItem -LiteralPath $nodeRoot -Directory -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -match '^24\.\d+\.\d+$' } |
+                Sort-Object { [version]$_.Name } -Descending |
+                ForEach-Object { Join-Path $_.FullName 'x64\node.exe' } |
+                Where-Object { Test-Path $_ -PathType Leaf } |
+                Select-Object -First 1
+              if ($null -ne $candidate) { $node = [System.IO.Path]::GetFullPath($candidate); break }
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($node)) { throw 'No Node.js 24 executable found.' }
+          $nodeDir = Split-Path -Parent $node
+          $nodeDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          $env:PATH = "$nodeDir;$env:PATH"
+          $observed = (& $node --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0 -or $observed -notmatch '^v24\.\d+\.\d+$') { throw "Node.js 24 verification failed: $observed" }
+
+      - name: Prepare exact B2 owner toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pythonDir = Split-Path -Parent $env:TRACE2D_B2_READINESS_PYTHON
+          $env:PATH = "$pythonDir;$(Join-Path $pythonDir 'Scripts');$env:PATH"
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent -PersistForActions
+
+      - name: Run real-model candidate-free isolation and transport canary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+          . .\scripts\prepare_benchmark_b2_owner_windows.ps1 -Lane trace2d.agent
+
+          $root = Join-Path $env:RUNNER_TEMP ("Trace2D\b2-agent-readiness\" + $env:GITHUB_RUN_ID)
+          if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          $workspace = Join-Path $root 'workspace'
+          $canary = Join-Path $root 'outside-workspace-canary.txt'
+          $evidence = Join-Path $root 'readiness-evidence.json'
+          [IO.File]::WriteAllText($canary, "DENIED-CANARY-$([Guid]::NewGuid().ToString('N'))")
+          "TRACE2D_B2_READINESS_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TRACE2D_B2_READINESS_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          & $env:TRACE2D_B2_READINESS_PYTHON scripts/benchmark_b2_codex_windows_acl_wrapper.py probe-isolation `
+            --workspace $workspace `
+            --canary $canary `
+            --evidence $evidence `
+            --timeout 120
+          $probeExit = $LASTEXITCODE
+
+          if (-not (Test-Path -LiteralPath $evidence -PathType Leaf)) {
+            throw "B2 Agent readiness probe did not produce evidence (exit=$probeExit)."
+          }
+          $record = Get-Content -Raw -Encoding utf8 -LiteralPath $evidence | ConvertFrom-Json
+          Write-Host 'TRACE2D_B2_AGENT_READINESS_BEGIN'
+          Write-Host ($record | ConvertTo-Json -Depth 12 -Compress)
+          Write-Host 'TRACE2D_B2_AGENT_READINESS_END'
+          if ($probeExit -ne 0 -or $record.passed -ne $true) {
+            throw "B2 Agent readiness canary failed (exit=$probeExit, return_code=$($record.codex_return_code), turn_completed=$($record.turn_completed))."
+          }
+          if ($record.workspace_write_proved -ne $true -or $record.external_read_denied -ne $true -or $record.canary_secret_leaked -ne $false) {
+            throw 'B2 Agent readiness isolation evidence is not fail-closed.'
+          }
+
+      - name: Report readiness success
+        shell: pwsh
+        run: |
+          "## B2 candidate-free Agent readiness" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          "PASS: the pinned real model completed a tool-using turn, wrote only inside the temporary workspace, and was denied the external canary. No benchmark prompt or acceptance candidate was used." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Remove readiness scratch state
+        if: always()
+        shell: pwsh
+        run: |
+          $root = $env:TRACE2D_B2_READINESS_ROOT
+          if (-not [string]::IsNullOrWhiteSpace($root) -and (Test-Path -LiteralPath $root)) {
+            Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
+          }
