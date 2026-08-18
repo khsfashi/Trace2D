@@ -4,7 +4,7 @@ This is the deliberately narrow external product proof for Trace2D issue #315. I
 
 ## Play
 
-Run `trace2d_p0_tiny_playable_windowed.exe`.
+Run `trace2d_p0_tiny_playable_windowed.exe` from the retained Windows artifact.
 
 - `A` / `D`: move left / right
 - red vertical gate: active hazard; touching it costs one health segment and resets the player
@@ -22,6 +22,18 @@ The left top bar is health. The right top bar fills when the beacon is claimed.
 2. wait for the safe pulse, cross, interact at the beacon, and assert full health plus completed objective from the same canonical state.
 
 No screenshot is used as gameplay authority. The windowed renderer is presentation evidence for owner review; the headless executable is the deterministic gameplay gate.
+
+## Installed-SDK consumer proof
+
+This directory is also a standalone CMake project. With the normal Trace2D SDK environment prepared (`TRACE2D_ROOT` points at an installed Trace2D SDK and `VCPKG_ROOT` points at the pinned vcpkg checkout), it supports the same external-consumer contract as E0:
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset windows-debug --parallel
+ctest --preset windows-debug
+```
+
+The P0 product-proof workflow first builds and installs the candidate Trace2D SDK, then configures this directory independently through `find_package(Trace2D 0.1 CONFIG REQUIRED)`. The downloadable owner artifact is retained from that standalone consumer build rather than from the repository's in-tree example build.
 
 ## Scope
 
