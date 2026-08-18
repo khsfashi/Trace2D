@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
   TRACE2D_B0_GODOT_VERSION: 4.7.1-stable
