@@ -147,6 +147,34 @@ class BenchmarkB2PostscoreRemediationTests(unittest.TestCase):
         self.assertIn("#include <trace2d/application/Application.hpp>", example_text)
         self.assertIn("public trace2d::application::Game", example_text)
 
+    def test_public_api_index_exposes_canonical_windowed_presentation_path(self) -> None:
+        expected = {
+            "trace2d::application::Application::SetPresentationCallback": "trace2d/application/Application.hpp",
+            "trace2d::platform::Platform": "trace2d/platform/Platform.hpp",
+            "trace2d::render::Renderer": "trace2d/render/Renderer.hpp",
+            "trace2d::render::OrthographicCamera": "trace2d/render/RenderData.hpp",
+            "trace2d::render::SpriteRenderData": "trace2d/render/RenderData.hpp",
+        }
+        for qualified_name, include in expected.items():
+            symbol = remediation.public_api_symbol(qualified_name)
+            self.assertEqual(symbol["include"], include)
+            self.assertEqual(symbol["canonical_example"], "examples/e0_external_game/WindowedMain.cpp")
+            self.assertTrue((remediation.REPO_ROOT / symbol["source"]).is_file())
+
+        windowed = (remediation.REPO_ROOT / "examples/e0_external_game/WindowedMain.cpp").read_text(encoding="utf-8")
+        self.assertIn("trace2d::platform::Platform platform", windowed)
+        self.assertIn("trace2d::render::Renderer renderer", windowed)
+        self.assertIn("application.SetPresentationCallback", windowed)
+        self.assertIn("renderer->RenderFrame", windowed)
+
+    def test_trace2d_execution_handoff_names_the_verifier_bridge_file(self) -> None:
+        wrapper = (remediation.REPO_ROOT / "scripts/benchmark_b2_codex_windows_acl_wrapper.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("workspace-root file `B2Candidate.cpp`", wrapper)
+        self.assertIn("trace2d::benchmark::b2::CreateCandidate", wrapper)
+        self.assertIn("execution plumbing only", wrapper)
+
 
 if __name__ == "__main__":
     unittest.main()
