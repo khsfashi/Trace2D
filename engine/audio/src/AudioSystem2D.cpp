@@ -196,7 +196,12 @@ AudioPlayResult2D AudioSystem2D::Play(const scene::EntityId entity)
         return {AudioCommandResult2D::ClipNotReady, {}};
     }
 
-    return PlaySource(entity, *source, *clip, false);
+    const AudioPlayResult2D result = PlaySource(entity, *source, *clip, false);
+    if (result.result != AudioCommandResult2D::Success)
+    {
+        ++commandFailureCount_;
+    }
+    return result;
 }
 
 AudioCommandResult2D AudioSystem2D::Pause(const AudioVoiceHandle2D voice)
@@ -337,7 +342,10 @@ AudioAutoplayReport2D AudioSystem2D::StartAutoplay()
     if (report.requiredVoiceCapacity > voiceCapacity_ || report.requiredEventCapacity > eventCapacity_)
     {
         report.result = AudioAutoplayResult2D::CapacityExceeded;
-        ++eventCapacityFailureCount_;
+        if (report.requiredEventCapacity > eventCapacity_)
+        {
+            ++eventCapacityFailureCount_;
+        }
         return report;
     }
 
