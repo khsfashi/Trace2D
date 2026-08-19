@@ -47,8 +47,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
+
+          # GitHub's Ubuntu images may prefer an Azure-local Ubuntu mirror. Keep the
+          # sanitizer gate independent of that mirror's availability by using the
+          # canonical Ubuntu archive when the runner exposes the mirror list.
+          apt_mirror_list="/etc/apt/apt-mirrors.txt"
+          if [[ -f "$apt_mirror_list" ]]; then
+            sudo sed -i \
+              -e 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              -e 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              "$apt_mirror_list"
+          fi
+
+          apt_options=(
+            -o Acquire::Retries=3
+            -o Acquire::http::Timeout=15
+            -o Acquire::https::Timeout=15
+          )
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install --yes --no-install-recommends \
             autoconf \
             autoconf-archive \
             automake \
