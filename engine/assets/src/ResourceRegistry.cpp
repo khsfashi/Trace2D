@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -17,6 +18,87 @@ namespace
 [[nodiscard]] bool LooksLikeDriveAbsolute(std::string_view value) noexcept
 {
     return value.size() >= 2U && std::isalpha(static_cast<unsigned char>(value[0])) != 0 && value[1] == ':';
+}
+
+[[nodiscard]] bool IsAsciiAlpha(const char value) noexcept
+{
+    return (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
+}
+
+[[nodiscard]] bool IsAsciiDigit(const char value) noexcept
+{
+    return value >= '0' && value <= '9';
+}
+
+[[nodiscard]] bool IsValidIdentifier(const std::string_view value) noexcept
+{
+    if (value.empty() || !(IsAsciiAlpha(value.front()) || value.front() == '_'))
+    {
+        return false;
+    }
+    for (const char character : value.substr(1U))
+    {
+        if (!(IsAsciiAlpha(character) || IsAsciiDigit(character) || character == '_'))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] std::size_t ActiveLaneCount(const MaterialParameterType2D type) noexcept
+{
+    switch (type)
+    {
+    case MaterialParameterType2D::Float:
+        return 1U;
+    case MaterialParameterType2D::Float2:
+        return 2U;
+    case MaterialParameterType2D::Color:
+        return 4U;
+    }
+    return 0U;
+}
+
+[[nodiscard]] bool IsFiniteMaterialValue(const MaterialParameterValue2D& value) noexcept
+{
+    const std::size_t laneCount = ActiveLaneCount(value.type);
+    if (laneCount == 0U)
+    {
+        return false;
+    }
+    for (std::size_t lane = 0U; lane < laneCount; ++lane)
+    {
+        if (!std::isfinite(value.lanes[lane]))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] bool IsSupportedSampler(const MaterialSampler2D sampler) noexcept
+{
+    switch (sampler)
+    {
+    case MaterialSampler2D::Nearest:
+    case MaterialSampler2D::Linear:
+        return true;
+    }
+    return false;
+}
+
+[[nodiscard]] bool IsSupportedBlend(const MaterialBlend2D blend) noexcept
+{
+    switch (blend)
+    {
+    case MaterialBlend2D::Normal:
+    case MaterialBlend2D::Additive:
+    case MaterialBlend2D::Multiply:
+    case MaterialBlend2D::Screen:
+        return true;
+    }
+    return false;
 }
 
 [[nodiscard]] std::size_t StringLogicalBytes(const std::string& value) noexcept
@@ -42,6 +124,10 @@ std::string_view ToString(ResourceTypeDomain value) noexcept
         return "scene_template";
     case ResourceTypeDomain::Font:
         return "font";
+    case ResourceTypeDomain::Shader2D:
+        return "shader_2d";
+    case ResourceTypeDomain::Material2D:
+        return "material_2d";
     }
     return "unknown";
 }
@@ -221,6 +307,140 @@ ResourcePublishResult<FontResource> ResourceRegistry::PublishFont(
         *identity,
         std::move(resource),
         std::span<const ResourceHandleUntyped>{});
+}
+
+ResourcePublishResult<Shader2DResource> ResourceRegistry::PublishShader2D(
+    std::string_view projectRelativeReference,
+    Shader2DResource resource)
+{
+    ResourceDiagnostic diagnostic{};
+    const auto identity = Canonicalize(ResourceTypeDomain::Shader2D, projectRelativeReference, diagnostic);
+    if (!identity.has_value())
+    {
+        return ResourcePublishResult<Shader2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.language != Shader2DSourceLanguage::Hlsl || resource.stage != Shader2DStage::Fragment)
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Shader2D baseline accepts only HLSL fragment-stage source";
+        return ResourcePublishResult<Shader2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.canonicalSource.empty())
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Shader2D canonical source must not be empty";
+        return ResourcePublishResult<Shader2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.entryPoint.empty() ||
+        resource.entryPoint.size() > MaximumMaterial2DParameterNameBytes ||
+        !IsValidIdentifier(resource.entryPoint))
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Shader2D entry point must be a bounded ASCII identifier";
+        return ResourcePublishResult<Shader2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.cpuRetention != CpuRetentionPolicy::Required)
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Shader2D canonical source retention must remain required in MAT2";
+        return ResourcePublishResult<Shader2DResource>{{}, false, std::move(diagnostic)};
+    }
+
+    return Publish<Shader2DResource>(
+        *identity,
+        std::move(resource),
+        std::span<const ResourceHandleUntyped>{});
+}
+
+ResourcePublishResult<Material2DResource> ResourceRegistry::PublishMaterial2D(
+    std::string_view projectRelativeReference,
+    Material2DResource resource)
+{
+    ResourceDiagnostic diagnostic{};
+    const auto identity = Canonicalize(ResourceTypeDomain::Material2D, projectRelativeReference, diagnostic);
+    if (!identity.has_value())
+    {
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.shader.domain != ResourceTypeDomain::Shader2D)
+    {
+        diagnostic.code = ResourceErrorCode::TypeMismatch;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Material2D shader handle must use the Shader2D resource domain";
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (Resolve<Shader2DResource>(resource.shader) == nullptr)
+    {
+        diagnostic.code = ResourceErrorCode::DependencyNotReady;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Material2D shader dependency is stale or not ready";
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.parameters.size() > MaximumMaterial2DParameters)
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Material2D parameter count exceeds the bounded MAT1/MAT2 capacity";
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (!IsSupportedSampler(resource.sampler) || !IsSupportedBlend(resource.blend))
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Material2D sampler or blend state is unsupported";
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+    if (resource.cpuRetention != CpuRetentionPolicy::Required)
+    {
+        diagnostic.code = ResourceErrorCode::InvalidPayload;
+        diagnostic.identity = *identity;
+        diagnostic.message = "Material2D canonical defaults retention must remain required";
+        return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+    }
+
+    for (std::size_t index = 0U; index < resource.parameters.size(); ++index)
+    {
+        MaterialParameterDefault2D& parameter = resource.parameters[index];
+        if (parameter.name.empty() ||
+            parameter.name.size() > MaximumMaterial2DParameterNameBytes ||
+            !IsValidIdentifier(parameter.name))
+        {
+            diagnostic.code = ResourceErrorCode::InvalidPayload;
+            diagnostic.identity = *identity;
+            diagnostic.message = "Material2D parameter names must be unique bounded ASCII identifiers";
+            return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+        }
+        for (std::size_t previous = 0U; previous < index; ++previous)
+        {
+            if (resource.parameters[previous].name == parameter.name)
+            {
+                diagnostic.code = ResourceErrorCode::InvalidPayload;
+                diagnostic.identity = *identity;
+                diagnostic.message = "Material2D parameter names must be unique";
+                return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+            }
+        }
+        if (!IsFiniteMaterialValue(parameter.value))
+        {
+            diagnostic.code = ResourceErrorCode::InvalidPayload;
+            diagnostic.identity = *identity;
+            diagnostic.message = "Material2D parameter type is unsupported or contains a non-finite active lane";
+            return ResourcePublishResult<Material2DResource>{{}, false, std::move(diagnostic)};
+        }
+
+        const std::size_t activeLanes = ActiveLaneCount(parameter.value.type);
+        for (std::size_t lane = activeLanes; lane < Material2DParameterSlotFloatCount; ++lane)
+        {
+            parameter.value.lanes[lane] = 0.0F;
+        }
+    }
+
+    const std::array<ResourceHandleUntyped, 1U> dependencies{resource.shader};
+    return Publish<Material2DResource>(*identity, std::move(resource), dependencies);
 }
 
 ResourceOperationResult ResourceRegistry::RecordLoadFailure(
@@ -850,6 +1070,41 @@ ResourceMemoryEvidence ResourceRegistry::MemoryOf(const Slot& slot) const
         evidence.cpuRetention = font->cpuRetention;
         evidence.cpuPayloadResident = !font->canonicalBytes.empty();
         evidence.retentionReason = font->retentionReason;
+        return evidence;
+    }
+
+    if (const Shader2DResource* shader = std::get_if<Shader2DResource>(&slot.payload))
+    {
+        evidence.knownRetainedCpuBytes = sizeof(Shader2DResource) +
+                                         StringLogicalBytes(shader->entryPoint) +
+                                         StringLogicalBytes(shader->canonicalSource) +
+                                         StringLogicalBytes(shader->retentionReason);
+        evidence.retainedContainerCapacityBytes = StringCapacityBytes(shader->entryPoint) +
+                                                  StringCapacityBytes(shader->canonicalSource) +
+                                                  StringCapacityBytes(shader->retentionReason);
+        evidence.cpuRetention = shader->cpuRetention;
+        evidence.cpuPayloadResident = !shader->canonicalSource.empty();
+        evidence.retentionReason = shader->retentionReason;
+        return evidence;
+    }
+
+    if (const Material2DResource* material = std::get_if<Material2DResource>(&slot.payload))
+    {
+        std::size_t logical = sizeof(Material2DResource) +
+                              material->parameters.size() * sizeof(MaterialParameterDefault2D) +
+                              StringLogicalBytes(material->retentionReason);
+        std::size_t capacity = material->parameters.capacity() * sizeof(MaterialParameterDefault2D) +
+                               StringCapacityBytes(material->retentionReason);
+        for (const MaterialParameterDefault2D& parameter : material->parameters)
+        {
+            logical += StringLogicalBytes(parameter.name);
+            capacity += StringCapacityBytes(parameter.name);
+        }
+        evidence.knownRetainedCpuBytes = logical;
+        evidence.retainedContainerCapacityBytes = capacity;
+        evidence.cpuRetention = material->cpuRetention;
+        evidence.cpuPayloadResident = true;
+        evidence.retentionReason = material->retentionReason;
         return evidence;
     }
     return evidence;
