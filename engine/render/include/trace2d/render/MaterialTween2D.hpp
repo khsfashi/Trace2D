@@ -64,10 +64,18 @@ struct MaterialTweenTargetMetrics2D final
 
 // Owns per-instance prepared Material2D parameter state that can be consumed directly by renderer
 // presentation data. Canonical #86 Material2D defaults remain immutable. Handles are generational,
-// so a destroyed/reused target cannot satisfy a stale resolved Tween2D binding.
+// so a destroyed/reused target cannot satisfy a stale resolved Tween2D binding. The pool address is
+// stable by contract because ExternalProvider stores `this` as its provider context.
 class MaterialTweenTargetPool2D final
 {
 public:
+    MaterialTweenTargetPool2D() = default;
+    MaterialTweenTargetPool2D(const MaterialTweenTargetPool2D&) = delete;
+    MaterialTweenTargetPool2D& operator=(const MaterialTweenTargetPool2D&) = delete;
+    MaterialTweenTargetPool2D(MaterialTweenTargetPool2D&&) = delete;
+    MaterialTweenTargetPool2D& operator=(MaterialTweenTargetPool2D&&) = delete;
+    ~MaterialTweenTargetPool2D() = default;
+
     void Reserve(std::size_t capacity);
 
     [[nodiscard]] MaterialTweenStatus2D Create(
