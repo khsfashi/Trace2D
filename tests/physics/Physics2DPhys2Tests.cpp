@@ -115,7 +115,7 @@ TEST(PhysicsWorld2DPHYS2, ContactBeginEndAreCanonicalStableAndSelfContained)
                 EXPECT_TRUE(std::isfinite(event.normal.x));
                 EXPECT_TRUE(std::isfinite(event.normal.y));
             }
-            else
+            else if (event.kind == physics::PhysicsContactEventKind2D::End)
             {
                 ASSERT_TRUE(sawBegin);
                 sawEnd = true;
@@ -124,6 +124,17 @@ TEST(PhysicsWorld2DPHYS2, ContactBeginEndAreCanonicalStableAndSelfContained)
                 EXPECT_EQ(event.entityA, left);
                 EXPECT_EQ(event.entityB, right);
                 EXPECT_FALSE(event.hasContactGeometry);
+                EXPECT_FLOAT_EQ(event.approachSpeed, 0.0F);
+            }
+            else
+            {
+                ASSERT_TRUE(sawBegin);
+                EXPECT_EQ(event.ColliderSemanticIdA(), "a_collider");
+                EXPECT_EQ(event.ColliderSemanticIdB(), "z_collider");
+                EXPECT_GT(event.approachSpeed, 0.0F);
+                EXPECT_TRUE(event.hasContactGeometry);
+                EXPECT_TRUE(std::isfinite(event.point.x));
+                EXPECT_TRUE(std::isfinite(event.normal.x));
             }
         }
     }
