@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <string_view>
 #include <vector>
 
@@ -21,6 +22,53 @@ enum class TweenBindingTargetKind2D : std::uint8_t
 {
     EntityTransform = 0,
     ComponentProperty,
+    ExternalProperty,
+};
+
+inline constexpr std::uint32_t InvalidTweenExternalProviderIndex2D =
+    std::numeric_limits<std::uint32_t>::max();
+
+struct TweenExternalProviderHandle2D final
+{
+    std::uint32_t index{InvalidTweenExternalProviderIndex2D};
+
+    [[nodiscard]] bool Valid() const noexcept
+    {
+        return index != InvalidTweenExternalProviderIndex2D;
+    }
+
+    [[nodiscard]] bool operator==(const TweenExternalProviderHandle2D&) const noexcept = default;
+};
+
+// Setup-time registered adapter for a retained, generation-safe typed presentation target. The
+// provider object is copied into TweenBindingSystem2D; context must outlive that binding system.
+// Property-name resolution stays provider-owned setup work. Steady stepping receives compact
+// provider/target/property indices only and never executes arbitrary timeline completion callbacks.
+struct TweenExternalPropertyProvider2D final
+{
+    using ValidateFunction = bool (*)(
+        void* context,
+        std::uint32_t targetSlot,
+        std::uint64_t targetGeneration,
+        std::uint32_t propertyIndex,
+        runtime::TweenValueType2D valueType) noexcept;
+    using ReadFunction = bool (*)(
+        void* context,
+        std::uint32_t targetSlot,
+        std::uint64_t targetGeneration,
+        std::uint32_t propertyIndex,
+        runtime::TweenValue2D& outValue) noexcept;
+    using WriteFunction = bool (*)(
+        void* context,
+        std::uint32_t targetSlot,
+        std::uint64_t targetGeneration,
+        std::uint32_t propertyIndex,
+        const runtime::TweenValue2D& value) noexcept;
+
+    void* context{nullptr};
+    ValidateFunction validate{nullptr};
+    ReadFunction read{nullptr};
+    WriteFunction write{nullptr};
 };
 
 struct ResolvedTweenBinding2D final
@@ -30,6 +78,12 @@ struct ResolvedTweenBinding2D final
     ComponentTypeIndex componentType{InvalidComponentTypeIndex};
     std::uint32_t propertyIndex{0U};
     runtime::TweenValueType2D valueType{runtime::TweenValueType2D::Float};
+
+    // ExternalProperty uses deterministic setup-order provider identity plus target slot/generation.
+    // Entity/component fields remain unused for this target kind.
+    std::uint32_t externalProviderIndex{InvalidTweenExternalProviderIndex2D};
+    std::uint32_t externalTargetSlot{0U};
+    std::uint64_t externalTargetGeneration{0U};
 
     [[nodiscard]] bool operator==(const ResolvedTweenBinding2D&) const noexcept = default;
 };
@@ -73,6 +127,8 @@ enum class TweenBindingError2D : std::uint8_t
     ConflictRejected,
     TweenFailure,
     PropertyWriteRejected,
+    InvalidExternalProvider,
+    ExternalProviderUnavailable,
 };
 
 struct TweenBindingStatus2D final
@@ -95,6 +151,8 @@ struct TweenBindingMetrics2D final
     std::uint64_t propertyWriteRejectedCount{0U};
     std::uint64_t retainedBindingSlotCount{0U};
     std::uint64_t retainedBindingCapacity{0U};
+    std::uint64_t retainedExternalProviderCount{0U};
+    std::uint64_t retainedExternalProviderCapacity{0U};
 
     [[nodiscard]] bool operator==(const TweenBindingMetrics2D&) const noexcept = default;
 };
@@ -105,6 +163,13 @@ public:
     explicit TweenBindingSystem2D(Scene& scene) noexcept;
 
     void Reserve(std::size_t capacity);
+    void ReserveExternalProviders(std::size_t capacity);
+
+    // Provider registration is setup-only. Provider indices are stable for the lifetime of this
+    // binding system and are never removed/reordered, so resolved bindings stay deterministic.
+    [[nodiscard]] TweenBindingStatus2D RegisterExternalProvider(
+        TweenExternalPropertyProvider2D provider,
+        TweenExternalProviderHandle2D& outHandle);
 
     [[nodiscard]] TweenBindingStatus2D ResolveTransform(
         EntityId entity,
@@ -137,6 +202,14 @@ public:
         EntityId entity,
         std::string_view componentTypeId,
         std::string_view propertyName,
+        ResolvedTweenBinding2D& outBinding) const noexcept;
+
+    [[nodiscard]] TweenBindingStatus2D ResolveExternal(
+        TweenExternalProviderHandle2D provider,
+        std::uint32_t targetSlot,
+        std::uint64_t targetGeneration,
+        std::uint32_t propertyIndex,
+        runtime::TweenValueType2D valueType,
         ResolvedTweenBinding2D& outBinding) const noexcept;
 
     [[nodiscard]] TweenBindingStatus2D Create(
@@ -179,6 +252,8 @@ private:
         ResolvedTweenBinding2D& outBinding) const noexcept;
     [[nodiscard]] TweenBindingStatus2D ValidateBinding(
         const ResolvedTweenBinding2D& binding) const noexcept;
+    [[nodiscard]] const TweenExternalPropertyProvider2D* FindExternalProvider(
+        std::uint32_t providerIndex) const noexcept;
     [[nodiscard]] const ComponentInstance* FindComponent(
         const ResolvedTweenBinding2D& binding) const noexcept;
     [[nodiscard]] ComponentInstance* FindComponent(
@@ -204,6 +279,7 @@ private:
     Scene& scene_;
     runtime::TweenPool2D pool_{};
     std::vector<BindingSlot> bindings_{};
+    std::vector<TweenExternalPropertyProvider2D> externalProviders_{};
     std::uint64_t createdCount_{0U};
     std::uint64_t appliedWriteCount_{0U};
     std::uint64_t capturedStartCount_{0U};
