@@ -183,13 +183,14 @@ TweenSequenceStatus2D TweenSequenceDefinition2D::Interval(
     {
         return {TweenSequenceError2D::NegativeInterval};
     }
+    const runtime::TweenTime2D intervalStart = duration_;
     runtime::TweenTime2D next{};
     if (!TryAddTime(duration_, duration, next))
     {
         return {TweenSequenceError2D::TimeOverflow};
     }
     duration_ = next;
-    joinAnchor_ = duration_;
+    joinAnchor_ = intervalStart;
     return {};
 }
 
