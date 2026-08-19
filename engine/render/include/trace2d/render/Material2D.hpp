@@ -12,6 +12,7 @@
 namespace trace2d::render
 {
 inline constexpr std::size_t MaximumMaterial2DParameters = 16U;
+inline constexpr std::size_t MaximumMaterial2DParameterNameBytes = 63U;
 inline constexpr std::size_t Material2DParameterSlotFloatCount = 4U;
 inline constexpr std::size_t Material2DParameterSlotBytes =
     Material2DParameterSlotFloatCount * sizeof(float);
@@ -71,13 +72,28 @@ struct MaterialParameterLayoutEntry2D final
     [[nodiscard]] bool operator==(const MaterialParameterLayoutEntry2D&) const noexcept = default;
 };
 
-// Setup-time prepared Shader2D parameter layout. Names are non-owning views into the canonical
-// Shader2D declaration storage and are retained only for setup/tooling lookup and inspection.
-// Steady draw paths consume MaterialParameterBinding2D / MaterialParameterBlock2D instead.
+// Fixed-capacity owned setup/tooling name. The prepared layout never keeps a string_view into
+// authored/canonical storage, so unloading or replacing the source resource cannot leave dangling
+// inspection/name-resolution state.
+struct MaterialParameterName2D final
+{
+    std::array<char, MaximumMaterial2DParameterNameBytes + 1U> bytes{};
+    std::uint8_t length{0U};
+
+    [[nodiscard]] std::string_view View() const noexcept
+    {
+        return std::string_view{bytes.data(), length};
+    }
+
+    [[nodiscard]] bool operator==(const MaterialParameterName2D&) const noexcept = default;
+};
+
+// Setup-time prepared Shader2D parameter layout. Names are copied into fixed-capacity owned storage
+// only for setup/tooling lookup and inspection. Steady draw paths consume compact bindings/blocks.
 struct MaterialParameterLayout2D final
 {
     assets::ResourceHandleUntyped shaderIdentity{};
-    std::array<std::string_view, MaximumMaterial2DParameters> names{};
+    std::array<MaterialParameterName2D, MaximumMaterial2DParameters> names{};
     std::array<MaterialParameterLayoutEntry2D, MaximumMaterial2DParameters> entries{};
     std::uint8_t parameterCount{0U};
     std::uint64_t identity{InvalidMaterial2DIdentity};
@@ -134,6 +150,7 @@ enum class MaterialPrepareError2D : std::uint8_t
     InvalidShaderIdentity,
     TooManyParameters,
     EmptyParameterName,
+    ParameterNameTooLong,
     InvalidParameterName,
     DuplicateParameterName,
     UnsupportedParameterType,
@@ -191,10 +208,13 @@ struct MaterialPrepareStatus2D final
     std::span<const ResolvedMaterialParameterOverride2D> overrides,
     MaterialParameterBlock2D& outBlock) noexcept;
 
+static_assert(sizeof(float) == 4U);
 static_assert(Material2DParameterSlotBytes == 16U);
+static_assert(MaximumMaterial2DParameterNameBytes <= 255U);
 static_assert(std::is_trivially_copyable_v<MaterialParameterDeclaration2D>);
 static_assert(std::is_trivially_copyable_v<MaterialParameterValue2D>);
 static_assert(std::is_trivially_copyable_v<MaterialParameterLayoutEntry2D>);
+static_assert(std::is_trivially_copyable_v<MaterialParameterName2D>);
 static_assert(std::is_trivially_copyable_v<MaterialParameterLayout2D>);
 static_assert(std::is_trivially_copyable_v<MaterialParameterBinding2D>);
 static_assert(std::is_trivially_copyable_v<MaterialParameterBlock2D>);
