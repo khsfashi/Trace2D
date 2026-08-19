@@ -1,0 +1,91 @@
+name: Sanitizers
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  linux-clang-asan-ubsan-headless:
+    name: Linux Clang ASan + UBSan headless
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      ASAN_OPTIONS: halt_on_error=1:detect_leaks=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Verify Clang toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang++ --version
+          cmake --version
+
+      - name: Install pinned vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          git clone https://github.com/microsoft/vcpkg "$vcpkg_root"
+          git -C "$vcpkg_root" checkout "$TRACE2D_VCPKG_BASELINE"
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure sanitizer verification build
+        shell: bash
+        env:
+          CC: clang
+          CXX: clang++
+        run: |
+          set -euo pipefail
+          mkdir -p .trace2d-vcpkg-downloads
+          export VCPKG_DOWNLOADS="$GITHUB_WORKSPACE/.trace2d-vcpkg-downloads"
+          cmake -S . -B build/sanitizers \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DTRACE2D_WARNINGS_AS_ERRORS=ON \
+            -DTRACE2D_INSTALL_SDK=OFF \
+            -DTRACE2D_ENABLE_ASAN_UBSAN=ON \
+            -DBUILD_TESTING=ON
+
+      - name: Build headless sanitizer targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build/sanitizers --parallel --target \
+            trace2d_runtime_tests \
+            trace2d_scene_tests \
+            trace2d_assets_tests
+
+      - name: Run ASan + UBSan headless suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          ctest --test-dir build/sanitizers \
+            -L sanitizer-headless \
+            --output-on-failure
