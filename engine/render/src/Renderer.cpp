@@ -106,36 +106,6 @@ float4 main(FragmentInput input) : SV_Target0
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
 }
 
-class ShaderCrossProcessLifetime final
-{
-public:
-    ShaderCrossProcessLifetime()
-    {
-        if (!SDL_ShaderCross_Init())
-        {
-            throw MakeSdlError("SDL_shadercross initialization failed");
-        }
-    }
-
-    ~ShaderCrossProcessLifetime()
-    {
-        SDL_ShaderCross_Quit();
-    }
-
-    ShaderCrossProcessLifetime(const ShaderCrossProcessLifetime&) = delete;
-    ShaderCrossProcessLifetime& operator=(const ShaderCrossProcessLifetime&) = delete;
-};
-
-void EnsureShaderCrossProcessLifetime()
-{
-    // The pinned SDL_shadercross contract permits one process-wide Init/Quit pair.
-    // Delayed construction waits until Platform has initialized SDL. A Renderer that
-    // triggers this static is destroyed before the static owner during normal C++
-    // teardown, so all derived GPU shader/pipeline state is released before Quit.
-    static const ShaderCrossProcessLifetime lifetime{};
-    (void)lifetime;
-}
-
 [[nodiscard]] bool IsValidTextureHandle(const TextureHandle texture) noexcept
 {
     return texture.generation != 0U &&
@@ -173,6 +143,36 @@ void ApplyPresentationRasterViewport(
     viewport.min_depth = 0.0F;
     viewport.max_depth = 1.0F;
     SDL_SetGPUViewport(renderPass, &viewport);
+}
+
+class ShaderCrossProcessLifetime final
+{
+public:
+    ShaderCrossProcessLifetime()
+    {
+        if (!SDL_ShaderCross_Init())
+        {
+            throw MakeSdlError("SDL_shadercross initialization failed");
+        }
+    }
+
+    ~ShaderCrossProcessLifetime()
+    {
+        SDL_ShaderCross_Quit();
+    }
+
+    ShaderCrossProcessLifetime(const ShaderCrossProcessLifetime&) = delete;
+    ShaderCrossProcessLifetime& operator=(const ShaderCrossProcessLifetime&) = delete;
+};
+
+void EnsureShaderCrossProcessLifetime()
+{
+    // The pinned SDL_shadercross contract permits one process-wide Init/Quit pair.
+    // Delayed construction waits until Platform has initialized SDL. A Renderer that
+    // triggers this static is destroyed before the static owner during normal C++
+    // teardown, so all derived GPU shader/pipeline state is released before Quit.
+    static const ShaderCrossProcessLifetime lifetime{};
+    (void)lifetime;
 }
 
 [[nodiscard]] SDL_GPUShader* CompileHlslShader(
@@ -267,8 +267,7 @@ void ApplyPresentationRasterViewport(
         throw std::invalid_argument{"Mapped capture readback pointer must not be null."};
     }
 
-    const CaptureSourceChannelOrder channelOrder =
-        ResolveCaptureSourceChannelOrder(sourceFormat);
+    const CaptureSourceChannelOrder channelOrder = ResolveCaptureSourceChannelOrder(sourceFormat);
     const std::size_t packedRowBytes =
         static_cast<std::size_t>(width) * static_cast<std::size_t>(Rgba8BytesPerPixel);
     CapturedFrame frame{};
@@ -281,8 +280,7 @@ void ApplyPresentationRasterViewport(
     for (Uint32 y = 0U; y < height; ++y)
     {
         const std::uint8_t* const sourceRow =
-            sourceBytes + static_cast<std::size_t>(y) *
-                static_cast<std::size_t>(layout.rowPitchBytes);
+            sourceBytes + static_cast<std::size_t>(y) * static_cast<std::size_t>(layout.rowPitchBytes);
         std::uint8_t* const destinationRow =
             frame.rgba8Pixels.data() + static_cast<std::size_t>(y) * packedRowBytes;
 
@@ -367,8 +365,7 @@ public:
             throw MakeSdlError("SDL window lookup failed");
         }
 
-        device_ = SDL_CreateGPUDevice(
-            SupportedShaderFormats, config_.enableDebugValidation, nullptr);
+        device_ = SDL_CreateGPUDevice(SupportedShaderFormats, config_.enableDebugValidation, nullptr);
         if (device_ == nullptr)
         {
             throw MakeSdlError("SDL GPU device creation failed");
@@ -473,6 +470,15 @@ public:
         resource.hasSpriteEncoding = false;
     }
 
+    [[nodiscard]] MaterialGpuPrepareResult2D PrepareMaterial2D(
+        const assets::ResourceRegistry& resources,
+        const assets::ResourceHandle<assets::Material2DResource> material)
+    {
+        MaterialGpuPrepareResult2D result = spriteGpuBackend_->PrepareMaterial2D(resources, material);
+        SyncSpriteGpuMetrics();
+        return result;
+    }
+
     [[nodiscard]] GpuParticleEmitterCreateResult CreateGpuParticleEmitter(
         const particles::ParticleProgram& program,
         const std::uint64_t globalSeed,
@@ -480,8 +486,7 @@ public:
         const TextureHandle texture)
     {
         static_cast<void>(ResolveTexture(texture));
-        return particleGpuBackend_->CreateEmitter(
-            program, globalSeed, emitterStableId, texture);
+        return particleGpuBackend_->CreateEmitter(program, globalSeed, emitterStableId, texture);
     }
 
     void DestroyGpuParticleEmitter(const GpuParticleEmitterHandle emitter) noexcept
@@ -527,8 +532,7 @@ public:
         particleGpuBackend_->StopEmitter(emitter);
     }
 
-    [[nodiscard]] bool StepGpuParticleEmitters(
-        const std::span<const GpuParticleStepData> steps)
+    [[nodiscard]] bool StepGpuParticleEmitters(const std::span<const GpuParticleStepData> steps)
     {
         if (steps.empty())
         {
@@ -573,9 +577,7 @@ public:
         RenderFrameInternal(nullptr, {}, {}, {}, nullptr, nullptr);
     }
 
-    void RenderFrame(
-        const OrthographicCamera& camera,
-        const SpriteRenderData& sprite)
+    void RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
     {
         RenderFrame(camera, std::span<const SpriteRenderData>{&sprite, 1U});
     }
@@ -599,9 +601,7 @@ public:
         const OrthographicCamera& camera,
         const SpritePresentationRenderData& sprite)
     {
-        RenderFrame(
-            camera,
-            std::span<const SpritePresentationRenderData>{&sprite, 1U});
+        RenderFrame(camera, std::span<const SpritePresentationRenderData>{&sprite, 1U});
     }
 
     void RenderFrame(
@@ -616,8 +616,7 @@ public:
         const OrthographicCamera& camera,
         const SpriteRenderData& sprite)
     {
-        return CaptureFrame(
-            request, camera, std::span<const SpriteRenderData>{&sprite, 1U});
+        return CaptureFrame(request, camera, std::span<const SpriteRenderData>{&sprite, 1U});
     }
 
     [[nodiscard]] CapturedFrame CaptureFrame(
@@ -696,8 +695,7 @@ private:
         const std::size_t byteCount = ExpectedRgba8ByteCount(textureData);
         if (textureData.pixels.size() != byteCount)
         {
-            throw std::invalid_argument{
-                "RGBA8 texture byte count must equal width * height * 4."};
+            throw std::invalid_argument{"RGBA8 texture byte count must equal width * height * 4."};
         }
 
         const std::size_t index = static_cast<std::size_t>(textureHandle.slot);
@@ -711,8 +709,7 @@ private:
         {
             if (residency.generation == textureHandle.generation)
             {
-                throw std::invalid_argument{
-                    "Renderer texture handle already has live GPU residency."};
+                throw std::invalid_argument{"Renderer texture handle already has live GPU residency."};
             }
             throw std::invalid_argument{
                 "Renderer texture slot still owns a different generation; destroy old GPU residency before reuse."};
@@ -737,8 +734,7 @@ private:
         SDL_GPUTransferBufferCreateInfo transferInfo{};
         transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         transferInfo.size = static_cast<Uint32>(byteCount);
-        SDL_GPUTransferBuffer* const transferBuffer =
-            SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        SDL_GPUTransferBuffer* const transferBuffer = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
         if (transferBuffer == nullptr)
         {
             SDL_ReleaseGPUTexture(device_, texture);
@@ -863,8 +859,7 @@ private:
         SDL_GPUTransferBufferCreateInfo transferInfo{};
         transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
         transferInfo.size = static_cast<Uint32>(sizeof(SpriteVertices));
-        SDL_GPUTransferBuffer* const transferBuffer =
-            SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        SDL_GPUTransferBuffer* const transferBuffer = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
         if (transferBuffer == nullptr)
         {
             throw MakeSdlError("SDL GPU sprite vertex transfer-buffer creation failed");
@@ -883,8 +878,7 @@ private:
         if (commandBuffer == nullptr)
         {
             SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            throw MakeSdlError(
-                "SDL GPU sprite vertex upload command-buffer acquisition failed");
+            throw MakeSdlError("SDL GPU sprite vertex upload command-buffer acquisition failed");
         }
 
         SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
@@ -893,8 +887,7 @@ private:
             const std::string error{SDL_GetError()};
             SDL_CancelGPUCommandBuffer(commandBuffer);
             SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            throw std::runtime_error{
-                "SDL GPU sprite vertex copy-pass creation failed: " + error};
+            throw std::runtime_error{"SDL GPU sprite vertex copy-pass creation failed: " + error};
         }
 
         SDL_GPUTransferBufferLocation source{};
@@ -909,8 +902,7 @@ private:
         {
             const std::string error{SDL_GetError()};
             SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
-            throw std::runtime_error{
-                "SDL GPU sprite vertex upload submission failed: " + error};
+            throw std::runtime_error{"SDL GPU sprite vertex upload submission failed: " + error};
         }
         SDL_ReleaseGPUTransferBuffer(device_, transferBuffer);
     }
@@ -950,12 +942,10 @@ private:
             colorTargetDescription.blend_state.color_write_mask = 0xFU;
             colorTargetDescription.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
             colorTargetDescription.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
-            colorTargetDescription.blend_state.src_color_blendfactor =
-                SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTargetDescription.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
             colorTargetDescription.blend_state.dst_color_blendfactor =
                 SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
-            colorTargetDescription.blend_state.src_alpha_blendfactor =
-                SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+            colorTargetDescription.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
             colorTargetDescription.blend_state.dst_alpha_blendfactor =
                 SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
 
@@ -971,8 +961,7 @@ private:
             attributes[0].location = 0U;
             attributes[0].buffer_slot = 0U;
             attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-            attributes[0].offset =
-                static_cast<Uint32>(offsetof(SpriteVertex, localX));
+            attributes[0].offset = static_cast<Uint32>(offsetof(SpriteVertex, localX));
             attributes[1].location = 1U;
             attributes[1].buffer_slot = 0U;
             attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
@@ -980,14 +969,12 @@ private:
             attributes[2].location = 2U;
             attributes[2].buffer_slot = 1U;
             attributes[2].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
-            attributes[2].offset =
-                static_cast<Uint32>(offsetof(SpriteInstanceData, centerClip));
+            attributes[2].offset = static_cast<Uint32>(offsetof(SpriteInstanceData, centerClip));
 
             SDL_GPUGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.vertex_shader = vertexShader;
             pipelineInfo.fragment_shader = fragmentShader;
-            pipelineInfo.vertex_input_state.vertex_buffer_descriptions =
-                bufferDescriptions.data();
+            pipelineInfo.vertex_input_state.vertex_buffer_descriptions = bufferDescriptions.data();
             pipelineInfo.vertex_input_state.num_vertex_buffers =
                 static_cast<Uint32>(bufferDescriptions.size());
             pipelineInfo.vertex_input_state.vertex_attributes = attributes.data();
@@ -995,8 +982,7 @@ private:
                 static_cast<Uint32>(attributes.size());
             pipelineInfo.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
             pipelineInfo.rasterizer_state.enable_depth_clip = true;
-            pipelineInfo.target_info.color_target_descriptions =
-                &colorTargetDescription;
+            pipelineInfo.target_info.color_target_descriptions = &colorTargetDescription;
             pipelineInfo.target_info.num_color_targets = 1U;
 
             spritePipeline_ = SDL_CreateGPUGraphicsPipeline(device_, &pipelineInfo);
@@ -1034,8 +1020,7 @@ private:
             sizeof(SpriteInstanceData);
         if (requiredInstances > MaxInstances)
         {
-            throw std::length_error{
-                "Visible sprite instance data exceeds SDL GPU buffer size limits."};
+            throw std::length_error{"Visible sprite instance data exceeds SDL GPU buffer size limits."};
         }
 
         std::uint64_t replacementCapacity =
@@ -1050,14 +1035,13 @@ private:
             replacementCapacity *= 2U;
         }
 
-        const Uint32 replacementBytes = static_cast<Uint32>(
-            replacementCapacity * sizeof(SpriteInstanceData));
+        const Uint32 replacementBytes =
+            static_cast<Uint32>(replacementCapacity * sizeof(SpriteInstanceData));
 
         SDL_GPUBufferCreateInfo bufferInfo{};
         bufferInfo.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
         bufferInfo.size = replacementBytes;
-        SDL_GPUBuffer* const replacementBuffer =
-            SDL_CreateGPUBuffer(device_, &bufferInfo);
+        SDL_GPUBuffer* const replacementBuffer = SDL_CreateGPUBuffer(device_, &bufferInfo);
         if (replacementBuffer == nullptr)
         {
             throw MakeSdlError("SDL GPU sprite instance-buffer creation failed");
@@ -1071,8 +1055,7 @@ private:
         if (replacementTransfer == nullptr)
         {
             SDL_ReleaseGPUBuffer(device_, replacementBuffer);
-            throw MakeSdlError(
-                "SDL GPU sprite instance transfer-buffer creation failed");
+            throw MakeSdlError("SDL GPU sprite instance transfer-buffer creation failed");
         }
 
         if (spriteInstanceTransferBuffer_ != nullptr)
@@ -1101,12 +1084,10 @@ private:
         }
 
         EnsureSpriteInstanceCapacity(visibleSpriteCount);
-        void* const mapped =
-            SDL_MapGPUTransferBuffer(device_, spriteInstanceTransferBuffer_, true);
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, spriteInstanceTransferBuffer_, true);
         if (mapped == nullptr)
         {
-            throw MakeSdlError(
-                "SDL GPU sprite instance transfer-buffer mapping failed");
+            throw MakeSdlError("SDL GPU sprite instance transfer-buffer mapping failed");
         }
 
         auto* const instances = static_cast<SpriteInstanceData*>(mapped);
@@ -1124,23 +1105,20 @@ private:
 
         if (visibleIndex != visibleSpriteCount)
         {
-            throw std::logic_error{
-                "Sprite visibility changed while building instance data."};
+            throw std::logic_error{"Sprite visibility changed while building instance data."};
         }
 
         SDL_GPUCopyPass* const copyPass = SDL_BeginGPUCopyPass(commandBuffer);
         if (copyPass == nullptr)
         {
-            throw MakeSdlError(
-                "SDL GPU sprite instance upload copy-pass creation failed");
+            throw MakeSdlError("SDL GPU sprite instance upload copy-pass creation failed");
         }
 
         SDL_GPUTransferBufferLocation source{};
         source.transfer_buffer = spriteInstanceTransferBuffer_;
         SDL_GPUBufferRegion destination{};
         destination.buffer = spriteInstanceBuffer_;
-        destination.size = static_cast<Uint32>(
-            visibleSpriteCount * sizeof(SpriteInstanceData));
+        destination.size = static_cast<Uint32>(visibleSpriteCount * sizeof(SpriteInstanceData));
         SDL_UploadToGPUBuffer(copyPass, &source, &destination, true);
         SDL_EndGPUCopyPass(copyPass);
     }
@@ -1211,8 +1189,7 @@ private:
             }
             else
             {
-                DrawSpriteInstanceRun(
-                    renderPass, runTexture, runFirstInstance, runInstanceCount);
+                DrawSpriteInstanceRun(renderPass, runTexture, runFirstInstance, runInstanceCount);
                 ++encodedSpriteDraws;
                 encodedSpriteCount += runInstanceCount;
                 runTexture = sprite.texture;
@@ -1224,8 +1201,7 @@ private:
 
         if (runInstanceCount != 0U)
         {
-            DrawSpriteInstanceRun(
-                renderPass, runTexture, runFirstInstance, runInstanceCount);
+            DrawSpriteInstanceRun(renderPass, runTexture, runFirstInstance, runInstanceCount);
             ++encodedSpriteDraws;
             encodedSpriteCount += runInstanceCount;
         }
@@ -1233,8 +1209,7 @@ private:
         if (static_cast<std::uint64_t>(visibleIndex) != expectedVisibleSprites ||
             encodedSpriteCount != expectedVisibleSprites)
         {
-            throw std::logic_error{
-                "Sprite visibility changed while encoding instance runs."};
+            throw std::logic_error{"Sprite visibility changed while encoding instance runs."};
         }
     }
 
@@ -1264,8 +1239,7 @@ private:
             {
                 return;
             }
-            DrawSpriteInstanceRun(
-                renderPass, runTexture, runFirstInstance, runInstanceCount);
+            DrawSpriteInstanceRun(renderPass, runTexture, runFirstInstance, runInstanceCount);
             ++encodedSpriteDraws;
             encodedSpriteCount += runInstanceCount;
             runInstanceCount = 0U;
@@ -1282,8 +1256,7 @@ private:
             {
                 flushSpriteRun();
                 const GpuParticleRenderData& particle = particles[particleIndex];
-                const TextureHandle textureHandle =
-                    particleGpuBackend_->Texture(particle.emitter);
+                const TextureHandle textureHandle = particleGpuBackend_->Texture(particle.emitter);
                 particleGpuBackend_->DrawEmitter(
                     commandBuffer,
                     renderPass,
@@ -1329,8 +1302,7 @@ private:
         if (static_cast<std::uint64_t>(visibleInstanceIndex) != expectedVisibleSprites ||
             encodedSpriteCount != expectedVisibleSprites)
         {
-            throw std::logic_error{
-                "Sprite visibility changed while encoding mixed presentation."};
+            throw std::logic_error{"Sprite visibility changed while encoding mixed presentation."};
         }
     }
 
@@ -1343,8 +1315,7 @@ private:
     {
         for (std::size_t orderedIndex = 0U; orderedIndex < sprites.size(); ++orderedIndex)
         {
-            const std::size_t sourceIndex =
-                spriteGpuBackend_->OrderedSourceIndex(orderedIndex);
+            const std::size_t sourceIndex = spriteGpuBackend_->OrderedSourceIndex(orderedIndex);
             const SpritePresentationRenderData& sprite = sprites[sourceIndex];
             if (spriteGpuBackend_->DrawPresentation(
                     commandBuffer,
@@ -1363,12 +1334,10 @@ private:
     {
         if (width == 0U || height == 0U)
         {
-            throw std::invalid_argument{
-                "Offscreen color-target dimensions must be non-zero."};
+            throw std::invalid_argument{"Offscreen color-target dimensions must be non-zero."};
         }
         if (offscreenColorTarget_ != nullptr &&
-            offscreenTargetWidth_ == width &&
-            offscreenTargetHeight_ == height)
+            offscreenTargetWidth_ == width && offscreenTargetHeight_ == height)
         {
             return;
         }
@@ -1383,8 +1352,7 @@ private:
         textureInfo.num_levels = 1U;
         textureInfo.sample_count = SDL_GPU_SAMPLECOUNT_1;
 
-        SDL_GPUTexture* const replacement =
-            SDL_CreateGPUTexture(device_, &textureInfo);
+        SDL_GPUTexture* const replacement = SDL_CreateGPUTexture(device_, &textureInfo);
         if (replacement == nullptr)
         {
             throw MakeSdlError("SDL GPU offscreen color-target creation failed");
@@ -1403,11 +1371,9 @@ private:
     {
         if (requiredBytes == 0U)
         {
-            throw std::invalid_argument{
-                "Capture transfer-buffer capacity must be non-zero."};
+            throw std::invalid_argument{"Capture transfer-buffer capacity must be non-zero."};
         }
-        if (captureTransferBuffer_ != nullptr &&
-            captureTransferBufferCapacity_ >= requiredBytes)
+        if (captureTransferBuffer_ != nullptr && captureTransferBufferCapacity_ >= requiredBytes)
         {
             return;
         }
@@ -1415,12 +1381,10 @@ private:
         SDL_GPUTransferBufferCreateInfo transferInfo{};
         transferInfo.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
         transferInfo.size = requiredBytes;
-        SDL_GPUTransferBuffer* const replacement =
-            SDL_CreateGPUTransferBuffer(device_, &transferInfo);
+        SDL_GPUTransferBuffer* const replacement = SDL_CreateGPUTransferBuffer(device_, &transferInfo);
         if (replacement == nullptr)
         {
-            throw MakeSdlError(
-                "SDL GPU capture download transfer-buffer creation failed");
+            throw MakeSdlError("SDL GPU capture download transfer-buffer creation failed");
         }
         if (captureTransferBuffer_ != nullptr)
         {
@@ -1430,8 +1394,7 @@ private:
         captureTransferBufferCapacity_ = requiredBytes;
     }
 
-    [[nodiscard]] const TextureResource& ResolveTextureResource(
-        const TextureHandle texture) const
+    [[nodiscard]] const TextureResource& ResolveTextureResource(const TextureHandle texture) const
     {
         if (!IsValidTextureHandle(texture))
         {
@@ -1483,8 +1446,7 @@ private:
 
         for (const GpuParticleRenderData& particle : particles)
         {
-            const TextureHandle texture =
-                particleGpuBackend_->Texture(particle.emitter);
+            const TextureHandle texture = particleGpuBackend_->Texture(particle.emitter);
             static_cast<void>(ResolveTexture(texture));
         }
     }
@@ -1496,11 +1458,6 @@ private:
         {
             const TextureResource& texture = ResolveTextureResource(sprite.texture);
             const SpriteAppearanceContractData& appearance = sprite.presentation.appearance;
-            if (sprite.materialPipeline != BuiltInSpriteMaterialPipelineIdentity)
-            {
-                throw std::invalid_argument{
-                    "SR7 Sprite presentation only supports the built-in material/pipeline identity; #89 owns programmable materials."};
-            }
             if (!texture.hasSpriteEncoding)
             {
                 throw std::invalid_argument{
@@ -1516,14 +1473,11 @@ private:
                 throw std::invalid_argument{
                     "SR4 Sprite presentation requires canonical straight-alpha source truth."};
             }
-            if (!IsFiniteUnit(appearance.tint.red) ||
-                !IsFiniteUnit(appearance.tint.green) ||
-                !IsFiniteUnit(appearance.tint.blue) ||
-                !IsFiniteUnit(appearance.tint.alpha) ||
+            if (!IsFiniteUnit(appearance.tint.red) || !IsFiniteUnit(appearance.tint.green) ||
+                !IsFiniteUnit(appearance.tint.blue) || !IsFiniteUnit(appearance.tint.alpha) ||
                 !IsFiniteUnit(appearance.opacity))
             {
-                throw std::invalid_argument{
-                    "SR4 Sprite presentation contains invalid tint or opacity."};
+                throw std::invalid_argument{"SR4 Sprite presentation contains invalid tint or opacity."};
             }
             if (!IsFiniteNormalizedBounds(appearance.sampleBounds))
             {
@@ -1554,14 +1508,13 @@ private:
             case SpriteTextureEncoding::Linear:
                 break;
             default:
-                throw std::invalid_argument{"SR4 Sprite presentation has unsupported texture encoding."};
+                throw std::invalid_argument{
+                    "SR4 Sprite presentation has unsupported texture encoding."};
             }
 
             const SpriteDrawQuad& quad = sprite.presentation.quad;
-            if (!IsFiniteDrawVertex(quad.topLeft) ||
-                !IsFiniteDrawVertex(quad.topRight) ||
-                !IsFiniteDrawVertex(quad.bottomRight) ||
-                !IsFiniteDrawVertex(quad.bottomLeft))
+            if (!IsFiniteDrawVertex(quad.topLeft) || !IsFiniteDrawVertex(quad.topRight) ||
+                !IsFiniteDrawVertex(quad.bottomRight) || !IsFiniteDrawVertex(quad.bottomLeft))
             {
                 throw std::invalid_argument{
                     "SR4 Sprite presentation contains invalid SR2 geometry or canonical UVs."};
@@ -1578,6 +1531,9 @@ private:
         const detail::SpriteGpuBackendMetrics& gpuMetrics = spriteGpuBackend_->Metrics();
         metrics_.spriteSamplerCreations = gpuMetrics.samplerCreations;
         metrics_.spritePipelineCreations = gpuMetrics.pipelineCreations;
+        metrics_.materialShaderCompilations = gpuMetrics.materialShaderCompilations;
+        metrics_.materialPipelineCreations = gpuMetrics.materialPipelineCreations;
+        metrics_.materialPipelineCacheHits = gpuMetrics.materialPipelineCacheHits;
         metrics_.spriteVertexCapacitySprites = gpuMetrics.vertexCapacitySprites;
         metrics_.spriteVertexCapacityBytes = gpuMetrics.vertexCapacityBytes;
         metrics_.spriteMaskTargetCreations = gpuMetrics.maskTargetCreations;
@@ -1623,6 +1579,9 @@ private:
             metrics_.spritePresentationUploadedQuads += gpuMetrics.lastUploadedQuads;
             metrics_.spritePresentationUploadedVertexBytes += gpuMetrics.lastUploadedVertexBytes;
             metrics_.spritePresentationCompatibilityRuns += gpuMetrics.lastCompatibilityRuns;
+            metrics_.materialPipelineSwitches += gpuMetrics.lastMaterialPipelineSwitches;
+            metrics_.fragmentUniformUploads += gpuMetrics.lastFragmentUniformUploads;
+            metrics_.fragmentUniformUploadBytes += gpuMetrics.lastFragmentUniformUploadBytes;
         }
         SyncSpriteGpuMetrics();
     }
@@ -1653,8 +1612,7 @@ private:
         {
             if (camera == nullptr)
             {
-                throw std::invalid_argument{
-                    "2D presentation requires an orthographic camera."};
+                throw std::invalid_argument{"2D presentation requires an orthographic camera."};
             }
             if (!spritePresentations.empty())
             {
@@ -1676,16 +1634,11 @@ private:
         Uint32 targetWidth = 0U;
         Uint32 targetHeight = 0U;
         if (!SDL_WaitAndAcquireGPUSwapchainTexture(
-                commandBuffer,
-                window_,
-                &swapchainTexture,
-                &targetWidth,
-                &targetHeight))
+                commandBuffer, window_, &swapchainTexture, &targetWidth, &targetHeight))
         {
             const std::string error{SDL_GetError()};
             SDL_CancelGPUCommandBuffer(commandBuffer);
-            throw std::runtime_error{
-                "SDL GPU swapchain acquisition failed: " + error};
+            throw std::runtime_error{"SDL GPU swapchain acquisition failed: " + error};
         }
 
         bool encodedRenderPass = false;
@@ -1702,8 +1655,7 @@ private:
         if (swapchainTexture != nullptr)
         {
             OrthographicView view{};
-            if (hasPresentation &&
-                !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view))
+            if (hasPresentation && !TryBuildOrthographicView(*camera, targetWidth, targetHeight, view))
             {
                 static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
                 throw std::invalid_argument{
@@ -1723,30 +1675,22 @@ private:
                 if (batchMeasurement.visibleSprites != 0U)
                 {
                     UploadVisibleSpriteInstances(
-                        commandBuffer,
-                        view,
-                        sprites,
-                        batchMeasurement.visibleSprites);
+                        commandBuffer, view, sprites, batchMeasurement.visibleSprites);
                 }
                 if (!spritePresentations.empty())
                 {
-                    spriteGpuBackend_->UploadPresentations(
-                        commandBuffer,
-                        view,
-                        spritePresentations);
+                    spriteGpuBackend_->UploadPresentations(commandBuffer, view, spritePresentations);
                     SyncSpriteGpuMetrics();
                 }
 
                 if (captureRequested)
                 {
-                    if (!TryBuildCaptureReadbackLayout(
-                            targetWidth, targetHeight, captureLayout))
+                    if (!TryBuildCaptureReadbackLayout(targetWidth, targetHeight, captureLayout))
                     {
                         throw std::length_error{
                             "Capture target exceeds supported readback transfer-buffer limits."};
                     }
-                    static_cast<void>(
-                        ResolveCaptureSourceChannelOrder(colorTargetFormat_));
+                    static_cast<void>(ResolveCaptureSourceChannelOrder(colorTargetFormat_));
                     EnsureCaptureTransferBuffer(captureLayout.transferBufferBytes);
                 }
             }
@@ -1772,26 +1716,18 @@ private:
             if (!spritePresentations.empty())
             {
                 renderPass = spriteGpuBackend_->BeginPresentationRenderPass(
-                    commandBuffer,
-                    colorTarget,
-                    targetWidth,
-                    targetHeight);
+                    commandBuffer, colorTarget, targetWidth, targetHeight);
                 SyncSpriteGpuMetrics();
             }
             else
             {
-                renderPass = SDL_BeginGPURenderPass(
-                    commandBuffer,
-                    &colorTarget,
-                    1U,
-                    nullptr);
+                renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTarget, 1U, nullptr);
             }
             if (renderPass == nullptr)
             {
                 const std::string error{SDL_GetError()};
                 static_cast<void>(SDL_SubmitGPUCommandBuffer(commandBuffer));
-                throw std::runtime_error{
-                    "SDL GPU render pass creation failed: " + error};
+                throw std::runtime_error{"SDL GPU render pass creation failed: " + error};
             }
 
             const bool spritePixelPerfectRaster =
@@ -1821,7 +1757,7 @@ private:
                     encodedSpriteCount != presentationMetrics.lastVisibleSprites)
                 {
                     throw std::logic_error{
-                        "Sprite SR7 encoded draw/visibility metrics diverged from the upload plan."};
+                        "Sprite encoded draw/visibility metrics diverged from the upload plan."};
                 }
                 encodedPresentationSpriteDraws = encodedSpriteDraws;
                 encodedPresentationSpriteCount = presentationMetrics.lastSubmittedSprites;
@@ -1889,8 +1825,7 @@ private:
                 captureDestination.transfer_buffer = captureTransferBuffer_;
                 captureDestination.pixels_per_row = captureLayout.pixelsPerRow;
                 captureDestination.rows_per_layer = targetHeight;
-                SDL_DownloadFromGPUTexture(
-                    copyPass, &captureSource, &captureDestination);
+                SDL_DownloadFromGPUTexture(copyPass, &captureSource, &captureDestination);
                 encodedCaptureDownload = true;
                 ++metrics_.explicitGpuReadbacks;
             }
@@ -1916,8 +1851,7 @@ private:
                 encodedPresentationSpriteCount,
                 targetWidth,
                 targetHeight);
-            throw std::runtime_error{
-                "Capture requires an available non-zero presentation target."};
+            throw std::runtime_error{"Capture requires an available non-zero presentation target."};
         }
 
         if (!captureRequested)
@@ -1941,12 +1875,10 @@ private:
             return;
         }
 
-        SDL_GPUFence* const fence =
-            SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
+        SDL_GPUFence* const fence = SDL_SubmitGPUCommandBufferAndAcquireFence(commandBuffer);
         if (fence == nullptr)
         {
-            throw MakeSdlError(
-                "SDL GPU capture command buffer submission/fence acquisition failed");
+            throw MakeSdlError("SDL GPU capture command buffer submission/fence acquisition failed");
         }
 
         CommitFrameMetrics(
@@ -1971,13 +1903,11 @@ private:
             throw std::runtime_error{"SDL GPU capture fence wait failed: " + error};
         }
 
-        void* const mapped =
-            SDL_MapGPUTransferBuffer(device_, captureTransferBuffer_, false);
+        void* const mapped = SDL_MapGPUTransferBuffer(device_, captureTransferBuffer_, false);
         if (mapped == nullptr)
         {
             SDL_ReleaseGPUFence(device_, fence);
-            throw MakeSdlError(
-                "SDL GPU capture transfer-buffer mapping failed");
+            throw MakeSdlError("SDL GPU capture transfer-buffer mapping failed");
         }
 
         try
@@ -2033,8 +1963,7 @@ private:
             }
             if (spriteInstanceTransferBuffer_ != nullptr)
             {
-                SDL_ReleaseGPUTransferBuffer(
-                    device_, spriteInstanceTransferBuffer_);
+                SDL_ReleaseGPUTransferBuffer(device_, spriteInstanceTransferBuffer_);
                 spriteInstanceTransferBuffer_ = nullptr;
             }
             if (spriteInstanceBuffer_ != nullptr)
@@ -2096,9 +2025,7 @@ private:
     std::string driverName_{};
 };
 
-Renderer::Renderer(
-    const RendererConfig& config,
-    const platform::Platform& platform)
+Renderer::Renderer(const RendererConfig& config, const platform::Platform& platform)
     : impl_{std::make_unique<Impl>(config, platform)}
 {
 }
@@ -2125,60 +2052,58 @@ void Renderer::DestroyTexture(const TextureHandle texture) noexcept
     impl_->DestroyTexture(texture);
 }
 
+MaterialGpuPrepareResult2D Renderer::PrepareMaterial2D(
+    const assets::ResourceRegistry& resources,
+    const assets::ResourceHandle<assets::Material2DResource> material)
+{
+    return impl_->PrepareMaterial2D(resources, material);
+}
+
 GpuParticleEmitterCreateResult Renderer::CreateGpuParticleEmitter(
     const particles::ParticleProgram& program,
     const std::uint64_t globalSeed,
     const std::uint64_t emitterStableId,
     const TextureHandle texture)
 {
-    return impl_->CreateGpuParticleEmitter(
-        program, globalSeed, emitterStableId, texture);
+    return impl_->CreateGpuParticleEmitter(program, globalSeed, emitterStableId, texture);
 }
 
-void Renderer::DestroyGpuParticleEmitter(
-    const GpuParticleEmitterHandle emitter) noexcept
+void Renderer::DestroyGpuParticleEmitter(const GpuParticleEmitterHandle emitter) noexcept
 {
     impl_->DestroyGpuParticleEmitter(emitter);
 }
 
-void Renderer::ResetGpuParticleEmitter(
-    const GpuParticleEmitterHandle emitter)
+void Renderer::ResetGpuParticleEmitter(const GpuParticleEmitterHandle emitter)
 {
     impl_->ResetGpuParticleEmitter(emitter);
 }
 
-void Renderer::PlayGpuParticleEmitter(
-    const GpuParticleEmitterHandle emitter)
+void Renderer::PlayGpuParticleEmitter(const GpuParticleEmitterHandle emitter)
 {
     impl_->PlayGpuParticleEmitter(emitter);
 }
 
-void Renderer::RestartGpuParticleEmitter(
-    const GpuParticleEmitterHandle emitter)
+void Renderer::RestartGpuParticleEmitter(const GpuParticleEmitterHandle emitter)
 {
     impl_->RestartGpuParticleEmitter(emitter);
 }
 
-void Renderer::StopGpuParticleEmitter(
-    const GpuParticleEmitterHandle emitter) noexcept
+void Renderer::StopGpuParticleEmitter(const GpuParticleEmitterHandle emitter) noexcept
 {
     impl_->StopGpuParticleEmitter(emitter);
 }
 
 bool Renderer::StepGpuParticleEmitter(const GpuParticleStepData& step)
 {
-    return impl_->StepGpuParticleEmitters(
-        std::span<const GpuParticleStepData>{&step, 1U});
+    return impl_->StepGpuParticleEmitters(std::span<const GpuParticleStepData>{&step, 1U});
 }
 
-bool Renderer::StepGpuParticleEmitters(
-    const std::span<const GpuParticleStepData> steps)
+bool Renderer::StepGpuParticleEmitters(const std::span<const GpuParticleStepData> steps)
 {
     return impl_->StepGpuParticleEmitters(steps);
 }
 
-GpuParticleEmitterMetrics Renderer::GpuParticleMetrics(
-    const GpuParticleEmitterHandle emitter) const
+GpuParticleEmitterMetrics Renderer::GpuParticleMetrics(const GpuParticleEmitterHandle emitter) const
 {
     return impl_->GpuParticleMetrics(emitter);
 }
@@ -2188,9 +2113,7 @@ void Renderer::RenderFrame()
     impl_->RenderFrame();
 }
 
-void Renderer::RenderFrame(
-    const OrthographicCamera& camera,
-    const SpriteRenderData& sprite)
+void Renderer::RenderFrame(const OrthographicCamera& camera, const SpriteRenderData& sprite)
 {
     impl_->RenderFrame(camera, sprite);
 }
