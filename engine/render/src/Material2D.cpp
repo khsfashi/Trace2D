@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 namespace trace2d::render
 {
@@ -186,10 +187,12 @@ void WriteCanonicalSlot(
     const MaterialPrepareError2D error,
     const std::size_t parameterIndex = 0U) noexcept
 {
+    constexpr std::size_t MaximumStatusIndex =
+        static_cast<std::size_t>(std::numeric_limits<std::uint8_t>::max());
     return MaterialPrepareStatus2D{
         error,
         static_cast<std::uint8_t>(
-            parameterIndex <= static_cast<std::size_t>(UINT8_MAX) ? parameterIndex : UINT8_MAX)};
+            parameterIndex <= MaximumStatusIndex ? parameterIndex : MaximumStatusIndex)};
 }
 } // namespace
 
