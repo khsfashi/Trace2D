@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+  "source_event": "merge",
+  "event_id": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#334",
+        "url": "https://github.com/khsfashi/Trace2D/issues/334"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+        "authored_at": "2026-08-19T12:13:42+09:00",
+        "subject": "MAT2: publish canonical Shader2D and Material2D resources (#335)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "assets/render"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "Shader2D and Material2D reuse #86 slot+generation+domain ownership; no parallel allocator.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "Material2D -> Shader2D is a strong dependency and canonical defaults share the MAT1 vocabulary/capacity.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "MAT2 stores canonical HLSL fragment source/default state only; SDL shader/pipeline objects remain renderer-owned derived state.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "Do not compile/reflect shaders or resolve parameter names during ordinary frame rendering.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/a26ea4883f8b4aaa4c597f4c4ca2c34b97234c68"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#89"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
