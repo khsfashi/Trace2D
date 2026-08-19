@@ -24,6 +24,7 @@ enum class ResourceTypeDomain : std::uint8_t
     Font = 4,
     Shader2D = 5,
     Material2D = 6,
+    AudioClip = 7,
 };
 
 [[nodiscard]] std::string_view ToString(ResourceTypeDomain value) noexcept;
@@ -58,6 +59,16 @@ enum class TextureResourceAlphaMode : std::uint8_t
     Premultiplied,
 };
 
+enum class AudioClipLoadPolicy : std::uint8_t
+{
+    Preload = 0,
+    Stream,
+};
+
+[[nodiscard]] std::string_view ToString(AudioClipLoadPolicy value) noexcept;
+
+inline constexpr std::uint32_t MaximumAudioClipSampleRateHz = 384000U;
+inline constexpr std::uint16_t MaximumAudioClipChannelCount = 8U;
 inline constexpr std::size_t MaximumMaterial2DParameters = 16U;
 inline constexpr std::size_t MaximumMaterial2DParameterNameBytes = 63U;
 inline constexpr std::size_t Material2DParameterSlotFloatCount = 4U;
@@ -175,6 +186,20 @@ struct FontResource final
     std::string retentionReason{"canonical font bytes are required while prepared font faces exist"};
 };
 
+// Canonical imported audio identity and semantic timing metadata. Encoded source bytes and
+// decoded/streaming backend buffers are deliberately not duplicated here: the physical Audio
+// backend owns prepared output memory while this resource remains deterministic semantic truth.
+struct AudioClipResource final
+{
+    AudioClipLoadPolicy loadPolicy{AudioClipLoadPolicy::Preload};
+    std::uint32_t sampleRateHz{0};
+    std::uint16_t channelCount{0};
+    std::uint64_t frameCount{0};
+    std::uint64_t encodedByteSize{0};
+    CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Required};
+    std::string retentionReason{"canonical audio metadata is required for deterministic playback preparation"};
+};
+
 // Canonical Shader2D source truth. GPU shader objects, reflected backend metadata and pipelines are
 // renderer-owned derived state and must never be written back into this resource.
 struct Shader2DResource final
@@ -229,6 +254,12 @@ template <>
 struct ResourceTraits<FontResource> final
 {
     static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Font;
+};
+
+template <>
+struct ResourceTraits<AudioClipResource> final
+{
+    static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::AudioClip;
 };
 
 template <>
@@ -356,6 +387,9 @@ public:
     [[nodiscard]] ResourcePublishResult<FontResource> PublishFont(
         std::string_view projectRelativeReference,
         FontResource resource);
+    [[nodiscard]] ResourcePublishResult<AudioClipResource> PublishAudioClip(
+        std::string_view projectRelativeReference,
+        AudioClipResource resource);
     [[nodiscard]] ResourcePublishResult<Shader2DResource> PublishShader2D(
         std::string_view projectRelativeReference,
         Shader2DResource resource);
@@ -363,9 +397,11 @@ public:
         std::string_view projectRelativeReference,
         Material2DResource resource);
 
-    // U14 setup-time lookup reuses the same canonical identity table used by publication. It never
-    // loads or republishes bytes: callers receive only the current ready generation-safe handle.
+    // Setup-time lookups reuse the same canonical identity table used by publication. They never
+    // load, discover, decode, or republish bytes: callers receive only current ready handles.
     [[nodiscard]] std::optional<ResourceHandle<TextureResource>> FindReadyTexture(
+        std::string_view projectRelativeReference);
+    [[nodiscard]] std::optional<ResourceHandle<AudioClipResource>> FindReadyAudioClip(
         std::string_view projectRelativeReference);
 
     [[nodiscard]] ResourceOperationResult RecordLoadFailure(
@@ -429,6 +465,7 @@ private:
         SpriteResource,
         SceneTemplateResource,
         FontResource,
+        AudioClipResource,
         Shader2DResource,
         Material2DResource>;
 
