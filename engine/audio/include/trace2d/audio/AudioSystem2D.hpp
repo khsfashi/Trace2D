@@ -170,7 +170,7 @@ public:
     AudioSystem2D& operator=(const AudioSystem2D&) = delete;
     AudioSystem2D(AudioSystem2D&&) = delete;
     AudioSystem2D& operator=(AudioSystem2D&&) = delete;
-    ~AudioSystem2D() = default;
+    ~AudioSystem2D();
 
     [[nodiscard]] bool ReserveVoices(std::size_t capacity);
     [[nodiscard]] bool ReserveEvents(std::size_t capacity);
@@ -223,7 +223,8 @@ private:
         AudioVoiceHandle2D voice,
         const VoiceSlot*& outSlot) const noexcept;
     [[nodiscard]] std::uint32_t AllocateVoiceSlot();
-    void DeactivateVoice(std::uint32_t slotIndex) noexcept;
+    void ReleaseVoiceRetention(VoiceSlot& slot);
+    void DeactivateVoice(std::uint32_t slotIndex);
     void PublishEvent(
         AudioEventType2D type,
         AudioEventReason2D reason,
