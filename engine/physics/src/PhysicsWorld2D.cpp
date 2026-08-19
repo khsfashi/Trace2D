@@ -227,7 +227,7 @@ public:
         shapeDef.isSensor = collider->sensor;
         shapeDef.enableSensorEvents = true;
         shapeDef.enableContactEvents = !collider->sensor;
-        shapeDef.enableHitEvents = false;
+        shapeDef.enableHitEvents = !collider->sensor;
 
         if (collider->shape == ColliderShape2D::Circle)
         {
@@ -324,6 +324,7 @@ public:
         const b2ShapeId shapeIdA,
         const b2ShapeId shapeIdB,
         const b2Manifold* manifold,
+        const float approachSpeed,
         PhysicsContactEvent2D& output) noexcept
     {
         Binding* bindingA = ResolveObservableBinding(shapeIdA);
@@ -343,6 +344,7 @@ public:
         output.entityB = bindingB->entity;
         CopySemanticId(*bindingA, output.colliderSemanticIdA, output.colliderSemanticIdALength);
         CopySemanticId(*bindingB, output.colliderSemanticIdB, output.colliderSemanticIdBLength);
+        output.approachSpeed = approachSpeed;
 
         if (manifold != nullptr && manifold->pointCount > 0)
         {
@@ -394,6 +396,7 @@ public:
                     source.shapeIdA,
                     source.shapeIdB,
                     &source.manifold,
+                    0.0F,
                     event))
             {
                 continue;
@@ -411,9 +414,38 @@ public:
                     source.shapeIdA,
                     source.shapeIdB,
                     nullptr,
+                    0.0F,
                     event))
             {
                 continue;
+            }
+            if (requiredContactCapacity < contactEventScratch_.size())
+                contactEventScratch_[requiredContactCapacity] = event;
+            ++requiredContactCapacity;
+        }
+        for (int index = 0; index < contactEvents.hitCount; ++index)
+        {
+            const b2ContactHitEvent& source = contactEvents.hitEvents[index];
+            PhysicsContactEvent2D event{};
+            if (!BuildContactEvent(
+                    PhysicsContactEventKind2D::Hit,
+                    source.shapeIdA,
+                    source.shapeIdB,
+                    nullptr,
+                    source.approachSpeed,
+                    event))
+            {
+                continue;
+            }
+            event.hasContactGeometry = true;
+            event.point = scene::Vector2{source.point.x, source.point.y};
+            event.normal = scene::Vector2{source.normal.x, source.normal.y};
+            Binding* const canonicalA = ResolveObservableBinding(source.shapeIdA);
+            Binding* const canonicalB = ResolveObservableBinding(source.shapeIdB);
+            if (canonicalA != nullptr && canonicalB != nullptr && BindingKeyLess(*canonicalB, *canonicalA))
+            {
+                event.normal.x = -event.normal.x;
+                event.normal.y = -event.normal.y;
             }
             if (requiredContactCapacity < contactEventScratch_.size())
                 contactEventScratch_[requiredContactCapacity] = event;
