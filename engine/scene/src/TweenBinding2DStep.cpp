@@ -128,6 +128,8 @@ TweenBindingMetrics2D TweenBindingSystem2D::Metrics() const noexcept
         propertyWriteRejectedCount_,
         static_cast<std::uint64_t>(bindings_.size()),
         static_cast<std::uint64_t>(bindings_.capacity()),
+        static_cast<std::uint64_t>(externalProviders_.size()),
+        static_cast<std::uint64_t>(externalProviders_.capacity()),
     };
 }
 
