@@ -58,26 +58,6 @@ static_assert(sizeof(DrawUniforms) == 32U);
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
 }
 
-class ShaderCrossScope final
-{
-public:
-    ShaderCrossScope()
-    {
-        if (!SDL_ShaderCross_Init())
-        {
-            throw MakeSdlError("SDL_shadercross initialization failed");
-        }
-    }
-
-    ~ShaderCrossScope()
-    {
-        SDL_ShaderCross_Quit();
-    }
-
-    ShaderCrossScope(const ShaderCrossScope&) = delete;
-    ShaderCrossScope& operator=(const ShaderCrossScope&) = delete;
-};
-
 [[nodiscard]] std::uint32_t FloatBits(const float value) noexcept
 {
     return std::bit_cast<std::uint32_t>(value);
@@ -877,7 +857,6 @@ struct ParticleGpuBackend::Impl final
             throw std::invalid_argument{"Particle GPU backend requires a live SDL GPU device."};
         }
 
-        const ShaderCrossScope shaderCrossScope{};
         try
         {
             clearPipeline = CompileHlslComputePipeline(device, ParticleClearShaderHlsl);

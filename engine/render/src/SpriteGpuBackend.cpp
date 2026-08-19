@@ -114,26 +114,6 @@ float4 main(FragmentInput input) : SV_Target0
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
 }
 
-class ShaderCrossScope final
-{
-public:
-    ShaderCrossScope()
-    {
-        if (!SDL_ShaderCross_Init())
-        {
-            throw MakeSdlError("SDL_shadercross initialization failed for Sprite SR7");
-        }
-    }
-
-    ~ShaderCrossScope()
-    {
-        SDL_ShaderCross_Quit();
-    }
-
-    ShaderCrossScope(const ShaderCrossScope&) = delete;
-    ShaderCrossScope& operator=(const ShaderCrossScope&) = delete;
-};
-
 [[nodiscard]] SDL_GPUShader* CompileHlslShader(
     SDL_GPUDevice* const device,
     const char* const source,
@@ -458,7 +438,6 @@ void SpriteGpuBackend::CreateSamplers()
 
 void SpriteGpuBackend::CreatePipelines()
 {
-    const ShaderCrossScope shaderCrossScope{};
     SDL_GPUShader* vertexShader = nullptr;
     SDL_GPUShader* fragmentShader = nullptr;
     SDL_GPUShader* maskWriterFragmentShader = nullptr;

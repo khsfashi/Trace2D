@@ -106,6 +106,36 @@ float4 main(FragmentInput input) : SV_Target0
     return std::runtime_error{std::string{context} + ": " + SDL_GetError()};
 }
 
+class ShaderCrossProcessLifetime final
+{
+public:
+    ShaderCrossProcessLifetime()
+    {
+        if (!SDL_ShaderCross_Init())
+        {
+            throw MakeSdlError("SDL_shadercross initialization failed");
+        }
+    }
+
+    ~ShaderCrossProcessLifetime()
+    {
+        SDL_ShaderCross_Quit();
+    }
+
+    ShaderCrossProcessLifetime(const ShaderCrossProcessLifetime&) = delete;
+    ShaderCrossProcessLifetime& operator=(const ShaderCrossProcessLifetime&) = delete;
+};
+
+void EnsureShaderCrossProcessLifetime()
+{
+    // The pinned SDL_shadercross contract permits one process-wide Init/Quit pair.
+    // Delayed construction waits until Platform has initialized SDL. A Renderer that
+    // triggers this static is destroyed before the static owner during normal C++
+    // teardown, so all derived GPU shader/pipeline state is released before Quit.
+    static const ShaderCrossProcessLifetime lifetime{};
+    (void)lifetime;
+}
+
 [[nodiscard]] bool IsValidTextureHandle(const TextureHandle texture) noexcept
 {
     return texture.generation != 0U &&
@@ -144,26 +174,6 @@ void ApplyPresentationRasterViewport(
     viewport.max_depth = 1.0F;
     SDL_SetGPUViewport(renderPass, &viewport);
 }
-
-class ShaderCrossScope final
-{
-public:
-    ShaderCrossScope()
-    {
-        if (!SDL_ShaderCross_Init())
-        {
-            throw MakeSdlError("SDL_shadercross initialization failed");
-        }
-    }
-
-    ~ShaderCrossScope()
-    {
-        SDL_ShaderCross_Quit();
-    }
-
-    ShaderCrossScope(const ShaderCrossScope&) = delete;
-    ShaderCrossScope& operator=(const ShaderCrossScope&) = delete;
-};
 
 [[nodiscard]] SDL_GPUShader* CompileHlslShader(
     SDL_GPUDevice* const device,
@@ -380,6 +390,8 @@ public:
             {
                 throw MakeSdlError("SDL GPU swapchain texture-format query failed");
             }
+
+            EnsureShaderCrossProcessLifetime();
 
             CreatePersistentSpriteResources();
             spriteGpuBackend_ =
@@ -922,7 +934,6 @@ private:
 
     void CreateSpritePipeline()
     {
-        const ShaderCrossScope shaderCrossScope{};
         SDL_GPUShader* vertexShader = nullptr;
         SDL_GPUShader* fragmentShader = nullptr;
 
