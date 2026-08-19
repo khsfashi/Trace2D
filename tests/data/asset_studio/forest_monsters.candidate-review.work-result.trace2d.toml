@@ -1,0 +1,59 @@
+format_version = 1
+
+[result]
+work_id = "asset-studio-forest-monsters"
+
+[[revisions]]
+id = "candidate-review-r1"
+changed_paths = []
+limitations = []
+
+[[revisions.verification]]
+acceptance = "canonical-import"
+verification = "deterministic"
+outcome = "passed"
+summary = "Candidate artifacts are structurally importable evidence for review."
+evidence = ["artifacts/asset-studio/candidate-review-r1/import.json"]
+
+[[revisions.verification]]
+acceptance = "owner-style-approval"
+verification = "human"
+outcome = "review_needed"
+summary = "Three bounded mossling alternatives are ready for owner comparison."
+evidence = ["artifacts/asset-studio/candidate-review-r1/mossling-contact-sheet.png"]
+
+[[revisions.artifacts]]
+id = "mossling-a-native"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-a-native.png"
+description = "Candidate A native-size preview"
+
+[[revisions.artifacts]]
+id = "mossling-a-nearest"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-a-nearest.png"
+description = "Candidate A nearest-neighbor enlarged preview"
+
+[[revisions.artifacts]]
+id = "mossling-b-native"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-b-native.png"
+description = "Candidate B native-size preview"
+
+[[revisions.artifacts]]
+id = "mossling-b-nearest"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-b-nearest.png"
+description = "Candidate B nearest-neighbor enlarged preview"
+
+[[revisions.artifacts]]
+id = "mossling-c-native"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-c-native.png"
+description = "Candidate C native-size preview"
+
+[[revisions.artifacts]]
+id = "mossling-c-nearest"
+kind = "image"
+path = "artifacts/asset-studio/candidate-review-r1/mossling-c-nearest.png"
+description = "Candidate C nearest-neighbor enlarged preview"

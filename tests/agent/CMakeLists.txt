@@ -1,4 +1,5 @@
 add_executable(trace2d_agent_tests
+    AssetCandidateSetTests.cpp
     AssetProductionFixtureTests.cpp
     AssetProductionSpecTests.cpp
     CameraInspectionTests.cpp

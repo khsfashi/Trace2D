@@ -1,0 +1,22 @@
+format_version = 1
+
+[candidate_set]
+production_set = "forest-monsters-v1"
+item = "mossling"
+work_id = "asset-studio-forest-monsters"
+revision = "candidate-review-r1"
+
+[[candidates]]
+id = "mossling-a"
+ordinal = 1
+artifacts = ["mossling-a-native", "mossling-a-nearest"]
+
+[[candidates]]
+id = "mossling-b"
+ordinal = 2
+artifacts = ["mossling-b-native", "mossling-b-nearest"]
+
+[[candidates]]
+id = "mossling-c"
+ordinal = 3
+artifacts = ["mossling-c-native", "mossling-c-nearest"]

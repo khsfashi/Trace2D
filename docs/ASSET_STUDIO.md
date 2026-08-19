@@ -4,197 +4,118 @@ Tracking issue: #318. Existing review surface: #99 / `docs/WORKSPACE.md`.
 
 ## Product role
 
-Asset Studio is the Trace2D-owned human-facing product for AI-operated sprite production.
+Asset Studio is the long-term Trace2D-owned human-facing product for AI-operated game-asset production.
 
 It is not a separate TracePixel app and it is not a Unity/Aseprite-style mandatory manual editor.
 
-Target human loop:
+Target eventual human loop:
 
 ```text
-Request -> Review candidates -> Give feedback / choose -> Approve
+Request -> Compare candidates/evidence -> Give feedback / choose -> Approve
 ```
 
-Target production loop:
+The product direction remains valid, but its deeper library/provider model is intentionally **not** being completed while Trace2D's production capability set is still Sprite-heavy.
+
+## Existing authority to reuse
+
+Asset Studio composes existing production contracts rather than creating parallel truth.
+
+- Sprite S1 / SA / SR own canonical Sprite, animation and rendering semantics.
+- SPP0-SPP5 own Sprite processing/import/provider-neutral generation orchestration.
+- #97 owns project-visible intent / Definition of Done.
+- #98 owns WorkResult, verification, diagnosis, revision and artifact evidence.
+- #99 Workspace owns human review, feedback and approval presentation.
+- #178/#179 own transactional Sprite/Particle authoring.
+- Later Material/Tween/Physics/Audio/etc. add production primitives that the eventual Studio should compose rather than anticipate with a Sprite-only database.
+
+Generated pixels and external provider state remain inputs/evidence. Canonical Trace2D project/runtime state remains authority.
+
+## Completed immediate foundation
+
+### #320 — set-level production intent and Art Profile — complete
+
+`AssetProductionSpec` makes set-level creative intent recoverable from committed project state:
+
+- production set and item identities,
+- exact target dimensions,
+- required deliverables/directions,
+- structural constraints,
+- bounded candidate/provider-call budget intent,
+- exact #97 human-review acceptance reference,
+- compact Art Profile and approved canonical references.
+
+It owns no completion state, candidate lifecycle, provider configuration or aesthetic score.
+
+### #321 — bounded Candidate Set comparison substrate — current
+
+`AssetCandidateSet` is intentionally smaller than the original showroom proposal. It owns only:
+
+- production-set/item binding,
+- exact WorkResult/work revision binding,
+- stable candidate identity and bounded ordinal,
+- references to artifacts already owned by that revision.
+
+Workspace composition validates that the revision is current and every referenced artifact is owned by that exact current revision. Approval/rejection/feedback remain ordinary WorkResult/Workspace truth.
+
+See `docs/ASSET_CANDIDATE_SET.md`.
+
+## Deferred depth
+
+### #322 — approved Asset Library / lineage — deferred
+
+Do not implement immediately after #321. Return only after the broader production foundation through #79 is complete. At that point the library contract can be evaluated against the asset classes and authoring primitives that actually exist instead of being prematurely Sprite-specific.
+
+### #323 — one-provider end-to-end production proof — deferred
+
+Return after #322. At implementation time, review one then-current practical provider/backend and prove a real coherent game-ready batch. Do not add provider SDK/auth/network/retry infrastructure now.
+
+## Owner-fixed sequencing — 2026-08-19
 
 ```text
-project asset-production request
- -> replaceable generation backend(s)
- -> bounded candidate set
- -> deterministic Sprite processing/import validation
- -> Workspace showroom/review queue
- -> owner approve / reject / request revision / request alternatives
- -> approved project asset library
- -> canonical SpriteAsset + animation
- -> immediate use by the external game
+#315 tiny playable product proof       complete
+ -> #320 production intent             complete
+ -> #321 candidate comparison substrate
+ -> #89 Material2D / Shader2D
+ -> #90 deterministic Tween
+ -> #76 Physics2D
+ -> #77 Audio
+ -> #91 Profiler
+ -> #78 Linux / non-MSVC
+ -> #92 tiered GPU QA
+ -> #79 Save / Migration
+ -> #322 approved asset lineage
+ -> #323 one-provider batch proof
+ -> #12 broad flagship external game
 ```
 
-A representative request should eventually look like:
-
-```text
-"현재 프로젝트 스타일로 64x64 숲 몬스터 10종을 만들고
-idle / walk / attack까지 준비해줘."
-```
-
-The goal is not one lucky generated image. The goal is a repeatable production system for coherent game-asset sets.
-
-## Existing Trace2D authority to reuse
-
-Asset Studio must compose existing production contracts rather than creating parallel truth.
-
-- **Sprite S1 / SA / SR** own canonical Sprite assets, deterministic animation and runtime/render semantics.
-- **SPP0-SPP5** own deterministic Sprite analysis/extraction/quality-repair/import/generator-manifest/provider-neutral generation orchestration.
-- **#97** owns project-visible intent / Definition of Done.
-- **#98** owns WorkResult, verification, diagnosis, revision evidence and result composition.
-- **#99 Workspace** owns human review, previews, review queue, feedback and approval presentation.
-- **#178** owns transactional semantic Sprite resource mutation.
-
-Generated pixels and external provider state remain inputs/evidence. Canonical Trace2D asset/runtime state remains product authority.
-
-## Missing product concepts to investigate first
-
-The first #318 stage is **AS0 contract + responsibility gap analysis**, not broad implementation.
-
-Before adding new code, classify the desired experience into:
-
-```text
-already solved by existing Trace2D
-missing production-orchestration state
-missing Workspace/showroom presentation state
-missing project asset-library metadata
-optional provider adapter needed for a real proof
-research-only idea that has not earned promotion
-```
-
-Do not add a new raster QA vocabulary merely because another repository has one.
-
-## Asset Production Request
-
-The Studio should eventually support set-level intent rather than only one opaque generation call.
-
-Only fields proven useful should be promoted, for example:
-
-- project/set identity,
-- asset class and requested count,
-- target dimensions,
-- required animations/directions,
-- explicit structural constraints,
-- art-profile/reference-set identity,
-- candidate-count/provider budget,
-- human review requirements.
-
-This state should extend/reuse #97 rather than live only in chat history.
+#318 remains open as a product umbrella but is not an operational blocker after #321.
 
 ## Art Profile / approved references
 
-Coherent mass production needs project style memory.
+Coherent production still needs project style memory. Prefer compact project-owned creative constraints plus references to approved canonical assets over ever-growing prose prompts.
 
-Prefer compact project-owned creative intent plus references to approved canonical assets over ever-growing prose prompts.
+These references are creative evidence, not deterministic aesthetic truth. Final visual quality remains human judgment.
 
-Potential dimensions include:
+## Candidate comparison rule
 
-- palette family,
-- outline/contrast policy,
-- lighting direction,
-- pixel density,
-- character proportions,
-- material treatment,
-- approved example identities,
-- rejected example identities where useful.
-
-These are creative constraints/reference evidence. They do not make aesthetics deterministic truth.
-
-## Candidate Set / showroom
-
-Generation should be bounded and explicit:
+Candidate production/review is bounded:
 
 ```text
-generate N candidates
- -> reject objective structural failures cheaply
- -> retain survivors and failures
- -> present candidates in Workspace
- -> owner choose / reject / request alternative / targeted revision
+finite candidates
+ -> objective processing evidence where available
+ -> exact result artifacts
+ -> Workspace comparison
+ -> human feedback/approval through existing authority
 ```
 
-The showroom should expose, as relevant:
+Never implement `generate until aesthetic_score >= threshold`.
 
-- native and nearest-neighbor preview,
-- animation loop,
-- deterministic findings,
-- provider/provenance and cost evidence,
-- revision lineage,
-- approval/rejection state.
+## Generator policy when #323 resumes
 
-Do not use an autonomous `generate until aesthetic_score >= threshold` loop.
+Trace2D does not need to own the best generative model. Providers remain replaceable inputs behind the provider-neutral boundary.
 
-## Approved Asset Library
-
-Approved assets become ordinary project-owned assets with enough structured lineage to support future AI production and retrieval.
-
-Candidate metadata includes only what proves useful:
-
-- canonical SpriteAsset / animation identity,
-- source candidate/provider provenance,
-- art-profile/reference lineage,
-- deterministic import/QA evidence,
-- owner approval/rejection history,
-- revision ancestry,
-- content digests,
-- semantic tags for retrieval/production when justified.
-
-The library must not become a GUI-only database that disagrees with canonical project assets.
-
-## Generator policy
-
-Trace2D does not need to own the best generative model.
-
-Providers are replaceable inputs behind the existing SPP5 boundary. Candidate sources may include image models, specialized sprite generators, local workflows or a research backend.
-
-When live generation is first needed, integrate **one** practical provider/backend, freeze current version/license/deployment facts, and prove the complete owner loop before adding more.
+When live generation is actually needed, integrate one practical provider/backend, freeze current license/version/deployment facts, and prove the owner loop before considering more.
 
 ## TracePixel relationship
 
-TracePixel is now a deterministic raster R&D lab, not Asset Studio product authority.
-
-Potential research that may later be useful includes:
-
-- protected-region pixel editing,
-- exact collateral-damage measurement,
-- precision local repair,
-- exact before/after raster replay/diff evidence.
-
-No TracePixel technique is automatically upstreamed. Promotion requires matched evidence that it improves an explicit Trace2D workflow.
-
-Generic alpha/palette/grid/frame processing already covered by Trace2D SPP should not be reimplemented merely to preserve TracePixel scope.
-
-## Production proof
-
-Asset Studio must eventually prove a real set, not a cherry-picked single sprite.
-
-A first production proof should target roughly:
-
-- 10-20 coherent static assets, or
-- a smaller coherent character set with multiple animations.
-
-Keep result layers separate:
-
-- owner acceptance rate,
-- candidates generated per accepted asset,
-- provider calls/tokens/cost/time where measurable,
-- deterministic rejection/repair count,
-- owner interventions and revision rounds,
-- perceptual cross-asset style/identity consistency,
-- canonical import/runtime playback success,
-- Agent discovery/context/revision cost.
-
-## Sequencing
-
-Current owner-fixed order:
-
-```text
-#315 tiny playable product proof
- -> #318 Asset Studio AS0 contract/gap analysis
- -> only owner-approved Asset Studio implementation slices
- -> resume #89+ engine breadth when #318's checkpoint says so
-```
-
-#318 must not interrupt active #315. Likewise, AS0 must not silently become a large provider/UI/database build before the responsibility gap is proven.
+TracePixel remains a deterministic raster R&D lab/reference backend. A technique may be promoted only after matched evidence shows a concrete Trace2D advantage. Generic processing already owned by SPP is not reimplemented merely to preserve TracePixel scope.

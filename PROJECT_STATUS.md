@@ -37,30 +37,9 @@ Do not independently rebuild an already-solved engineering capability merely bec
 
 While doing this mandatory benchmark pass, agents should also notice adjacent **already-proven** capabilities that could materially improve Trace2D. When one is genuinely compelling, finish/report the active task first and then ask the owner whether to adapt it. Such a suggestion is advisory only. It must not create an issue, reorder the core lane, add a dependency or start implementation until the owner explicitly approves it.
 
-## Current product interpretation
-
-Trace2D is not only the runtime engine. It also owns the **human-facing AI-operated production experience** built on the same canonical project/Agent/WorkResult state.
-
-For visual assets, that product direction is explicit as **Asset Studio** / issue #318:
-
-```text
-asset-production request
- -> replaceable generator candidates
- -> existing deterministic Sprite processing/import
- -> Workspace showroom / review queue
- -> owner choose / feedback / approve
- -> approved project asset library
- -> canonical SpriteAsset / animation
- -> game use
-```
-
-Asset Studio is a Trace2D responsibility, not a standalone TracePixel editor product. Umbrella contract: `docs/ASSET_STUDIO.md`. The set-level production-intent contract promoted by #320 is documented in `docs/ASSET_PRODUCTION_SPEC.md`.
-
-TracePixel may remain a separate deterministic raster R&D lab and may upstream a technique only after matched evidence shows a concrete Trace2D benefit.
-
 ## Completed production foundation
 
-The minimum external-game sequence through B2 is complete:
+The minimum external-game sequence through B2 and the first playable proof is complete:
 
 ```text
 #69 Game/Application
@@ -79,11 +58,11 @@ The minimum external-game sequence through B2 is complete:
  -> #315 tiny external playable product proof
 ```
 
-#315 is complete. Do not reopen it merely to obtain a different presentation result; use its retained evidence and owner feedback as the product-proof checkpoint.
+#315 is consumed evidence. Do not reopen it merely to obtain a preferred presentation result.
 
 ## Frozen Sprite continuity
 
-The completed production Sprite program remains frozen continuity for Asset Studio and later work. In particular:
+The completed production Sprite program remains frozen continuity for later work. In particular:
 
 - **#144 / SA0** deterministic Sprite animation timing/frame/event contract remains complete and frozen,
 - SA1-SA4 remain the authoritative deterministic Sprite animation continuation built on SA0,
@@ -91,7 +70,7 @@ The completed production Sprite program remains frozen continuity for Asset Stud
 - SPP0-SPP5 remain the deterministic processing, extraction, quality/repair, import, generator-manifest and provider-neutral generation-orchestration authority,
 - SE2E/SPERF remain end-to-end and performance evidence continuity.
 
-Asset Studio must reuse these contracts rather than creating parallel Sprite truth or weakening frozen animation/runtime semantics.
+Later systems must compose these contracts rather than create parallel Sprite truth or weaken frozen animation/runtime semantics.
 
 ## Immutable benchmark lessons
 
@@ -105,96 +84,58 @@ B2 and acceptance-v1-v5 remain consumed evidence. V5 ended in Agent/CLI completi
 
 These results reinforce the need for real product proofs and compact Agent surfaces instead of benchmark-shaped architecture growth.
 
-## Current core lane — #318 Asset Studio
+## Asset Studio checkpoint — deliberately split
 
-The exact current product checkpoint is:
+#318 remains the long-term Asset Studio product umbrella, but it is no longer an operational blocker after the minimal current foundation.
 
-> **#318 — Asset Studio: AI-operated sprite production, showroom and asset library**
+### #320 — production intent / Art Profile — COMPLETE
 
-AS0 contract/responsibility gap analysis is complete. It found four genuinely missing product slices while preserving existing authorities:
+Merged via PR #325. `AssetProductionSpec` records set/item intent, candidate/provider budgets and approved style references while reusing exact #97 human-review acceptance authority. It owns no provider config, candidate lifecycle, aesthetic score or runtime state.
 
-```text
-#320 set-level production spec + Art Profile references
- -> #321 bounded Candidate Set + Workspace showroom
- -> #322 approved asset lineage/library metadata
- -> #323 one-provider end-to-end batch proof
-```
+### #321 — bounded candidate comparison substrate — CURRENT
 
-Existing #97 WorkSpec remains intent/Definition-of-Done/completion authority; #98 WorkResult remains result/revision evidence authority; #99 Workspace remains human review authority; SPP5 remains provider-neutral generation-call authority; canonical Sprite/resource contracts remain runtime authority.
+#321 is intentionally the final immediate Asset Studio slice before engine breadth resumes.
 
-## Active implementation slice — #320
+It adds only the missing comparison grouping:
 
-#320 owns only committed set-level production intent and Art Profile references.
+- production-set/item identity,
+- exact WorkResult/work revision binding,
+- stable candidate id + bounded ordinal,
+- references to artifacts already owned by that exact revision,
+- Workspace composition that rejects stale revisions and unknown artifacts.
 
-Required boundary:
+It must not add candidate approval/rejection state, provider/model/workflow fields, provider cost DB, aesthetic scores, approved-library lineage, live generation, GUI-only truth or runtime work.
 
-- stable production-set identity,
-- explicit requested Sprite items/count/class,
-- exact dimensions,
-- required animation/direction deliverables,
-- structural constraints,
-- bounded candidate/provider-call budget intent,
-- explicit owner-review intent,
-- compact Art Profile identity plus approved canonical project-asset references.
+External-reference decision for #321:
 
-#320 must not add:
+- InvokeAI Gallery/Boards: **ADAPT** output grouping/recallable metadata; **REJECT** its application DB as project truth.
+- ComfyUI history/output references: **ADAPT** stable output references; **REJECT** workflow-graph/queue identity as Trace2D candidate truth.
+- Trace2D #98/#99: **ADOPT** existing revision/artifact/review/approval/stale-action authority.
 
-- another completion state machine,
-- provider/model/workflow configuration,
-- autonomous aesthetic scoring,
-- candidate/showroom lifecycle,
-- lineage/history database,
-- runtime/frame-loop dependency.
+See `docs/ASSET_CANDIDATE_SET.md`.
 
-The representative committed proof is 10 coherent 64x64 forest-monster Sprites with idle/walk/attack requirements and a separate #97 human-approval gate.
+### #322 / #323 — DEFERRED
 
-## Exact successor — #321 Candidate Set / showroom
+Do not continue directly to Asset Studio lineage/provider depth after #321.
 
-After #320 merges green, the exact next implementation slice is:
+#322 approved-library lineage and #323 one-provider batch proof are postponed until the broader production foundation through #79 is complete. This avoids freezing the production model around today's Sprite-heavy capability set.
 
-> **#321 — bounded Candidate Set + Workspace showroom**
+## Fixed continuation lane — owner amendment 2026-08-19
 
-#321 should compose generated candidates, deterministic findings and owner review presentation without moving completion truth into a GUI-only database. Candidate status/revision evidence belongs in the existing WorkResult/Workspace authority boundary.
-
-Do not jump to #322/#323 or #89 while #321 is incomplete unless live GitHub state shows a real blocker and the owner explicitly promotes a detour.
-
-## Asset Studio target experience
-
-The product north star is set-level asset production, for example:
+Operational order is now:
 
 ```text
-"현재 프로젝트 스타일로 64x64 숲 몬스터 10종을 만들고
-idle / walk / attack까지 준비해줘."
-```
-
-Expected flow:
-
-```text
-AI creates a bounded candidate set
- -> objective failures are rejected cheaply
- -> Workspace shows surviving candidates and evidence
- -> owner picks / rejects / asks for alternatives or targeted changes
- -> revisions remain bound to exact results
- -> approved assets enter the project library
- -> game can use canonical assets immediately
-```
-
-Aesthetic approval remains human. Do not implement `generate until aesthetic_score >= threshold`.
-
-## Fixed continuation lane
-
-The owner-fixed continuation is now:
-
-```text
-#318 Asset Studio (#320 -> #321 -> #322 -> #323)
+#321 minimal candidate comparison substrate
  -> #89 Material2D / Shader2D
- -> #90 deterministic tween
+ -> #90 deterministic Tween
  -> #76 Physics2D
  -> #77 Audio
- -> #91 profiler
+ -> #91 Profiler
  -> #78 Linux / non-MSVC toolchain
  -> #92 tiered GPU QA
- -> #79 save / migration
+ -> #79 Save / Migration
+ -> #322 approved asset lineage
+ -> #323 one-provider Asset Studio batch proof
  -> #12 broad flagship external game
  -> #60 Mesh2D
  -> #177 Asset Intelligence / Asset IR
@@ -202,14 +143,23 @@ The owner-fixed continuation is now:
  -> #61 Spine license gate
 ```
 
+#318 stays open as a long-lived product umbrella but is intentionally absent from the operational lane so it cannot prevent #89 after #321.
+
 #312 Semantic Project Graph / Project Index remains research-gated and does not enter this lane automatically.
+
+## Material / presentation direction already reserved
+
+#89 is the exact next breadth step after #321. Its existing contract intentionally provides a compact programmable 2D rendering surface for practical effects such as hit flash, outline, dissolve, grayscale, palette/UV processing and custom fragment color effects without creating a material graph or public render graph.
+
+#90 follows with deterministic tweening suitable for transforms, colors, material parameters, camera motion and UI transitions.
+
+These low-level primitives should support higher-level reusable presentation recipes without promoting every visual trick into a bespoke engine subsystem.
 
 ## Continuation rule
 
-The next `@GitHub Trace2D 다음 진행해줘` must resolve live state first.
+Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state first.
 
-- If a #320 PR is open, finish its review/CI/merge before starting #321.
-- Once #320 closes green, #321 is the exact next Asset Studio slice.
-- Once #321 closes green, continue #322, then #323.
-- Only after the #318 checkpoint/slices close does normal breadth resume at #89.
+- If a #321 PR is open, finish its review/CI/merge.
+- Once #321 closes green, **#89 is exact next**.
+- Do not start #322/#323 before the lane reaches them after #79.
 - Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
