@@ -129,10 +129,12 @@ TweenSequenceStatus2D TweenSequenceSystem2D::Inspect(
 
     std::uint64_t activeChildren = 0U;
     std::uint64_t completedChildren = 0U;
-    for (const runtime::TweenHandle2D childHandle : slot->childHandles)
+    for (std::size_t index = 0U; index < slot->nextChildIndex; ++index)
     {
+        const runtime::TweenHandle2D childHandle = slot->childHandles[index];
         if (!childHandle.Valid())
         {
+            ++completedChildren;
             continue;
         }
         runtime::TweenState2D childState{};
