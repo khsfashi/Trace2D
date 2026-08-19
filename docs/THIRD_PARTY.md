@@ -8,6 +8,7 @@ This document records the current source dependency review. It is not a substitu
 
 | Dependency | Purpose in Trace2D | Upstream license | Trace2D note |
 | --- | --- | --- | --- |
+| Box2D | Physics2D rigid-body simulation, collision geometry/filtering, and spatial queries | MIT | PHYS1 pins the vcpkg-baseline Box2D 3.1.1 port. Public Trace2D headers do not expose Box2D IDs/types; `Trace2D::Physics` owns a thin semantic boundary and the installed static SDK discovers Box2D downstream. |
 | FreeType | Production font face access, glyph metrics, and CPU glyph rasterization in `engine/text` | FreeType License (FTL) or GNU GPL v2 | Trace2D uses the permissive FTL option. Public Trace2D headers do not expose FreeType types; the exported static `Trace2D::Text` target requires FreeType discovery downstream. F0 disables vcpkg default features because WOFF2/bzip2/PNG embedded-bitmap integrations are not required by the accepted TTF/OTF outline boundary. |
 | SDL3 | Platform/window/input boundary and SDL GPU backend | zlib | Permissive; retain the upstream license notice when redistributing SDL binaries/source. |
 | SDL3_shadercross | Runtime shader translation used by the renderer | zlib | Permissive; shader translation can involve additional upstream components depending on the selected backend/path. |
@@ -17,6 +18,16 @@ This document records the current source dependency review. It is not a substitu
 | GoogleTest | Automated tests only | BSD-3-Clause | Test/development dependency; not part of Trace2D's intended runtime API surface. |
 
 The vcpkg repository/tooling used to resolve these ports is MIT-licensed. The libraries supplied by vcpkg ports remain under their respective upstream licenses.
+
+## Physics dependency boundary
+
+#76 PHYS1 adopts Box2D 3.1.1 from the repository's existing pinned vcpkg baseline instead of implementing a bespoke broad phase, narrow phase, rigid-body solver, collision filter, or ray-cast engine. The upstream port is MIT-licensed and its CMake package exports `box2d::box2d`.
+
+Trace2D deliberately does **not** expose Box2D IDs or raw callbacks as public gameplay authority. `engine/physics` converts typed Scene components into Box2D setup state, keeps Box2D object identifiers private, maps query results back to generation-safe Scene `EntityId` plus stable collider semantic IDs, and owns deterministic ordering where upstream traversal order is explicitly unspecified.
+
+PHYS1 public collision layer/mask authoring uses a 32-bit finite vocabulary even though Box2D's current filter fields are 64-bit. This preserves simple TOML round-tripping through Trace2D's existing signed-integer authored component format while still providing 32 practical independent filter bits; widening the public authored contract requires an explicit serialization-compatible design rather than silently losing the high bit.
+
+Box2D floating-point simulation is treated as authoritative within one Trace2D physics world/run, but Trace2D does not claim universal bit-identical cross-platform replay merely because the dependency provides deterministic-oriented math. Replay/network determinism guarantees require separate evidence and policy.
 
 ## Font/text dependency boundary
 
@@ -65,9 +76,10 @@ Trace2D is licensed under the MIT License. The direct dependency set reviewed ab
 Dependency review updated against:
 
 - `vcpkg.json` baseline `d92484ed3c5020c6679d095ad3e5add907887b62`
-- direct ports: `freetype` (default features disabled), `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
-- current Trace2D build linkage in platform/render/assets/text/scene/UI/particle/Agent/MCP/test targets
+- direct ports: `box2d`, `freetype` (default features disabled), `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
+- current Trace2D build linkage in platform/render/assets/text/scene/physics/UI/particle/Agent/MCP/test targets
 - #70 exported static SDK dependency-discovery contract
 - #74 F0 FreeType face/metrics/rasterization boundary
+- #353 PHYS1 Box2D 3.1.1 adoption boundary
 
 Re-run this review whenever the vcpkg baseline, dependency list, features, triplet, exported target graph, or binary distribution contents change.

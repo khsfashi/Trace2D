@@ -60,7 +60,7 @@ jobs:
       - name: Build exported SDK closure and in-tree P1
         run: >-
           cmake --build --preset windows-debug --parallel
-          --target trace2d_application trace2d_agent trace2d_platform trace2d_render trace2d_tile trace2d_text
+          --target trace2d_application trace2d_agent trace2d_physics trace2d_platform trace2d_render trace2d_tile trace2d_text
           trace2d_p1_presentation_playground_headless
           trace2d_p1_presentation_playground_windowed
 

@@ -105,6 +105,7 @@ jobs:
           cmake --build build/sanitizers --parallel --target \
             trace2d_runtime_tests \
             trace2d_scene_tests \
+            trace2d_physics_tests \
             trace2d_assets_tests
 
       - name: Run ASan + UBSan headless suites
