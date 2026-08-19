@@ -20,6 +20,11 @@ namespace
     return std::isfinite(value.x) && std::isfinite(value.y);
 }
 
+[[nodiscard]] bool IsZeroVector(const scene::Vector2 value) noexcept
+{
+    return value.x == 0.0F && value.y == 0.0F;
+}
+
 [[nodiscard]] bool IsUnitScale(const scene::Transform2D& transform) noexcept
 {
     return transform.scale.x == 1.0F && transform.scale.y == 1.0F;
@@ -151,6 +156,11 @@ public:
     void ReserveOverlap(const std::size_t overlapHitCapacity)
     {
         if (overlapHitCapacity > overlapScratch_.size()) overlapScratch_.resize(overlapHitCapacity);
+    }
+
+    void ReserveShapeCast(const std::size_t shapeCastHitCapacity)
+    {
+        if (shapeCastHitCapacity > shapeCastScratch_.size()) shapeCastScratch_.resize(shapeCastHitCapacity);
     }
 
     [[nodiscard]] Binding* FindBinding(const scene::EntityId entity) noexcept
@@ -296,6 +306,150 @@ public:
         }
     }
 
+    [[nodiscard]] PhysicsBodyCommandResult2D ResolveCommandBinding(
+        const scene::EntityId entity,
+        Binding*& output) noexcept
+    {
+        output = nullptr;
+        if (!scene_.Contains(entity))
+        {
+            if (FindBinding(entity) != nullptr)
+            {
+                (void)Detach(entity);
+                ++stalePruneCount_;
+            }
+            return PhysicsBodyCommandResult2D::EntityNotFound;
+        }
+
+        Binding* const binding = FindBinding(entity);
+        if (binding == nullptr) return PhysicsBodyCommandResult2D::NotAttached;
+
+        const scene::Entity* const sceneEntity = scene_.TryGet(entity);
+        if (sceneEntity == nullptr)
+        {
+            (void)Detach(entity);
+            ++stalePruneCount_;
+            return PhysicsBodyCommandResult2D::EntityNotFound;
+        }
+        if (sceneEntity->Parent().has_value() || !IsUnitScale(sceneEntity->Transform()) ||
+            !IsFiniteTransform(sceneEntity->Transform()))
+        {
+            (void)Detach(entity);
+            ++unsupportedTransformPruneCount_;
+            return PhysicsBodyCommandResult2D::UnsupportedTransform;
+        }
+        if (!b2World_IsValid(worldId_) || !b2Body_IsValid(binding->bodyId))
+            return PhysicsBodyCommandResult2D::BackendInvalid;
+
+        output = binding;
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D RecordBodyCommandResult(
+        const PhysicsBodyCommandResult2D result) noexcept
+    {
+        if (result != PhysicsBodyCommandResult2D::Success) ++bodyCommandFailureCount_;
+        return result;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D SetLinearVelocity(
+        const scene::EntityId entity,
+        const scene::Vector2 linearVelocity) noexcept
+    {
+        ++bodyCommandCount_;
+        if (!IsFiniteVector(linearVelocity))
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::InvalidInput);
+
+        Binding* binding = nullptr;
+        const PhysicsBodyCommandResult2D resolved = ResolveCommandBinding(entity, binding);
+        if (resolved != PhysicsBodyCommandResult2D::Success) return RecordBodyCommandResult(resolved);
+        if (binding->bodyType == RigidBodyType2D::Static)
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::UnsupportedBodyType);
+
+        b2Body_SetLinearVelocity(binding->bodyId, b2Vec2{linearVelocity.x, linearVelocity.y});
+        b2Body_SetAwake(binding->bodyId, true);
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D SetAngularVelocity(
+        const scene::EntityId entity,
+        const float angularVelocity) noexcept
+    {
+        ++bodyCommandCount_;
+        if (!std::isfinite(angularVelocity))
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::InvalidInput);
+
+        Binding* binding = nullptr;
+        const PhysicsBodyCommandResult2D resolved = ResolveCommandBinding(entity, binding);
+        if (resolved != PhysicsBodyCommandResult2D::Success) return RecordBodyCommandResult(resolved);
+        if (binding->bodyType == RigidBodyType2D::Static)
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::UnsupportedBodyType);
+
+        b2Body_SetAngularVelocity(binding->bodyId, angularVelocity);
+        b2Body_SetAwake(binding->bodyId, true);
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D ApplyForceToCenter(
+        const scene::EntityId entity,
+        const scene::Vector2 force) noexcept
+    {
+        ++bodyCommandCount_;
+        if (!IsFiniteVector(force))
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::InvalidInput);
+
+        Binding* binding = nullptr;
+        const PhysicsBodyCommandResult2D resolved = ResolveCommandBinding(entity, binding);
+        if (resolved != PhysicsBodyCommandResult2D::Success) return RecordBodyCommandResult(resolved);
+        if (binding->bodyType != RigidBodyType2D::Dynamic)
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::UnsupportedBodyType);
+
+        b2Body_ApplyForceToCenter(binding->bodyId, b2Vec2{force.x, force.y}, true);
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D ApplyLinearImpulseToCenter(
+        const scene::EntityId entity,
+        const scene::Vector2 impulse) noexcept
+    {
+        ++bodyCommandCount_;
+        if (!IsFiniteVector(impulse))
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::InvalidInput);
+
+        Binding* binding = nullptr;
+        const PhysicsBodyCommandResult2D resolved = ResolveCommandBinding(entity, binding);
+        if (resolved != PhysicsBodyCommandResult2D::Success) return RecordBodyCommandResult(resolved);
+        if (binding->bodyType != RigidBodyType2D::Dynamic)
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::UnsupportedBodyType);
+
+        b2Body_ApplyLinearImpulseToCenter(binding->bodyId, b2Vec2{impulse.x, impulse.y}, true);
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
+    [[nodiscard]] PhysicsBodyCommandResult2D Teleport(
+        const scene::EntityId entity,
+        const scene::Vector2 position,
+        const float rotationRadians) noexcept
+    {
+        ++bodyCommandCount_;
+        if (!IsFiniteVector(position) || !std::isfinite(rotationRadians))
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::InvalidInput);
+
+        Binding* binding = nullptr;
+        const PhysicsBodyCommandResult2D resolved = ResolveCommandBinding(entity, binding);
+        if (resolved != PhysicsBodyCommandResult2D::Success) return RecordBodyCommandResult(resolved);
+
+        b2Body_SetTransform(binding->bodyId, b2Vec2{position.x, position.y}, b2MakeRot(rotationRadians));
+        if (binding->bodyType != RigidBodyType2D::Static) b2Body_SetAwake(binding->bodyId, true);
+
+        scene::Entity* const sceneEntity = scene_.TryGet(entity);
+        if (sceneEntity == nullptr)
+            return RecordBodyCommandResult(PhysicsBodyCommandResult2D::EntityNotFound);
+        sceneEntity->Transform().position = position;
+        sceneEntity->Transform().rotationRadians = rotationRadians;
+        return PhysicsBodyCommandResult2D::Success;
+    }
+
     [[nodiscard]] Binding* ResolveObservableBinding(const b2ShapeId shapeId) noexcept
     {
         if (!b2Shape_IsValid(shapeId)) return nullptr;
@@ -307,6 +461,16 @@ public:
     [[nodiscard]] static bool BindingKeyLess(const Binding& left, const Binding& right) noexcept
     {
         return SemanticEntityLess(left.SemanticId(), left.entity, right.SemanticId(), right.entity);
+    }
+
+    [[nodiscard]] static bool ScratchHitLess(const ScratchHit& left, const ScratchHit& right) noexcept
+    {
+        if (left.fraction != right.fraction) return left.fraction < right.fraction;
+        if (left.binding->SemanticId() != right.binding->SemanticId())
+            return left.binding->SemanticId() < right.binding->SemanticId();
+        if (left.binding->entity.index != right.binding->entity.index)
+            return left.binding->entity.index < right.binding->entity.index;
+        return left.binding->entity.generation < right.binding->entity.generation;
     }
 
     static void CopySemanticId(
@@ -621,7 +785,7 @@ public:
         if (!b2World_IsValid(worldId_))
             return {PhysicsQueryResult2D::BackendInvalid, 0U, 0U};
         if (!IsFiniteVector(query.origin) || !IsFiniteVector(query.translation) || query.layerBits == 0U ||
-            (query.translation.x == 0.0F && query.translation.y == 0.0F))
+            IsZeroVector(query.translation))
         {
             return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
         }
@@ -630,15 +794,16 @@ public:
 
         struct RayContext final
         {
+            Impl& owner;
             std::vector<ScratchHit>& scratch;
             std::size_t totalHits{0U};
-        } context{rayScratch_};
+        } context{*this, rayScratch_};
 
         const auto callback = [](const b2ShapeId shapeId, const b2Vec2 point, const b2Vec2 normal,
                                  const float fraction, void* rawContext) -> float
         {
             auto& rayContext = *static_cast<RayContext*>(rawContext);
-            auto* const binding = static_cast<Binding*>(b2Shape_GetUserData(shapeId));
+            Binding* const binding = rayContext.owner.ResolveObservableBinding(shapeId);
             if (binding == nullptr) return 1.0F;
             if (rayContext.totalHits < rayContext.scratch.size())
             {
@@ -668,15 +833,7 @@ public:
 
         const auto begin = rayScratch_.begin();
         const auto end = begin + static_cast<std::ptrdiff_t>(context.totalHits);
-        std::sort(begin, end, [](const ScratchHit& left, const ScratchHit& right)
-        {
-            if (left.fraction != right.fraction) return left.fraction < right.fraction;
-            if (left.binding->SemanticId() != right.binding->SemanticId())
-                return left.binding->SemanticId() < right.binding->SemanticId();
-            if (left.binding->entity.index != right.binding->entity.index)
-                return left.binding->entity.index < right.binding->entity.index;
-            return left.binding->entity.generation < right.binding->entity.generation;
-        });
+        std::sort(begin, end, ScratchHitLess);
 
         for (std::size_t index = 0U; index < context.totalHits; ++index)
         {
@@ -686,12 +843,7 @@ public:
             destination.point = scene::Vector2{source.point.x, source.point.y};
             destination.normal = scene::Vector2{source.normal.x, source.normal.y};
             destination.fraction = source.fraction;
-            destination.colliderSemanticId.fill('\0');
-            destination.colliderSemanticIdLength = source.binding->semanticIdLength;
-            std::memcpy(
-                destination.colliderSemanticId.data(),
-                source.binding->semanticId.data(),
-                source.binding->semanticIdLength);
+            CopySemanticId(*source.binding, destination.colliderSemanticId, destination.colliderSemanticIdLength);
         }
         return {PhysicsQueryResult2D::Success, context.totalHits, context.totalHits};
     }
@@ -749,12 +901,7 @@ public:
             const Binding& source = *overlapScratch_[index];
             PhysicsOverlapHit2D& destination = output[index];
             destination.entity = source.entity;
-            destination.colliderSemanticId.fill('\0');
-            destination.colliderSemanticIdLength = source.semanticIdLength;
-            std::memcpy(
-                destination.colliderSemanticId.data(),
-                source.semanticId.data(),
-                source.semanticIdLength);
+            CopySemanticId(source, destination.colliderSemanticId, destination.colliderSemanticIdLength);
         }
         return {PhysicsQueryResult2D::Success, context.totalHits, context.totalHits};
     }
@@ -796,6 +943,112 @@ public:
         return OverlapShape(proxy, query.layerBits, query.maskBits, output);
     }
 
+    [[nodiscard]] PhysicsShapeCastReport2D CastShape(
+        const b2ShapeProxy& proxy,
+        const scene::Vector2 translation,
+        const std::uint32_t layerBits,
+        const std::uint32_t maskBits,
+        const std::span<PhysicsShapeCastHit2D> output) noexcept
+    {
+        if (!b2World_IsValid(worldId_))
+            return {PhysicsQueryResult2D::BackendInvalid, 0U, 0U};
+
+        PruneInvalidBindings();
+
+        struct CastContext final
+        {
+            Impl& owner;
+            std::vector<ScratchHit>& scratch;
+            std::size_t totalHits{0U};
+        } context{*this, shapeCastScratch_};
+
+        const auto callback = [](const b2ShapeId shapeId, const b2Vec2 point, const b2Vec2 normal,
+                                 const float fraction, void* rawContext) -> float
+        {
+            auto& castContext = *static_cast<CastContext*>(rawContext);
+            Binding* const binding = castContext.owner.ResolveObservableBinding(shapeId);
+            if (binding == nullptr) return 1.0F;
+            if (castContext.totalHits < castContext.scratch.size())
+            {
+                castContext.scratch[castContext.totalHits] = ScratchHit{binding, point, normal, fraction};
+            }
+            ++castContext.totalHits;
+            return 1.0F;
+        };
+
+        const b2QueryFilter filter{
+            static_cast<std::uint64_t>(layerBits),
+            static_cast<std::uint64_t>(maskBits),
+        };
+        (void)b2World_CastShape(
+            worldId_,
+            &proxy,
+            b2Vec2{translation.x, translation.y},
+            filter,
+            callback,
+            &context);
+
+        if (context.totalHits > shapeCastScratch_.size() || context.totalHits > output.size())
+        {
+            ++shapeCastCapacityFailureCount_;
+            return {PhysicsQueryResult2D::CapacityExceeded, 0U, context.totalHits};
+        }
+
+        const auto begin = shapeCastScratch_.begin();
+        const auto end = begin + static_cast<std::ptrdiff_t>(context.totalHits);
+        std::sort(begin, end, ScratchHitLess);
+
+        for (std::size_t index = 0U; index < context.totalHits; ++index)
+        {
+            const ScratchHit& source = shapeCastScratch_[index];
+            PhysicsShapeCastHit2D& destination = output[index];
+            destination.entity = source.binding->entity;
+            destination.point = scene::Vector2{source.point.x, source.point.y};
+            destination.normal = scene::Vector2{source.normal.x, source.normal.y};
+            destination.fraction = source.fraction;
+            CopySemanticId(*source.binding, destination.colliderSemanticId, destination.colliderSemanticIdLength);
+        }
+        return {PhysicsQueryResult2D::Success, context.totalHits, context.totalHits};
+    }
+
+    [[nodiscard]] PhysicsShapeCastReport2D CastCircle(
+        const PhysicsCircleCastQuery2D& query,
+        const std::span<PhysicsShapeCastHit2D> output) noexcept
+    {
+        ++shapeCastQueryCount_;
+        if (!IsFiniteVector(query.center) || !std::isfinite(query.radius) || query.radius <= 0.0F ||
+            !IsFiniteVector(query.translation) || IsZeroVector(query.translation) || query.layerBits == 0U)
+        {
+            return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
+        }
+
+        const b2Vec2 center{query.center.x, query.center.y};
+        const b2ShapeProxy proxy = b2MakeProxy(&center, 1, query.radius);
+        return CastShape(proxy, query.translation, query.layerBits, query.maskBits, output);
+    }
+
+    [[nodiscard]] PhysicsShapeCastReport2D CastBox(
+        const PhysicsBoxCastQuery2D& query,
+        const std::span<PhysicsShapeCastHit2D> output) noexcept
+    {
+        ++shapeCastQueryCount_;
+        if (!IsFiniteVector(query.center) || !IsFiniteVector(query.halfExtents) ||
+            query.halfExtents.x <= 0.0F || query.halfExtents.y <= 0.0F ||
+            !std::isfinite(query.rotationRadians) || !IsFiniteVector(query.translation) ||
+            IsZeroVector(query.translation) || query.layerBits == 0U)
+        {
+            return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
+        }
+
+        const b2Polygon box = b2MakeOffsetBox(
+            query.halfExtents.x,
+            query.halfExtents.y,
+            b2Vec2{query.center.x, query.center.y},
+            b2MakeRot(query.rotationRadians));
+        const b2ShapeProxy proxy = b2MakeProxy(box.vertices, box.count, box.radius);
+        return CastShape(proxy, query.translation, query.layerBits, query.maskBits, output);
+    }
+
     [[nodiscard]] PhysicsMetrics2D Metrics() const noexcept
     {
         PhysicsMetrics2D metrics{};
@@ -803,6 +1056,7 @@ public:
         metrics.retainedBodyCapacity = bindings_.capacity();
         metrics.retainedRayHitCapacity = rayScratch_.size();
         metrics.retainedOverlapHitCapacity = overlapScratch_.size();
+        metrics.retainedShapeCastHitCapacity = shapeCastScratch_.size();
         metrics.retainedContactEventCapacity = contactEventScratch_.size();
         metrics.retainedSensorEventCapacity = sensorEventScratch_.size();
         metrics.publishedContactEventCount = contactEventCount_;
@@ -810,10 +1064,14 @@ public:
         metrics.fixedStepCount = fixedStepCount_;
         metrics.stalePruneCount = stalePruneCount_;
         metrics.unsupportedTransformPruneCount = unsupportedTransformPruneCount_;
+        metrics.bodyCommandCount = bodyCommandCount_;
+        metrics.bodyCommandFailureCount = bodyCommandFailureCount_;
         metrics.rayQueryCount = rayQueryCount_;
         metrics.rayCapacityFailureCount = rayCapacityFailureCount_;
         metrics.overlapQueryCount = overlapQueryCount_;
         metrics.overlapCapacityFailureCount = overlapCapacityFailureCount_;
+        metrics.shapeCastQueryCount = shapeCastQueryCount_;
+        metrics.shapeCastCapacityFailureCount = shapeCastCapacityFailureCount_;
         metrics.eventCapacityFailureCount = eventCapacityFailureCount_;
         return metrics;
     }
@@ -826,6 +1084,7 @@ private:
     std::vector<std::unique_ptr<Binding>> bindings_{};
     std::vector<ScratchHit> rayScratch_{};
     std::vector<Binding*> overlapScratch_{};
+    std::vector<ScratchHit> shapeCastScratch_{};
     std::vector<PhysicsContactEvent2D> contactEventScratch_{};
     std::vector<PhysicsSensorEvent2D> sensorEventScratch_{};
     std::size_t contactEventCount_{0U};
@@ -833,10 +1092,14 @@ private:
     std::uint64_t fixedStepCount_{0U};
     std::uint64_t stalePruneCount_{0U};
     std::uint64_t unsupportedTransformPruneCount_{0U};
+    std::uint64_t bodyCommandCount_{0U};
+    std::uint64_t bodyCommandFailureCount_{0U};
     std::uint64_t rayQueryCount_{0U};
     std::uint64_t rayCapacityFailureCount_{0U};
     std::uint64_t overlapQueryCount_{0U};
     std::uint64_t overlapCapacityFailureCount_{0U};
+    std::uint64_t shapeCastQueryCount_{0U};
+    std::uint64_t shapeCastCapacityFailureCount_{0U};
     std::uint64_t eventCapacityFailureCount_{0U};
 };
 
@@ -882,6 +1145,21 @@ std::string_view ToString(const PhysicsQueryResult2D result) noexcept
     return "unknown";
 }
 
+std::string_view ToString(const PhysicsBodyCommandResult2D result) noexcept
+{
+    switch (result)
+    {
+    case PhysicsBodyCommandResult2D::Success: return "success";
+    case PhysicsBodyCommandResult2D::EntityNotFound: return "entity_not_found";
+    case PhysicsBodyCommandResult2D::NotAttached: return "not_attached";
+    case PhysicsBodyCommandResult2D::InvalidInput: return "invalid_input";
+    case PhysicsBodyCommandResult2D::UnsupportedBodyType: return "unsupported_body_type";
+    case PhysicsBodyCommandResult2D::UnsupportedTransform: return "unsupported_transform";
+    case PhysicsBodyCommandResult2D::BackendInvalid: return "backend_invalid";
+    }
+    return "unknown";
+}
+
 PhysicsWorld2D::PhysicsWorld2D(
     scene::Scene& scene,
     const PhysicsComponentTypes2D componentTypes,
@@ -907,6 +1185,11 @@ void PhysicsWorld2D::ReserveEvents(
 void PhysicsWorld2D::ReserveOverlap(const std::size_t overlapHitCapacity)
 {
     impl_->ReserveOverlap(overlapHitCapacity);
+}
+
+void PhysicsWorld2D::ReserveShapeCast(const std::size_t shapeCastHitCapacity)
+{
+    impl_->ReserveShapeCast(shapeCastHitCapacity);
 }
 
 PhysicsAttachResult2D PhysicsWorld2D::AttachEntity(const scene::EntityId entity)
@@ -949,6 +1232,42 @@ bool PhysicsWorld2D::TryGetBodyState(const scene::EntityId entity, PhysicsBodySt
     return impl_->TryGetBodyState(entity, outState);
 }
 
+PhysicsBodyCommandResult2D PhysicsWorld2D::SetLinearVelocity(
+    const scene::EntityId entity,
+    const scene::Vector2 linearVelocity) noexcept
+{
+    return impl_->SetLinearVelocity(entity, linearVelocity);
+}
+
+PhysicsBodyCommandResult2D PhysicsWorld2D::SetAngularVelocity(
+    const scene::EntityId entity,
+    const float angularVelocity) noexcept
+{
+    return impl_->SetAngularVelocity(entity, angularVelocity);
+}
+
+PhysicsBodyCommandResult2D PhysicsWorld2D::ApplyForceToCenter(
+    const scene::EntityId entity,
+    const scene::Vector2 force) noexcept
+{
+    return impl_->ApplyForceToCenter(entity, force);
+}
+
+PhysicsBodyCommandResult2D PhysicsWorld2D::ApplyLinearImpulseToCenter(
+    const scene::EntityId entity,
+    const scene::Vector2 impulse) noexcept
+{
+    return impl_->ApplyLinearImpulseToCenter(entity, impulse);
+}
+
+PhysicsBodyCommandResult2D PhysicsWorld2D::Teleport(
+    const scene::EntityId entity,
+    const scene::Vector2 position,
+    const float rotationRadians) noexcept
+{
+    return impl_->Teleport(entity, position, rotationRadians);
+}
+
 PhysicsRaycastReport2D PhysicsWorld2D::Raycast(
     const PhysicsRaycastQuery2D& query,
     const std::span<PhysicsRaycastHit2D> output) noexcept
@@ -968,6 +1287,20 @@ PhysicsOverlapReport2D PhysicsWorld2D::OverlapBox(
     const std::span<PhysicsOverlapHit2D> output) noexcept
 {
     return impl_->OverlapBox(query, output);
+}
+
+PhysicsShapeCastReport2D PhysicsWorld2D::CastCircle(
+    const PhysicsCircleCastQuery2D& query,
+    const std::span<PhysicsShapeCastHit2D> output) noexcept
+{
+    return impl_->CastCircle(query, output);
+}
+
+PhysicsShapeCastReport2D PhysicsWorld2D::CastBox(
+    const PhysicsBoxCastQuery2D& query,
+    const std::span<PhysicsShapeCastHit2D> output) noexcept
+{
+    return impl_->CastBox(query, output);
 }
 
 PhysicsMetrics2D PhysicsWorld2D::Metrics() const noexcept
