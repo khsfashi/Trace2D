@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-f09c2d425bcdb6e901691a6036a1970d1204c276",
+  "source_event": "merge",
+  "event_id": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+        "authored_at": "2026-08-19T17:07:00+09:00",
+        "subject": "T2: add resolved typed Tween2D property bindings (#346)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "extend the existing #71 ComponentRegistration<T> descriptor surface with explicit fixed-type tween properties instead of adding reflection or a second component registry.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "capture-current samples once at deterministic activation; relative values derive from that retained sample; reject/replace conflicts are explicit and replacements record Replaced before the new writer is applied.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "Transform2D, an external registered component, and Camera2D.vertical_size provide the bounded T2 engine/external/presentation proofs. Sequence composition and remaining UI/Material integration remain T3/final #90 scope.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "steady stepping retains generation-safe EntityId plus component/property indices and fixed TweenValueType only; semantic strings remain setup-only and no raw writable pointer survives target mutation.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "runtime NodePath/Variant reflection, std::any/property bags, raw field offsets, and a parallel tween property registry.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "f09c2d425bcdb6e901691a6036a1970d1204c276",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/f09c2d425bcdb6e901691a6036a1970d1204c276"
+          }
+        ]
+      }
+    ],
+    "directives": [],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
