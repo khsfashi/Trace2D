@@ -281,7 +281,7 @@ TEST(Tween2DTests, RetainedPoolReusesSlotsAndRejectsStaleGenerations)
     const std::uint64_t retainedCapacity = reused.retainedCapacity;
     for (std::uint32_t step = 0U; step < 50U; ++step)
     {
-        ASSERT_TRUE(pool.Step(TweenTimeDomain2D::Simulation, 1ns).Succeeded());
+        ASSERT_TRUE(pool.Step(TweenTimeDomain2D::Presentation, 1ns).Succeeded());
     }
     EXPECT_EQ(pool.Metrics().retainedCapacity, retainedCapacity);
 }
