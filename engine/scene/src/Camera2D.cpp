@@ -120,6 +120,24 @@ namespace
     fields.push_back({"target_viewport", TextValue(camera.targetViewport)});
     return fields;
 }
+
+[[nodiscard]] runtime::TweenValue2D ReadCameraVerticalSize(const Camera2D& camera) noexcept
+{
+    return runtime::TweenValue2D::Float(camera.verticalSize);
+}
+
+[[nodiscard]] bool WriteCameraVerticalSize(
+    Camera2D& camera,
+    const runtime::TweenValue2D& value) noexcept
+{
+    if (value.type != runtime::TweenValueType2D::Float ||
+        !std::isfinite(value.components[0]) || value.components[0] <= 0.0F)
+    {
+        return false;
+    }
+    camera.verticalSize = value.components[0];
+    return true;
+}
 } // namespace
 
 ComponentTypeHandle<Camera2D> RegisterCamera2DComponent(ComponentRegistry& registry)
@@ -132,6 +150,12 @@ ComponentTypeHandle<Camera2D> RegisterCamera2DComponent(ComponentRegistry& regis
     registration.validate = ValidateCamera;
     registration.serializeAuthored = SerializeCamera;
     registration.inspect = InspectCamera;
+    registration.tweenProperties.push_back(ComponentTweenPropertyRegistration<Camera2D>{
+        "vertical_size",
+        runtime::TweenValueType2D::Float,
+        ReadCameraVerticalSize,
+        WriteCameraVerticalSize,
+    });
     return registry.Register(std::move(registration));
 }
 } // namespace trace2d::scene

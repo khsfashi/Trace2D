@@ -1,5 +1,7 @@
 #pragma once
 
+#include <trace2d/runtime/Tween2D.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -93,6 +95,7 @@ struct Visibility2D final
 
 struct Camera2D;
 class ComponentRegistry;
+class TweenBindingSystem2D;
 
 template <typename T>
 class ComponentTypeHandle final
@@ -112,6 +115,18 @@ private:
 };
 
 template <typename T>
+struct ComponentTweenPropertyRegistration final
+{
+    using ReadFunction = runtime::TweenValue2D (*)(const T&) noexcept;
+    using WriteFunction = bool (*)(T&, const runtime::TweenValue2D&) noexcept;
+
+    std::string name{};
+    runtime::TweenValueType2D valueType{runtime::TweenValueType2D::Float};
+    ReadFunction read{nullptr};
+    WriteFunction write{nullptr};
+};
+
+template <typename T>
 struct ComponentRegistration final
 {
     std::string typeId{};
@@ -121,6 +136,7 @@ struct ComponentRegistration final
     std::function<bool(const T&, std::string&)> validate{};
     std::function<ComponentAuthoringObject(const T&)> serializeAuthored{};
     std::function<std::vector<ComponentInspectionField>(const T&)> inspect{};
+    std::vector<ComponentTweenPropertyRegistration<T>> tweenProperties{};
 };
 
 class ComponentTypeDescriptor
@@ -134,6 +150,17 @@ public:
     [[nodiscard]] virtual bool Validate(const void* object, std::string& error) const = 0;
     [[nodiscard]] virtual ComponentAuthoringObject SerializeAuthored(const void* object) const = 0;
     [[nodiscard]] virtual std::vector<ComponentInspectionField> Inspect(const void* object) const = 0;
+    [[nodiscard]] virtual std::size_t TweenPropertyCount() const noexcept = 0;
+    [[nodiscard]] virtual std::string_view TweenPropertyName(std::size_t index) const noexcept = 0;
+    [[nodiscard]] virtual runtime::TweenValueType2D TweenPropertyValueType(std::size_t index) const noexcept = 0;
+    [[nodiscard]] virtual bool ReadTweenProperty(
+        const void* object,
+        std::size_t index,
+        runtime::TweenValue2D& outValue) const noexcept = 0;
+    [[nodiscard]] virtual bool WriteTweenProperty(
+        void* object,
+        std::size_t index,
+        const runtime::TweenValue2D& value) const noexcept = 0;
 
     std::string typeId{};
     std::uint32_t schemaVersion{0};
@@ -197,6 +224,7 @@ private:
     void* data_{nullptr};
     friend class ComponentRegistry;
     friend class Scene;
+    friend class TweenBindingSystem2D;
 };
 
 class ComponentRegistry final
@@ -223,6 +251,25 @@ public:
             if (!registration.parseAuthored || !registration.validate || !registration.serializeAuthored)
                 throw std::invalid_argument{"Authored component registration requires parse, validate, and serialize adapters."};
         }
+        if (registration.tweenProperties.size() >= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+            throw std::length_error{"Component tween property registration exhausted its property index space."};
+        for (std::size_t index = 0U; index < registration.tweenProperties.size(); ++index)
+        {
+            const auto& property = registration.tweenProperties[index];
+            if (property.name.empty())
+                throw std::invalid_argument{"Component tween property name must not be empty."};
+            if (property.read == nullptr || property.write == nullptr)
+                throw std::invalid_argument{"Component tween property requires read and write adapters."};
+            if (property.valueType != runtime::TweenValueType2D::Float &&
+                property.valueType != runtime::TweenValueType2D::Float2 &&
+                property.valueType != runtime::TweenValueType2D::Color)
+                throw std::invalid_argument{"Component tween property value type is invalid."};
+            for (std::size_t prior = 0U; prior < index; ++prior)
+            {
+                if (registration.tweenProperties[prior].name == property.name)
+                    throw std::invalid_argument{"Component tween property name must be unique within its component type."};
+            }
+        }
         if (descriptors_.size() >= static_cast<std::size_t>(InvalidComponentTypeIndex))
             throw std::length_error{"Component registry exhausted its type index space."};
         const ComponentTypeIndex index = static_cast<ComponentTypeIndex>(descriptors_.size());
@@ -244,6 +291,7 @@ private:
             , validate_{std::move(registration.validate)}
             , serialize_{std::move(registration.serializeAuthored)}
             , inspect_{std::move(registration.inspect)}
+            , tweenProperties_{std::move(registration.tweenProperties)}
         {
             typeId = std::move(registration.typeId);
             schemaVersion = registration.schemaVersion;
@@ -268,11 +316,43 @@ private:
         {
             return inspect_ ? inspect_(*static_cast<const T*>(object)) : std::vector<ComponentInspectionField>{};
         }
+        [[nodiscard]] std::size_t TweenPropertyCount() const noexcept override
+        {
+            return tweenProperties_.size();
+        }
+        [[nodiscard]] std::string_view TweenPropertyName(const std::size_t index) const noexcept override
+        {
+            return index < tweenProperties_.size() ? std::string_view{tweenProperties_[index].name} : std::string_view{};
+        }
+        [[nodiscard]] runtime::TweenValueType2D TweenPropertyValueType(const std::size_t index) const noexcept override
+        {
+            return index < tweenProperties_.size() ? tweenProperties_[index].valueType : runtime::TweenValueType2D::Float;
+        }
+        [[nodiscard]] bool ReadTweenProperty(
+            const void* object,
+            const std::size_t index,
+            runtime::TweenValue2D& outValue) const noexcept override
+        {
+            if (object == nullptr || index >= tweenProperties_.size()) return false;
+            const auto& property = tweenProperties_[index];
+            outValue = property.read(*static_cast<const T*>(object));
+            return outValue.type == property.valueType;
+        }
+        [[nodiscard]] bool WriteTweenProperty(
+            void* object,
+            const std::size_t index,
+            const runtime::TweenValue2D& value) const noexcept override
+        {
+            if (object == nullptr || index >= tweenProperties_.size()) return false;
+            const auto& property = tweenProperties_[index];
+            return value.type == property.valueType && property.write(*static_cast<T*>(object), value);
+        }
     private:
         std::function<bool(const ComponentAuthoringObject&, T&, std::string&)> parse_{};
         std::function<bool(const T&, std::string&)> validate_{};
         std::function<ComponentAuthoringObject(const T&)> serialize_{};
         std::function<std::vector<ComponentInspectionField>(const T&)> inspect_{};
+        std::vector<ComponentTweenPropertyRegistration<T>> tweenProperties_{};
     };
 
     [[nodiscard]] const ComponentTypeDescriptor* FindById(std::string_view typeId) const noexcept
@@ -296,6 +376,7 @@ private:
     std::vector<std::unique_ptr<ComponentTypeDescriptor>> descriptors_{};
     bool frozen_{false};
     friend class Scene;
+    friend class TweenBindingSystem2D;
 };
 
 struct SceneComponentTypes final

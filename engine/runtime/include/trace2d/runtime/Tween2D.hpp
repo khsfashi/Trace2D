@@ -65,6 +65,9 @@ enum class TweenCancellationReason2D : std::uint8_t
 {
     None = 0,
     Explicit,
+    Replaced,
+    TargetInvalidated,
+    PropertyWriteRejected,
 };
 
 enum class Tween2DError : std::uint8_t
@@ -76,6 +79,7 @@ enum class Tween2DError : std::uint8_t
     ValueTypeMismatch,
     InvalidEasing,
     InvalidLoopMode,
+    InvalidCancellationReason,
     NegativeDelay,
     NonPositiveDuration,
     NegativeDelta,
@@ -171,7 +175,13 @@ public:
     [[nodiscard]] Tween2DStatus Pause(TweenHandle2D handle) noexcept;
     [[nodiscard]] Tween2DStatus Resume(TweenHandle2D handle) noexcept;
     [[nodiscard]] Tween2DStatus Restart(TweenHandle2D handle) noexcept;
-    [[nodiscard]] Tween2DStatus Cancel(TweenHandle2D handle) noexcept;
+    [[nodiscard]] Tween2DStatus Rebase(
+        TweenHandle2D handle,
+        TweenValue2D start,
+        TweenValue2D end) noexcept;
+    [[nodiscard]] Tween2DStatus Cancel(
+        TweenHandle2D handle,
+        TweenCancellationReason2D reason = TweenCancellationReason2D::Explicit) noexcept;
     [[nodiscard]] Tween2DStatus Step(TweenTimeDomain2D domain, TweenTime2D delta) noexcept;
 
     [[nodiscard]] TweenPoolMetrics2D Metrics() const noexcept;
