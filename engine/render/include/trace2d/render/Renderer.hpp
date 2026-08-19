@@ -2,6 +2,7 @@
 
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Capture.hpp>
+#include <trace2d/render/MaterialGpu2D.hpp>
 #include <trace2d/render/ParticleGpuRuntime.hpp>
 #include <trace2d/render/RenderData.hpp>
 #include <trace2d/render/SpriteBatch2D.hpp>
@@ -67,19 +68,17 @@ enum class SpritePresentationGeometryKind : std::uint8_t
     PrimitivePatches = 1,
 };
 
-// Production SR7 Sprite draw input. SR2/SR3 geometry/appearance semantics are already resolved;
-// SR4 adds finite semantic painter order/group/mask state, SR5 may replace the legacy single quad
-// with caller-owned primitive patches, SR6 may attach exact pixel-perfect frame state, and SR7 adds
-// only a resolved material/pipeline compatibility identity for batching. The built-in identity is
-// the only executable material in SR7; programmable Material2D/Shader2D remains owned by #89.
+// Production SR7+ Sprite draw input. Geometry/appearance/order semantics are already resolved and
+// MAT3 optionally appends one setup-prepared custom pipeline plus a caller-owned fixed MAT1 block.
+// The block is consumed only for the duration of RenderFrame/CaptureFrame; steady rendering never
+// resolves parameter names, reflects source or allocates a per-Sprite property container.
 //
 // Primitive patches stay one atomic top-level SR4 item and are consumed only for the duration of
 // RenderFrame/CaptureFrame. `pixelPerfectViewport` is optional caller-owned frame-level SR6 state;
 // when any submitted Sprite enables it, every Sprite in that frame must provide an equal mapping.
 // Texture identity is the canonical R0 generation-safe resource handle; the SDL/GPU object behind
-// that identity remains renderer-owned derived state. The SR7 material field is appended after the
-// pre-SR7 fields so existing positional aggregate initialization keeps its field meaning while
-// omitted material state naturally selects the built-in pipeline.
+// that identity remains renderer-owned derived state. New MAT3 fields are appended so existing
+// positional aggregate initialization keeps its field meaning and omitted state selects built-in.
 struct SpritePresentationRenderData final
 {
     SpritePresentation2D presentation{};
@@ -90,6 +89,7 @@ struct SpritePresentationRenderData final
     std::span<const SpritePrimitivePatch2D> primitivePatches{};
     const SpritePixelPerfectViewport2D* pixelPerfectViewport{nullptr};
     SpriteMaterialPipelineIdentity materialPipeline{BuiltInSpriteMaterialPipelineIdentity};
+    const MaterialParameterBlock2D* materialParameters{nullptr};
 };
 
 struct RenderMetrics
@@ -115,6 +115,14 @@ struct RenderMetrics
 
     std::uint64_t spriteSamplerCreations{0};
     std::uint64_t spritePipelineCreations{0};
+    // MAT3 setup/cache counters are cumulative renderer-lifetime evidence. Frame counters below are
+    // committed only after a successful command submission, matching the existing metrics policy.
+    std::uint64_t materialShaderCompilations{0};
+    std::uint64_t materialPipelineCreations{0};
+    std::uint64_t materialPipelineCacheHits{0};
+    std::uint64_t materialPipelineSwitches{0};
+    std::uint64_t fragmentUniformUploads{0};
+    std::uint64_t fragmentUniformUploadBytes{0};
     // Reusable capacity in six-vertex Sprite quad slots, so one sliced/tiled Sprite may consume
     // multiple slots. SR7 also publishes the matching retained byte capacity below.
     std::uint64_t spriteVertexCapacitySprites{0};
@@ -175,6 +183,13 @@ public:
     // explicit resource-lifecycle operation owned by the caller/project.
     void DestroyTexture(TextureHandle texture) noexcept;
 
+    // MAT3 explicit setup boundary. Resolves generation-safe canonical Material2D/Shader2D state,
+    // prepares MAT1 layout/defaults, compiles/reflects the fragment shader and reuses an immutable
+    // renderer-owned pipeline bundle. This is never called implicitly from ordinary frame drawing.
+    [[nodiscard]] MaterialGpuPrepareResult2D PrepareMaterial2D(
+        const assets::ResourceRegistry& resources,
+        assets::ResourceHandle<assets::Material2DResource> material);
+
     [[nodiscard]] GpuParticleEmitterCreateResult CreateGpuParticleEmitter(
         const particles::ParticleProgram& program,
         std::uint64_t globalSeed,
@@ -198,10 +213,9 @@ public:
         std::span<const SpriteRenderData> sprites,
         std::span<const GpuParticleRenderData> particles);
 
-    // SR4-SR7 production path. SR4 painter order remains authoritative; SR7 conservatively culls,
-    // compacts visible vertices in that exact resolved order, and merges only contiguous compatible
-    // GPU state. Resource/material identity never authorizes global sorting. SR5 patches stay atomic
-    // beneath one top-level Sprite and SR6 viewport/scissor state remains exact frame-level truth.
+    // SR4+ production path. Painter order remains authoritative; compatible contiguous runs alone
+    // merge. MAT3 custom materials enter through an already-prepared integer pipeline identity and
+    // a fixed parameter block, never through source/name/reflection work here.
     void RenderFrame(
         const OrthographicCamera& camera,
         const SpritePresentationRenderData& sprite);
