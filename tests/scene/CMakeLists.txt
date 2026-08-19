@@ -5,6 +5,8 @@ add_executable(trace2d_scene_tests
     SceneTextCompositionTests.cpp
     SpriteTransform2DTests.cpp
     TweenBinding2DTests.cpp
+    TweenSequence2DCompositionTests.cpp
+    TweenSequence2DLifecycleTests.cpp
     WorldTests.cpp
 )
 
