@@ -2,6 +2,7 @@
 
 #include <trace2d/assets/SpriteAssets.hpp>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -21,6 +22,8 @@ enum class ResourceTypeDomain : std::uint8_t
     Sprite = 2,
     SceneTemplate = 3,
     Font = 4,
+    Shader2D = 5,
+    Material2D = 6,
 };
 
 [[nodiscard]] std::string_view ToString(ResourceTypeDomain value) noexcept;
@@ -53,6 +56,49 @@ enum class TextureResourceAlphaMode : std::uint8_t
 {
     Straight = 0,
     Premultiplied,
+};
+
+inline constexpr std::size_t MaximumMaterial2DParameters = 16U;
+inline constexpr std::size_t MaximumMaterial2DParameterNameBytes = 63U;
+inline constexpr std::size_t Material2DParameterSlotFloatCount = 4U;
+
+enum class MaterialParameterType2D : std::uint8_t
+{
+    Float = 0,
+    Float2,
+    Color,
+};
+
+struct MaterialParameterValue2D final
+{
+    MaterialParameterType2D type{MaterialParameterType2D::Float};
+    std::array<float, Material2DParameterSlotFloatCount> lanes{};
+
+    [[nodiscard]] bool operator==(const MaterialParameterValue2D&) const noexcept = default;
+};
+
+enum class MaterialSampler2D : std::uint8_t
+{
+    Nearest = 0,
+    Linear,
+};
+
+enum class MaterialBlend2D : std::uint8_t
+{
+    Normal = 0,
+    Additive,
+    Multiply,
+    Screen,
+};
+
+enum class Shader2DSourceLanguage : std::uint8_t
+{
+    Hlsl = 0,
+};
+
+enum class Shader2DStage : std::uint8_t
+{
+    Fragment = 0,
 };
 
 struct ResourceIdentity final
@@ -129,6 +175,38 @@ struct FontResource final
     std::string retentionReason{"canonical font bytes are required while prepared font faces exist"};
 };
 
+// Canonical Shader2D source truth. GPU shader objects, reflected backend metadata and pipelines are
+// renderer-owned derived state and must never be written back into this resource.
+struct Shader2DResource final
+{
+    Shader2DSourceLanguage language{Shader2DSourceLanguage::Hlsl};
+    Shader2DStage stage{Shader2DStage::Fragment};
+    std::string entryPoint{"main"};
+    std::string canonicalSource{};
+    CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Required};
+    std::string retentionReason{"canonical shader source is required for deterministic preparation"};
+};
+
+struct MaterialParameterDefault2D final
+{
+    std::string name{};
+    MaterialParameterValue2D value{};
+
+    [[nodiscard]] bool operator==(const MaterialParameterDefault2D&) const noexcept = default;
+};
+
+// Canonical Material2D authored/default state. The referenced Shader2D is registered as a strong
+// dependency by PublishMaterial2D; per-instance overrides remain renderer-side prepared state.
+struct Material2DResource final
+{
+    ResourceHandleUntyped shader{};
+    std::vector<MaterialParameterDefault2D> parameters{};
+    MaterialSampler2D sampler{MaterialSampler2D::Nearest};
+    MaterialBlend2D blend{MaterialBlend2D::Normal};
+    CpuRetentionPolicy cpuRetention{CpuRetentionPolicy::Required};
+    std::string retentionReason{"canonical material defaults are required for deterministic preparation"};
+};
+
 template <>
 struct ResourceTraits<TextureResource> final
 {
@@ -151,6 +229,18 @@ template <>
 struct ResourceTraits<FontResource> final
 {
     static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Font;
+};
+
+template <>
+struct ResourceTraits<Shader2DResource> final
+{
+    static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Shader2D;
+};
+
+template <>
+struct ResourceTraits<Material2DResource> final
+{
+    static constexpr ResourceTypeDomain Domain = ResourceTypeDomain::Material2D;
 };
 
 enum class ResourceErrorCode : std::uint8_t
@@ -266,6 +356,12 @@ public:
     [[nodiscard]] ResourcePublishResult<FontResource> PublishFont(
         std::string_view projectRelativeReference,
         FontResource resource);
+    [[nodiscard]] ResourcePublishResult<Shader2DResource> PublishShader2D(
+        std::string_view projectRelativeReference,
+        Shader2DResource resource);
+    [[nodiscard]] ResourcePublishResult<Material2DResource> PublishMaterial2D(
+        std::string_view projectRelativeReference,
+        Material2DResource resource);
 
     // U14 setup-time lookup reuses the same canonical identity table used by publication. It never
     // loads or republishes bytes: callers receive only the current ready generation-safe handle.
@@ -327,7 +423,14 @@ public:
     [[nodiscard]] const std::filesystem::path& ProjectRoot() const noexcept;
 
 private:
-    using Payload = std::variant<std::monostate, TextureResource, SpriteResource, SceneTemplateResource, FontResource>;
+    using Payload = std::variant<
+        std::monostate,
+        TextureResource,
+        SpriteResource,
+        SceneTemplateResource,
+        FontResource,
+        Shader2DResource,
+        Material2DResource>;
 
     struct Slot final
     {
