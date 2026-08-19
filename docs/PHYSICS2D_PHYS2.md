@@ -8,7 +8,7 @@ PHYS2 continues to use the pinned **Box2D 3.1.1** backend adopted by PHYS1. It d
 
 Box2D 3.1.1 provides post-step contact/sensor event arrays and exact shape-overlap queries. Those backend arrays and shape IDs remain transient implementation details. Trace2D copies only generation-safe Scene identity, fixed-capacity collider semantic identity, and bounded contact geometry into self-contained engine-owned values.
 
-Hit/impact events remain deliberately deferred in PHYS2. The accepted slice needs begin/end gameplay state first; enabling backend hit events everywhere would add cost and a second event policy before a representative workload has selected an impact threshold/use case.
+PHYS2 also maps Box2D hit events because the pinned backend exposes unambiguous point, normal, and positive approach-speed data. Trace2D does not invent a second impact heuristic in this slice: Box2D's world hit-event threshold remains the backend policy, while the emitted semantic record carries `approachSpeed` for gameplay/presentation decisions.
 
 ## Fixed-step and event timing
 
@@ -28,14 +28,15 @@ A subsequent step replaces the current batch. A caller that needs longer retenti
 
 ## Stable contact semantics
 
-PHYS2 projects non-sensor contact **begin** and **end** events.
+PHYS2 projects non-sensor contact **begin**, **end**, and backend-qualified **hit** events.
 
 Every `PhysicsContactEvent2D` contains:
 
 - `entityA` / `entityB` as generation-safe Scene `EntityId`;
 - the stable authored collider semantic ID for both participants copied into fixed-capacity storage;
-- begin/end kind;
-- for begin events only, the first Box2D manifold contact point and manifold normal when a contact point exists.
+- begin/end/hit kind;
+- for begin events, the first Box2D manifold contact point and manifold normal when a contact point exists;
+- for hit events, Box2D's hit point, normal, and positive `approachSpeed`.
 
 Observable A/B ownership is canonicalized by:
 
@@ -49,7 +50,7 @@ The normal is defined from canonical A toward canonical B. When canonicalization
 
 The whole contact batch is stable-sorted by kind and canonical participant keys before publication. Backend traversal/storage order is not part of the Trace2D contract.
 
-End events intentionally carry no contact geometry because Box2D's end-touch event only identifies the shapes.
+End events intentionally carry no contact geometry because Box2D's end-touch event only identifies the shapes. Begin events set `approachSpeed` to zero because the begin manifold does not expose a solved impact speed; hit events are the authority for that quantity.
 
 ## Stable sensor semantics
 
@@ -59,7 +60,7 @@ Sensor events preserve semantic roles rather than arbitrary pair order:
 - `visitorEntity` + visitor collider semantic ID;
 - begin/end kind.
 
-Sensor event generation is enabled for all PHYS2-supported shapes because Box2D requires both the sensor and the visiting shape to opt into sensor events. Non-sensor contact begin/end generation is enabled for solid colliders. Hit events remain disabled.
+Sensor event generation is enabled for all PHYS2-supported shapes because Box2D requires both the sensor and the visiting shape to opt into sensor events. Non-sensor contact and hit event generation is enabled for solid colliders.
 
 The batch is stable-sorted by kind, sensor key, then visitor key.
 
@@ -125,7 +126,7 @@ At prepared capacity:
 
 PHYS2 still does not complete #76. It deliberately defers until later bounded slices / representative evidence:
 
-- hit/impact event policy and threshold;
+- a Trace2D-owned override/configuration policy for Box2D's hit-event threshold;
 - runtime force/impulse/teleport body control;
 - shape casts/sweeps;
 - compound/multiple colliders;
