@@ -50,6 +50,18 @@ enum class PhysicsQueryResult2D : std::uint8_t
 };
 [[nodiscard]] std::string_view ToString(PhysicsQueryResult2D result) noexcept;
 
+enum class PhysicsBodyCommandResult2D : std::uint8_t
+{
+    Success = 0,
+    EntityNotFound,
+    NotAttached,
+    InvalidInput,
+    UnsupportedBodyType,
+    UnsupportedTransform,
+    BackendInvalid,
+};
+[[nodiscard]] std::string_view ToString(PhysicsBodyCommandResult2D result) noexcept;
+
 struct PhysicsStepReport2D final
 {
     PhysicsStepResult2D result{PhysicsStepResult2D::Success};
@@ -184,6 +196,47 @@ struct PhysicsOverlapReport2D final
     std::size_t requiredCapacity{0U};
 };
 
+struct PhysicsCircleCastQuery2D final
+{
+    scene::Vector2 center{};
+    float radius{0.5F};
+    scene::Vector2 translation{};
+    std::uint32_t layerBits{1U};
+    std::uint32_t maskBits{0xFFFFFFFFU};
+};
+
+struct PhysicsBoxCastQuery2D final
+{
+    scene::Vector2 center{};
+    scene::Vector2 halfExtents{0.5F, 0.5F};
+    float rotationRadians{0.0F};
+    scene::Vector2 translation{};
+    std::uint32_t layerBits{1U};
+    std::uint32_t maskBits{0xFFFFFFFFU};
+};
+
+struct PhysicsShapeCastHit2D final
+{
+    scene::EntityId entity{};
+    scene::Vector2 point{};
+    scene::Vector2 normal{};
+    float fraction{0.0F};
+    std::array<char, PhysicsSemanticIdCapacity2D> colliderSemanticId{};
+    std::uint8_t colliderSemanticIdLength{0U};
+
+    [[nodiscard]] std::string_view ColliderSemanticId() const noexcept
+    {
+        return {colliderSemanticId.data(), colliderSemanticIdLength};
+    }
+};
+
+struct PhysicsShapeCastReport2D final
+{
+    PhysicsQueryResult2D result{PhysicsQueryResult2D::Success};
+    std::size_t hitCount{0U};
+    std::size_t requiredCapacity{0U};
+};
+
 struct PhysicsBodyState2D final
 {
     scene::Vector2 position{};
@@ -199,6 +252,7 @@ struct PhysicsMetrics2D final
     std::size_t retainedBodyCapacity{0U};
     std::size_t retainedRayHitCapacity{0U};
     std::size_t retainedOverlapHitCapacity{0U};
+    std::size_t retainedShapeCastHitCapacity{0U};
     std::size_t retainedContactEventCapacity{0U};
     std::size_t retainedSensorEventCapacity{0U};
     std::size_t publishedContactEventCount{0U};
@@ -206,10 +260,14 @@ struct PhysicsMetrics2D final
     std::uint64_t fixedStepCount{0U};
     std::uint64_t stalePruneCount{0U};
     std::uint64_t unsupportedTransformPruneCount{0U};
+    std::uint64_t bodyCommandCount{0U};
+    std::uint64_t bodyCommandFailureCount{0U};
     std::uint64_t rayQueryCount{0U};
     std::uint64_t rayCapacityFailureCount{0U};
     std::uint64_t overlapQueryCount{0U};
     std::uint64_t overlapCapacityFailureCount{0U};
+    std::uint64_t shapeCastQueryCount{0U};
+    std::uint64_t shapeCastCapacityFailureCount{0U};
     std::uint64_t eventCapacityFailureCount{0U};
 };
 
@@ -229,6 +287,7 @@ public:
     void Reserve(std::size_t bodyCapacity, std::size_t rayHitCapacity);
     void ReserveEvents(std::size_t contactEventCapacity, std::size_t sensorEventCapacity);
     void ReserveOverlap(std::size_t overlapHitCapacity);
+    void ReserveShapeCast(std::size_t shapeCastHitCapacity);
 
     [[nodiscard]] PhysicsAttachResult2D AttachEntity(scene::EntityId entity);
     [[nodiscard]] bool DetachEntity(scene::EntityId entity) noexcept;
@@ -240,6 +299,23 @@ public:
     [[nodiscard]] std::span<const PhysicsSensorEvent2D> SensorEvents() const noexcept;
     [[nodiscard]] bool TryGetBodyState(scene::EntityId entity, PhysicsBodyState2D& outState) const noexcept;
 
+    [[nodiscard]] PhysicsBodyCommandResult2D SetLinearVelocity(
+        scene::EntityId entity,
+        scene::Vector2 linearVelocity) noexcept;
+    [[nodiscard]] PhysicsBodyCommandResult2D SetAngularVelocity(
+        scene::EntityId entity,
+        float angularVelocity) noexcept;
+    [[nodiscard]] PhysicsBodyCommandResult2D ApplyForceToCenter(
+        scene::EntityId entity,
+        scene::Vector2 force) noexcept;
+    [[nodiscard]] PhysicsBodyCommandResult2D ApplyLinearImpulseToCenter(
+        scene::EntityId entity,
+        scene::Vector2 impulse) noexcept;
+    [[nodiscard]] PhysicsBodyCommandResult2D Teleport(
+        scene::EntityId entity,
+        scene::Vector2 position,
+        float rotationRadians) noexcept;
+
     [[nodiscard]] PhysicsRaycastReport2D Raycast(
         const PhysicsRaycastQuery2D& query,
         std::span<PhysicsRaycastHit2D> output) noexcept;
@@ -249,6 +325,12 @@ public:
     [[nodiscard]] PhysicsOverlapReport2D OverlapBox(
         const PhysicsBoxOverlapQuery2D& query,
         std::span<PhysicsOverlapHit2D> output) noexcept;
+    [[nodiscard]] PhysicsShapeCastReport2D CastCircle(
+        const PhysicsCircleCastQuery2D& query,
+        std::span<PhysicsShapeCastHit2D> output) noexcept;
+    [[nodiscard]] PhysicsShapeCastReport2D CastBox(
+        const PhysicsBoxCastQuery2D& query,
+        std::span<PhysicsShapeCastHit2D> output) noexcept;
 
     [[nodiscard]] PhysicsMetrics2D Metrics() const noexcept;
 
