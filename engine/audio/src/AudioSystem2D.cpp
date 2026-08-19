@@ -138,6 +138,17 @@ AudioSystem2D::AudioSystem2D(
 {
 }
 
+AudioSystem2D::~AudioSystem2D()
+{
+    for (VoiceSlot& slot : voices_)
+    {
+        if (slot.active)
+        {
+            ReleaseVoiceRetention(slot);
+        }
+    }
+}
+
 bool AudioSystem2D::ReserveVoices(const std::size_t capacity)
 {
     if (capacity > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
@@ -604,9 +615,20 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
         return {AudioCommandResult2D::CapacityExceeded, {}};
     }
 
+    const assets::ResourceOperationResult retain = resources_.Retain(clip.Untyped());
+    if (!retain.Succeeded())
+    {
+        if (countCommand)
+        {
+            ++commandFailureCount_;
+        }
+        return {AudioCommandResult2D::ClipNotReady, {}};
+    }
+
     const std::uint32_t slotIndex = AllocateVoiceSlot();
     if (slotIndex == AudioVoiceHandle2D::InvalidSlot)
     {
+        (void)resources_.Release(clip.Untyped());
         if (countCommand)
         {
             ++commandFailureCount_;
@@ -689,9 +711,18 @@ std::uint32_t AudioSystem2D::AllocateVoiceSlot()
     return static_cast<std::uint32_t>(voices_.size() - 1U);
 }
 
-void AudioSystem2D::DeactivateVoice(const std::uint32_t slotIndex) noexcept
+void AudioSystem2D::ReleaseVoiceRetention(VoiceSlot& slot)
+{
+    if (resources_.Resolve(slot.data.clip) != nullptr)
+    {
+        (void)resources_.Release(slot.data.clip.Untyped());
+    }
+}
+
+void AudioSystem2D::DeactivateVoice(const std::uint32_t slotIndex)
 {
     VoiceSlot& slot = voices_[slotIndex];
+    ReleaseVoiceRetention(slot);
     slot.active = false;
     slot.data = VoiceData{};
     slot.generation = NextGeneration(slot.generation);
