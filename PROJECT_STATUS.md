@@ -146,9 +146,9 @@ Machine authority is `config/trace2d.core-lane.json`.
 
 Finished effects do not become engine-core features merely because they use a shader.
 
-### #90 Tween / Sequence — NEXT
+### #90 Tween / Sequence — COMPLETE
 
-#90 now targets a DOTween-class *practical surface* while keeping Trace2D semantics explicit and allocation-disciplined:
+#90 completed the DOTween-class practical surface while keeping Trace2D semantics explicit and allocation-disciplined:
 
 - explicit `simulation` time domain for authoritative fixed-step tweening,
 - explicit `presentation` time domain advanced only by supplied/manual delta with no hidden wall-clock query,
@@ -160,7 +160,23 @@ Finished effects do not become engine-core features merely because they use a sh
 - no steady-step string lookup/heap allocation at retained capacity,
 - presentation completion/callbacks cannot become hidden gameplay authority.
 
-See issue #90 for the binding implementation contract.
+#327 subsequently consumed this surface in the bounded Presentation Product Proof; do not reopen #90 for speculative tween breadth.
+
+### #327 Presentation Product Proof — COMPLETE
+
+#327 is consumed product evidence for Material2D + Tween composition. Continue to use #328 as a recipe vocabulary/backlog rather than promoting one-off visual effects into engine-core systems.
+
+## Physics2D V1 — complete through PHYS3
+
+#76 is complete through the bounded PHYS1/PHYS2/PHYS3 program on pinned Box2D 3.1.1:
+
+- PHYS1 established typed body/collider authoring, fixed-step Scene authority, stable raycasts, lifecycle pruning and the private Box2D backend;
+- PHYS2 added stable contact/sensor events plus bounded circle/box overlap queries;
+- PHYS3 adds runtime linear/angular velocity control, dynamic center force/impulse, coherent teleport, and bounded stable circle/rotated-box shape casts.
+
+The V1 production-depth decisions are explicit in `docs/PHYSICS2D_PHYS3.md`: bullet/continuous-collision policy is supported through the pinned backend, shape casts are supported, and friction/restitution remain finite typed collider scalars. Compound colliders, joints/constraints, one-way platforms, a Trace2D-owned character controller, hierarchy-aware rigid bodies, debug geometry, custom hit thresholds and extra force/torque conveniences are deferred until representative product evidence demonstrates a common need.
+
+Do not open a speculative PHYS4 merely to exhaust the wishlist. The next core-lane subsystem is #77 Audio; #329 Combat Product Proof is where any concrete Physics2D gap should be rediscovered and minimized.
 
 ## Official Presentation Recipes
 
@@ -197,9 +213,9 @@ A proof should primarily compose public capabilities. If it exposes a concrete g
 Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state first.
 
 - #321 is complete; do not return to Asset Studio depth.
-- **#89 is complete; #90 is the exact next core-lane item.**
-- Implement #90 with the revised two-time-domain + Sequence contract.
-- After #90, stop breadth and complete #327 before #76.
+- #89, #90 and #327 are complete and consumed.
+- **#76 Physics2D V1 is complete through PHYS3; #77 Audio is the exact next core-lane item.**
+- Do not create speculative PHYS4 breadth; let #329 expose any smallest concrete follow-up after Audio.
 - Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
 - Do not start #322/#323 before #331 is accepted.
 - Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
