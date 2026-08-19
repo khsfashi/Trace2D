@@ -4,11 +4,13 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace
 {
@@ -132,7 +134,7 @@ artifacts = ["b"]
 
 TEST(AssetCandidateSetTests, EnforcesProductionItemAndCandidateBudget)
 {
-    auto production = ParseProductionFixture();
+    const auto production = ParseProductionFixture();
     trace2d::agent::AssetCandidateSet candidateSet{};
     candidateSet.productionSetId = production.id;
     candidateSet.itemId = "not-a-production-item";
