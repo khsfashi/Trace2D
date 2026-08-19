@@ -247,10 +247,12 @@ private:
         ReparentCommand,
         UnloadWorldCommand>;
 
+    // Pending commands are only created with both fields supplied by QueueCommand. Avoid requiring
+    // a semantically meaningless default StructuralCommand (and therefore a default variant state).
     struct PendingCommand final
     {
-        std::uint64_t sequence{0};
-        StructuralCommand command{};
+        std::uint64_t sequence;
+        StructuralCommand command;
     };
 
     [[nodiscard]] WorldRecord* FindWorld(std::string_view worldId) noexcept;

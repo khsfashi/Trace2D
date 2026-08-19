@@ -13,10 +13,36 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(TRACE2D_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
 option(TRACE2D_INSTALL_SDK "Install/export the supported Trace2D C++ SDK surface." ON)
+option(
+    TRACE2D_ENABLE_ASAN_UBSAN
+    "Enable Linux Clang AddressSanitizer + UndefinedBehaviorSanitizer verification instrumentation."
+    OFF
+)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(Trace2DWarnings)
 include(CTest)
+
+if(TRACE2D_ENABLE_ASAN_UBSAN)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR
+            "TRACE2D_ENABLE_ASAN_UBSAN is a verification-only Linux Clang configuration."
+        )
+    endif()
+
+    # Sanitizers are test/debug instrumentation, never production runtime dependencies.
+    # Keep frame pointers for actionable reports and make recoverable UBSan findings fatal.
+    add_compile_options(
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all
+    )
+    add_link_options(
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -fno-sanitize-recover=all
+    )
+endif()
 
 add_subdirectory(engine)
 

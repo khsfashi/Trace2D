@@ -21,4 +21,7 @@ target_compile_features(trace2d_runtime_tests PRIVATE cxx_std_20)
 trace2d_enable_warnings(trace2d_runtime_tests)
 
 include(GoogleTest)
-gtest_discover_tests(trace2d_runtime_tests)
+gtest_discover_tests(
+    trace2d_runtime_tests
+    PROPERTIES LABELS "sanitizer-headless"
+)
