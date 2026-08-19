@@ -166,6 +166,18 @@ void HashString(std::uint64_t& hash, const std::string_view value) noexcept
     return true;
 }
 
+void CopyParameterName(
+    MaterialParameterName2D& destination,
+    const std::string_view source) noexcept
+{
+    destination = MaterialParameterName2D{};
+    destination.length = static_cast<std::uint8_t>(source.size());
+    for (std::size_t index = 0U; index < source.size(); ++index)
+    {
+        destination.bytes[index] = source[index];
+    }
+}
+
 void WriteCanonicalSlot(
     MaterialParameterBlock2D& block,
     const std::size_t slot,
@@ -222,6 +234,8 @@ std::string_view ToString(const MaterialPrepareError2D value) noexcept
         return "too_many_parameters";
     case MaterialPrepareError2D::EmptyParameterName:
         return "empty_parameter_name";
+    case MaterialPrepareError2D::ParameterNameTooLong:
+        return "parameter_name_too_long";
     case MaterialPrepareError2D::InvalidParameterName:
         return "invalid_parameter_name";
     case MaterialPrepareError2D::DuplicateParameterName:
@@ -270,6 +284,10 @@ MaterialPrepareStatus2D PrepareMaterialParameterLayout2D(
         {
             return Failure(MaterialPrepareError2D::EmptyParameterName, index);
         }
+        if (declaration.name.size() > MaximumMaterial2DParameterNameBytes)
+        {
+            return Failure(MaterialPrepareError2D::ParameterNameTooLong, index);
+        }
         if (!IsValidParameterName(declaration.name))
         {
             return Failure(MaterialPrepareError2D::InvalidParameterName, index);
@@ -292,7 +310,7 @@ MaterialPrepareStatus2D PrepareMaterialParameterLayout2D(
     outLayout.identity = LayoutIdentity(shaderIdentity, declarations);
     for (std::size_t index = 0U; index < declarations.size(); ++index)
     {
-        outLayout.names[index] = declarations[index].name;
+        CopyParameterName(outLayout.names[index], declarations[index].name);
         outLayout.entries[index] = MaterialParameterLayoutEntry2D{
             declarations[index].type,
             static_cast<std::uint8_t>(index)};
@@ -313,7 +331,7 @@ MaterialPrepareStatus2D ResolveMaterialParameterBinding2D(
 
     for (std::size_t index = 0U; index < static_cast<std::size_t>(layout.parameterCount); ++index)
     {
-        if (layout.names[index] == name)
+        if (layout.names[index].View() == name)
         {
             outBinding = MaterialParameterBinding2D{
                 layout.identity,
