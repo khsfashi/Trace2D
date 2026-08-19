@@ -45,11 +45,13 @@ Integer/bool and additional resource/sampler parameters are deferred until the e
 ### Layout
 
 - maximum parameters: **16**
+- maximum UTF-8/ASCII parameter-name bytes: **63**
 - every parameter occupies exactly one **16-byte float4 slot**
 - declaration order is slot order
 - unused lanes are canonicalized to `0.0`
 - all active authored lanes must be finite
 - names must be ASCII identifier form `[A-Za-z_][A-Za-z0-9_]*`
+- prepared names are copied into fixed-capacity owned storage; no prepared `string_view` points back into resource/authored lifetime
 - duplicate names fail preparation
 
 The deliberate bounded padding trades at most a few hundred bytes per prepared block for a backend-stable, std140-safe representation with no per-instance associative container. SDL GPU fragment uniform data requires std140-compatible layout and specifically calls out 16-byte alignment for vec3/vec4 data, so MAT1 uses the simpler invariant everywhere instead of backend-specific packing. The executable #89 slice will upload only `ActivePackedBytes()`.
