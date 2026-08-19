@@ -16,9 +16,14 @@ using SpriteMaterialPipelineIdentity = std::uint32_t;
 inline constexpr SpriteMaterialPipelineIdentity InvalidSpriteMaterialPipelineIdentity = 0U;
 inline constexpr SpriteMaterialPipelineIdentity BuiltInSpriteMaterialPipelineIdentity = 1U;
 
-// Exact GPU-state compatibility for one SR7 built-in Sprite batch run. It deliberately excludes
-// painter order, tint, opacity and geometry: those remain semantic order or per-vertex data rather
-// than reasons to globally sort or split otherwise-compatible contiguous work.
+using SpriteMaterialParameterBlockIdentity = std::uint64_t;
+inline constexpr SpriteMaterialParameterBlockIdentity InvalidSpriteMaterialParameterBlockIdentity = 0U;
+
+// Exact GPU-state compatibility for one SR7 Sprite batch run. It deliberately excludes painter
+// order, tint, opacity and geometry: those remain semantic order or per-vertex data rather than
+// reasons to globally sort or split otherwise-compatible contiguous work. MAT1 reserves a resolved
+// parameter-block identity so future programmable materials can split only when effective uniform
+// values differ, without reintroducing name lookup or generic per-Sprite property maps.
 struct SpriteBatchCompatibility2D final
 {
     TextureHandle texture{InvalidTextureHandle};
@@ -26,6 +31,7 @@ struct SpriteBatchCompatibility2D final
     SpriteSamplerCompatibility sampler{SpriteSamplerCompatibility::Nearest};
     SpriteBlendCompatibility blend{SpriteBlendCompatibility::Normal};
     SpriteMask2D mask{};
+    SpriteMaterialParameterBlockIdentity materialParameters{InvalidSpriteMaterialParameterBlockIdentity};
 
     [[nodiscard]] bool operator==(const SpriteBatchCompatibility2D&) const noexcept = default;
 };
