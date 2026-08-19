@@ -5,6 +5,7 @@ include(CMakeFindDependencyMacro)
 # Trace2D is currently distributed as static C++ libraries. Private link
 # dependencies of static archives still need imported targets to be available
 # when a downstream executable links the archive.
+find_dependency(box2d CONFIG REQUIRED)
 find_dependency(Freetype REQUIRED)
 find_dependency(SDL3 CONFIG REQUIRED)
 find_dependency(SDL3_shadercross CONFIG REQUIRED)
