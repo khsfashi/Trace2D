@@ -5,6 +5,7 @@ add_executable(trace2d_render_tests
     Material2DTests.cpp
     MaterialGpuAcceptanceTests.cpp
     MaterialGpuSmokeTests.cpp
+    MaterialTween2DTests.cpp
     ParticleGpuConformanceTests.cpp
     ParticleGpuRuntimeTests.cpp
     ParticleGpuSmokeTests.cpp

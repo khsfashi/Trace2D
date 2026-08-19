@@ -84,16 +84,46 @@ TweenBindingStatus2D TweenBindingSystem2D::ResolveComponentByIndex(
     return {TweenBindingError2D::PropertyNotFound};
 }
 
+const TweenExternalPropertyProvider2D* TweenBindingSystem2D::FindExternalProvider(
+    const std::uint32_t providerIndex) const noexcept
+{
+    return providerIndex < externalProviders_.size() ? &externalProviders_[providerIndex] : nullptr;
+}
+
 TweenBindingStatus2D TweenBindingSystem2D::ValidateBinding(
     const ResolvedTweenBinding2D& binding) const noexcept
 {
-    if (!scene_.Contains(binding.entity))
-    {
-        return {TweenBindingError2D::EntityNotFound};
-    }
     if (!IsValidValueType(binding.valueType))
     {
         return {TweenBindingError2D::InvalidBinding};
+    }
+
+    if (binding.targetKind == TweenBindingTargetKind2D::ExternalProperty)
+    {
+        if (binding.externalTargetGeneration == 0U ||
+            binding.externalProviderIndex == InvalidTweenExternalProviderIndex2D ||
+            binding.componentType != InvalidComponentTypeIndex)
+        {
+            return {TweenBindingError2D::InvalidBinding};
+        }
+        const TweenExternalPropertyProvider2D* const provider =
+            FindExternalProvider(binding.externalProviderIndex);
+        if (provider == nullptr || provider->validate == nullptr)
+        {
+            return {TweenBindingError2D::ExternalProviderUnavailable};
+        }
+        return provider->validate(
+                   provider->context,
+                   binding.externalTargetSlot,
+                   binding.externalTargetGeneration,
+                   binding.propertyIndex,
+                   binding.valueType) ?
+            TweenBindingStatus2D{} : TweenBindingStatus2D{TweenBindingError2D::InvalidBinding};
+    }
+
+    if (!scene_.Contains(binding.entity))
+    {
+        return {TweenBindingError2D::EntityNotFound};
     }
 
     if (binding.targetKind == TweenBindingTargetKind2D::EntityTransform)
@@ -177,6 +207,18 @@ bool TweenBindingSystem2D::ReadBinding(
     const ResolvedTweenBinding2D& binding,
     runtime::TweenValue2D& outValue) const noexcept
 {
+    if (binding.targetKind == TweenBindingTargetKind2D::ExternalProperty)
+    {
+        const TweenExternalPropertyProvider2D* const provider =
+            FindExternalProvider(binding.externalProviderIndex);
+        return provider != nullptr && provider->read != nullptr && provider->read(
+            provider->context,
+            binding.externalTargetSlot,
+            binding.externalTargetGeneration,
+            binding.propertyIndex,
+            outValue);
+    }
+
     if (binding.targetKind == TweenBindingTargetKind2D::EntityTransform)
     {
         const Entity* const entity = static_cast<const Scene&>(scene_).TryGet(binding.entity);
@@ -213,6 +255,19 @@ bool TweenBindingSystem2D::WriteBinding(
     {
         return false;
     }
+
+    if (binding.targetKind == TweenBindingTargetKind2D::ExternalProperty)
+    {
+        const TweenExternalPropertyProvider2D* const provider =
+            FindExternalProvider(binding.externalProviderIndex);
+        return provider != nullptr && provider->write != nullptr && provider->write(
+            provider->context,
+            binding.externalTargetSlot,
+            binding.externalTargetGeneration,
+            binding.propertyIndex,
+            value);
+    }
+
     if (binding.targetKind == TweenBindingTargetKind2D::EntityTransform)
     {
         Entity* const entity = scene_.TryGet(binding.entity);

@@ -93,6 +93,32 @@ void TweenBindingSystem2D::Reserve(const std::size_t capacity)
     bindings_.reserve(capacity);
 }
 
+void TweenBindingSystem2D::ReserveExternalProviders(const std::size_t capacity)
+{
+    externalProviders_.reserve(capacity);
+}
+
+TweenBindingStatus2D TweenBindingSystem2D::RegisterExternalProvider(
+    const TweenExternalPropertyProvider2D provider,
+    TweenExternalProviderHandle2D& outHandle)
+{
+    outHandle = TweenExternalProviderHandle2D{};
+    if (provider.context == nullptr || provider.validate == nullptr ||
+        provider.read == nullptr || provider.write == nullptr)
+    {
+        return {TweenBindingError2D::InvalidExternalProvider};
+    }
+    if (externalProviders_.size() >=
+        static_cast<std::size_t>(InvalidTweenExternalProviderIndex2D))
+    {
+        return {TweenBindingError2D::InvalidExternalProvider};
+    }
+
+    outHandle.index = static_cast<std::uint32_t>(externalProviders_.size());
+    externalProviders_.push_back(provider);
+    return {};
+}
+
 TweenBindingStatus2D TweenBindingSystem2D::ResolveTransform(
     const EntityId entity,
     const TransformTweenProperty2D property,
@@ -148,6 +174,44 @@ TweenBindingStatus2D TweenBindingSystem2D::ResolveComponent(
         return {TweenBindingError2D::ComponentTypeNotFound};
     }
     return ResolveComponentByIndex(entity, *componentType, propertyName, outBinding);
+}
+
+TweenBindingStatus2D TweenBindingSystem2D::ResolveExternal(
+    const TweenExternalProviderHandle2D provider,
+    const std::uint32_t targetSlot,
+    const std::uint64_t targetGeneration,
+    const std::uint32_t propertyIndex,
+    const runtime::TweenValueType2D valueType,
+    ResolvedTweenBinding2D& outBinding) const noexcept
+{
+    outBinding = ResolvedTweenBinding2D{};
+    if (!provider.Valid() || targetGeneration == 0U || !IsValidValueType(valueType))
+    {
+        return {TweenBindingError2D::InvalidBinding};
+    }
+    const TweenExternalPropertyProvider2D* const resolvedProvider =
+        FindExternalProvider(provider.index);
+    if (resolvedProvider == nullptr)
+    {
+        return {TweenBindingError2D::ExternalProviderUnavailable};
+    }
+    if (!resolvedProvider->validate(
+            resolvedProvider->context,
+            targetSlot,
+            targetGeneration,
+            propertyIndex,
+            valueType))
+    {
+        return {TweenBindingError2D::InvalidBinding};
+    }
+
+    outBinding.targetKind = TweenBindingTargetKind2D::ExternalProperty;
+    outBinding.propertyIndex = propertyIndex;
+    outBinding.valueType = valueType;
+    outBinding.externalProviderIndex = provider.index;
+    outBinding.externalTargetSlot = targetSlot;
+    outBinding.externalTargetGeneration = targetGeneration;
+    return {};
 }
 
 TweenBindingStatus2D TweenBindingSystem2D::Create(
