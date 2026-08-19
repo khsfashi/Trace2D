@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: trace2d-owner-gpu
+  group: trace2d-owner-gpu-${{ github.ref }}
   cancel-in-progress: true
 
 env:
