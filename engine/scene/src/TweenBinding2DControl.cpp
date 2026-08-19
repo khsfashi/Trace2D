@@ -6,12 +6,6 @@ namespace trace2d::scene
 {
 namespace
 {
-[[nodiscard]] bool IsValidTimeDomain(const runtime::TweenTimeDomain2D domain) noexcept
-{
-    return domain == runtime::TweenTimeDomain2D::Simulation ||
-        domain == runtime::TweenTimeDomain2D::Presentation;
-}
-
 [[nodiscard]] bool IsValidValueType(const runtime::TweenValueType2D type) noexcept
 {
     return type == runtime::TweenValueType2D::Float ||
@@ -32,12 +26,6 @@ namespace
 [[nodiscard]] bool IsValidConflictPolicy(const TweenConflictPolicy2D policy) noexcept
 {
     return policy == TweenConflictPolicy2D::Reject || policy == TweenConflictPolicy2D::Replace;
-}
-
-[[nodiscard]] bool IsTerminal(const runtime::TweenPlaybackState2D state) noexcept
-{
-    return state == runtime::TweenPlaybackState2D::Completed ||
-        state == runtime::TweenPlaybackState2D::Cancelled;
 }
 
 [[nodiscard]] runtime::TweenValue2D ZeroValue(const runtime::TweenValueType2D type) noexcept
