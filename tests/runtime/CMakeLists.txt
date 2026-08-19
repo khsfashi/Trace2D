@@ -6,6 +6,7 @@ add_executable(trace2d_runtime_tests
     SpriteAnimationConformanceSA4Tests.cpp
     reference/SpriteAnimatorReferenceModel.cpp
     SpriteAnimatorReferenceOracleTests.cpp
+    Tween2DTests.cpp
 )
 
 target_link_libraries(trace2d_runtime_tests
