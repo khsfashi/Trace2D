@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <utility>
 
 namespace trace2d::assets
 {
