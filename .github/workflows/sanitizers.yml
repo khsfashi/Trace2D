@@ -48,6 +48,7 @@ jobs:
             autoconf \
             autoconf-archive \
             automake \
+            libltdl-dev \
             libtool \
             ninja-build \
             pkg-config
