@@ -39,6 +39,19 @@ jobs:
           clang++ --version
           cmake --version
 
+      - name: Install Linux build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            autoconf \
+            autoconf-archive \
+            automake \
+            libtool \
+            ninja-build \
+            pkg-config
+
       - name: Install pinned vcpkg
         shell: bash
         run: |
@@ -65,7 +78,7 @@ jobs:
           set -euo pipefail
           mkdir -p .trace2d-vcpkg-downloads
           export VCPKG_DOWNLOADS="$GITHUB_WORKSPACE/.trace2d-vcpkg-downloads"
-          cmake -S . -B build/sanitizers \
+          cmake -S . -B build/sanitizers -G Ninja \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
             -DTRACE2D_WARNINGS_AS_ERRORS=ON \
