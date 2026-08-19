@@ -57,10 +57,10 @@ jobs:
       - name: Configure Trace2D source tree
         run: cmake --preset windows-msvc
 
-      - name: Build SDK closure and in-tree P1
+      - name: Build exported SDK closure and in-tree P1
         run: >-
           cmake --build --preset windows-debug --parallel
-          --target trace2d_render trace2d_scene trace2d_platform
+          --target trace2d_application trace2d_agent trace2d_platform trace2d_render trace2d_tile trace2d_text
           trace2d_p1_presentation_playground_headless
           trace2d_p1_presentation_playground_windowed
 
