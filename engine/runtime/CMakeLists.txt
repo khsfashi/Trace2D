@@ -2,6 +2,7 @@ add_library(trace2d_runtime STATIC
     src/FixedStepRuntime.cpp
     src/MonotonicClock.cpp
     src/SpriteAnimator2D.cpp
+    src/Tween2D.cpp
 )
 
 add_library(Trace2D::Runtime ALIAS trace2d_runtime)
