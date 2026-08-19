@@ -10,6 +10,7 @@ This document records the current source dependency review. It is not a substitu
 | --- | --- | --- | --- |
 | Box2D | Physics2D rigid-body simulation, collision geometry/filtering, and spatial queries | MIT | PHYS1 pins the vcpkg-baseline Box2D 3.1.1 port. Public Trace2D headers do not expose Box2D IDs/types; `Trace2D::Physics` owns a thin semantic boundary and the installed static SDK discovers Box2D downstream. |
 | FreeType | Production font face access, glyph metrics, and CPU glyph rasterization in `engine/text` | FreeType License (FTL) or GNU GPL v2 | Trace2D uses the permissive FTL option. Public Trace2D headers do not expose FreeType types; the exported static `Trace2D::Text` target requires FreeType discovery downstream. F0 disables vcpkg default features because WOFF2/bzip2/PNG embedded-bitmap integrations are not required by the accepted TTF/OTF outline boundary. |
+| miniaudio | AUDIO2 file decoding and bounded PCM-frame streaming preparation | Unlicense or MIT-0 | Pinned vcpkg baseline resolves 0.11.25. Trace2D compiles decoder/data-source functionality only with device/engine/resource-manager/node-graph layers disabled. No miniaudio type appears in public headers and SDL3 remains the physical audio-device/mix backend. |
 | SDL3 | Platform/window/input boundary and SDL GPU backend | zlib | Permissive; retain the upstream license notice when redistributing SDL binaries/source. |
 | SDL3_shadercross | Runtime shader translation used by the renderer | zlib | Permissive; shader translation can involve additional upstream components depending on the selected backend/path. |
 | stb | CPU-side texture image decoding in `engine/assets` | MIT or public-domain dedication at user option | Header-only decode dependency; Trace2D uses the MIT-compatible upstream terms and does not vendor the header. |
@@ -36,6 +37,16 @@ Box2D floating-point simulation is treated as authoritative within one Trace2D p
 The production font path opens canonical font bytes already owned by Trace2D's typed resource registry. It does not discover OS fonts or pass project file paths to FreeType during steady-state text work. Prepared faces retain the generation-safe FontResource so the in-memory bytes remain valid for the face lifetime.
 
 The pinned vcpkg baseline resolves FreeType 2.14.3. Trace2D explicitly sets `default-features: false` for both the engine and representative external consumer. Support for WOFF2, bzip2-compressed fonts, PNG embedded bitmaps, or other optional integrations must be promoted only by a concrete asset requirement plus dependency/license review; F0 does not pull them in speculatively.
+
+## Audio decoder dependency boundary
+
+#361 AUDIO2 adopts only miniaudio 0.11.25's decoder/data-source surface rather than implementing custom WAV/FLAC/MP3 codecs. The pinned vcpkg port is header-only and records `Unlicense OR MIT-0` licensing.
+
+The implementation defines `MA_NO_DEVICE_IO`, `MA_NO_ENGINE`, `MA_NO_NODE_GRAPH`, and `MA_NO_RESOURCE_MANAGER`. This keeps miniaudio behind `engine/audio/src` as derived decode preparation. Public Trace2D headers contain no miniaudio types, `AudioClipResource` remains canonical #86 identity/timing/load-policy authority, and SDL3 remains the selected physical device/mix boundary for the next #77 slice.
+
+AUDIO2 V1 claims only miniaudio's stock WAV, FLAC, and MP3 decoding. Ogg/Vorbis is not claimed merely because an authored example may use an `.ogg` reference. A later codec addition requires a concrete content need plus dependency/license/performance review.
+
+Preload decoding may allocate during explicit setup and then owns exact interleaved float PCM bytes/capacity. Streaming retains decoder state and reads into caller-owned bounded buffers; those reads may block on source I/O and are prohibited from `AudioSystem2D::Step()` and ordinary gameplay/frame hot paths. Dependency-internal opaque decoder allocation is reported as unknown rather than presented as exact memory evidence.
 
 ## SDL3_shadercross transitive dependencies
 
@@ -76,10 +87,11 @@ Trace2D is licensed under the MIT License. The direct dependency set reviewed ab
 Dependency review updated against:
 
 - `vcpkg.json` baseline `d92484ed3c5020c6679d095ad3e5add907887b62`
-- direct ports: `box2d`, `freetype` (default features disabled), `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
-- current Trace2D build linkage in platform/render/assets/text/scene/physics/UI/particle/Agent/MCP/test targets
+- direct ports: `box2d`, `freetype` (default features disabled), `miniaudio`, `sdl3`, `sdl3-shadercross`, `stb`, `tomlplusplus`, `nlohmann-json`, `gtest`
+- current Trace2D build linkage in platform/render/assets/text/scene/physics/audio/UI/particle/Agent/MCP/test targets
 - #70 exported static SDK dependency-discovery contract
 - #74 F0 FreeType face/metrics/rasterization boundary
 - #353 PHYS1 Box2D 3.1.1 adoption boundary
+- #361 AUDIO2 miniaudio 0.11.25 decoder-only adoption boundary
 
 Re-run this review whenever the vcpkg baseline, dependency list, features, triplet, exported target graph, or binary distribution contents change.
