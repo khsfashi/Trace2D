@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -147,6 +146,11 @@ public:
         return iterator == bindings_.end() ? nullptr : iterator->get();
     }
 
+    [[nodiscard]] bool Contains(const scene::EntityId entity) const noexcept
+    {
+        return scene_.Contains(entity) && FindBinding(entity) != nullptr;
+    }
+
     [[nodiscard]] PhysicsAttachResult2D Attach(const scene::EntityId entity)
     {
         if (!scene_.Contains(entity)) return PhysicsAttachResult2D::EntityNotFound;
@@ -164,6 +168,10 @@ public:
         if (!IsValidBody(*body) || !IsValidCollider(*collider)) return PhysicsAttachResult2D::InvalidComponent;
         if (!b2World_IsValid(worldId_)) return PhysicsAttachResult2D::BackendFailure;
 
+        // Finish all allocation-capable setup before creating backend objects. Once capacity is
+        // available, moving a unique_ptr into the vector is non-throwing, so a failed allocation
+        // cannot orphan a Box2D body that Trace2D no longer has a binding for.
+        if (bindings_.size() == bindings_.capacity()) bindings_.reserve(bindings_.size() + 1U);
         auto binding = std::make_unique<Binding>();
         binding->entity = entity;
         binding->bodyType = body->type;
@@ -291,6 +299,7 @@ public:
 
     [[nodiscard]] bool TryGetBodyState(const scene::EntityId entity, PhysicsBodyState2D& outState) const noexcept
     {
+        if (!scene_.Contains(entity)) return false;
         const Binding* const binding = FindBinding(entity);
         if (binding == nullptr || !b2Body_IsValid(binding->bodyId)) return false;
         const b2Vec2 position = b2Body_GetPosition(binding->bodyId);
@@ -317,6 +326,11 @@ public:
             return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
         }
 
+        // Queries are observable gameplay state too. Remove stale/unsupported bindings before
+        // traversing the backend so a destroyed Scene slot or hierarchy mutation cannot leak an
+        // old backend shape through a query performed before the next fixed simulation step.
+        PruneInvalidBindings();
+
         struct RayContext final
         {
             std::vector<ScratchHit>& scratch;
@@ -328,7 +342,8 @@ public:
         {
             auto& rayContext = *static_cast<RayContext*>(rawContext);
             auto* const binding = static_cast<Binding*>(b2Shape_GetUserData(shapeId));
-            if (binding != nullptr && rayContext.totalHits < rayContext.scratch.size())
+            if (binding == nullptr) return 1.0F;
+            if (rayContext.totalHits < rayContext.scratch.size())
             {
                 rayContext.scratch[rayContext.totalHits] = ScratchHit{binding, point, normal, fraction};
             }
@@ -481,7 +496,7 @@ bool PhysicsWorld2D::DetachEntity(const scene::EntityId entity) noexcept
 
 bool PhysicsWorld2D::Contains(const scene::EntityId entity) const noexcept
 {
-    return impl_->FindBinding(entity) != nullptr;
+    return impl_->Contains(entity);
 }
 
 PhysicsStepResult2D PhysicsWorld2D::Step(const float fixedDeltaSeconds) noexcept

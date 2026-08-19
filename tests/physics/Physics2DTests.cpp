@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <utility>
 
 namespace
 {
@@ -213,6 +214,7 @@ TEST(PhysicsWorld2D, DestroyedSceneEntityIsPrunedBeforeStepping)
     physics::PhysicsWorld2D world{scene, types};
     ASSERT_EQ(world.AttachEntity(entity), physics::PhysicsAttachResult2D::Success);
     ASSERT_TRUE(scene.DestroyEntity(entity));
+    EXPECT_FALSE(world.Contains(entity));
     ASSERT_EQ(world.Step(1.0F / 60.0F), physics::PhysicsStepResult2D::Success);
     EXPECT_FALSE(world.Contains(entity));
     EXPECT_EQ(world.Metrics().stalePruneCount, 1U);
