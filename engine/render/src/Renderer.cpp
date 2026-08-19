@@ -1357,6 +1357,14 @@ private:
         {
             throw MakeSdlError("SDL GPU offscreen color-target creation failed");
         }
+        const Uint32 retainedBytes =
+            SDL_CalculateGPUTextureFormatSize(colorTargetFormat_, width, height, 1U);
+        if (retainedBytes == 0U)
+        {
+            SDL_ReleaseGPUTexture(device_, replacement);
+            throw std::runtime_error{
+                "SDL GPU could not calculate retained offscreen color-target bytes."};
+        }
         if (offscreenColorTarget_ != nullptr)
         {
             SDL_ReleaseGPUTexture(device_, offscreenColorTarget_);
@@ -1365,6 +1373,8 @@ private:
         offscreenColorTarget_ = replacement;
         offscreenTargetWidth_ = width;
         offscreenTargetHeight_ = height;
+        metrics_.retainedOffscreenColorTargetCount = 1U;
+        metrics_.retainedOffscreenColorTargetBytes = retainedBytes;
     }
 
     void EnsureCaptureTransferBuffer(const Uint32 requiredBytes)
@@ -1534,6 +1544,9 @@ private:
         metrics_.materialShaderCompilations = gpuMetrics.materialShaderCompilations;
         metrics_.materialPipelineCreations = gpuMetrics.materialPipelineCreations;
         metrics_.materialPipelineCacheHits = gpuMetrics.materialPipelineCacheHits;
+        metrics_.materialPreparedPipelineBundles = gpuMetrics.materialPreparedPipelineBundles;
+        metrics_.materialPreparedPipelineBundleCapacity =
+            gpuMetrics.materialPreparedPipelineBundleCapacity;
         metrics_.spriteVertexCapacitySprites = gpuMetrics.vertexCapacitySprites;
         metrics_.spriteVertexCapacityBytes = gpuMetrics.vertexCapacityBytes;
         metrics_.spriteMaskTargetCreations = gpuMetrics.maskTargetCreations;
@@ -1960,6 +1973,8 @@ private:
                 offscreenColorTarget_ = nullptr;
                 offscreenTargetWidth_ = 0U;
                 offscreenTargetHeight_ = 0U;
+                metrics_.retainedOffscreenColorTargetCount = 0U;
+                metrics_.retainedOffscreenColorTargetBytes = 0U;
             }
             if (spriteInstanceTransferBuffer_ != nullptr)
             {

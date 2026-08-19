@@ -120,6 +120,10 @@ struct RenderMetrics
     std::uint64_t materialShaderCompilations{0};
     std::uint64_t materialPipelineCreations{0};
     std::uint64_t materialPipelineCacheHits{0};
+    // MAT4 retained setup evidence. Counts are renderer-owned custom pipeline bundles rather than
+    // individual SDL pipeline objects; capacity is retained CustomPipelineRecord slots.
+    std::uint64_t materialPreparedPipelineBundles{0};
+    std::uint64_t materialPreparedPipelineBundleCapacity{0};
     std::uint64_t materialPipelineSwitches{0};
     std::uint64_t fragmentUniformUploads{0};
     std::uint64_t fragmentUniformUploadBytes{0};
@@ -130,6 +134,10 @@ struct RenderMetrics
     std::uint64_t spriteMaskTargetCreations{0};
     std::uint64_t explicitGpuReadbacks{0};
     std::uint64_t explicitGpuFenceWaits{0};
+    // Current retained scene color attachment. Bytes come from SDL's format-size calculation for
+    // the exact target format/dimensions; custom Material2D never owns another color target.
+    std::uint64_t retainedOffscreenColorTargetCount{0};
+    std::uint64_t retainedOffscreenColorTargetBytes{0};
     std::uint32_t lastTargetWidth{0};
     std::uint32_t lastTargetHeight{0};
 };

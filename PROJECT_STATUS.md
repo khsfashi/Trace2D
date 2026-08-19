@@ -140,13 +140,13 @@ Machine authority is `config/trace2d.core-lane.json`.
 
 ## Material / Tween / presentation direction
 
-### #89 Material2D / Shader2D
+### #89 Material2D / Shader2D — COMPLETE
 
-#89 remains the exact next task. It owns the compact programmable 2D rendering primitive: practical fragment processing, typed/resolved parameters, cache reuse, painter-order-preserving batching and a bounded future internal multi-pass seam without a public material/render graph.
+#89 is complete through MAT1-MAT4: typed fixed-capacity parameters, canonical #86 Shader2D/Material2D ownership, lifecycle-safe cached custom fragment execution, exact contiguous painter-order batching, deterministic failure/cache evidence and explicit retained pipeline/attachment costs. It adds no public render graph, material graph or effect-specific C++ vocabulary.
 
-Finished effects do not become #89 features merely because they use a shader.
+Finished effects do not become engine-core features merely because they use a shader.
 
-### #90 Tween / Sequence
+### #90 Tween / Sequence — NEXT
 
 #90 now targets a DOTween-class *practical surface* while keeping Trace2D semantics explicit and allocation-disciplined:
 
@@ -197,8 +197,8 @@ A proof should primarily compose public capabilities. If it exposes a concrete g
 Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state first.
 
 - #321 is complete; do not return to Asset Studio depth.
-- **#89 is exact next.**
-- After #89, implement #90 with the revised two-time-domain + Sequence contract.
+- **#89 is complete; #90 is the exact next core-lane item.**
+- Implement #90 with the revised two-time-domain + Sequence contract.
 - After #90, stop breadth and complete #327 before #76.
 - Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
 - Do not start #322/#323 before #331 is accepted.
