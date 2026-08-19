@@ -20,18 +20,22 @@ Product optimization target:
 
 ## Global engineering benchmark rule
 
-All non-trivial Trace2D work must follow `docs/EXTERNAL_REFERENCE_PROTOCOL.md` before design is frozen:
+All non-trivial Trace2D work must follow `docs/EXTERNAL_REFERENCE_PROTOCOL.md` before the design is frozen.
+
+The default is:
 
 ```text
 recover Trace2D decisions
- -> benchmark mature current public implementations
- -> check direct reuse
+ -> benchmark mature current GitHub/public implementations
+ -> check whether direct reuse is practical
  -> ADOPT / ADAPT / REJECT / DEFER
  -> implement only the smallest missing Trace2D-owned part
- -> verify with Trace2D evidence
+ -> verify the borrowed lesson with Trace2D evidence
 ```
 
-Do not independently rebuild an already-solved capability merely because a custom implementation is possible.
+Do not independently rebuild an already-solved engineering capability merely because custom implementation is possible. Prefer mature, maintained, well-tested implementations or proven contracts when their license, dependency weight, runtime cost, portability and authority model fit Trace2D. GitHub popularity is a discovery signal, not proof; relevance, maintenance, real use and evidence matter more.
+
+While doing this mandatory benchmark pass, agents should also notice adjacent **already-proven** capabilities that could materially improve Trace2D. When one is genuinely compelling, finish/report the active task first and then ask the owner whether to adapt it. Such a suggestion is advisory only. It must not create an issue, reorder the core lane, add a dependency or start implementation until the owner explicitly approves it.
 
 ## Completed production foundation
 
@@ -58,14 +62,27 @@ The minimum external-game sequence through B2 and the first playable proof is co
 
 ## Frozen Sprite continuity
 
-The completed Sprite program remains authoritative continuity:
+The completed production Sprite program remains frozen continuity for later work. In particular:
 
-- SA0-SA4 own deterministic Sprite animation,
-- SR0-SR8 own production Sprite renderer/presentation,
-- SPP0-SPP5 own deterministic processing/import/provider-neutral generation orchestration,
-- SE2E/SPERF remain end-to-end/performance evidence.
+- **#144 / SA0** deterministic Sprite animation timing/frame/event contract remains complete and frozen,
+- SA1-SA4 remain the authoritative deterministic Sprite animation continuation built on SA0,
+- SR0-SR8 remain the production Sprite renderer/presentation authority,
+- SPP0-SPP5 remain the deterministic processing, extraction, quality/repair, import, generator-manifest and provider-neutral generation-orchestration authority,
+- SE2E/SPERF remain end-to-end and performance evidence continuity.
 
-Later systems must compose these contracts rather than create parallel Sprite truth.
+Later systems must compose these contracts rather than create parallel Sprite truth or weaken frozen animation/runtime semantics.
+
+## Immutable benchmark lessons
+
+### B1
+
+B1 remains immutable pre-improvement evidence. Its important product lesson is that runtime correctness and Agent usability are separate: several Trace2D final workspaces verified successfully despite Agent-budget failure. Do not rerun B1 to obtain a preferred score.
+
+### B2
+
+B2 and acceptance-v1-v5 remain consumed evidence. V5 ended in Agent/CLI completion-result timeout after partial workspace side effects; no gameplay-verifier or presentation-quality defect was demonstrated by that run. Do not create V6 merely to force a pass.
+
+These results reinforce the need for real product proofs and compact Agent surfaces instead of benchmark-shaped architecture growth.
 
 ## Asset Studio checkpoint — deliberately split
 
