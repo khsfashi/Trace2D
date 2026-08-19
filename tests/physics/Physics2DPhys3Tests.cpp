@@ -119,7 +119,8 @@ TEST(PhysicsWorld2DPHYS3, RuntimeCommandsWakeBodiesAndTeleportSceneAuthorityImme
     ASSERT_TRUE(world.TryGetBodyState(dynamic, state));
     EXPECT_FLOAT_EQ(state.position.x, teleportedPosition.x);
     EXPECT_FLOAT_EQ(state.position.y, teleportedPosition.y);
-    EXPECT_NEAR(state.rotationRadians, teleportedRotation, 0.0001F);
+    // Box2D 3.1.1 uses an approximate atan2 for angle readback; Scene retains the exact teleport command angle.
+    EXPECT_NEAR(state.rotationRadians, teleportedRotation, 0.002F);
     EXPECT_TRUE(state.awake);
 
     const physics::PhysicsMetrics2D metrics = world.Metrics();
