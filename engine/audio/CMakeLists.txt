@@ -1,4 +1,7 @@
+find_path(TRACE2D_MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
+
 add_library(trace2d_audio STATIC
+    src/AudioClipPreparation2D.cpp
     src/AudioComponents2D.cpp
     src/AudioSystem2D.cpp
 )
@@ -8,6 +11,11 @@ add_library(Trace2D::Audio ALIAS trace2d_audio)
 target_include_directories(trace2d_audio
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+target_include_directories(trace2d_audio
+    SYSTEM PRIVATE
+        ${TRACE2D_MINIAUDIO_INCLUDE_DIR}
 )
 
 target_link_libraries(trace2d_audio
