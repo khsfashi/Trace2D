@@ -18,6 +18,12 @@ Product optimization target:
 
 > **Author -> Run -> Observe -> Verify -> Revise through a compact semantic surface.**
 
+A second owner rule now governs breadth:
+
+> **Subsystem existence is not enough. Repeatedly prove that public Trace2D surfaces can make an actual game/product workflow.**
+
+See `docs/PRODUCT_PROOF_POLICY.md`.
+
 ## Global engineering benchmark rule
 
 All non-trivial Trace2D work must follow `docs/EXTERNAL_REFERENCE_PROTOCOL.md` before the design is frozen.
@@ -33,9 +39,9 @@ recover Trace2D decisions
  -> verify the borrowed lesson with Trace2D evidence
 ```
 
-Do not independently rebuild an already-solved engineering capability merely because custom implementation is possible. Prefer mature, maintained, well-tested implementations or proven contracts when their license, dependency weight, runtime cost, portability and authority model fit Trace2D. GitHub popularity is a discovery signal, not proof; relevance, maintenance, real use and evidence matter more.
+Do not independently rebuild an already-solved engineering capability merely because custom implementation is possible. Prefer mature, maintained, well-tested implementations or proven contracts when their license, dependency weight, runtime cost, portability and authority model fit Trace2D.
 
-While doing this mandatory benchmark pass, agents should also notice adjacent **already-proven** capabilities that could materially improve Trace2D. When one is genuinely compelling, finish/report the active task first and then ask the owner whether to adapt it. Such a suggestion is advisory only. It must not create an issue, reorder the core lane, add a dependency or start implementation until the owner explicitly approves it.
+TraceResearch owns controlled comparative claims about Agent efficiency. Trace2D may retain representative product/Agent evidence, but must not grow benchmark-specific architecture merely to improve a research score.
 
 ## Completed production foundation
 
@@ -84,82 +90,116 @@ B2 and acceptance-v1-v5 remain consumed evidence. V5 ended in Agent/CLI completi
 
 These results reinforce the need for real product proofs and compact Agent surfaces instead of benchmark-shaped architecture growth.
 
-## Asset Studio checkpoint — deliberately split
+## Asset Studio checkpoint — minimal foundation complete
 
-#318 remains the long-term Asset Studio product umbrella, but it is no longer an operational blocker after the minimal current foundation.
+#318 remains the long-term Asset Studio umbrella, but it is not an operational blocker.
 
 ### #320 — production intent / Art Profile — COMPLETE
 
-Merged via PR #325. `AssetProductionSpec` records set/item intent, candidate/provider budgets and approved style references while reusing exact #97 human-review acceptance authority. It owns no provider config, candidate lifecycle, aesthetic score or runtime state.
+Merged via PR #325.
 
-### #321 — bounded candidate comparison substrate — CURRENT
+### #321 — bounded candidate comparison substrate — COMPLETE
 
-#321 is intentionally the final immediate Asset Studio slice before engine breadth resumes.
-
-It adds only the missing comparison grouping:
-
-- production-set/item identity,
-- exact WorkResult/work revision binding,
-- stable candidate id + bounded ordinal,
-- references to artifacts already owned by that exact revision,
-- Workspace composition that rejects stale revisions and unknown artifacts.
-
-It must not add candidate approval/rejection state, provider/model/workflow fields, provider cost DB, aesthetic scores, approved-library lineage, live generation, GUI-only truth or runtime work.
-
-External-reference decision for #321:
-
-- InvokeAI Gallery/Boards: **ADAPT** output grouping/recallable metadata; **REJECT** its application DB as project truth.
-- ComfyUI history/output references: **ADAPT** stable output references; **REJECT** workflow-graph/queue identity as Trace2D candidate truth.
-- Trace2D #98/#99: **ADOPT** existing revision/artifact/review/approval/stale-action authority.
-
-See `docs/ASSET_CANDIDATE_SET.md`.
+Merged via PR #326. It remains intentionally minimal: candidate grouping/references compose existing WorkResult/Workspace authority and do not own provider config, lifecycle/approval state, aesthetic score, lineage DB or runtime truth.
 
 ### #322 / #323 — DEFERRED
 
-Do not continue directly to Asset Studio lineage/provider depth after #321.
-
-#322 approved-library lineage and #323 one-provider batch proof are postponed until the broader production foundation through #79 is complete. This avoids freezing the production model around today's Sprite-heavy capability set.
+Approved-library lineage and one-provider batch proof stay behind the broader production foundation and the new product-proof checkpoints. Do not resume Asset Studio depth early.
 
 ## Fixed continuation lane — owner amendment 2026-08-19
 
 Operational order is now:
 
 ```text
-#321 minimal candidate comparison substrate
- -> #89 Material2D / Shader2D
- -> #90 deterministic Tween
- -> #76 Physics2D
- -> #77 Audio
- -> #91 Profiler
- -> #78 Linux / non-MSVC toolchain
- -> #92 tiered GPU QA
- -> #79 Save / Migration
+#89  Material2D / Shader2D
+ -> #90  Tween / Sequence
+ -> #327 Presentation Product Proof
+ -> #76  Physics2D
+ -> #77  Audio
+ -> #329 Combat Product Proof
+ -> #91  Profiler
+ -> #78  Linux / non-MSVC toolchain
+ -> #92  tiered GPU QA
+ -> #330 Cross-platform Stress Product Proof
+ -> #79  Save / Migration
+ -> #331 Save Product Proof
  -> #322 approved asset lineage
  -> #323 one-provider Asset Studio batch proof
- -> #12 broad flagship external game
- -> #60 Mesh2D
+ -> #12  broad flagship external game
+ -> #60  Mesh2D
  -> #177 Asset Intelligence / Asset IR
  -> #176 native deterministic skeleton
- -> #61 Spine license gate
+ -> #61  Spine license gate
 ```
 
-#318 stays open as a long-lived product umbrella but is intentionally absent from the operational lane so it cannot prevent #89 after #321.
+Machine authority is `config/trace2d.core-lane.json`.
+
+#328 Presentation Recipes is a long-lived product vocabulary/backlog, not a blocking lane item. Recipes are pulled into concrete product proofs as needed rather than implemented speculatively.
 
 #312 Semantic Project Graph / Project Index remains research-gated and does not enter this lane automatically.
 
-## Material / presentation direction already reserved
+## Material / Tween / presentation direction
 
-#89 is the exact next breadth step after #321. Its existing contract intentionally provides a compact programmable 2D rendering surface for practical effects such as hit flash, outline, dissolve, grayscale, palette/UV processing and custom fragment color effects without creating a material graph or public render graph.
+### #89 Material2D / Shader2D
 
-#90 follows with deterministic tweening suitable for transforms, colors, material parameters, camera motion and UI transitions.
+#89 remains the exact next task. It owns the compact programmable 2D rendering primitive: practical fragment processing, typed/resolved parameters, cache reuse, painter-order-preserving batching and a bounded future internal multi-pass seam without a public material/render graph.
 
-These low-level primitives should support higher-level reusable presentation recipes without promoting every visual trick into a bespoke engine subsystem.
+Finished effects do not become #89 features merely because they use a shader.
+
+### #90 Tween / Sequence
+
+#90 now targets a DOTween-class *practical surface* while keeping Trace2D semantics explicit and allocation-disciplined:
+
+- explicit `simulation` time domain for authoritative fixed-step tweening,
+- explicit `presentation` time domain advanced only by supplied/manual delta with no hidden wall-clock query,
+- resolved typed property/material bindings,
+- finite stable easing vocabulary,
+- absolute/relative and capture-current-on-start semantics,
+- first-class `Append`, `Join`, `Insert`, `Interval`, repeat/yoyo and deterministic conflict policies,
+- stale-safe reusable pooled storage/generational identity or equivalent,
+- no steady-step string lookup/heap allocation at retained capacity,
+- presentation completion/callbacks cannot become hidden gameplay authority.
+
+See issue #90 for the binding implementation contract.
+
+## Official Presentation Recipes
+
+Trace2D owns an **Official Presentation Recipe** layer above engine primitives and below game-specific art direction. See `docs/PRESENTATION_RECIPES.md` and umbrella #328.
+
+Representative recipe vocabulary may include hit flash, outline, dissolve, palette/UV effects, button punch, panel slide, damage-number motion, screen flash and composite hit impact.
+
+Binding promotion rule:
+
+```text
+external technique / real game need
+ -> first reproduce with existing Trace2D primitives as a recipe
+ -> prove it in a real sample + retain cost/quality evidence
+ -> only if multiple independent recipes repeatedly need the same missing capability,
+    or measured performance/quality cannot be achieved,
+    promote the smallest common primitive into engine core
+```
+
+Do not implement `one cool effect = one C++ subsystem`.
+
+## Recurring Product Proof rule
+
+Product proofs are deliberately inserted between groups of substantial subsystems:
+
+- #89 + #90 -> #327 presentation playground,
+- #76 + #77 -> #329 small combat/game-feel loop,
+- #91 + #78 + #92 -> #330 same-workload cross-platform/stress proof,
+- #79 -> #331 real exit/restart/migration proof.
+
+A proof should primarily compose public capabilities. If it exposes a concrete gap, fix the smallest demonstrated gap. Preserve owner-rejected/failed evidence rather than rerunning solely to erase an unfavorable result.
 
 ## Continuation rule
 
 Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state first.
 
-- If a #321 PR is open, finish its review/CI/merge.
-- Once #321 closes green, **#89 is exact next**.
-- Do not start #322/#323 before the lane reaches them after #79.
+- #321 is complete; do not return to Asset Studio depth.
+- **#89 is exact next.**
+- After #89, implement #90 with the revised two-time-domain + Sequence contract.
+- After #90, stop breadth and complete #327 before #76.
+- Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
+- Do not start #322/#323 before #331 is accepted.
 - Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
