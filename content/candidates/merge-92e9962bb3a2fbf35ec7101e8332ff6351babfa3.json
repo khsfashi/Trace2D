@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+  "source_event": "merge",
+  "event_id": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+        "authored_at": "2026-08-19T17:55:21+09:00",
+        "subject": "T3: add deterministic Tween2D sequence composition (#348)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "freeze Append/Join/Insert/Interval schedule into stable (offset, author-order) metadata and step the shared TweenBindingSystem exactly once per supplied domain delta at authored boundaries.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "retire completed child handles before T1/T2 generational slot reuse so normal pool reuse cannot become a false stale-child cancellation.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "overlapping same-binding children are rejected during setup; external conflicts remain T2 reject/replace authority; capture-current remains deterministic activation-time state.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+          }
+        ]
+      },
+      {
+        "id": "decisions-004",
+        "text": "Join after Interval anchors at the interval start, adapting the mature DOTween sequence contract.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+            "trailer": "Decision",
+            "ordinal": 4,
+            "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "no arbitrary callbacks, Variant/reflection/property-name lookup in steady stepping, nested sequences, sequence-level loop-yoyo, or separate writer authority in T3.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "ADAPT DOTween composition/interval semantics, Godot explicit/manual stepping and lifecycle concepts, and Unreal caller-delta lifecycle; REJECT callback/generic-property mutation paths that conflict with Trace2D T2 authority.",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "92e9962bb3a2fbf35ec7101e8332ff6351babfa3",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/92e9962bb3a2fbf35ec7101e8332ff6351babfa3"
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
