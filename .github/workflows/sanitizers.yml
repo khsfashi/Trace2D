@@ -106,7 +106,8 @@ jobs:
             trace2d_runtime_tests \
             trace2d_scene_tests \
             trace2d_physics_tests \
-            trace2d_assets_tests
+            trace2d_assets_tests \
+            trace2d_audio_tests
 
       - name: Run ASan + UBSan headless suites
         shell: bash

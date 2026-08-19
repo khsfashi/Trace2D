@@ -128,6 +128,8 @@ std::string_view ToString(ResourceTypeDomain value) noexcept
         return "shader_2d";
     case ResourceTypeDomain::Material2D:
         return "material_2d";
+    case ResourceTypeDomain::AudioClip:
+        return "audio_clip";
     }
     return "unknown";
 }
@@ -1070,6 +1072,17 @@ ResourceMemoryEvidence ResourceRegistry::MemoryOf(const Slot& slot) const
         evidence.cpuRetention = font->cpuRetention;
         evidence.cpuPayloadResident = !font->canonicalBytes.empty();
         evidence.retentionReason = font->retentionReason;
+        return evidence;
+    }
+
+    if (const AudioClipResource* audio = std::get_if<AudioClipResource>(&slot.payload))
+    {
+        evidence.knownRetainedCpuBytes = sizeof(AudioClipResource) +
+                                         StringLogicalBytes(audio->retentionReason);
+        evidence.retainedContainerCapacityBytes = StringCapacityBytes(audio->retentionReason);
+        evidence.cpuRetention = audio->cpuRetention;
+        evidence.cpuPayloadResident = true;
+        evidence.retentionReason = audio->retentionReason;
         return evidence;
     }
 
