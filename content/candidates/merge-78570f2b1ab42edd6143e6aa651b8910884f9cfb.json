@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+  "source_event": "merge",
+  "event_id": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+        "authored_at": "2026-08-19T18:22:57+09:00",
+        "subject": "T4: bind Tween2D to retained Material2D parameters (#350)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "extend the existing T2 binding authority with setup-only external typed providers so Material2D capture/relative/conflict/invalidation and T3 Sequence composition reuse one writer path instead of introducing a material-specific tween kernel.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+          }
+        ]
+      },
+      {
+        "id": "decisions-002",
+        "text": "retain per-instance prepared MaterialParameterBlock2D state behind slot+generation MaterialTween targets; canonical #86 Material2D defaults remain immutable and existing MAT override validation refreshes valueIdentity after each write.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+            "trailer": "Decision",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+          }
+        ]
+      },
+      {
+        "id": "decisions-003",
+        "text": "resolve Material2D names once through the existing MAT binding layout, then keep only provider/target/property indices and fixed TweenValueType in steady stepping.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+            "trailer": "Decision",
+            "ordinal": 3,
+            "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "no steady-step semantic string lookup, Variant/reflection/property bags, filesystem/GPU work, arbitrary completion callbacks, or hidden gameplay mutation authority; MaterialTweenTargetPool2D is non-copy/non-move because provider context requires a stable address.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "a material write is O(parameter-count) with the existing hard <=16 parameter bound in exchange for exact renderer batching/cache identity.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [],
+    "directives": [],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [
+    {
+      "id": "reference-001",
+      "text": "ADAPT Godot runtime material animation/manual update-domain concepts and DOTween pre-resolved Material propertyID shortcuts; REJECT dynamic name/Variant lookup and generic callback mutation in the core.",
+      "evidence": [
+        {
+          "source_type": "commit_trailer",
+          "commit": "78570f2b1ab42edd6143e6aa651b8910884f9cfb",
+          "trailer": "Reference",
+          "ordinal": 1,
+          "url": "https://github.com/khsfashi/Trace2D/commit/78570f2b1ab42edd6143e6aa651b8910884f9cfb"
+        }
+      ]
+    }
+  ],
+  "related": [],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
