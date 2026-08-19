@@ -63,6 +63,7 @@ enum class PhysicsContactEventKind2D : std::uint8_t
 {
     Begin = 0,
     End,
+    Hit,
 };
 
 struct PhysicsContactEvent2D final
@@ -76,6 +77,7 @@ struct PhysicsContactEvent2D final
     std::uint8_t colliderSemanticIdBLength{0U};
     scene::Vector2 point{};
     scene::Vector2 normal{};
+    float approachSpeed{0.0F};
     bool hasContactGeometry{false};
 
     [[nodiscard]] std::string_view ColliderSemanticIdA() const noexcept
