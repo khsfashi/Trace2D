@@ -74,12 +74,12 @@ jobs:
           key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
           enableCrossOsArchive: true
 
-      - name: Cache Linux vcpkg binary archives
-        uses: actions/cache@v4
+      - name: Restore Linux vcpkg binary archives
+        id: vcpkg-binary-cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/vcpkg/archives
           key: trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
-          save-always: true
 
       - name: Configure sanitizer verification build
         shell: bash
@@ -114,3 +114,10 @@ jobs:
           ctest --test-dir build/sanitizers \
             -L sanitizer-headless \
             --output-on-failure
+
+      - name: Save Linux vcpkg binary archives
+        if: always() && steps.vcpkg-binary-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
