@@ -22,7 +22,7 @@ using namespace trace2d;
     const float start,
     const float end,
     const runtime::TweenTime2D duration = 10ns,
-    const runtime::TweenTimeDomain2D domain = runtime::TweenTimeDomain2D::Presentation)
+    const runtime::TweenTimeDomain2D domain = runtime::TweenTimeTimeDomain2D::Presentation)
 {
     scene::TweenBindingSpec2D spec{};
     spec.tween.domain = domain;
@@ -160,6 +160,13 @@ TEST(TweenSequence2DTests, PauseResumeRestartAndYoyoReuseRetainedSlots)
 
     scene::TweenSequenceHandle2D yoyoHandle{};
     ASSERT_TRUE(sequences.Create(yoyo, yoyoHandle).Succeeded());
+    EXPECT_EQ(yoyoHandle.index, handle.index);
+    EXPECT_NE(yoyoHandle.generation, handle.generation);
+    scene::TweenSequenceState2D staleState{};
+    EXPECT_EQ(
+        sequences.Inspect(handle, staleState).error,
+        scene::TweenSequenceError2D::InvalidHandle);
+
     ASSERT_TRUE(sequences.Step(runtime::TweenTimeDomain2D::Presentation, 10ns).Succeeded());
     EXPECT_FLOAT_EQ(scene.TryGet(entity)->LocalTransform().rotationRadians, 5.0F);
 
