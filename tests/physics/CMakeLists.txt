@@ -1,5 +1,6 @@
 add_executable(trace2d_physics_tests
     Physics2DTests.cpp
+    Physics2DPhys2Tests.cpp
 )
 
 target_link_libraries(trace2d_physics_tests

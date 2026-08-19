@@ -63,6 +63,17 @@ namespace
     }
     return b2_staticBody;
 }
+
+[[nodiscard]] bool SemanticEntityLess(
+    const std::string_view leftSemantic,
+    const scene::EntityId leftEntity,
+    const std::string_view rightSemantic,
+    const scene::EntityId rightEntity) noexcept
+{
+    if (leftSemantic != rightSemantic) return leftSemantic < rightSemantic;
+    if (leftEntity.index != rightEntity.index) return leftEntity.index < rightEntity.index;
+    return leftEntity.generation < rightEntity.generation;
+}
 } // namespace
 
 class PhysicsWorld2D::Impl final
@@ -76,6 +87,7 @@ public:
         b2ShapeId shapeId{};
         std::array<char, PhysicsSemanticIdCapacity2D> semanticId{};
         std::uint8_t semanticIdLength{0U};
+        bool sensor{false};
 
         [[nodiscard]] std::string_view SemanticId() const noexcept
         {
@@ -128,6 +140,19 @@ public:
         if (rayHitCapacity > rayScratch_.size()) rayScratch_.resize(rayHitCapacity);
     }
 
+    void ReserveEvents(const std::size_t contactEventCapacity, const std::size_t sensorEventCapacity)
+    {
+        if (contactEventCapacity > contactEventScratch_.size()) contactEventScratch_.resize(contactEventCapacity);
+        if (sensorEventCapacity > sensorEventScratch_.size()) sensorEventScratch_.resize(sensorEventCapacity);
+        contactEventCount_ = 0U;
+        sensorEventCount_ = 0U;
+    }
+
+    void ReserveOverlap(const std::size_t overlapHitCapacity)
+    {
+        if (overlapHitCapacity > overlapScratch_.size()) overlapScratch_.resize(overlapHitCapacity);
+    }
+
     [[nodiscard]] Binding* FindBinding(const scene::EntityId entity) noexcept
     {
         const auto iterator = std::find_if(bindings_.begin(), bindings_.end(), [entity](const auto& binding)
@@ -168,13 +193,11 @@ public:
         if (!IsValidBody(*body) || !IsValidCollider(*collider)) return PhysicsAttachResult2D::InvalidComponent;
         if (!b2World_IsValid(worldId_)) return PhysicsAttachResult2D::BackendFailure;
 
-        // Finish all allocation-capable setup before creating backend objects. Once capacity is
-        // available, moving a unique_ptr into the vector is non-throwing, so a failed allocation
-        // cannot orphan a Box2D body that Trace2D no longer has a binding for.
         if (bindings_.size() == bindings_.capacity()) bindings_.reserve(bindings_.size() + 1U);
         auto binding = std::make_unique<Binding>();
         binding->entity = entity;
         binding->bodyType = body->type;
+        binding->sensor = collider->sensor;
         binding->semanticIdLength = static_cast<std::uint8_t>(collider->semanticId.size());
         std::memcpy(binding->semanticId.data(), collider->semanticId.data(), collider->semanticId.size());
 
@@ -202,9 +225,9 @@ public:
         shapeDef.filter.categoryBits = static_cast<std::uint64_t>(collider->layerBits);
         shapeDef.filter.maskBits = static_cast<std::uint64_t>(collider->maskBits);
         shapeDef.isSensor = collider->sensor;
-        shapeDef.enableSensorEvents = false;
-        shapeDef.enableContactEvents = false;
-        shapeDef.enableHitEvents = false;
+        shapeDef.enableSensorEvents = true;
+        shapeDef.enableContactEvents = !collider->sensor;
+        shapeDef.enableHitEvents = !collider->sensor;
 
         if (collider->shape == ColliderShape2D::Circle)
         {
@@ -273,15 +296,277 @@ public:
         }
     }
 
-    [[nodiscard]] PhysicsStepResult2D Step(const float fixedDeltaSeconds) noexcept
+    [[nodiscard]] Binding* ResolveObservableBinding(const b2ShapeId shapeId) noexcept
     {
+        if (!b2Shape_IsValid(shapeId)) return nullptr;
+        auto* const binding = static_cast<Binding*>(b2Shape_GetUserData(shapeId));
+        if (binding == nullptr || !scene_.Contains(binding->entity)) return nullptr;
+        return binding;
+    }
+
+    [[nodiscard]] static bool BindingKeyLess(const Binding& left, const Binding& right) noexcept
+    {
+        return SemanticEntityLess(left.SemanticId(), left.entity, right.SemanticId(), right.entity);
+    }
+
+    static void CopySemanticId(
+        const Binding& binding,
+        std::array<char, PhysicsSemanticIdCapacity2D>& destination,
+        std::uint8_t& destinationLength) noexcept
+    {
+        destination.fill('\0');
+        destinationLength = binding.semanticIdLength;
+        std::memcpy(destination.data(), binding.semanticId.data(), binding.semanticIdLength);
+    }
+
+    [[nodiscard]] bool BuildContactEvent(
+        const PhysicsContactEventKind2D kind,
+        const b2ShapeId shapeIdA,
+        const b2ShapeId shapeIdB,
+        const b2Manifold* manifold,
+        const float approachSpeed,
+        PhysicsContactEvent2D& output) noexcept
+    {
+        Binding* bindingA = ResolveObservableBinding(shapeIdA);
+        Binding* bindingB = ResolveObservableBinding(shapeIdB);
+        if (bindingA == nullptr || bindingB == nullptr || bindingA->sensor || bindingB->sensor) return false;
+
+        bool swapped = false;
+        if (BindingKeyLess(*bindingB, *bindingA))
+        {
+            std::swap(bindingA, bindingB);
+            swapped = true;
+        }
+
+        output = {};
+        output.kind = kind;
+        output.entityA = bindingA->entity;
+        output.entityB = bindingB->entity;
+        CopySemanticId(*bindingA, output.colliderSemanticIdA, output.colliderSemanticIdALength);
+        CopySemanticId(*bindingB, output.colliderSemanticIdB, output.colliderSemanticIdBLength);
+        output.approachSpeed = approachSpeed;
+
+        if (manifold != nullptr && manifold->pointCount > 0)
+        {
+            output.hasContactGeometry = true;
+            output.point = scene::Vector2{manifold->points[0].point.x, manifold->points[0].point.y};
+            output.normal = scene::Vector2{manifold->normal.x, manifold->normal.y};
+            if (swapped)
+            {
+                output.normal.x = -output.normal.x;
+                output.normal.y = -output.normal.y;
+            }
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool BuildSensorEvent(
+        const PhysicsSensorEventKind2D kind,
+        const b2ShapeId sensorShapeId,
+        const b2ShapeId visitorShapeId,
+        PhysicsSensorEvent2D& output) noexcept
+    {
+        Binding* const sensor = ResolveObservableBinding(sensorShapeId);
+        Binding* const visitor = ResolveObservableBinding(visitorShapeId);
+        if (sensor == nullptr || visitor == nullptr || !sensor->sensor) return false;
+
+        output = {};
+        output.kind = kind;
+        output.sensorEntity = sensor->entity;
+        output.visitorEntity = visitor->entity;
+        CopySemanticId(*sensor, output.sensorColliderSemanticId, output.sensorColliderSemanticIdLength);
+        CopySemanticId(*visitor, output.visitorColliderSemanticId, output.visitorColliderSemanticIdLength);
+        return true;
+    }
+
+    [[nodiscard]] PhysicsStepReport2D ProjectEvents() noexcept
+    {
+        contactEventCount_ = 0U;
+        sensorEventCount_ = 0U;
+        std::size_t requiredContactCapacity = 0U;
+        std::size_t requiredSensorCapacity = 0U;
+
+        const b2ContactEvents contactEvents = b2World_GetContactEvents(worldId_);
+        for (int index = 0; index < contactEvents.beginCount; ++index)
+        {
+            const b2ContactBeginTouchEvent& source = contactEvents.beginEvents[index];
+            PhysicsContactEvent2D event{};
+            if (!BuildContactEvent(
+                    PhysicsContactEventKind2D::Begin,
+                    source.shapeIdA,
+                    source.shapeIdB,
+                    &source.manifold,
+                    0.0F,
+                    event))
+            {
+                continue;
+            }
+            if (requiredContactCapacity < contactEventScratch_.size())
+                contactEventScratch_[requiredContactCapacity] = event;
+            ++requiredContactCapacity;
+        }
+        for (int index = 0; index < contactEvents.endCount; ++index)
+        {
+            const b2ContactEndTouchEvent& source = contactEvents.endEvents[index];
+            PhysicsContactEvent2D event{};
+            if (!BuildContactEvent(
+                    PhysicsContactEventKind2D::End,
+                    source.shapeIdA,
+                    source.shapeIdB,
+                    nullptr,
+                    0.0F,
+                    event))
+            {
+                continue;
+            }
+            if (requiredContactCapacity < contactEventScratch_.size())
+                contactEventScratch_[requiredContactCapacity] = event;
+            ++requiredContactCapacity;
+        }
+        for (int index = 0; index < contactEvents.hitCount; ++index)
+        {
+            const b2ContactHitEvent& source = contactEvents.hitEvents[index];
+            PhysicsContactEvent2D event{};
+            if (!BuildContactEvent(
+                    PhysicsContactEventKind2D::Hit,
+                    source.shapeIdA,
+                    source.shapeIdB,
+                    nullptr,
+                    source.approachSpeed,
+                    event))
+            {
+                continue;
+            }
+            event.hasContactGeometry = true;
+            event.point = scene::Vector2{source.point.x, source.point.y};
+            event.normal = scene::Vector2{source.normal.x, source.normal.y};
+            Binding* const canonicalA = ResolveObservableBinding(source.shapeIdA);
+            Binding* const canonicalB = ResolveObservableBinding(source.shapeIdB);
+            if (canonicalA != nullptr && canonicalB != nullptr && BindingKeyLess(*canonicalB, *canonicalA))
+            {
+                event.normal.x = -event.normal.x;
+                event.normal.y = -event.normal.y;
+            }
+            if (requiredContactCapacity < contactEventScratch_.size())
+                contactEventScratch_[requiredContactCapacity] = event;
+            ++requiredContactCapacity;
+        }
+
+        const b2SensorEvents sensorEvents = b2World_GetSensorEvents(worldId_);
+        for (int index = 0; index < sensorEvents.beginCount; ++index)
+        {
+            const b2SensorBeginTouchEvent& source = sensorEvents.beginEvents[index];
+            PhysicsSensorEvent2D event{};
+            if (!BuildSensorEvent(
+                    PhysicsSensorEventKind2D::Begin,
+                    source.sensorShapeId,
+                    source.visitorShapeId,
+                    event))
+            {
+                continue;
+            }
+            if (requiredSensorCapacity < sensorEventScratch_.size())
+                sensorEventScratch_[requiredSensorCapacity] = event;
+            ++requiredSensorCapacity;
+        }
+        for (int index = 0; index < sensorEvents.endCount; ++index)
+        {
+            const b2SensorEndTouchEvent& source = sensorEvents.endEvents[index];
+            PhysicsSensorEvent2D event{};
+            if (!BuildSensorEvent(
+                    PhysicsSensorEventKind2D::End,
+                    source.sensorShapeId,
+                    source.visitorShapeId,
+                    event))
+            {
+                continue;
+            }
+            if (requiredSensorCapacity < sensorEventScratch_.size())
+                sensorEventScratch_[requiredSensorCapacity] = event;
+            ++requiredSensorCapacity;
+        }
+
+        if (requiredContactCapacity > contactEventScratch_.size() ||
+            requiredSensorCapacity > sensorEventScratch_.size())
+        {
+            ++eventCapacityFailureCount_;
+            return {
+                PhysicsStepResult2D::EventCapacityExceeded,
+                0U,
+                0U,
+                requiredContactCapacity,
+                requiredSensorCapacity,
+            };
+        }
+
+        const auto contactBegin = contactEventScratch_.begin();
+        const auto contactEnd = contactBegin + static_cast<std::ptrdiff_t>(requiredContactCapacity);
+        std::sort(contactBegin, contactEnd, [](const PhysicsContactEvent2D& left, const PhysicsContactEvent2D& right)
+        {
+            if (left.kind != right.kind)
+                return static_cast<std::uint8_t>(left.kind) < static_cast<std::uint8_t>(right.kind);
+            if (left.ColliderSemanticIdA() != right.ColliderSemanticIdA() || !(left.entityA == right.entityA))
+            {
+                return SemanticEntityLess(
+                    left.ColliderSemanticIdA(),
+                    left.entityA,
+                    right.ColliderSemanticIdA(),
+                    right.entityA);
+            }
+            return SemanticEntityLess(
+                left.ColliderSemanticIdB(),
+                left.entityB,
+                right.ColliderSemanticIdB(),
+                right.entityB);
+        });
+
+        const auto sensorBegin = sensorEventScratch_.begin();
+        const auto sensorEnd = sensorBegin + static_cast<std::ptrdiff_t>(requiredSensorCapacity);
+        std::sort(sensorBegin, sensorEnd, [](const PhysicsSensorEvent2D& left, const PhysicsSensorEvent2D& right)
+        {
+            if (left.kind != right.kind)
+                return static_cast<std::uint8_t>(left.kind) < static_cast<std::uint8_t>(right.kind);
+            if (left.SensorColliderSemanticId() != right.SensorColliderSemanticId() ||
+                !(left.sensorEntity == right.sensorEntity))
+            {
+                return SemanticEntityLess(
+                    left.SensorColliderSemanticId(),
+                    left.sensorEntity,
+                    right.SensorColliderSemanticId(),
+                    right.sensorEntity);
+            }
+            return SemanticEntityLess(
+                left.VisitorColliderSemanticId(),
+                left.visitorEntity,
+                right.VisitorColliderSemanticId(),
+                right.visitorEntity);
+        });
+
+        contactEventCount_ = requiredContactCapacity;
+        sensorEventCount_ = requiredSensorCapacity;
+        return {
+            PhysicsStepResult2D::Success,
+            requiredContactCapacity,
+            requiredSensorCapacity,
+            requiredContactCapacity,
+            requiredSensorCapacity,
+        };
+    }
+
+    [[nodiscard]] PhysicsStepReport2D StepWithReport(const float fixedDeltaSeconds) noexcept
+    {
+        contactEventCount_ = 0U;
+        sensorEventCount_ = 0U;
         if (!std::isfinite(fixedDeltaSeconds) || fixedDeltaSeconds <= 0.0F)
-            return PhysicsStepResult2D::InvalidDelta;
-        if (!b2World_IsValid(worldId_)) return PhysicsStepResult2D::BackendInvalid;
+            return {PhysicsStepResult2D::InvalidDelta, 0U, 0U, 0U, 0U};
+        if (!b2World_IsValid(worldId_))
+            return {PhysicsStepResult2D::BackendInvalid, 0U, 0U, 0U, 0U};
 
         PruneInvalidBindings();
         b2World_Step(worldId_, fixedDeltaSeconds, subStepCount_);
         ++fixedStepCount_;
+
+        PhysicsStepReport2D report = ProjectEvents();
 
         for (const auto& ownedBinding : bindings_)
         {
@@ -294,7 +579,22 @@ public:
             entity->Transform().position = scene::Vector2{position.x, position.y};
             entity->Transform().rotationRadians = b2Atan2(rotation.s, rotation.c);
         }
-        return PhysicsStepResult2D::Success;
+        return report;
+    }
+
+    [[nodiscard]] PhysicsStepResult2D Step(const float fixedDeltaSeconds) noexcept
+    {
+        return StepWithReport(fixedDeltaSeconds).result;
+    }
+
+    [[nodiscard]] std::span<const PhysicsContactEvent2D> ContactEvents() const noexcept
+    {
+        return {contactEventScratch_.data(), contactEventCount_};
+    }
+
+    [[nodiscard]] std::span<const PhysicsSensorEvent2D> SensorEvents() const noexcept
+    {
+        return {sensorEventScratch_.data(), sensorEventCount_};
     }
 
     [[nodiscard]] bool TryGetBodyState(const scene::EntityId entity, PhysicsBodyState2D& outState) const noexcept
@@ -326,9 +626,6 @@ public:
             return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
         }
 
-        // Queries are observable gameplay state too. Remove stale/unsupported bindings before
-        // traversing the backend so a destroyed Scene slot or hierarchy mutation cannot leak an
-        // old backend shape through a query performed before the next fixed simulation step.
         PruneInvalidBindings();
 
         struct RayContext final
@@ -374,9 +671,8 @@ public:
         std::sort(begin, end, [](const ScratchHit& left, const ScratchHit& right)
         {
             if (left.fraction != right.fraction) return left.fraction < right.fraction;
-            const std::string_view leftSemantic = left.binding->SemanticId();
-            const std::string_view rightSemantic = right.binding->SemanticId();
-            if (leftSemantic != rightSemantic) return leftSemantic < rightSemantic;
+            if (left.binding->SemanticId() != right.binding->SemanticId())
+                return left.binding->SemanticId() < right.binding->SemanticId();
             if (left.binding->entity.index != right.binding->entity.index)
                 return left.binding->entity.index < right.binding->entity.index;
             return left.binding->entity.generation < right.binding->entity.generation;
@@ -400,18 +696,126 @@ public:
         return {PhysicsQueryResult2D::Success, context.totalHits, context.totalHits};
     }
 
+    [[nodiscard]] PhysicsOverlapReport2D OverlapShape(
+        const b2ShapeProxy& proxy,
+        const std::uint32_t layerBits,
+        const std::uint32_t maskBits,
+        const std::span<PhysicsOverlapHit2D> output) noexcept
+    {
+        if (!b2World_IsValid(worldId_))
+            return {PhysicsQueryResult2D::BackendInvalid, 0U, 0U};
+
+        PruneInvalidBindings();
+
+        struct OverlapContext final
+        {
+            Impl& owner;
+            std::vector<Binding*>& scratch;
+            std::size_t totalHits{0U};
+        } context{*this, overlapScratch_};
+
+        const auto callback = [](const b2ShapeId shapeId, void* rawContext) -> bool
+        {
+            auto& overlapContext = *static_cast<OverlapContext*>(rawContext);
+            Binding* const binding = overlapContext.owner.ResolveObservableBinding(shapeId);
+            if (binding == nullptr) return true;
+            if (overlapContext.totalHits < overlapContext.scratch.size())
+                overlapContext.scratch[overlapContext.totalHits] = binding;
+            ++overlapContext.totalHits;
+            return true;
+        };
+
+        const b2QueryFilter filter{
+            static_cast<std::uint64_t>(layerBits),
+            static_cast<std::uint64_t>(maskBits),
+        };
+        (void)b2World_OverlapShape(worldId_, &proxy, filter, callback, &context);
+
+        if (context.totalHits > overlapScratch_.size() || context.totalHits > output.size())
+        {
+            ++overlapCapacityFailureCount_;
+            return {PhysicsQueryResult2D::CapacityExceeded, 0U, context.totalHits};
+        }
+
+        const auto begin = overlapScratch_.begin();
+        const auto end = begin + static_cast<std::ptrdiff_t>(context.totalHits);
+        std::sort(begin, end, [](const Binding* left, const Binding* right)
+        {
+            return BindingKeyLess(*left, *right);
+        });
+
+        for (std::size_t index = 0U; index < context.totalHits; ++index)
+        {
+            const Binding& source = *overlapScratch_[index];
+            PhysicsOverlapHit2D& destination = output[index];
+            destination.entity = source.entity;
+            destination.colliderSemanticId.fill('\0');
+            destination.colliderSemanticIdLength = source.semanticIdLength;
+            std::memcpy(
+                destination.colliderSemanticId.data(),
+                source.semanticId.data(),
+                source.semanticIdLength);
+        }
+        return {PhysicsQueryResult2D::Success, context.totalHits, context.totalHits};
+    }
+
+    [[nodiscard]] PhysicsOverlapReport2D OverlapCircle(
+        const PhysicsCircleOverlapQuery2D& query,
+        const std::span<PhysicsOverlapHit2D> output) noexcept
+    {
+        ++overlapQueryCount_;
+        if (!IsFiniteVector(query.center) || !std::isfinite(query.radius) || query.radius <= 0.0F ||
+            query.layerBits == 0U)
+        {
+            return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
+        }
+
+        const b2Vec2 center{query.center.x, query.center.y};
+        const b2ShapeProxy proxy = b2MakeProxy(&center, 1, query.radius);
+        return OverlapShape(proxy, query.layerBits, query.maskBits, output);
+    }
+
+    [[nodiscard]] PhysicsOverlapReport2D OverlapBox(
+        const PhysicsBoxOverlapQuery2D& query,
+        const std::span<PhysicsOverlapHit2D> output) noexcept
+    {
+        ++overlapQueryCount_;
+        if (!IsFiniteVector(query.center) || !IsFiniteVector(query.halfExtents) ||
+            query.halfExtents.x <= 0.0F || query.halfExtents.y <= 0.0F ||
+            !std::isfinite(query.rotationRadians) || query.layerBits == 0U)
+        {
+            return {PhysicsQueryResult2D::InvalidInput, 0U, 0U};
+        }
+
+        const b2Polygon box = b2MakeOffsetBox(
+            query.halfExtents.x,
+            query.halfExtents.y,
+            b2Vec2{query.center.x, query.center.y},
+            b2MakeRot(query.rotationRadians));
+        const b2ShapeProxy proxy = b2MakeProxy(box.vertices, box.count, box.radius);
+        return OverlapShape(proxy, query.layerBits, query.maskBits, output);
+    }
+
     [[nodiscard]] PhysicsMetrics2D Metrics() const noexcept
     {
-        return PhysicsMetrics2D{
-            bindings_.size(),
-            bindings_.capacity(),
-            rayScratch_.size(),
-            fixedStepCount_,
-            stalePruneCount_,
-            unsupportedTransformPruneCount_,
-            rayQueryCount_,
-            rayCapacityFailureCount_,
-        };
+        PhysicsMetrics2D metrics{};
+        metrics.attachedBodyCount = bindings_.size();
+        metrics.retainedBodyCapacity = bindings_.capacity();
+        metrics.retainedRayHitCapacity = rayScratch_.size();
+        metrics.retainedOverlapHitCapacity = overlapScratch_.size();
+        metrics.retainedContactEventCapacity = contactEventScratch_.size();
+        metrics.retainedSensorEventCapacity = sensorEventScratch_.size();
+        metrics.publishedContactEventCount = contactEventCount_;
+        metrics.publishedSensorEventCount = sensorEventCount_;
+        metrics.fixedStepCount = fixedStepCount_;
+        metrics.stalePruneCount = stalePruneCount_;
+        metrics.unsupportedTransformPruneCount = unsupportedTransformPruneCount_;
+        metrics.rayQueryCount = rayQueryCount_;
+        metrics.rayCapacityFailureCount = rayCapacityFailureCount_;
+        metrics.overlapQueryCount = overlapQueryCount_;
+        metrics.overlapCapacityFailureCount = overlapCapacityFailureCount_;
+        metrics.eventCapacityFailureCount = eventCapacityFailureCount_;
+        return metrics;
     }
 
 private:
@@ -421,11 +825,19 @@ private:
     b2WorldId worldId_{};
     std::vector<std::unique_ptr<Binding>> bindings_{};
     std::vector<ScratchHit> rayScratch_{};
+    std::vector<Binding*> overlapScratch_{};
+    std::vector<PhysicsContactEvent2D> contactEventScratch_{};
+    std::vector<PhysicsSensorEvent2D> sensorEventScratch_{};
+    std::size_t contactEventCount_{0U};
+    std::size_t sensorEventCount_{0U};
     std::uint64_t fixedStepCount_{0U};
     std::uint64_t stalePruneCount_{0U};
     std::uint64_t unsupportedTransformPruneCount_{0U};
     std::uint64_t rayQueryCount_{0U};
     std::uint64_t rayCapacityFailureCount_{0U};
+    std::uint64_t overlapQueryCount_{0U};
+    std::uint64_t overlapCapacityFailureCount_{0U};
+    std::uint64_t eventCapacityFailureCount_{0U};
 };
 
 std::string_view ToString(const PhysicsAttachResult2D result) noexcept
@@ -453,6 +865,7 @@ std::string_view ToString(const PhysicsStepResult2D result) noexcept
     case PhysicsStepResult2D::Success: return "success";
     case PhysicsStepResult2D::InvalidDelta: return "invalid_delta";
     case PhysicsStepResult2D::BackendInvalid: return "backend_invalid";
+    case PhysicsStepResult2D::EventCapacityExceeded: return "event_capacity_exceeded";
     }
     return "unknown";
 }
@@ -484,6 +897,18 @@ void PhysicsWorld2D::Reserve(const std::size_t bodyCapacity, const std::size_t r
     impl_->Reserve(bodyCapacity, rayHitCapacity);
 }
 
+void PhysicsWorld2D::ReserveEvents(
+    const std::size_t contactEventCapacity,
+    const std::size_t sensorEventCapacity)
+{
+    impl_->ReserveEvents(contactEventCapacity, sensorEventCapacity);
+}
+
+void PhysicsWorld2D::ReserveOverlap(const std::size_t overlapHitCapacity)
+{
+    impl_->ReserveOverlap(overlapHitCapacity);
+}
+
 PhysicsAttachResult2D PhysicsWorld2D::AttachEntity(const scene::EntityId entity)
 {
     return impl_->Attach(entity);
@@ -504,6 +929,21 @@ PhysicsStepResult2D PhysicsWorld2D::Step(const float fixedDeltaSeconds) noexcept
     return impl_->Step(fixedDeltaSeconds);
 }
 
+PhysicsStepReport2D PhysicsWorld2D::StepWithReport(const float fixedDeltaSeconds) noexcept
+{
+    return impl_->StepWithReport(fixedDeltaSeconds);
+}
+
+std::span<const PhysicsContactEvent2D> PhysicsWorld2D::ContactEvents() const noexcept
+{
+    return impl_->ContactEvents();
+}
+
+std::span<const PhysicsSensorEvent2D> PhysicsWorld2D::SensorEvents() const noexcept
+{
+    return impl_->SensorEvents();
+}
+
 bool PhysicsWorld2D::TryGetBodyState(const scene::EntityId entity, PhysicsBodyState2D& outState) const noexcept
 {
     return impl_->TryGetBodyState(entity, outState);
@@ -514,6 +954,20 @@ PhysicsRaycastReport2D PhysicsWorld2D::Raycast(
     const std::span<PhysicsRaycastHit2D> output) noexcept
 {
     return impl_->Raycast(query, output);
+}
+
+PhysicsOverlapReport2D PhysicsWorld2D::OverlapCircle(
+    const PhysicsCircleOverlapQuery2D& query,
+    const std::span<PhysicsOverlapHit2D> output) noexcept
+{
+    return impl_->OverlapCircle(query, output);
+}
+
+PhysicsOverlapReport2D PhysicsWorld2D::OverlapBox(
+    const PhysicsBoxOverlapQuery2D& query,
+    const std::span<PhysicsOverlapHit2D> output) noexcept
+{
+    return impl_->OverlapBox(query, output);
 }
 
 PhysicsMetrics2D PhysicsWorld2D::Metrics() const noexcept
