@@ -4,6 +4,7 @@ find_package(SDL3_shadercross CONFIG REQUIRED)
 add_library(trace2d_render STATIC
     src/CameraViewport2D.cpp
     src/Capture.cpp
+    src/Material2D.cpp
     src/ParticleGpuBackend.cpp
     src/ParticleGpuRuntime.cpp
     src/RenderData.cpp
