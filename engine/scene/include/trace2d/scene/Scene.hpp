@@ -133,6 +133,7 @@ private:
     std::vector<ComponentInstance> components_{};
 
     friend class Scene;
+    friend class TweenBindingSystem2D;
 };
 
 class Scene final

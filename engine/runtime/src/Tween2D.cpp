@@ -29,6 +29,14 @@ namespace
     return mode == TweenLoopMode2D::Restart || mode == TweenLoopMode2D::Yoyo;
 }
 
+[[nodiscard]] bool IsValidCancellationReason(const TweenCancellationReason2D reason) noexcept
+{
+    return reason == TweenCancellationReason2D::Explicit ||
+        reason == TweenCancellationReason2D::Replaced ||
+        reason == TweenCancellationReason2D::TargetInvalidated ||
+        reason == TweenCancellationReason2D::PropertyWriteRejected;
+}
+
 [[nodiscard]] std::uint64_t UnsignedCount(const TweenTime2D value) noexcept
 {
     return static_cast<std::uint64_t>(value.count());
@@ -306,20 +314,66 @@ Tween2DStatus TweenPool2D::Restart(const TweenHandle2D handle) noexcept
     return {};
 }
 
-Tween2DStatus TweenPool2D::Cancel(const TweenHandle2D handle) noexcept
+Tween2DStatus TweenPool2D::Rebase(
+    const TweenHandle2D handle,
+    const TweenValue2D start,
+    const TweenValue2D end) noexcept
 {
     Slot* const slot = ResolveMutable(handle);
     if (slot == nullptr)
     {
         return {Tween2DError::InvalidHandle};
     }
-    if (IsTerminal(slot->state.playback))
+    if (IsTerminal(slot->state.playback) || slot->state.loopIndex != 0U ||
+        slot->state.loopElapsed.count() != 0)
+    {
+        return {Tween2DError::InvalidPlaybackTransition};
+    }
+    if (!IsValidValueType(start.type) || !IsValidValueType(end.type))
+    {
+        return {Tween2DError::InvalidValueType};
+    }
+    if (start.type != end.type || start.type != slot->spec.start.type)
+    {
+        return {Tween2DError::ValueTypeMismatch};
+    }
+
+    slot->spec.start = start;
+    slot->spec.end = end;
+    slot->state.currentValue = start;
+    return {};
+}
+
+Tween2DStatus TweenPool2D::Cancel(
+    const TweenHandle2D handle,
+    const TweenCancellationReason2D reason) noexcept
+{
+    Slot* const slot = ResolveMutable(handle);
+    if (slot == nullptr)
+    {
+        return {Tween2DError::InvalidHandle};
+    }
+    if (!IsValidCancellationReason(reason))
+    {
+        return {Tween2DError::InvalidCancellationReason};
+    }
+    if (slot->state.playback == TweenPlaybackState2D::Cancelled)
+    {
+        return {Tween2DError::InvalidPlaybackTransition};
+    }
+    const bool wasCompleted = slot->state.playback == TweenPlaybackState2D::Completed;
+    if (wasCompleted &&
+        reason != TweenCancellationReason2D::TargetInvalidated &&
+        reason != TweenCancellationReason2D::PropertyWriteRejected)
     {
         return {Tween2DError::InvalidPlaybackTransition};
     }
     slot->state.playback = TweenPlaybackState2D::Cancelled;
-    slot->state.cancellationReason = TweenCancellationReason2D::Explicit;
-    DecrementActive();
+    slot->state.cancellationReason = reason;
+    if (!wasCompleted)
+    {
+        DecrementActive();
+    }
     return {};
 }
 
