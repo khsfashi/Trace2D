@@ -54,33 +54,87 @@ void Fill(
             Put(art, px, py, color);
 }
 
+void FillEllipse(
+    PixelArt& art,
+    const int centerX,
+    const int centerY,
+    const int radiusX,
+    const int radiusY,
+    const std::array<std::uint8_t, 4U>& color)
+{
+    const std::int64_t radiusXSquared = static_cast<std::int64_t>(radiusX) * radiusX;
+    const std::int64_t radiusYSquared = static_cast<std::int64_t>(radiusY) * radiusY;
+    const std::int64_t threshold = radiusXSquared * radiusYSquared;
+    for (int y = centerY - radiusY; y <= centerY + radiusY; ++y)
+    {
+        const std::int64_t dy = static_cast<std::int64_t>(y - centerY);
+        for (int x = centerX - radiusX; x <= centerX + radiusX; ++x)
+        {
+            const std::int64_t dx = static_cast<std::int64_t>(x - centerX);
+            if (dx * dx * radiusYSquared + dy * dy * radiusXSquared <= threshold)
+                Put(art, x, y, color);
+        }
+    }
+}
+
 [[nodiscard]] PixelArt MakeTargetArt()
 {
     constexpr std::array<std::uint8_t, 4U> Transparent{0U, 0U, 0U, 0U};
-    constexpr std::array<std::uint8_t, 4U> Ink{13U, 18U, 28U, 255U};
-    constexpr std::array<std::uint8_t, 4U> Dark{33U, 73U, 91U, 255U};
-    constexpr std::array<std::uint8_t, 4U> Mid{55U, 153U, 164U, 255U};
-    constexpr std::array<std::uint8_t, 4U> Light{143U, 230U, 216U, 255U};
-    constexpr std::array<std::uint8_t, 4U> Eye{255U, 211U, 98U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Ink{10U, 17U, 30U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Shadow{22U, 53U, 70U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Dark{31U, 91U, 108U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Mid{47U, 151U, 161U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Light{118U, 218U, 204U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Highlight{195U, 246U, 226U, 255U};
+    constexpr std::array<std::uint8_t, 4U> Eye{255U, 194U, 73U, 255U};
+    constexpr std::array<std::uint8_t, 4U> EyeLight{255U, 235U, 160U, 255U};
 
     PixelArt art{};
-    art.width = 16U;
-    art.height = 16U;
-    art.rgba.resize(16U * 16U * 4U);
+    art.width = 64U;
+    art.height = 64U;
+    art.rgba.resize(64U * 64U * 4U);
     for (std::size_t index = 0U; index < art.rgba.size(); index += 4U)
         std::copy(Transparent.begin(), Transparent.end(), art.rgba.begin() + static_cast<std::ptrdiff_t>(index));
 
-    Fill(art, 4, 2, 8, 2, Ink);
-    Fill(art, 2, 4, 12, 8, Ink);
-    Fill(art, 4, 12, 8, 2, Ink);
-    Fill(art, 4, 4, 8, 8, Dark);
-    Fill(art, 5, 4, 6, 5, Mid);
-    Fill(art, 6, 5, 4, 2, Light);
-    Fill(art, 4, 9, 8, 3, Dark);
-    Put(art, 5, 8, Eye);
-    Put(art, 10, 8, Eye);
-    Put(art, 6, 11, Light);
-    Put(art, 9, 11, Light);
+    // Small self-authored 64x64 guardian sprite. The denser silhouette and one-pixel details
+    // intentionally make the Material2D hit-flash proof readable without borrowing external art.
+    FillEllipse(art, 32, 34, 25, 23, Ink);
+    FillEllipse(art, 32, 34, 22, 20, Dark);
+    FillEllipse(art, 29, 30, 18, 16, Mid);
+    FillEllipse(art, 25, 24, 10, 7, Light);
+    FillEllipse(art, 22, 21, 5, 3, Highlight);
+    FillEllipse(art, 35, 43, 15, 7, Shadow);
+
+    Fill(art, 12, 14, 5, 12, Ink);
+    Fill(art, 15, 11, 6, 10, Ink);
+    Fill(art, 17, 13, 3, 8, Light);
+    Fill(art, 47, 14, 5, 12, Ink);
+    Fill(art, 43, 11, 6, 10, Ink);
+    Fill(art, 44, 13, 3, 8, Mid);
+
+    FillEllipse(art, 23, 33, 6, 5, Ink);
+    FillEllipse(art, 41, 33, 6, 5, Ink);
+    FillEllipse(art, 23, 33, 4, 3, Eye);
+    FillEllipse(art, 41, 33, 4, 3, Eye);
+    Put(art, 21, 31, EyeLight);
+    Put(art, 39, 31, EyeLight);
+
+    Fill(art, 28, 43, 8, 2, Ink);
+    Fill(art, 30, 45, 4, 2, Ink);
+    Put(art, 27, 42, Light);
+    Put(art, 36, 42, Light);
+
+    FillEllipse(art, 19, 55, 8, 4, Ink);
+    FillEllipse(art, 45, 55, 8, 4, Ink);
+    FillEllipse(art, 19, 54, 6, 2, Dark);
+    FillEllipse(art, 45, 54, 6, 2, Dark);
+
+    Put(art, 16, 28, Light);
+    Put(art, 14, 32, Light);
+    Put(art, 48, 27, Mid);
+    Put(art, 50, 31, Mid);
+    Put(art, 25, 49, Mid);
+    Put(art, 38, 49, Dark);
     return art;
 }
 
@@ -256,7 +310,7 @@ void RenderShowcase(
     draws[count++] = BuildDraw(whiteAsset, whiteTexture, 0.0F, 8.0F, 230.0F, 180.0F,
         render::SpriteLinearRgba{0.08F, 0.12F, 0.19F, 1.0F}, 1U);
 
-    draws[count] = BuildDraw(targetAsset, targetTexture, 0.0F, 5.0F, 6.0F, 6.0F,
+    draws[count] = BuildDraw(targetAsset, targetTexture, 0.0F, 5.0F, 1.5F, 1.5F,
         render::SpriteLinearRgba{}, 2U);
     draws[count].presentation.appearance.sampler = preparedMaterial.sampler;
     draws[count].presentation.appearance.blend = preparedMaterial.blend;
@@ -316,7 +370,7 @@ int main()
 
         const render::TextureHandle targetTexture = PublishTexture(resources, renderer, "p1/target.rgba8", targetArt);
         const render::TextureHandle whiteTexture = PublishTexture(resources, renderer, "p1/white.rgba8", whiteArt);
-        const assets::SpriteAsset targetAsset = MakeSpriteAsset("p1/target.sprite", "p1/target.rgba8", 16U, 16U);
+        const assets::SpriteAsset targetAsset = MakeSpriteAsset("p1/target.sprite", "p1/target.rgba8", 64U, 64U);
         const assets::SpriteAsset whiteAsset = MakeSpriteAsset("p1/white.sprite", "p1/white.rgba8", 1U, 1U);
 
         const auto shader = resources.PublishShader2D("p1/hit-flash.shader2d", MakeFlashShader());
