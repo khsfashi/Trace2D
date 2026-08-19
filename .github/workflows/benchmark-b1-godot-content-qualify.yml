@@ -45,7 +45,7 @@ jobs:
           test "$(git -C vendor/godot-ai rev-parse HEAD)" = "$TRACE2D_B1_GODOT_AI_COMMIT"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
