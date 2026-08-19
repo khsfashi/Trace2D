@@ -301,7 +301,7 @@ TEST(Audio2DPlayback, LoopAggregationAndEntityDespawnProduceStableSemanticEvents
     EXPECT_FALSE(audio.InspectVoice(play.voice).has_value());
 }
 
-TEST(Audio2DPlayback, ResourceUnloadDetachesVoiceOnNextSemanticStep)
+TEST(Audio2DPlayback, ActiveVoiceRetainsClipAgainstOrdinaryUnloadAndForcedClearDetachesSafely)
 {
     scene::ComponentRegistry registry{};
     const AudioComponentTypes2D types = RegisterAudio2DComponents(registry);
@@ -320,12 +320,55 @@ TEST(Audio2DPlayback, ResourceUnloadDetachesVoiceOnNextSemanticStep)
     ASSERT_EQ(play.result, AudioCommandResult2D::Success);
     audio.ClearEvents();
 
-    ASSERT_TRUE(resources.Unload(clip.handle.Untyped()).Succeeded());
+    const auto retained = resources.Inspect(clip.handle.Untyped());
+    ASSERT_TRUE(retained.has_value());
+    EXPECT_EQ(retained->callerRetainCount, 1U);
+    EXPECT_EQ(resources.ReleaseUnused(), 0U);
+
+    const assets::ResourceOperationResult ordinaryUnload = resources.Unload(clip.handle.Untyped());
+    ASSERT_FALSE(ordinaryUnload.Succeeded());
+    ASSERT_TRUE(ordinaryUnload.diagnostic.has_value());
+    EXPECT_EQ(ordinaryUnload.diagnostic->code, assets::ResourceErrorCode::RetainedByCaller);
+    EXPECT_NE(resources.Resolve(clip.handle), nullptr);
+
+    const assets::ResourceClearReport clear = resources.ClearProjectResources();
+    ASSERT_EQ(clear.unloadOrder.size(), 1U);
+    EXPECT_EQ(resources.Resolve(clip.handle), nullptr);
+
     ASSERT_EQ(audio.Step(0ns).result, AudioStepResult2D::Success);
     ASSERT_EQ(audio.Events().size(), 1U);
     EXPECT_EQ(audio.Events()[0].type, AudioEventType2D::Detached);
     EXPECT_EQ(audio.Events()[0].reason, AudioEventReason2D::ResourceUnavailable);
     EXPECT_FALSE(audio.InspectVoice(play.voice).has_value());
+}
+
+TEST(Audio2DPlayback, SystemDestructionReleasesActiveClipRetention)
+{
+    scene::ComponentRegistry registry{};
+    const AudioComponentTypes2D types = RegisterAudio2DComponents(registry);
+    registry.Freeze();
+    scene::Scene scene{registry};
+    const scene::EntityId entity = AddSourceEntity(scene, types.source, "speaker", MakeSource());
+
+    assets::ResourceRegistry resources{"."};
+    const auto clip = resources.PublishAudioClip("audio/sfx/hit.wav", MakeClip());
+    ASSERT_TRUE(clip.Succeeded());
+
+    {
+        AudioSystem2D audio{scene, resources, types.source};
+        ASSERT_TRUE(audio.ReserveVoices(1U));
+        ASSERT_TRUE(audio.ReserveEvents(2U));
+        ASSERT_EQ(audio.Play(entity).result, AudioCommandResult2D::Success);
+
+        const auto retained = resources.Inspect(clip.handle.Untyped());
+        ASSERT_TRUE(retained.has_value());
+        EXPECT_EQ(retained->callerRetainCount, 1U);
+    }
+
+    const auto released = resources.Inspect(clip.handle.Untyped());
+    ASSERT_TRUE(released.has_value());
+    EXPECT_EQ(released->callerRetainCount, 0U);
+    EXPECT_EQ(resources.ReleaseUnused(), 1U);
 }
 
 TEST(Audio2DPlayback, EventCapacityFailurePublishesNoPartialStateAndRetryIsStable)
