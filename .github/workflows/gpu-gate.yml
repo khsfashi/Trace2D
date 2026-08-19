@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: trace2d-owner-gpu
@@ -28,6 +29,22 @@ jobs:
       cache-hit: ${{ steps.lookup.outputs.cache-hit }}
 
     steps:
+      - name: Publish pending owner GPU commit status
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const targetUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'pending',
+              context: 'trace2d/owner-gpu-gate',
+              description: 'Owner real-GPU gate is queued or running.',
+              target_url: targetUrl,
+            });
+
       - name: Probe baseline vcpkg source cache
         id: lookup
         uses: actions/cache/restore@v4
@@ -149,6 +166,44 @@ jobs:
             artifacts/sprite-renderer-final-gate
           if-no-files-found: warn
           retention-days: 30
+
+  publish-owner-gpu-final-status:
+    if: always() && github.repository == 'khsfashi/Trace2D'
+    needs: owner-windows-gpu
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Publish final owner GPU commit status
+        uses: actions/github-script@v8
+        env:
+          OWNER_GPU_RESULT: ${{ needs.owner-windows-gpu.result }}
+        with:
+          script: |
+            const result = process.env.OWNER_GPU_RESULT || 'unknown';
+            const states = {
+              success: 'success',
+              failure: 'failure',
+              cancelled: 'error',
+              skipped: 'error',
+            };
+            const descriptions = {
+              success: 'Owner real-GPU gate passed.',
+              failure: 'Owner real-GPU gate failed.',
+              cancelled: 'Owner real-GPU gate was cancelled.',
+              skipped: 'Owner real-GPU gate was skipped.',
+            };
+            const targetUrl =
+              `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: states[result] || 'error',
+              context: 'trace2d/owner-gpu-gate',
+              description: descriptions[result] || `Owner real-GPU gate ended with ${result}.`,
+              target_url: targetUrl,
+            });
 
   publish-vcpkg-source-cache:
     if: github.repository == 'khsfashi/Trace2D' && needs.probe-vcpkg-source-cache.outputs.cache-hit != 'true'
