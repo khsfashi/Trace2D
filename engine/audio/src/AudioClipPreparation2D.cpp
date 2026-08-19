@@ -129,8 +129,8 @@ struct ResolvedAudioSource final
     {
         return false;
     }
-    const std::uint64_t maximumSamples =
-        static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max() / sizeof(float));
+    const std::uint64_t maximumSamples = static_cast<std::uint64_t>(
+        (std::numeric_limits<std::size_t>::max)() / sizeof(float));
     if (frameCount > maximumSamples / channelCount)
     {
         return false;
@@ -143,9 +143,9 @@ struct ResolvedAudioSource final
     const std::uint64_t left,
     const std::uint64_t right) noexcept
 {
-    if (right > std::numeric_limits<std::uint64_t>::max() - left)
+    if (right > (std::numeric_limits<std::uint64_t>::max)() - left)
     {
-        return std::numeric_limits<std::uint64_t>::max();
+        return (std::numeric_limits<std::uint64_t>::max)();
     }
     return left + right;
 }
