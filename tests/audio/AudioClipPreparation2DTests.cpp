@@ -70,8 +70,10 @@ void WritePcm16Wav(
     ASSERT_EQ(interleavedSamples.size() % channelCount, 0U);
     const std::uint32_t dataBytes =
         static_cast<std::uint32_t>(interleavedSamples.size() * sizeof(std::int16_t));
-    const std::uint32_t byteRate = sampleRateHz * channelCount * sizeof(std::int16_t);
-    const std::uint16_t blockAlign = channelCount * sizeof(std::int16_t);
+    const std::uint32_t byteRate = static_cast<std::uint32_t>(
+        static_cast<std::uint64_t>(sampleRateHz) * channelCount * sizeof(std::int16_t));
+    const std::uint16_t blockAlign = static_cast<std::uint16_t>(
+        static_cast<std::uint32_t>(channelCount) * sizeof(std::int16_t));
 
     std::ofstream stream{path, std::ios::binary | std::ios::trunc};
     ASSERT_TRUE(stream.is_open());
@@ -108,7 +110,7 @@ void WritePcm16Wav(
     clip.sampleRateHz = sampleRateHz;
     clip.channelCount = channelCount;
     clip.frameCount = frameCount;
-    clip.encodedByteSize = std::filesystem::file_size(path);
+    clip.encodedByteSize = static_cast<std::uint64_t>(std::filesystem::file_size(path));
     return clip;
 }
 } // namespace
