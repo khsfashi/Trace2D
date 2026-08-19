@@ -221,8 +221,9 @@ TweenSequenceStatus2D TweenSequenceSystem2D::ActivateDueChildren(Slot& slot) noe
 
 TweenSequenceStatus2D TweenSequenceSystem2D::RefreshChildState(Slot& slot) noexcept
 {
-    for (const runtime::TweenHandle2D childHandle : slot.childHandles)
+    for (std::size_t index = 0U; index < slot.nextChildIndex; ++index)
     {
+        runtime::TweenHandle2D& childHandle = slot.childHandles[index];
         if (!childHandle.Valid())
         {
             continue;
@@ -239,6 +240,11 @@ TweenSequenceStatus2D TweenSequenceSystem2D::RefreshChildState(Slot& slot) noexc
                 DecrementActive();
             }
             return WrapBinding(inspect);
+        }
+        if (childState.playback == runtime::TweenPlaybackState2D::Completed)
+        {
+            childHandle = runtime::TweenHandle2D{};
+            continue;
         }
         if (childState.playback == runtime::TweenPlaybackState2D::Cancelled)
         {
