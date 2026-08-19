@@ -79,6 +79,7 @@ jobs:
         with:
           path: ~/.cache/vcpkg/archives
           key: trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
+          save-always: true
 
       - name: Configure sanitizer verification build
         shell: bash
