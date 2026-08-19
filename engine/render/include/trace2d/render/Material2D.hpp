@@ -11,19 +11,20 @@
 
 namespace trace2d::render
 {
-inline constexpr std::size_t MaximumMaterial2DParameters = 16U;
-inline constexpr std::size_t MaximumMaterial2DParameterNameBytes = 63U;
-inline constexpr std::size_t Material2DParameterSlotFloatCount = 4U;
+// MAT2 promotes the authored numeric vocabulary/capacity into the canonical #86 resource layer.
+// Keep these aliases so the prepared renderer API remains source-compatible while there is exactly
+// one type/capacity authority shared by authored Material2D and steady-state prepared blocks.
+inline constexpr std::size_t MaximumMaterial2DParameters = assets::MaximumMaterial2DParameters;
+inline constexpr std::size_t MaximumMaterial2DParameterNameBytes =
+    assets::MaximumMaterial2DParameterNameBytes;
+inline constexpr std::size_t Material2DParameterSlotFloatCount =
+    assets::Material2DParameterSlotFloatCount;
 inline constexpr std::size_t Material2DParameterSlotBytes =
     Material2DParameterSlotFloatCount * sizeof(float);
 inline constexpr std::uint64_t InvalidMaterial2DIdentity = 0U;
 
-enum class MaterialParameterType2D : std::uint8_t
-{
-    Float = 0,
-    Float2,
-    Color,
-};
+using MaterialParameterType2D = assets::MaterialParameterType2D;
+using MaterialParameterValue2D = assets::MaterialParameterValue2D;
 
 [[nodiscard]] std::string_view ToString(MaterialParameterType2D value) noexcept;
 
@@ -33,14 +34,6 @@ struct MaterialParameterDeclaration2D final
     MaterialParameterType2D type{MaterialParameterType2D::Float};
 
     [[nodiscard]] bool operator==(const MaterialParameterDeclaration2D&) const noexcept = default;
-};
-
-struct MaterialParameterValue2D final
-{
-    MaterialParameterType2D type{MaterialParameterType2D::Float};
-    std::array<float, Material2DParameterSlotFloatCount> lanes{};
-
-    [[nodiscard]] bool operator==(const MaterialParameterValue2D&) const noexcept = default;
 };
 
 [[nodiscard]] constexpr MaterialParameterValue2D MaterialFloat2D(const float value) noexcept
