@@ -22,7 +22,7 @@ using namespace trace2d;
     const float start,
     const float end,
     const runtime::TweenTime2D duration = 10ns,
-    const runtime::TweenTimeDomain2D domain = runtime::TweenTimeTimeDomain2D::Presentation)
+    const runtime::TweenTimeDomain2D domain = runtime::TweenTimeDomain2D::Presentation)
 {
     scene::TweenBindingSpec2D spec{};
     spec.tween.domain = domain;
