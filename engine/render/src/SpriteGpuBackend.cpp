@@ -961,6 +961,10 @@ MaterialGpuPrepareResult2D SpriteGpuBackend::PrepareMaterial2D(
     SDL_ReleaseGPUShader(device_, fragmentShader);
     metrics_.materialPipelineCreations += 4U;
     customPipelines_.push_back(record);
+    metrics_.materialPreparedPipelineBundles =
+        static_cast<std::uint64_t>(customPipelines_.size());
+    metrics_.materialPreparedPipelineBundleCapacity =
+        static_cast<std::uint64_t>(customPipelines_.capacity());
     result.material.pipelineIdentity = record.identity;
     return result;
 }

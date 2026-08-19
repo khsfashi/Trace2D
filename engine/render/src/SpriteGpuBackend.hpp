@@ -19,6 +19,8 @@ struct SpriteGpuBackendMetrics final
     std::uint64_t materialShaderCompilations{0U};
     std::uint64_t materialPipelineCreations{0U};
     std::uint64_t materialPipelineCacheHits{0U};
+    std::uint64_t materialPreparedPipelineBundles{0U};
+    std::uint64_t materialPreparedPipelineBundleCapacity{0U};
     // Reusable six-vertex quad-slot capacity. One primitive Sprite may occupy multiple slots.
     std::uint64_t vertexCapacitySprites{0U};
     std::uint64_t vertexCapacityBytes{0U};
