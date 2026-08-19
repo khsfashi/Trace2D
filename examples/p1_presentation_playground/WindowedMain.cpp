@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -17,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace
@@ -108,7 +110,10 @@ void Fill(
             assets::SpritePixelOffset{0U, 0U},
             assets::SpritePixelSize{width, height},
             assets::SpritePixelRect{0U, 0U, width, height},
-            assets::SpriteRationalPivot{1, 1, 2},
+            assets::SpriteRationalPivot{
+                static_cast<std::int64_t>(width),
+                static_cast<std::int64_t>(height),
+                2},
             assets::SpritePackedRotation::None,
         },
     };
