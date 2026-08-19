@@ -90,6 +90,8 @@ The pitch upper bound is an explicit AUDIO1 safety bound so one caller-supplied 
 
 `AudioSystem2D` uses reusable generation-safe voice slots. A voice snapshots the source's finite playback parameters and the exact `AudioClipResource` handle at `Play()` time.
 
+Each active voice also owns one #86 caller retain on that exact clip generation. This follows the same lifetime pattern already used by prepared font faces: ordinary `ReleaseUnused()` or `Unload()` cannot invalidate a clip that is still being consumed. Stop, finish, entity-detach and `AudioSystem2D` destruction release that retain. A forced project teardown may invalidate generations despite retains; the next semantic step detects the stale generation and detaches without dereferencing or releasing stale storage.
+
 Commands:
 
 - `Play(entity)`;
@@ -129,8 +131,10 @@ Stepping visits active voice slots in stable slot order. Backend callback order 
 
 Lifecycle is explicit:
 
+- a successfully started voice retains its exact `AudioClipResource` generation, so ordinary `ReleaseUnused()` and `Unload()` cannot remove a live clip;
+- stop, natural finish, entity-despawn detach and `AudioSystem2D` destruction release the corresponding voice retain exactly once while the generation is still ready;
 - destroying a source entity detaches its live voices on the next semantic step with reason `entity_destroyed`;
-- unloading/clearing the exact clip generation detaches its live voices on the next semantic step with reason `resource_unavailable`;
+- a forced `ClearProjectResources()` may invalidate retained clip generations as part of project teardown; those voices detach on the next semantic step with reason `resource_unavailable` and do not attempt a stale release;
 - a finished/stopped/detached voice increments its slot generation, making old handles stale.
 
 No stale resource pointer or entity index remains usable as a live voice.
