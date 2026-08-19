@@ -10,6 +10,10 @@ add_library(trace2d_scene STATIC
     src/TweenBinding2DControl.cpp
     src/TweenBinding2DStep.cpp
     src/TweenBinding2DStorage.cpp
+    src/TweenSequence2DControl.cpp
+    src/TweenSequence2DDefinition.cpp
+    src/TweenSequence2DStep.cpp
+    src/TweenSequence2DStorage.cpp
     src/World.cpp
 )
 
