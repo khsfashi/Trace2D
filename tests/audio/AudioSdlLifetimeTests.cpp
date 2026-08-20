@@ -41,7 +41,7 @@ TEST(AudioOutput2D, PlatformDestructionDoesNotGloballyQuitLiveAudioSubsystem)
     EXPECT_EQ(output.State(), AudioOutputState2D::Running);
 }
 
-TEST(AudioOutput2D, PlatformPollingDoesNotStealPlaybackDeviceRecoverySignal)
+TEST(AudioOutput2D, UnrelatedLogicalPlaybackLossDoesNotForceRecoveryAfterPlatformPolling)
 {
     assets::ResourceRegistry resources{"."};
     AudioOutput2D output{resources, SmallLifetimeConfig()};
@@ -51,10 +51,14 @@ TEST(AudioOutput2D, PlatformPollingDoesNotStealPlaybackDeviceRecoverySignal)
     platformConfig.mode = platform::StartupMode::Headless;
     platform::Platform platform{platformConfig};
 
+    const SDL_AudioDeviceID unrelatedDevice =
+        SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+    ASSERT_NE(unrelatedDevice, 0U) << SDL_GetError();
+
     SDL_FlushEvent(SDL_EVENT_AUDIO_DEVICE_REMOVED);
     SDL_Event event{};
     event.type = SDL_EVENT_AUDIO_DEVICE_REMOVED;
-    event.adevice.which = 1U;
+    event.adevice.which = unrelatedDevice;
     event.adevice.recording = false;
     ASSERT_TRUE(SDL_PushEvent(&event)) << SDL_GetError();
 
@@ -69,30 +73,38 @@ TEST(AudioOutput2D, PlatformPollingDoesNotStealPlaybackDeviceRecoverySignal)
 
     const AudioOutputDeviceEventReport2D report = output.PollDeviceEvents();
     EXPECT_EQ(report.result, AudioOutputResult2D::Success);
-    EXPECT_EQ(report.processedEventCount, 1U);
-    EXPECT_TRUE(report.recoveryRequested);
-    EXPECT_EQ(output.State(), AudioOutputState2D::RecoveryPending);
-    EXPECT_EQ(output.Metrics().deviceLossEventCount, 1U);
+    EXPECT_EQ(report.processedEventCount, 0U);
+    EXPECT_FALSE(report.recoveryRequested);
+    EXPECT_EQ(output.State(), AudioOutputState2D::Running);
+    EXPECT_EQ(output.Metrics().deviceLossEventCount, 0U);
+
+    SDL_CloseAudioDevice(unrelatedDevice);
 }
 
-TEST(AudioOutput2D, PlaybackFormatChangeRequestsRecovery)
+TEST(AudioOutput2D, UnrelatedLogicalPlaybackFormatChangeDoesNotForceRecovery)
 {
     assets::ResourceRegistry resources{"."};
     AudioOutput2D output{resources, SmallLifetimeConfig()};
     ASSERT_EQ(output.Start(), AudioOutputResult2D::Success) << output.LastDiagnostic();
 
+    const SDL_AudioDeviceID unrelatedDevice =
+        SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);
+    ASSERT_NE(unrelatedDevice, 0U) << SDL_GetError();
+
     SDL_FlushEvent(SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED);
     SDL_Event event{};
     event.type = SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED;
-    event.adevice.which = 1U;
+    event.adevice.which = unrelatedDevice;
     event.adevice.recording = false;
     ASSERT_TRUE(SDL_PushEvent(&event)) << SDL_GetError();
 
     const AudioOutputDeviceEventReport2D report = output.PollDeviceEvents();
     EXPECT_EQ(report.result, AudioOutputResult2D::Success);
-    EXPECT_EQ(report.processedEventCount, 1U);
-    EXPECT_TRUE(report.recoveryRequested);
-    EXPECT_EQ(output.State(), AudioOutputState2D::RecoveryPending);
-    EXPECT_EQ(output.Metrics().deviceFormatChangeEventCount, 1U);
+    EXPECT_EQ(report.processedEventCount, 0U);
+    EXPECT_FALSE(report.recoveryRequested);
+    EXPECT_EQ(output.State(), AudioOutputState2D::Running);
+    EXPECT_EQ(output.Metrics().deviceFormatChangeEventCount, 0U);
+
+    SDL_CloseAudioDevice(unrelatedDevice);
 }
 } // namespace trace2d::audio
