@@ -1,4 +1,5 @@
 #include "CombatGame.hpp"
+#include "P2GeneratedAssets.hpp"
 
 #include <trace2d/audio/AudioOutput2D.hpp>
 #include <trace2d/platform/Platform.hpp>
@@ -17,8 +18,8 @@
 #include <thread>
 #include <vector>
 
-#ifndef TRACE2D_P2_SOURCE_DIR
-#define TRACE2D_P2_SOURCE_DIR "."
+#ifndef TRACE2D_P2_RUNTIME_DIR
+#define TRACE2D_P2_RUNTIME_DIR "."
 #endif
 
 namespace
@@ -159,8 +160,6 @@ void Present(const trace2d::application::GameContext&, void* const userData)
         state->game->HitFlashFramesRemaining() > 0U ? state->enemyFlash : state->enemy,
         3, order);
 
-    // Engine-owned HUD progress is mirrored here as three fixed retained segments. Presentation may
-    // differ visually, but gameplay truth remains CombatGame::EnemyHealth().
     for (std::uint32_t index = 0U; index < CombatGame::MaximumEnemyHealth; ++index)
     {
         const bool full = index < state->game->EnemyHealth();
@@ -201,6 +200,8 @@ int main()
 {
     try
     {
+        trace2d::examples::EnsureP2GeneratedHitSfx(TRACE2D_P2_RUNTIME_DIR);
+
         trace2d::platform::PlatformConfig platformConfig{};
         platformConfig.mode = trace2d::platform::StartupMode::Windowed;
         platformConfig.windowWidth = static_cast<int>(CombatGame::CanvasWidth);
@@ -215,7 +216,7 @@ int main()
         trace2d::render::Renderer renderer{rendererConfig, platform};
 
         RegistryTypes types{};
-        CombatGame game{types.physics, types.audio, TRACE2D_P2_SOURCE_DIR};
+        CombatGame game{types.physics, types.audio, TRACE2D_P2_RUNTIME_DIR};
         trace2d::application::Application application{game, types.registry, MakeConfig()};
         application.Start();
 
