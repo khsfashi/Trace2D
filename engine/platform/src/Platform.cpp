@@ -435,7 +435,7 @@ public:
             const auto gamepad = std::find_if(
                 gamepads_.begin(),
                 gamepads_.end(),
-                [id](const OpenGamepad& candidate) { return gamepad.id == id; });
+                [id](const OpenGamepad& candidate) { return candidate.id == id; });
             if (gamepad != gamepads_.end())
             {
                 event.type = PlatformEventType::Input;
