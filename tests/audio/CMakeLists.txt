@@ -2,12 +2,15 @@ add_executable(trace2d_audio_tests
     Audio2DTests.cpp
     AudioClipPreparation2DTests.cpp
     AudioOutput2DTests.cpp
+    AudioSdlLifetimeTests.cpp
     AudioVoiceLimitTests.cpp
 )
 
 target_link_libraries(trace2d_audio_tests
     PRIVATE
         Trace2D::Audio
+        Trace2D::Platform
+        SDL3::SDL3
         GTest::gtest_main
 )
 
