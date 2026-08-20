@@ -55,12 +55,6 @@ struct PresentationState final
     TextureHandle attack{};
     TextureHandle healthFull{};
     TextureHandle healthEmpty{};
-    trace2d::scene::Vector2 previousPlayerPosition{};
-    trace2d::scene::Vector2 currentPlayerPosition{};
-    trace2d::scene::Vector2 previousEnemyPosition{};
-    trace2d::scene::Vector2 currentEnemyPosition{};
-    std::uint64_t sampledSimulationFrame{0U};
-    bool interpolationInitialized{false};
     bool captureRequested{false};
     std::uint64_t captureFrame{1U};
 };
@@ -120,75 +114,15 @@ void AddSprite(
     };
 }
 
-[[nodiscard]] trace2d::scene::Vector2 Lerp(
-    const trace2d::scene::Vector2 from,
-    const trace2d::scene::Vector2 to,
-    const float alpha) noexcept
+[[nodiscard]] trace2d::scene::Vector2 ExtrapolatePosition(
+    const trace2d::physics::PhysicsBodyState2D& body,
+    const std::chrono::nanoseconds remainder) noexcept
 {
+    const float seconds = std::chrono::duration<float>{remainder}.count();
     return {
-        from.x + (to.x - from.x) * alpha,
-        from.y + (to.y - from.y) * alpha,
+        body.position.x + body.linearVelocity.x * seconds,
+        body.position.y + body.linearVelocity.y * seconds,
     };
-}
-
-[[nodiscard]] float DistanceSquared(
-    const trace2d::scene::Vector2 left,
-    const trace2d::scene::Vector2 right) noexcept
-{
-    const float x = right.x - left.x;
-    const float y = right.y - left.y;
-    return x * x + y * y;
-}
-
-void UpdateInterpolationHistory(
-    PresentationState& state,
-    const std::uint64_t simulationFrame,
-    const trace2d::scene::Vector2 playerPosition,
-    const trace2d::scene::Vector2 enemyPosition) noexcept
-{
-    if (!state.interpolationInitialized)
-    {
-        state.previousPlayerPosition = playerPosition;
-        state.currentPlayerPosition = playerPosition;
-        state.previousEnemyPosition = enemyPosition;
-        state.currentEnemyPosition = enemyPosition;
-        state.sampledSimulationFrame = simulationFrame;
-        state.interpolationInitialized = true;
-        return;
-    }
-
-    if (simulationFrame == state.sampledSimulationFrame) return;
-
-    const bool contiguousFrame = simulationFrame == state.sampledSimulationFrame + 1U;
-    constexpr float TeleportResetDistanceSquared = 1.0F;
-    const bool playerTeleported =
-        DistanceSquared(state.currentPlayerPosition, playerPosition) > TeleportResetDistanceSquared;
-    const bool enemyTeleported =
-        DistanceSquared(state.currentEnemyPosition, enemyPosition) > TeleportResetDistanceSquared;
-
-    if (contiguousFrame && !playerTeleported)
-    {
-        state.previousPlayerPosition = state.currentPlayerPosition;
-        state.currentPlayerPosition = playerPosition;
-    }
-    else
-    {
-        state.previousPlayerPosition = playerPosition;
-        state.currentPlayerPosition = playerPosition;
-    }
-
-    if (contiguousFrame && !enemyTeleported)
-    {
-        state.previousEnemyPosition = state.currentEnemyPosition;
-        state.currentEnemyPosition = enemyPosition;
-    }
-    else
-    {
-        state.previousEnemyPosition = enemyPosition;
-        state.currentEnemyPosition = enemyPosition;
-    }
-
-    state.sampledSimulationFrame = simulationFrame;
 }
 
 void Present(const trace2d::application::GameContext& context, void* const userData)
@@ -202,21 +136,15 @@ void Present(const trace2d::application::GameContext& context, void* const userD
     if (!state->game->TryPlayerBodyState(player) || !state->game->TryEnemyBodyState(enemy))
         throw std::runtime_error{"P2 presentation could not inspect gameplay body state."};
 
+    // Low-latency local presentation follows the same tradeoff exposed by mature engines such as
+    // Unity's Rigidbody extrapolation: predict from the latest authoritative pose and velocity into
+    // the current sub-frame instead of rendering one physics tick behind. This keeps authoritative
+    // collision/gameplay unchanged while avoiding interpolation's intentional one-tick latency.
     const trace2d::runtime::RuntimeState runtimeState = context.Runtime().State();
-    UpdateInterpolationHistory(*state, runtimeState.frame, player.position, enemy.position);
-
     const auto fixedTimestep = context.Runtime().Config().fixedTimestep;
-    const float interpolationAlpha = fixedTimestep.count() > 0
-        ? std::clamp(
-              static_cast<float>(runtimeState.accumulatedWallTime.count()) /
-                  static_cast<float>(fixedTimestep.count()),
-              0.0F,
-              1.0F)
-        : 1.0F;
-    const trace2d::scene::Vector2 presentedPlayerPosition =
-        Lerp(state->previousPlayerPosition, state->currentPlayerPosition, interpolationAlpha);
-    const trace2d::scene::Vector2 presentedEnemyPosition =
-        Lerp(state->previousEnemyPosition, state->currentEnemyPosition, interpolationAlpha);
+    const auto boundedRemainder = std::min(runtimeState.accumulatedWallTime, fixedTimestep);
+    const trace2d::scene::Vector2 presentedPlayerPosition = ExtrapolatePosition(player, boundedRemainder);
+    const trace2d::scene::Vector2 presentedEnemyPosition = ExtrapolatePosition(enemy, boundedRemainder);
 
     const trace2d::ui::UiElement* const enemyHealth = context.Ui().Find("hud.enemy-health");
     if (enemyHealth == nullptr || !enemyHealth->progress.Active())
@@ -304,12 +232,14 @@ int main()
         platformConfig.windowWidth = static_cast<int>(CombatGame::CanvasWidth);
         platformConfig.windowHeight = static_cast<int>(CombatGame::CanvasHeight);
         platformConfig.windowTitle =
-            "Trace2D P2 Combat Proof | WASD move | Space attack | R restart | C capture | Esc quit";
+            "Trace2D P2 Combat Proof | low-latency Release owner path | WASD move | Space attack | R restart";
         trace2d::platform::Platform platform{platformConfig};
 
         trace2d::render::RendererConfig rendererConfig{};
         rendererConfig.clearColor = {.red = 0.025F, .green = 0.03F, .blue = 0.045F, .alpha = 1.0F};
-        rendererConfig.enableDebugValidation = true;
+        // Automated GPU validation lives in dedicated test workflows. The owner-playable path must
+        // represent production frame pacing rather than intentionally expensive API validation.
+        rendererConfig.enableDebugValidation = false;
         trace2d::render::Renderer renderer{rendererConfig, platform};
 
         RegistryTypes types{};
@@ -346,11 +276,6 @@ int main()
         trace2d::audio::AudioOutput2D output{game.Resources(), outputConfig};
         RequireOutput(output.Start(), "P2 could not start the physical audio output.");
 
-        // SDL GPU claims a window with VSYNC presentation by default. Drive authoritative gameplay
-        // from measured wall time and let FixedStepRuntime consume complete 60 Hz steps. Presentation
-        // interpolates previous/current fixed body positions using the remaining runtime accumulator,
-        // so monitor refresh rates that do not match 60 Hz do not expose the fixed-step staircase.
-        // Clamp long host stalls so a focus change or debugger pause cannot trigger a large catch-up.
         constexpr auto MaximumHostElapsed = std::chrono::milliseconds{250};
         auto previousHostTime = std::chrono::steady_clock::now();
 
