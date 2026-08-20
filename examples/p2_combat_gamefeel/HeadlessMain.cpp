@@ -1,4 +1,5 @@
 #include "CombatGame.hpp"
+#include "P2GeneratedAssets.hpp"
 
 #include <trace2d/application/Application.hpp>
 #include <trace2d/audio/AudioComponents2D.hpp>
@@ -11,8 +12,8 @@
 #include <iostream>
 #include <string_view>
 
-#ifndef TRACE2D_P2_SOURCE_DIR
-#define TRACE2D_P2_SOURCE_DIR "."
+#ifndef TRACE2D_P2_RUNTIME_DIR
+#define TRACE2D_P2_RUNTIME_DIR "."
 #endif
 
 namespace
@@ -72,7 +73,7 @@ struct RegistryTypes final
 [[nodiscard]] CombatResult RunCombatScenario()
 {
     RegistryTypes types{};
-    CombatGame game{types.physics, types.audio, TRACE2D_P2_SOURCE_DIR};
+    CombatGame game{types.physics, types.audio, TRACE2D_P2_RUNTIME_DIR};
     trace2d::application::Application application{game, types.registry, MakeConfig()};
 
     application.ScheduleInput(1U, {
@@ -91,7 +92,6 @@ struct RegistryTypes final
         .control = trace2d::input::InputControl::Space,
         .type = trace2d::input::InputEventType::Release,
     });
-    // Deliberately retry during the authored cooldown. This input must not become a second swing.
     application.ScheduleInput(85U, {
         .control = trace2d::input::InputControl::Space,
         .type = trace2d::input::InputEventType::Press,
@@ -123,11 +123,11 @@ int main()
 {
     try
     {
-        // Collision proof: velocity commands attempt to drive the player through the left wall for
-        // long enough that a transform-only implementation would be far outside the arena.
+        trace2d::examples::EnsureP2GeneratedHitSfx(TRACE2D_P2_RUNTIME_DIR);
+
         {
             RegistryTypes types{};
-            CombatGame game{types.physics, types.audio, TRACE2D_P2_SOURCE_DIR};
+            CombatGame game{types.physics, types.audio, TRACE2D_P2_RUNTIME_DIR};
             trace2d::application::Application application{game, types.registry, MakeConfig()};
             application.ScheduleInput(1U, {
                 .control = trace2d::input::InputControl::KeyA,
@@ -173,8 +173,6 @@ int main()
         if (first.resources.readyResources < 1U || first.resources.filesystemQueries != 0U)
             return Fail(13, "combat hot path unexpectedly required ResourceRegistry filesystem discovery");
 
-        // Re-run from a new registry/world with the same authored input. Backend float state is
-        // compared with a tolerance, while authoritative counters/state must match exactly.
         const CombatResult second = RunCombatScenario();
         if (second.health != first.health || second.hits != first.hits || second.swings != first.swings ||
             second.startedEvents != first.startedEvents)
