@@ -24,7 +24,7 @@ function(trace2d_p2_enable_warnings target_name)
     endif()
 endfunction()
 
-set(TRACE2D_P2_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
+set(TRACE2D_P2_RUNTIME_DIR "p2-runtime")
 
 add_library(trace2d_p2_combat_gamefeel STATIC
     CombatGame.cpp
