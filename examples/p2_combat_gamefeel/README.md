@@ -21,6 +21,10 @@ The headless executable uses only public Trace2D surfaces and asserts structured
 
 The player is intentionally a zero-gravity, fixed-rotation **dynamic** body driven by explicit velocity commands. The initial P2 planning note suggested a kinematic player, but a prescribed kinematic body is not a meaningful proof that ordinary Box2D collision response blocks movement against static walls. This correction stays entirely in the example and adds no engine primitive.
 
+## Audio fixture
+
+The proof does not commit a binary sound asset. `P2GeneratedAssets.hpp` creates one deterministic 48 kHz mono PCM16 hit sound in the example build's `runtime/audio` directory before the application starts. That setup-only filesystem work is outside `AudioSystem2D::Step()` and outside the gameplay/fixed-step hot path. The generated file is then published through the ordinary `AudioClipResource` contract and used by the physical `AudioOutput2D` owner proof.
+
 ## Windowed owner proof
 
 The windowed executable adds presentation-only physical audio through `AudioOutput2D`. `Sync()` consumes semantic audio state after each fixed step; `Pump()` performs preparation/refill work outside the gameplay fixed-step path.
