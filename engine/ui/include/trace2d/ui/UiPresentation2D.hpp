@@ -111,6 +111,10 @@ struct UiPresentationFrame2D final
     std::span<const render::SpritePresentationRenderData> presentations{};
 };
 
+// The factory result participates in UiPresentationCache2D's friend declaration, so make the
+// namespace-scope type visible before the class on strict compilers such as Clang.
+struct UiPresentationCachePrepareResult;
+
 class UiPresentationCache2D final
 {
 public:
