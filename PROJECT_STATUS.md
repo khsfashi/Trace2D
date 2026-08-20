@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-19**
+Last explanatory handoff update: **2026-08-20**
 
 This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state.
 
@@ -176,7 +176,20 @@ Finished effects do not become engine-core features merely because they use a sh
 
 The V1 production-depth decisions are explicit in `docs/PHYSICS2D_PHYS3.md`: bullet/continuous-collision policy is supported through the pinned backend, shape casts are supported, and friction/restitution remain finite typed collider scalars. Compound colliders, joints/constraints, one-way platforms, a Trace2D-owned character controller, hierarchy-aware rigid bodies, debug geometry, custom hit thresholds and extra force/torque conveniences are deferred until representative product evidence demonstrates a common need.
 
-Do not open a speculative PHYS4 merely to exhaust the wishlist. The next core-lane subsystem is #77 Audio; #329 Combat Product Proof is where any concrete Physics2D gap should be rediscovered and minimized.
+Do not open a speculative PHYS4 merely to exhaust the wishlist. #329 Combat Product Proof is now the next core-lane item and is where any concrete Physics2D gap should be rediscovered and minimized.
+
+## Audio V1 — complete through AUDIO4
+
+#77 is complete through the bounded AUDIO1-AUDIO4 program:
+
+- AUDIO1 established canonical `AudioClipResource` identity, typed authored sources, deterministic semantic playback/events/groups and lifecycle-safe retain/release behavior;
+- AUDIO2 added explicit preload/stream preparation with bounded decoded/streaming ownership and no ordinary hot-path file discovery;
+- AUDIO3 added finite global/per-group voice limits plus deterministic `reject_new` / `steal_oldest` admission with observable stolen/rejected counters;
+- AUDIO4 adds SDL3 presentation-only physical output, bounded preload/refill storage, explicit pump work outside `AudioSystem2D::Step()`, suspend/resume and recoverable device loss/format-change handling, and exact Trace2D-owned memory/device/stream counters.
+
+`AudioSystem2D` remains semantic authority. SDL3 mirrors semantic voices and observes playback-device events without consuming the shared Platform SDL event queue. Spatial audio and DSP/effect graphs remain deferred unless #329 demonstrates a concrete need.
+
+The next core-lane item is #329 Combat Product Proof. Compose the public Physics2D + Audio surfaces in a representative combat/game-feel loop before adding more subsystem breadth.
 
 ## Official Presentation Recipes
 
@@ -214,8 +227,8 @@ Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state fi
 
 - #321 is complete; do not return to Asset Studio depth.
 - #89, #90 and #327 are complete and consumed.
-- **#76 Physics2D V1 is complete through PHYS3; #77 Audio is the exact next core-lane item.**
-- Do not create speculative PHYS4 breadth; let #329 expose any smallest concrete follow-up after Audio.
+- **#76 Physics2D V1 and #77 Audio V1 are complete; #329 Combat Product Proof is the exact next core-lane item.**
+- Do not add speculative Physics2D/Audio breadth; let #329 expose the smallest concrete follow-up if one is needed.
 - Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
 - Do not start #322/#323 before #331 is accepted.
 - Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
