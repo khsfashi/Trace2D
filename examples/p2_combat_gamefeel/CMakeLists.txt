@@ -77,6 +77,10 @@ if(BUILD_TESTING)
         NAME trace2d_p2_combat_gamefeel_headless
         COMMAND trace2d_p2_combat_gamefeel_headless
     )
+    set_tests_properties(
+        trace2d_p2_combat_gamefeel_headless
+        PROPERTIES LABELS "sanitizer-headless"
+    )
 endif()
 
 if(TRACE2D_P2_STANDALONE)
