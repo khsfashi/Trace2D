@@ -24,6 +24,8 @@ function(trace2d_p2_enable_warnings target_name)
     endif()
 endfunction()
 
+set(TRACE2D_P2_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
+
 add_library(trace2d_p2_combat_gamefeel STATIC
     CombatGame.cpp
 )
@@ -49,7 +51,7 @@ target_link_libraries(trace2d_p2_combat_gamefeel_headless
 )
 target_compile_definitions(trace2d_p2_combat_gamefeel_headless
     PRIVATE
-        TRACE2D_P2_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        TRACE2D_P2_RUNTIME_DIR="${TRACE2D_P2_RUNTIME_DIR}"
 )
 target_compile_features(trace2d_p2_combat_gamefeel_headless PRIVATE cxx_std_20)
 trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_headless)
@@ -65,7 +67,7 @@ target_link_libraries(trace2d_p2_combat_gamefeel_windowed
 )
 target_compile_definitions(trace2d_p2_combat_gamefeel_windowed
     PRIVATE
-        TRACE2D_P2_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+        TRACE2D_P2_RUNTIME_DIR="${TRACE2D_P2_RUNTIME_DIR}"
 )
 target_compile_features(trace2d_p2_combat_gamefeel_windowed PRIVATE cxx_std_20)
 trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_windowed)
