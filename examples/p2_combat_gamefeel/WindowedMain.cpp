@@ -55,6 +55,12 @@ struct PresentationState final
     TextureHandle attack{};
     TextureHandle healthFull{};
     TextureHandle healthEmpty{};
+    trace2d::scene::Vector2 previousPlayerPosition{};
+    trace2d::scene::Vector2 currentPlayerPosition{};
+    trace2d::scene::Vector2 previousEnemyPosition{};
+    trace2d::scene::Vector2 currentEnemyPosition{};
+    std::uint64_t sampledSimulationFrame{0U};
+    bool interpolationInitialized{false};
     bool captureRequested{false};
     std::uint64_t captureFrame{1U};
 };
@@ -114,6 +120,77 @@ void AddSprite(
     };
 }
 
+[[nodiscard]] trace2d::scene::Vector2 Lerp(
+    const trace2d::scene::Vector2 from,
+    const trace2d::scene::Vector2 to,
+    const float alpha) noexcept
+{
+    return {
+        from.x + (to.x - from.x) * alpha,
+        from.y + (to.y - from.y) * alpha,
+    };
+}
+
+[[nodiscard]] float DistanceSquared(
+    const trace2d::scene::Vector2 left,
+    const trace2d::scene::Vector2 right) noexcept
+{
+    const float x = right.x - left.x;
+    const float y = right.y - left.y;
+    return x * x + y * y;
+}
+
+void UpdateInterpolationHistory(
+    PresentationState& state,
+    const std::uint64_t simulationFrame,
+    const trace2d::scene::Vector2 playerPosition,
+    const trace2d::scene::Vector2 enemyPosition) noexcept
+{
+    if (!state.interpolationInitialized)
+    {
+        state.previousPlayerPosition = playerPosition;
+        state.currentPlayerPosition = playerPosition;
+        state.previousEnemyPosition = enemyPosition;
+        state.currentEnemyPosition = enemyPosition;
+        state.sampledSimulationFrame = simulationFrame;
+        state.interpolationInitialized = true;
+        return;
+    }
+
+    if (simulationFrame == state.sampledSimulationFrame) return;
+
+    const bool contiguousFrame = simulationFrame == state.sampledSimulationFrame + 1U;
+    constexpr float TeleportResetDistanceSquared = 1.0F;
+    const bool playerTeleported =
+        DistanceSquared(state.currentPlayerPosition, playerPosition) > TeleportResetDistanceSquared;
+    const bool enemyTeleported =
+        DistanceSquared(state.currentEnemyPosition, enemyPosition) > TeleportResetDistanceSquared;
+
+    if (contiguousFrame && !playerTeleported)
+    {
+        state.previousPlayerPosition = state.currentPlayerPosition;
+        state.currentPlayerPosition = playerPosition;
+    }
+    else
+    {
+        state.previousPlayerPosition = playerPosition;
+        state.currentPlayerPosition = playerPosition;
+    }
+
+    if (contiguousFrame && !enemyTeleported)
+    {
+        state.previousEnemyPosition = state.currentEnemyPosition;
+        state.currentEnemyPosition = enemyPosition;
+    }
+    else
+    {
+        state.previousEnemyPosition = enemyPosition;
+        state.currentEnemyPosition = enemyPosition;
+    }
+
+    state.sampledSimulationFrame = simulationFrame;
+}
+
 void Present(const trace2d::application::GameContext& context, void* const userData)
 {
     auto* const state = static_cast<PresentationState*>(userData);
@@ -124,6 +201,22 @@ void Present(const trace2d::application::GameContext& context, void* const userD
     trace2d::physics::PhysicsBodyState2D enemy{};
     if (!state->game->TryPlayerBodyState(player) || !state->game->TryEnemyBodyState(enemy))
         throw std::runtime_error{"P2 presentation could not inspect gameplay body state."};
+
+    const trace2d::runtime::RuntimeState runtimeState = context.Runtime().State();
+    UpdateInterpolationHistory(*state, runtimeState.frame, player.position, enemy.position);
+
+    const auto fixedTimestep = context.Runtime().Config().fixedTimestep;
+    const float interpolationAlpha = fixedTimestep.count() > 0
+        ? std::clamp(
+              static_cast<float>(runtimeState.accumulatedWallTime.count()) /
+                  static_cast<float>(fixedTimestep.count()),
+              0.0F,
+              1.0F)
+        : 1.0F;
+    const trace2d::scene::Vector2 presentedPlayerPosition =
+        Lerp(state->previousPlayerPosition, state->currentPlayerPosition, interpolationAlpha);
+    const trace2d::scene::Vector2 presentedEnemyPosition =
+        Lerp(state->previousEnemyPosition, state->currentEnemyPosition, interpolationAlpha);
 
     const trace2d::ui::UiElement* const enemyHealth = context.Ui().Find("hud.enemy-health");
     if (enemyHealth == nullptr || !enemyHealth->progress.Active())
@@ -147,8 +240,8 @@ void Present(const trace2d::application::GameContext& context, void* const userD
         AddSprite(
             sprites,
             count,
-            player.position.x + facing.x * CombatGame::AttackReach,
-            player.position.y + facing.y * CombatGame::AttackReach,
+            presentedPlayerPosition.x + facing.x * CombatGame::AttackReach,
+            presentedPlayerPosition.y + facing.y * CombatGame::AttackReach,
             CombatGame::AttackHalfWidth,
             CombatGame::AttackHalfHeight,
             state->attack,
@@ -156,9 +249,9 @@ void Present(const trace2d::application::GameContext& context, void* const userD
             order);
     }
 
-    AddSprite(sprites, count, player.position.x, player.position.y,
+    AddSprite(sprites, count, presentedPlayerPosition.x, presentedPlayerPosition.y,
         CombatGame::PlayerRadius, CombatGame::PlayerRadius, state->player, 3, order);
-    AddSprite(sprites, count, enemy.position.x, enemy.position.y,
+    AddSprite(sprites, count, presentedEnemyPosition.x, presentedEnemyPosition.y,
         CombatGame::EnemyRadius, CombatGame::EnemyRadius,
         state->game->HitFlashFramesRemaining() > 0U ? state->enemyFlash : state->enemy,
         3, order);
@@ -254,10 +347,10 @@ int main()
         RequireOutput(output.Start(), "P2 could not start the physical audio output.");
 
         // SDL GPU claims a window with VSYNC presentation by default. Drive authoritative gameplay
-        // from measured wall time and let FixedStepRuntime consume complete 60 Hz steps; adding a
-        // second fixed sleep here would double-pace presentation and make continuous movement visibly
-        // stutter. Clamp long host stalls so a focus change or debugger pause cannot trigger a large
-        // fixed-step catch-up burst.
+        // from measured wall time and let FixedStepRuntime consume complete 60 Hz steps. Presentation
+        // interpolates previous/current fixed body positions using the remaining runtime accumulator,
+        // so monitor refresh rates that do not match 60 Hz do not expose the fixed-step staircase.
+        // Clamp long host stalls so a focus change or debugger pause cannot trigger a large catch-up.
         constexpr auto MaximumHostElapsed = std::chrono::milliseconds{250};
         auto previousHostTime = std::chrono::steady_clock::now();
 
