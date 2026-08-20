@@ -1,6 +1,7 @@
 add_executable(trace2d_audio_tests
     Audio2DTests.cpp
     AudioClipPreparation2DTests.cpp
+    AudioOutput2DTests.cpp
     AudioVoiceLimitTests.cpp
 )
 
@@ -16,5 +17,7 @@ trace2d_enable_warnings(trace2d_audio_tests)
 include(GoogleTest)
 gtest_discover_tests(
     trace2d_audio_tests
-    PROPERTIES LABELS "sanitizer-headless"
+    PROPERTIES
+        LABELS "sanitizer-headless"
+        ENVIRONMENT "SDL_AUDIO_DRIVER=dummy;SDL_AUDIO_DUMMY_TIMESCALE=0"
 )
