@@ -134,8 +134,9 @@ public:
         std::span<const AudioEvent2D> events);
     [[nodiscard]] AudioOutputPumpReport2D Pump();
 
-    // Device polling consumes only SDL's AUDIO_DEVICE event range; window/input events remain for
-    // Platform. Recovery is explicit so the caller can keep it off deterministic simulation paths.
+    // Device polling drains counters populated by a non-consuming SDL event watch. It never
+    // removes events from SDL's shared queue, so Platform can remain the queue consumer.
+    // Recovery is explicit so the caller can keep it off deterministic simulation paths.
     [[nodiscard]] AudioOutputDeviceEventReport2D PollDeviceEvents();
     [[nodiscard]] AudioOutputResult2D Recover(const AudioSystem2D& semantic);
 
