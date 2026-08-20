@@ -57,7 +57,7 @@ jobs:
       - name: Configure Trace2D source tree
         run: cmake --preset windows-msvc
 
-      - name: Build in-tree P2 and public dependency closure
+      - name: Build debug P2 for deterministic verification
         run: >-
           cmake --build --preset windows-debug --parallel
           --target trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_windowed
@@ -65,17 +65,18 @@ jobs:
       - name: Verify deterministic combat trajectory
         run: ctest --preset windows-debug -R "^trace2d_p2_combat_gamefeel_headless$" --output-on-failure
 
-      - name: Build exported SDK target closure
+      - name: Build release SDK closure and owner proof
         run: >-
-          cmake --build build/windows-msvc --config Debug --parallel
+          cmake --build --preset windows-release --parallel
           --target trace2d_application trace2d_agent trace2d_audio trace2d_physics
           trace2d_platform trace2d_render trace2d_tile trace2d_text
+          trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_windowed
 
-      - name: Install candidate Trace2D SDK
+      - name: Install release candidate Trace2D SDK
         shell: pwsh
         run: |
-          $installRoot = Join-Path $env:RUNNER_TEMP "trace2d-p2-sdk"
-          cmake --install "build/windows-msvc" --config Debug --prefix $installRoot
+          $installRoot = Join-Path $env:RUNNER_TEMP "trace2d-p2-sdk-release"
+          cmake --install "build/windows-msvc" --config Release --prefix $installRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "TRACE2D_ROOT=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -83,20 +84,20 @@ jobs:
         working-directory: examples/p2_combat_gamefeel
         run: cmake --preset windows-msvc
 
-      - name: Build P2 as a clean installed-SDK consumer
+      - name: Build release P2 as a clean installed-SDK consumer
         working-directory: examples/p2_combat_gamefeel
-        run: cmake --build --preset windows-debug --parallel
+        run: cmake --build --preset windows-release --parallel
 
-      - name: Verify standalone deterministic combat trajectory
+      - name: Verify standalone release deterministic combat trajectory
         working-directory: examples/p2_combat_gamefeel
-        run: ctest --preset windows-debug
+        run: ctest --preset windows-release
 
-      - name: Upload owner-review Windows artifact
+      - name: Upload release owner-review Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: trace2d-p2-combat-gamefeel-windows
+          name: trace2d-p2-combat-gamefeel-windows-release
           path: |
-            examples/p2_combat_gamefeel/build/windows-msvc/Debug
+            examples/p2_combat_gamefeel/build/windows-msvc/Release
             examples/p2_combat_gamefeel/README.md
           if-no-files-found: error
           retention-days: 30
