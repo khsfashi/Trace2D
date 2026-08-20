@@ -1,6 +1,7 @@
 add_executable(trace2d_audio_tests
     Audio2DTests.cpp
     AudioClipPreparation2DTests.cpp
+    AudioVoiceLimitTests.cpp
 )
 
 target_link_libraries(trace2d_audio_tests
