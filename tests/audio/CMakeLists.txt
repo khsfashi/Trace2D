@@ -24,5 +24,5 @@ gtest_discover_tests(
     trace2d_audio_tests
     PROPERTIES
         LABELS "sanitizer-headless"
-        ENVIRONMENT "SDL_AUDIO_DRIVER=dummy;SDL_AUDIO_DUMMY_TIMESCALE=0"
+        ENVIRONMENT "SDL_AUDIO_DRIVER=dummy"
 )
