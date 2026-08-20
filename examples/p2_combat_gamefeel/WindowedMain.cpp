@@ -4,6 +4,7 @@
 #include <trace2d/audio/AudioOutput2D.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
+#include <trace2d/ui/Ui.hpp>
 
 #include <algorithm>
 #include <array>
@@ -115,7 +116,7 @@ void AddSprite(
     };
 }
 
-void Present(const trace2d::application::GameContext&, void* const userData)
+void Present(const trace2d::application::GameContext& context, void* const userData)
 {
     auto* const state = static_cast<PresentationState*>(userData);
     if (state == nullptr || state->renderer == nullptr || state->game == nullptr)
@@ -125,6 +126,10 @@ void Present(const trace2d::application::GameContext&, void* const userData)
     trace2d::physics::PhysicsBodyState2D enemy{};
     if (!state->game->TryPlayerBodyState(player) || !state->game->TryEnemyBodyState(enemy))
         throw std::runtime_error{"P2 presentation could not inspect gameplay body state."};
+
+    const trace2d::ui::UiElement* const enemyHealth = context.Ui().Find("hud.enemy-health");
+    if (enemyHealth == nullptr || !enemyHealth->progress.Active())
+        throw std::runtime_error{"P2 presentation could not resolve canonical enemy-health UI state."};
 
     SpriteBuffer sprites{};
     std::size_t count = 0U;
@@ -160,9 +165,10 @@ void Present(const trace2d::application::GameContext&, void* const userData)
         state->game->HitFlashFramesRemaining() > 0U ? state->enemyFlash : state->enemy,
         3, order);
 
+    const std::uint32_t currentHealth = enemyHealth->progress.Value();
     for (std::uint32_t index = 0U; index < CombatGame::MaximumEnemyHealth; ++index)
     {
-        const bool full = index < state->game->EnemyHealth();
+        const bool full = index < currentHealth;
         AddSprite(sprites, count, 5.55F + static_cast<float>(index) * 0.75F, -3.75F,
             0.28F, 0.16F, full ? state->healthFull : state->healthEmpty, 10, order);
     }
