@@ -16,7 +16,6 @@
 #include <span>
 #include <stdexcept>
 #include <string>
-#include <thread>
 #include <vector>
 
 #ifndef TRACE2D_P2_RUNTIME_DIR
@@ -25,7 +24,6 @@
 
 namespace
 {
-using namespace std::chrono_literals;
 using trace2d::examples::CombatGame;
 using TextureHandle = trace2d::render::TextureHandle;
 using Color = std::array<std::uint8_t, 4U>;
@@ -255,6 +253,14 @@ int main()
         trace2d::audio::AudioOutput2D output{game.Resources(), outputConfig};
         RequireOutput(output.Start(), "P2 could not start the physical audio output.");
 
+        // SDL GPU claims a window with VSYNC presentation by default. Drive authoritative gameplay
+        // from measured wall time and let FixedStepRuntime consume complete 60 Hz steps; adding a
+        // second fixed sleep here would double-pace presentation and make continuous movement visibly
+        // stutter. Clamp long host stalls so a focus change or debugger pause cannot trigger a large
+        // fixed-step catch-up burst.
+        constexpr auto MaximumHostElapsed = std::chrono::milliseconds{250};
+        auto previousHostTime = std::chrono::steady_clock::now();
+
         bool quit = false;
         while (!quit)
         {
@@ -284,7 +290,14 @@ int main()
             }
             if (quit) break;
 
-            application.StepFrames(1U);
+            const auto currentHostTime = std::chrono::steady_clock::now();
+            const auto measuredElapsed =
+                std::chrono::duration_cast<std::chrono::nanoseconds>(currentHostTime - previousHostTime);
+            previousHostTime = currentHostTime;
+            const auto boundedElapsed = std::min(
+                measuredElapsed,
+                std::chrono::duration_cast<std::chrono::nanoseconds>(MaximumHostElapsed));
+            static_cast<void>(application.AdvanceElapsed(boundedElapsed));
 
             const trace2d::audio::AudioOutputSyncReport2D sync = output.Sync(game.Audio(), game.Audio().Events());
             RequireOutput(sync.result, "P2 physical audio semantic sync failed.");
@@ -299,7 +312,6 @@ int main()
 
             presentation.captureRequested = presentation.captureRequested || captureRequested;
             static_cast<void>(application.Present());
-            std::this_thread::sleep_for(16ms);
         }
 
         const trace2d::physics::PhysicsMetrics2D physicsMetrics = game.PhysicsMetrics();
