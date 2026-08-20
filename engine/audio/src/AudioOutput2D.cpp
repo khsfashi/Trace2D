@@ -1,7 +1,6 @@
 #include "AudioOutput2DInternal.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -17,7 +16,6 @@ constexpr std::size_t MaximumAudioBufferByteBudget2D = 1024U * 1024U * 1024U;
 constexpr std::uint32_t MaximumRefillChunkFrames2D = 262144U;
 constexpr std::uint32_t MaximumTargetQueuedFrames2D = 1048576U;
 constexpr std::uint32_t MaximumRefillChunksPerPump2D = 64U;
-constexpr std::size_t AudioDeviceEventBatchCapacity2D = 16U;
 }
 
 bool AudioOutputCheckedSampleCount(
@@ -96,6 +94,35 @@ std::string_view ToString(const AudioOutputResult2D value) noexcept
     return "unknown";
 }
 
+bool SDLCALL AudioOutput2D::Impl::DeviceEventWatch(void* userdata, SDL_Event* event) noexcept
+{
+    if (userdata == nullptr || event == nullptr)
+    {
+        return true;
+    }
+
+    if (event->type != SDL_EVENT_AUDIO_DEVICE_REMOVED &&
+        event->type != SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED)
+    {
+        return true;
+    }
+    if (event->adevice.recording)
+    {
+        return true;
+    }
+
+    auto& output = *static_cast<Impl*>(userdata);
+    if (event->type == SDL_EVENT_AUDIO_DEVICE_REMOVED)
+    {
+        output.pendingDeviceLossEventCount_.fetch_add(1U, std::memory_order_relaxed);
+    }
+    else
+    {
+        output.pendingDeviceFormatChangeEventCount_.fetch_add(1U, std::memory_order_relaxed);
+    }
+    return true;
+}
+
 AudioOutput2D::Impl::Impl(const assets::ResourceRegistry& resources, AudioOutputConfig2D config)
     : resources_{resources}
     , preparation_{resources}
@@ -169,6 +196,19 @@ AudioOutputResult2D AudioOutput2D::Impl::Start()
         audioSubsystemInitialized_ = false;
         return AudioOutputResult2D::DeviceOpenFailed;
     }
+    if (!SDL_AddEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this))
+    {
+        ++backendFailureCount_;
+        diagnostic_ = std::string{"SDL audio-device event watch registration failed: "} + SDL_GetError();
+        SDL_CloseAudioDevice(device_);
+        device_ = 0U;
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        audioSubsystemInitialized_ = false;
+        return AudioOutputResult2D::BackendUnavailable;
+    }
+    eventWatchRegistered_ = true;
+    pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
+    pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
 
     ++deviceOpenCount_;
     state_ = AudioOutputState2D::Running;
@@ -179,6 +219,14 @@ AudioOutputResult2D AudioOutput2D::Impl::Start()
 
 void AudioOutput2D::Impl::Stop() noexcept
 {
+    if (eventWatchRegistered_)
+    {
+        SDL_RemoveEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this);
+        eventWatchRegistered_ = false;
+    }
+    pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
+    pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
+
     for (PhysicalVoice& voice : voices_)
     {
         DestroyStream(voice);
@@ -258,39 +306,34 @@ AudioOutputDeviceEventReport2D AudioOutput2D::Impl::PollDeviceEvents()
         return report;
     }
 
-    std::array<SDL_Event, AudioDeviceEventBatchCapacity2D> events{};
-    const int count = SDL_PeepEvents(
-        events.data(),
-        static_cast<int>(events.size()),
-        SDL_GETEVENT,
-        SDL_EVENT_AUDIO_DEVICE_FIRST,
-        SDL_EVENT_AUDIO_DEVICE_LAST);
-    if (count < 0)
-    {
-        ++backendFailureCount_;
-        diagnostic_ = std::string{"SDL audio-device event polling failed: "} + SDL_GetError();
-        report.result = AudioOutputResult2D::DeviceControlFailed;
-        return report;
-    }
+    const std::uint64_t deviceLossCount =
+        pendingDeviceLossEventCount_.exchange(0U, std::memory_order_relaxed);
+    const std::uint64_t formatChangeCount =
+        pendingDeviceFormatChangeEventCount_.exchange(0U, std::memory_order_relaxed);
 
-    report.processedEventCount = static_cast<std::size_t>(count);
-    for (int index = 0; index < count; ++index)
-    {
-        const SDL_Event& event = events[static_cast<std::size_t>(index)];
-        if (event.adevice.recording)
+    const auto boundedSize = [](const std::uint64_t value) noexcept -> std::size_t {
+        if constexpr (sizeof(std::size_t) >= sizeof(std::uint64_t))
         {
-            continue;
+            return static_cast<std::size_t>(value);
         }
-        if (event.type == SDL_EVENT_AUDIO_DEVICE_REMOVED)
+        else
         {
-            ++deviceLossEventCount_;
-            report.recoveryRequested = true;
+            const std::uint64_t maximum = static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
+            return value > maximum ? std::numeric_limits<std::size_t>::max() : static_cast<std::size_t>(value);
         }
-        else if (event.type == SDL_EVENT_AUDIO_DEVICE_FORMAT_CHANGED)
-        {
-            ++deviceFormatChangeEventCount_;
-        }
-    }
+    };
+
+    const std::size_t boundedLossCount = boundedSize(deviceLossCount);
+    const std::size_t boundedFormatChangeCount = boundedSize(formatChangeCount);
+    const std::size_t maximumProcessedCount = std::numeric_limits<std::size_t>::max();
+    report.processedEventCount =
+        boundedLossCount > maximumProcessedCount - boundedFormatChangeCount
+        ? maximumProcessedCount
+        : boundedLossCount + boundedFormatChangeCount;
+
+    deviceLossEventCount_ += deviceLossCount;
+    deviceFormatChangeEventCount_ += formatChangeCount;
+    report.recoveryRequested = deviceLossCount != 0U || formatChangeCount != 0U;
 
     if (report.recoveryRequested)
     {
