@@ -112,6 +112,15 @@ bool SDLCALL AudioOutput2D::Impl::DeviceEventWatch(void* userdata, SDL_Event* ev
     }
 
     auto& output = *static_cast<Impl*>(userdata);
+    const SDL_AudioDeviceID watchedDevice = output.watchedDevice_.load(std::memory_order_relaxed);
+    if (watchedDevice == 0U || event->adevice.which != watchedDevice)
+    {
+        // SDL3 migrates logical devices opened as the system default between physical devices.
+        // Physical-device and unrelated logical-device events therefore must not force Trace2D
+        // to tear down and rebuild its presentation streams.
+        return true;
+    }
+
     if (event->type == SDL_EVENT_AUDIO_DEVICE_REMOVED)
     {
         output.pendingDeviceLossEventCount_.fetch_add(1U, std::memory_order_relaxed);
@@ -196,8 +205,11 @@ AudioOutputResult2D AudioOutput2D::Impl::Start()
         audioSubsystemInitialized_ = false;
         return AudioOutputResult2D::DeviceOpenFailed;
     }
+
+    watchedDevice_.store(device_, std::memory_order_relaxed);
     if (!SDL_AddEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this))
     {
+        watchedDevice_.store(0U, std::memory_order_relaxed);
         ++backendFailureCount_;
         diagnostic_ = std::string{"SDL audio-device event watch registration failed: "} + SDL_GetError();
         SDL_CloseAudioDevice(device_);
@@ -219,6 +231,7 @@ AudioOutputResult2D AudioOutput2D::Impl::Start()
 
 void AudioOutput2D::Impl::Stop() noexcept
 {
+    watchedDevice_.store(0U, std::memory_order_relaxed);
     if (eventWatchRegistered_)
     {
         SDL_RemoveEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this);
@@ -350,6 +363,13 @@ AudioOutputResult2D AudioOutput2D::Impl::Recover(const AudioSystem2D& semantic)
         return AudioOutputResult2D::NotStarted;
     }
 
+    // Stop attributing events to the old logical handle while it is being replaced. The watch
+    // stays registered and remains non-consuming; any physical/default migration events are
+    // deliberately ignored until the new logical handle is published below.
+    watchedDevice_.store(0U, std::memory_order_relaxed);
+    pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
+    pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
+
     for (PhysicalVoice& voice : voices_)
     {
         DestroyStream(voice);
@@ -368,6 +388,13 @@ AudioOutputResult2D AudioOutput2D::Impl::Recover(const AudioSystem2D& semantic)
         diagnostic_ = std::string{"SDL playback device recovery failed: "} + SDL_GetError();
         return AudioOutputResult2D::RecoveryFailed;
     }
+
+    // An event callback that had already loaded the old watched ID can only finish before this
+    // second clear; after publishing the new ID, only events for the replacement logical device
+    // are counted.
+    pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
+    pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
+    watchedDevice_.store(device_, std::memory_order_relaxed);
     ++deviceOpenCount_;
 
     std::size_t index = 0U;
