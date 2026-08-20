@@ -9,6 +9,7 @@
       "default-features": false
     },
     "gtest",
+    "miniaudio",
     "nlohmann-json",
     "sdl3",
     "sdl3-shadercross",
