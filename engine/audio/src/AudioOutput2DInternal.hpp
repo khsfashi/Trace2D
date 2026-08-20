@@ -5,6 +5,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -67,6 +68,8 @@ private:
         bool bound{false};
     };
 
+    static bool SDLCALL DeviceEventWatch(void* userdata, SDL_Event* event) noexcept;
+
     [[nodiscard]] bool ValidateConfig() const noexcept;
     [[nodiscard]] std::optional<std::size_t> FindVoice(AudioVoiceHandle2D handle) const noexcept;
     [[nodiscard]] PreloadCacheEntry* FindPreload(
@@ -102,7 +105,10 @@ private:
     SDL_AudioDeviceID device_{0U};
     AudioOutputState2D state_{AudioOutputState2D::Stopped};
     bool audioSubsystemInitialized_{false};
+    bool eventWatchRegistered_{false};
     bool resumeSuspendedAfterRecovery_{false};
+    std::atomic<std::uint64_t> pendingDeviceLossEventCount_{0U};
+    std::atomic<std::uint64_t> pendingDeviceFormatChangeEventCount_{0U};
     std::string diagnostic_{};
     std::uint64_t preloadUseOrder_{0U};
     std::uint64_t deviceOpenCount_{0U};
