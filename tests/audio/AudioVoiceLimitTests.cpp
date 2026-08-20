@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <utility>
 
 namespace trace2d::audio
 {
