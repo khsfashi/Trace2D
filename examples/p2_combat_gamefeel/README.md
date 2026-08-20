@@ -47,6 +47,16 @@ The retained owner verdict should judge separately from automated correctness:
 
 A rejection is evidence and must be preserved; it should become only the smallest demonstrated follow-up rather than broad Physics2D/Audio expansion.
 
+### Interactive movement presentation
+
+The authoritative simulation remains fixed-step and deterministic, but the windowed owner must not expose those fixed positions directly as visible stair-step motion.
+
+The interactive host therefore measures host elapsed time, advances complete fixed steps through `Application::AdvanceElapsed()`, and derives presentation-only player/enemy positions from previous/current fixed physics samples plus the runtime wall-time remainder. Restart/teleport discontinuities reset interpolation history instead of smearing the old location into the new one.
+
+This distinction is intentional: the headless proof already demonstrates that one keyboard `Press` remains held across many fixed frames, while the owner still rejected the first two windowed builds for visibly stepped movement. The remaining gap was presentation cadence, not authoritative held-input semantics. Visual smoothness remains a human product gate and cannot be certified by headless CI alone.
+
+The implementation follows mature fixed-step engine practice: authoritative physics state is not modified by interpolation; only the rendered transform is derived from it. Godot documents the same physics/render separation for avoiding jitter when physics tick rate and display refresh cadence differ.
+
 ## In-tree build
 
 The repository root includes this example through `examples/CMakeLists.txt`. Normal Trace2D CI builds the headless and windowed targets; CTest runs the headless proof.
