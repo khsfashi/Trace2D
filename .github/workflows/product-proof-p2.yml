@@ -65,6 +65,12 @@ jobs:
       - name: Verify deterministic combat trajectory
         run: ctest --preset windows-debug -R "^trace2d_p2_combat_gamefeel_headless$" --output-on-failure
 
+      - name: Build exported SDK target closure
+        run: >-
+          cmake --build build/windows-msvc --config Debug --parallel
+          --target trace2d_application trace2d_agent trace2d_audio trace2d_physics
+          trace2d_platform trace2d_render trace2d_tile trace2d_text
+
       - name: Install candidate Trace2D SDK
         shell: pwsh
         run: |
