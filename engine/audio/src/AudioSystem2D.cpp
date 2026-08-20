@@ -59,6 +59,16 @@ struct AdvancePrediction final
 }
 } // namespace
 
+std::string_view ToString(const AudioVoiceOverflowPolicy2D value) noexcept
+{
+    switch (value)
+    {
+    case AudioVoiceOverflowPolicy2D::RejectNew: return "reject_new";
+    case AudioVoiceOverflowPolicy2D::StealOldest: return "steal_oldest";
+    }
+    return "unknown";
+}
+
 std::string_view ToString(const AudioEventType2D value) noexcept
 {
     switch (value)
@@ -67,6 +77,7 @@ std::string_view ToString(const AudioEventType2D value) noexcept
     case AudioEventType2D::Paused: return "paused";
     case AudioEventType2D::Resumed: return "resumed";
     case AudioEventType2D::Stopped: return "stopped";
+    case AudioEventType2D::Stolen: return "stolen";
     case AudioEventType2D::Looped: return "looped";
     case AudioEventType2D::Finished: return "finished";
     case AudioEventType2D::Detached: return "detached";
@@ -82,6 +93,8 @@ std::string_view ToString(const AudioEventReason2D value) noexcept
     case AudioEventReason2D::Command: return "command";
     case AudioEventReason2D::EntityDestroyed: return "entity_destroyed";
     case AudioEventReason2D::ResourceUnavailable: return "resource_unavailable";
+    case AudioEventReason2D::GlobalVoiceLimit: return "global_voice_limit";
+    case AudioEventReason2D::GroupVoiceLimit: return "group_voice_limit";
     }
     return "unknown";
 }
@@ -99,6 +112,7 @@ std::string_view ToString(const AudioCommandResult2D value) noexcept
     case AudioCommandResult2D::StaleVoice: return "stale_voice";
     case AudioCommandResult2D::InvalidState: return "invalid_state";
     case AudioCommandResult2D::InvalidInput: return "invalid_input";
+    case AudioCommandResult2D::VoiceLimitReached: return "voice_limit_reached";
     case AudioCommandResult2D::CapacityExceeded: return "capacity_exceeded";
     }
     return "unknown";
@@ -123,6 +137,7 @@ std::string_view ToString(const AudioAutoplayResult2D value) noexcept
     case AudioAutoplayResult2D::AlreadyStarted: return "already_started";
     case AudioAutoplayResult2D::SourceInvalid: return "source_invalid";
     case AudioAutoplayResult2D::ClipNotReady: return "clip_not_ready";
+    case AudioAutoplayResult2D::VoiceLimitReached: return "voice_limit_reached";
     case AudioAutoplayResult2D::CapacityExceeded: return "capacity_exceeded";
     }
     return "unknown";
@@ -176,6 +191,28 @@ bool AudioSystem2D::ReserveEvents(const std::size_t capacity)
     return true;
 }
 
+bool AudioSystem2D::SetVoiceLimits(const AudioVoiceLimits2D& limits) noexcept
+{
+    if (limits.overflowPolicy != AudioVoiceOverflowPolicy2D::RejectNew &&
+        limits.overflowPolicy != AudioVoiceOverflowPolicy2D::StealOldest)
+    {
+        return false;
+    }
+    if (activeVoiceCount_ > limits.globalLimit)
+    {
+        return false;
+    }
+    for (std::size_t groupIndex = 0U; groupIndex < AudioGroupCount2D; ++groupIndex)
+    {
+        if (activeGroupVoiceCounts_[groupIndex] > limits.groupLimits[groupIndex])
+        {
+            return false;
+        }
+    }
+    voiceLimits_ = limits;
+    return true;
+}
+
 AudioPlayResult2D AudioSystem2D::Play(const scene::EntityId entity)
 {
     ++commandCount_;
@@ -207,7 +244,7 @@ AudioPlayResult2D AudioSystem2D::Play(const scene::EntityId entity)
         return {AudioCommandResult2D::ClipNotReady, {}};
     }
 
-    const AudioPlayResult2D result = PlaySource(entity, *source, *clip, false);
+    const AudioPlayResult2D result = PlaySource(entity, *source, *clip, false, true);
     if (result.result != AudioCommandResult2D::Success)
     {
         ++commandFailureCount_;
@@ -313,6 +350,7 @@ AudioAutoplayReport2D AudioSystem2D::StartAutoplay()
     }
 
     std::size_t autoplayCount = 0U;
+    std::array<std::size_t, AudioGroupCount2D> autoplayGroupCounts{};
     AudioAutoplayResult2D preflight = AudioAutoplayResult2D::Success;
     scene_.ForEachEntity([&](const scene::EntityId entity, const scene::Entity&)
     {
@@ -340,6 +378,7 @@ AudioAutoplayReport2D AudioSystem2D::StartAutoplay()
             return;
         }
         ++autoplayCount;
+        ++autoplayGroupCounts[GroupIndex(source->group)];
     });
 
     if (preflight != AudioAutoplayResult2D::Success)
@@ -357,6 +396,20 @@ AudioAutoplayReport2D AudioSystem2D::StartAutoplay()
         {
             ++eventCapacityFailureCount_;
         }
+        return report;
+    }
+
+    bool voiceLimitExceeded = report.requiredVoiceCapacity > voiceLimits_.globalLimit;
+    for (std::size_t groupIndex = 0U; groupIndex < AudioGroupCount2D && !voiceLimitExceeded; ++groupIndex)
+    {
+        voiceLimitExceeded = SaturatingAdd(
+            activeGroupVoiceCounts_[groupIndex],
+            autoplayGroupCounts[groupIndex]) > voiceLimits_.groupLimits[groupIndex];
+    }
+    if (voiceLimitExceeded)
+    {
+        ++voiceLimitRejectCount_;
+        report.result = AudioAutoplayResult2D::VoiceLimitReached;
         return report;
     }
 
@@ -379,12 +432,21 @@ AudioAutoplayReport2D AudioSystem2D::StartAutoplay()
             startResult = AudioAutoplayResult2D::ClipNotReady;
             return;
         }
-        const AudioPlayResult2D playResult = PlaySource(entity, *source, *clip, false);
+        const AudioPlayResult2D playResult = PlaySource(entity, *source, *clip, false, false);
         if (playResult.result != AudioCommandResult2D::Success)
         {
-            startResult = playResult.result == AudioCommandResult2D::ClipNotReady
-                ? AudioAutoplayResult2D::ClipNotReady
-                : AudioAutoplayResult2D::SourceInvalid;
+            if (playResult.result == AudioCommandResult2D::ClipNotReady)
+            {
+                startResult = AudioAutoplayResult2D::ClipNotReady;
+            }
+            else if (playResult.result == AudioCommandResult2D::VoiceLimitReached)
+            {
+                startResult = AudioAutoplayResult2D::VoiceLimitReached;
+            }
+            else
+            {
+                startResult = AudioAutoplayResult2D::SourceInvalid;
+            }
             return;
         }
         ++report.startedVoiceCount;
@@ -564,6 +626,11 @@ float AudioSystem2D::GroupVolume(const AudioGroup2D group) const noexcept
     return groupVolumes_[GroupIndex(group)];
 }
 
+const AudioVoiceLimits2D& AudioSystem2D::VoiceLimits() const noexcept
+{
+    return voiceLimits_;
+}
+
 AudioMetrics2D AudioSystem2D::Metrics() const noexcept
 {
     return AudioMetrics2D{
@@ -571,6 +638,7 @@ AudioMetrics2D AudioSystem2D::Metrics() const noexcept
         eventCapacity_,
         voices_.size(),
         activeVoiceCount_,
+        activeGroupVoiceCounts_,
         voiceHighWatermark_,
         events_.size(),
         commandCount_,
@@ -579,6 +647,8 @@ AudioMetrics2D AudioSystem2D::Metrics() const noexcept
         loopEventCount_,
         completionEventCount_,
         detachedVoiceCount_,
+        stolenVoiceCount_,
+        voiceLimitRejectCount_,
         eventCapacityFailureCount_};
 }
 
@@ -586,7 +656,8 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
     const scene::EntityId entity,
     const AudioSource2D& source,
     const assets::ResourceHandle<assets::AudioClipResource> clip,
-    const bool countCommand)
+    const bool countCommand,
+    const bool allowSteal)
 {
     if (countCommand)
     {
@@ -602,16 +673,62 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
         }
         return {resources_.Resolve(clip) == nullptr ? AudioCommandResult2D::ClipNotReady : AudioCommandResult2D::SourceInvalid, {}};
     }
-    if (activeVoiceCount_ >= voiceCapacity_ || events_.size() >= eventCapacity_)
+
+    const std::size_t groupIndex = GroupIndex(source.group);
+    const bool groupLimitHit = activeGroupVoiceCounts_[groupIndex] >= voiceLimits_.groupLimits[groupIndex];
+    const bool globalLimitHit = activeVoiceCount_ >= voiceLimits_.globalLimit;
+    const bool storageCapacityHit = activeVoiceCount_ >= voiceCapacity_;
+    const bool admissionBlocked = groupLimitHit || globalLimitHit || storageCapacityHit;
+
+    std::optional<std::uint32_t> stealSlot{};
+    AudioEventReason2D stealReason = AudioEventReason2D::None;
+    if (admissionBlocked)
+    {
+        const bool configuredLimitHit = groupLimitHit || globalLimitHit;
+        if (!allowSteal || voiceLimits_.overflowPolicy == AudioVoiceOverflowPolicy2D::RejectNew)
+        {
+            ++voiceLimitRejectCount_;
+            if (countCommand)
+            {
+                ++commandFailureCount_;
+            }
+            return {
+                configuredLimitHit ? AudioCommandResult2D::VoiceLimitReached : AudioCommandResult2D::CapacityExceeded,
+                {}};
+        }
+
+        if (groupLimitHit)
+        {
+            stealSlot = FindOldestVoice(source.group);
+            stealReason = AudioEventReason2D::GroupVoiceLimit;
+        }
+        else
+        {
+            stealSlot = FindOldestVoice(std::nullopt);
+            stealReason = AudioEventReason2D::GlobalVoiceLimit;
+        }
+
+        if (!stealSlot.has_value())
+        {
+            ++voiceLimitRejectCount_;
+            if (countCommand)
+            {
+                ++commandFailureCount_;
+            }
+            return {
+                configuredLimitHit ? AudioCommandResult2D::VoiceLimitReached : AudioCommandResult2D::CapacityExceeded,
+                {}};
+        }
+    }
+
+    const std::size_t requiredEvents = stealSlot.has_value() ? 2U : 1U;
+    if (events_.size() > eventCapacity_ || requiredEvents > eventCapacity_ - events_.size())
     {
         if (countCommand)
         {
             ++commandFailureCount_;
         }
-        if (events_.size() >= eventCapacity_)
-        {
-            ++eventCapacityFailureCount_;
-        }
+        ++eventCapacityFailureCount_;
         return {AudioCommandResult2D::CapacityExceeded, {}};
     }
 
@@ -625,6 +742,15 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
         return {AudioCommandResult2D::ClipNotReady, {}};
     }
 
+    if (stealSlot.has_value())
+    {
+        VoiceSlot& stolen = voices_[*stealSlot];
+        const AudioVoiceHandle2D stolenHandle{*stealSlot, stolen.generation};
+        PublishEvent(AudioEventType2D::Stolen, stealReason, stolenHandle, stolen.data);
+        ++stolenVoiceCount_;
+        DeactivateVoice(*stealSlot);
+    }
+
     const std::uint32_t slotIndex = AllocateVoiceSlot();
     if (slotIndex == AudioVoiceHandle2D::InvalidSlot)
     {
@@ -634,6 +760,12 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
             ++commandFailureCount_;
         }
         return {AudioCommandResult2D::CapacityExceeded, {}};
+    }
+
+    ++nextVoiceStartOrder_;
+    if (nextVoiceStartOrder_ == 0U)
+    {
+        ++nextVoiceStartOrder_;
     }
 
     VoiceSlot& slot = voices_[slotIndex];
@@ -647,8 +779,10 @@ AudioPlayResult2D AudioSystem2D::PlaySource(
         source.pitch,
         source.loop,
         0.0,
-        0U};
+        0U,
+        nextVoiceStartOrder_};
     ++activeVoiceCount_;
+    ++activeGroupVoiceCounts_[groupIndex];
     if (activeVoiceCount_ > voiceHighWatermark_)
     {
         voiceHighWatermark_ = activeVoiceCount_;
@@ -695,6 +829,27 @@ AudioCommandResult2D AudioSystem2D::ValidateVoice(
     return AudioCommandResult2D::Success;
 }
 
+std::optional<std::uint32_t> AudioSystem2D::FindOldestVoice(const std::optional<AudioGroup2D> group) const noexcept
+{
+    std::optional<std::uint32_t> candidate{};
+    std::uint64_t candidateOrder = std::numeric_limits<std::uint64_t>::max();
+    for (std::uint32_t slotIndex = 0U; slotIndex < static_cast<std::uint32_t>(voices_.size()); ++slotIndex)
+    {
+        const VoiceSlot& slot = voices_[slotIndex];
+        if (!slot.active || (group.has_value() && slot.data.group != *group))
+        {
+            continue;
+        }
+        if (!candidate.has_value() || slot.data.startOrder < candidateOrder ||
+            (slot.data.startOrder == candidateOrder && slotIndex < *candidate))
+        {
+            candidate = slotIndex;
+            candidateOrder = slot.data.startOrder;
+        }
+    }
+    return candidate;
+}
+
 std::uint32_t AudioSystem2D::AllocateVoiceSlot()
 {
     if (!freeVoiceSlots_.empty())
@@ -722,12 +877,14 @@ void AudioSystem2D::ReleaseVoiceRetention(VoiceSlot& slot)
 void AudioSystem2D::DeactivateVoice(const std::uint32_t slotIndex)
 {
     VoiceSlot& slot = voices_[slotIndex];
+    const std::size_t groupIndex = GroupIndex(slot.data.group);
     ReleaseVoiceRetention(slot);
     slot.active = false;
     slot.data = VoiceData{};
     slot.generation = NextGeneration(slot.generation);
     freeVoiceSlots_.push_back(slotIndex);
     --activeVoiceCount_;
+    --activeGroupVoiceCounts_[groupIndex];
 }
 
 void AudioSystem2D::PublishEvent(
