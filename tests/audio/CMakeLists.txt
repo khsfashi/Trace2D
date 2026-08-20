@@ -1,3 +1,5 @@
+find_package(SDL3 CONFIG REQUIRED)
+
 add_executable(trace2d_audio_tests
     Audio2DTests.cpp
     AudioClipPreparation2DTests.cpp
