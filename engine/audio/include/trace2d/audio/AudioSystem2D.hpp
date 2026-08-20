@@ -36,12 +36,21 @@ enum class AudioPlaybackState2D : std::uint8_t
     Paused,
 };
 
+enum class AudioVoiceOverflowPolicy2D : std::uint8_t
+{
+    RejectNew = 0,
+    StealOldest,
+};
+
+[[nodiscard]] std::string_view ToString(AudioVoiceOverflowPolicy2D value) noexcept;
+
 enum class AudioEventType2D : std::uint8_t
 {
     Started = 0,
     Paused,
     Resumed,
     Stopped,
+    Stolen,
     Looped,
     Finished,
     Detached,
@@ -55,6 +64,8 @@ enum class AudioEventReason2D : std::uint8_t
     Command,
     EntityDestroyed,
     ResourceUnavailable,
+    GlobalVoiceLimit,
+    GroupVoiceLimit,
 };
 
 [[nodiscard]] std::string_view ToString(AudioEventReason2D value) noexcept;
@@ -70,6 +81,7 @@ enum class AudioCommandResult2D : std::uint8_t
     StaleVoice,
     InvalidState,
     InvalidInput,
+    VoiceLimitReached,
     CapacityExceeded,
 };
 
@@ -90,6 +102,7 @@ enum class AudioAutoplayResult2D : std::uint8_t
     AlreadyStarted,
     SourceInvalid,
     ClipNotReady,
+    VoiceLimitReached,
     CapacityExceeded,
 };
 
@@ -141,12 +154,22 @@ struct AudioAutoplayReport2D final
     std::size_t requiredEventCapacity{0U};
 };
 
+struct AudioVoiceLimits2D final
+{
+    static constexpr std::size_t Unlimited = std::numeric_limits<std::size_t>::max();
+
+    std::size_t globalLimit{Unlimited};
+    std::array<std::size_t, AudioGroupCount2D> groupLimits{Unlimited, Unlimited, Unlimited, Unlimited};
+    AudioVoiceOverflowPolicy2D overflowPolicy{AudioVoiceOverflowPolicy2D::RejectNew};
+};
+
 struct AudioMetrics2D final
 {
     std::size_t retainedVoiceCapacity{0U};
     std::size_t retainedEventCapacity{0U};
     std::size_t allocatedVoiceSlots{0U};
     std::size_t activeVoiceCount{0U};
+    std::array<std::size_t, AudioGroupCount2D> activeVoiceCountByGroup{};
     std::size_t voiceHighWatermark{0U};
     std::size_t publishedEventCount{0U};
     std::uint64_t commandCount{0U};
@@ -155,6 +178,8 @@ struct AudioMetrics2D final
     std::uint64_t loopEventCount{0U};
     std::uint64_t completionEventCount{0U};
     std::uint64_t detachedVoiceCount{0U};
+    std::uint64_t stolenVoiceCount{0U};
+    std::uint64_t voiceLimitRejectCount{0U};
     std::uint64_t eventCapacityFailureCount{0U};
 };
 
@@ -174,6 +199,7 @@ public:
 
     [[nodiscard]] bool ReserveVoices(std::size_t capacity);
     [[nodiscard]] bool ReserveEvents(std::size_t capacity);
+    [[nodiscard]] bool SetVoiceLimits(const AudioVoiceLimits2D& limits) noexcept;
 
     [[nodiscard]] AudioPlayResult2D Play(scene::EntityId entity);
     [[nodiscard]] AudioCommandResult2D Pause(AudioVoiceHandle2D voice);
@@ -188,6 +214,7 @@ public:
     [[nodiscard]] std::span<const AudioEvent2D> Events() const noexcept;
     [[nodiscard]] std::optional<AudioVoiceSnapshot2D> InspectVoice(AudioVoiceHandle2D voice) const noexcept;
     [[nodiscard]] float GroupVolume(AudioGroup2D group) const noexcept;
+    [[nodiscard]] const AudioVoiceLimits2D& VoiceLimits() const noexcept;
     [[nodiscard]] AudioMetrics2D Metrics() const noexcept;
 
 private:
@@ -202,6 +229,7 @@ private:
         bool loop{false};
         double positionFrames{0.0};
         std::uint64_t completedLoops{0U};
+        std::uint64_t startOrder{0U};
     };
 
     struct VoiceSlot final
@@ -215,13 +243,15 @@ private:
         scene::EntityId entity,
         const AudioSource2D& source,
         assets::ResourceHandle<assets::AudioClipResource> clip,
-        bool countCommand);
+        bool countCommand,
+        bool allowSteal);
     [[nodiscard]] AudioCommandResult2D ValidateVoice(
         AudioVoiceHandle2D voice,
         VoiceSlot*& outSlot) noexcept;
     [[nodiscard]] AudioCommandResult2D ValidateVoice(
         AudioVoiceHandle2D voice,
         const VoiceSlot*& outSlot) const noexcept;
+    [[nodiscard]] std::optional<std::uint32_t> FindOldestVoice(std::optional<AudioGroup2D> group) const noexcept;
     [[nodiscard]] std::uint32_t AllocateVoiceSlot();
     void ReleaseVoiceRetention(VoiceSlot& slot);
     void DeactivateVoice(std::uint32_t slotIndex);
@@ -242,17 +272,22 @@ private:
     std::vector<std::uint32_t> freeVoiceSlots_{};
     std::vector<AudioEvent2D> events_{};
     std::array<float, AudioGroupCount2D> groupVolumes_{1.0F, 1.0F, 1.0F, 1.0F};
+    std::array<std::size_t, AudioGroupCount2D> activeGroupVoiceCounts_{};
+    AudioVoiceLimits2D voiceLimits_{};
     std::size_t voiceCapacity_{0U};
     std::size_t eventCapacity_{0U};
     std::size_t activeVoiceCount_{0U};
     std::size_t voiceHighWatermark_{0U};
     std::uint64_t nextEventSequence_{0U};
+    std::uint64_t nextVoiceStartOrder_{0U};
     std::uint64_t commandCount_{0U};
     std::uint64_t commandFailureCount_{0U};
     std::uint64_t stepCount_{0U};
     std::uint64_t loopEventCount_{0U};
     std::uint64_t completionEventCount_{0U};
     std::uint64_t detachedVoiceCount_{0U};
+    std::uint64_t stolenVoiceCount_{0U};
+    std::uint64_t voiceLimitRejectCount_{0U};
     std::uint64_t eventCapacityFailureCount_{0U};
     bool autoplayStarted_{false};
 };
