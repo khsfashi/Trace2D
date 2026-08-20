@@ -107,6 +107,7 @@ private:
     bool audioSubsystemInitialized_{false};
     bool eventWatchRegistered_{false};
     bool resumeSuspendedAfterRecovery_{false};
+    std::atomic<SDL_AudioDeviceID> watchedDevice_{0U};
     std::atomic<std::uint64_t> pendingDeviceLossEventCount_{0U};
     std::atomic<std::uint64_t> pendingDeviceFormatChangeEventCount_{0U};
     std::string diagnostic_{};
