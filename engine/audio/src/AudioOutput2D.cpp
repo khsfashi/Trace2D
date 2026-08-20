@@ -363,10 +363,15 @@ AudioOutputResult2D AudioOutput2D::Impl::Recover(const AudioSystem2D& semantic)
         return AudioOutputResult2D::NotStarted;
     }
 
-    // Stop attributing events to the old logical handle while it is being replaced. The watch
-    // stays registered and remains non-consuming; any physical/default migration events are
-    // deliberately ignored until the new logical handle is published below.
+    // SDL_RemoveEventWatch serializes with dispatch of this watch. Unregistering before replacing
+    // the logical device guarantees that an old-device callback cannot publish a stale recovery
+    // signal after the pending counters are cleared.
     watchedDevice_.store(0U, std::memory_order_relaxed);
+    if (eventWatchRegistered_)
+    {
+        SDL_RemoveEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this);
+        eventWatchRegistered_ = false;
+    }
     pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
     pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
 
@@ -389,12 +394,18 @@ AudioOutputResult2D AudioOutput2D::Impl::Recover(const AudioSystem2D& semantic)
         return AudioOutputResult2D::RecoveryFailed;
     }
 
-    // An event callback that had already loaded the old watched ID can only finish before this
-    // second clear; after publishing the new ID, only events for the replacement logical device
-    // are counted.
-    pendingDeviceLossEventCount_.store(0U, std::memory_order_relaxed);
-    pendingDeviceFormatChangeEventCount_.store(0U, std::memory_order_relaxed);
     watchedDevice_.store(device_, std::memory_order_relaxed);
+    if (!SDL_AddEventWatch(&AudioOutput2D::Impl::DeviceEventWatch, this))
+    {
+        watchedDevice_.store(0U, std::memory_order_relaxed);
+        ++backendFailureCount_;
+        SDL_CloseAudioDevice(device_);
+        device_ = 0U;
+        state_ = AudioOutputState2D::RecoveryPending;
+        diagnostic_ = std::string{"SDL audio-device event watch recovery failed: "} + SDL_GetError();
+        return AudioOutputResult2D::RecoveryFailed;
+    }
+    eventWatchRegistered_ = true;
     ++deviceOpenCount_;
 
     std::size_t index = 0U;
