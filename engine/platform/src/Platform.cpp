@@ -25,7 +25,10 @@ void ReleaseSdl(const SDL_InitFlags initializedSubsystems) noexcept
         --gSdlOwnerCount;
     }
 
-    if (gSdlOwnerCount == 0)
+    // Platform owns only the subsystem references it acquired. A separately alive AudioOutput2D
+    // can hold SDL_INIT_AUDIO after the last Platform instance is gone; never globally tear that
+    // state down. SDL_Quit is safe here only when no SDL subsystem remains initialized at all.
+    if (gSdlOwnerCount == 0 && SDL_WasInit(0) == 0U)
     {
         SDL_Quit();
     }
@@ -219,7 +222,7 @@ public:
         if (!SDL_Init(initializedSubsystems_))
         {
             const std::string error{SDL_GetError()};
-            if (gSdlOwnerCount == 0)
+            if (gSdlOwnerCount == 0 && SDL_WasInit(0) == 0U)
             {
                 SDL_Quit();
             }
