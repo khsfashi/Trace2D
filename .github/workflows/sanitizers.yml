@@ -85,7 +85,7 @@ jobs:
           echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
 
       - name: Restore vcpkg source downloads
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .trace2d-vcpkg-downloads
           key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
@@ -93,7 +93,7 @@ jobs:
 
       - name: Restore Linux vcpkg binary archives
         id: vcpkg-binary-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/vcpkg/archives
           key: trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
@@ -136,7 +136,7 @@ jobs:
 
       - name: Save Linux vcpkg binary archives
         if: always() && steps.vcpkg-binary-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/vcpkg/archives
           key: trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
