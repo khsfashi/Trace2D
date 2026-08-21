@@ -2,6 +2,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_library(trace2d_profile STATIC
     src/Profile2D.cpp
+    src/ProfileReport2D.cpp
     src/StructuralProfile2D.cpp
 )
 
