@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <limits>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace trace2d::profile
@@ -211,8 +212,8 @@ ProfileReportResult2D BuildProfileReportJson(
         {"cpu_identity", nlohmann::ordered_json{
             {"availability", std::string{ToString(context.cpuIdentityAvailability)}},
             {"value", context.cpuIdentityAvailability == ProfileMetricAvailability2D::Available
-                ? nlohmann::ordered_json{std::string{context.cpuIdentity}}
-                : nlohmann::ordered_json{nullptr}},
+                ? nlohmann::ordered_json(std::string{context.cpuIdentity})
+                : nlohmann::ordered_json(nullptr)},
         }},
         {"renderer_backend", std::string{context.rendererBackend}},
         {"timing_source", std::string{context.timingSource}},
