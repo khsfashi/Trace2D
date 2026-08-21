@@ -1,10 +1,12 @@
 add_executable(trace2d_profile_tests
     Profile2DTests.cpp
+    StructuralProfile2DTests.cpp
 )
 
 target_link_libraries(trace2d_profile_tests
     PRIVATE
         Trace2D::Profile
+        Trace2D::ProfileAdapters
         GTest::gtest_main
 )
 
