@@ -49,7 +49,7 @@ jobs:
         run: cmake --preset windows-msvc
 
       - name: Build exported SDK target closure
-        run: cmake --build build/windows-msvc --config Debug --parallel --target trace2d_application trace2d_agent trace2d_audio trace2d_physics trace2d_platform trace2d_render trace2d_tile trace2d_text
+        run: cmake --build build/windows-msvc --config Debug --parallel --target trace2d_application trace2d_agent trace2d_audio trace2d_physics trace2d_platform trace2d_profile trace2d_render trace2d_tile trace2d_text
 
       - name: Validate install, package, doctor, and external consumer
         shell: pwsh

@@ -50,6 +50,7 @@ if(TRACE2D_INSTALL_SDK)
     include(Trace2DPackage)
 
     trace2d_install_public_target(trace2d_core Core "${CMAKE_CURRENT_SOURCE_DIR}/engine/core/include")
+    trace2d_install_public_target(trace2d_profile Profile "${CMAKE_CURRENT_SOURCE_DIR}/engine/profile/include")
     trace2d_install_public_target(trace2d_input Input "${CMAKE_CURRENT_SOURCE_DIR}/engine/input/include")
     trace2d_install_public_target(trace2d_platform Platform "${CMAKE_CURRENT_SOURCE_DIR}/engine/platform/include")
     trace2d_install_public_target(trace2d_runtime Runtime "${CMAKE_CURRENT_SOURCE_DIR}/engine/runtime/include")
