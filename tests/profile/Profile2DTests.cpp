@@ -215,6 +215,26 @@ TEST(Profile2DTests, RejectsMismatchedScopeExitAndRecoversOnTheNextFrame)
     EXPECT_EQ(profiler.Metrics().committedFrameCount, 1U);
 }
 
+TEST(Profile2DTests, EnforcesMonotonicTimelineAcrossFrameBoundaries)
+{
+    CpuProfiler2D profiler{};
+    ASSERT_EQ(profiler.Prepare(1U, 2U, 1U), ProfileResult2D::Success);
+
+    ProfileScopeId2D scope{};
+    ASSERT_EQ(profiler.RegisterScope("frame", scope), ProfileResult2D::Success);
+    profiler.SetEnabled(true);
+
+    ASSERT_EQ(profiler.BeginFrame(1U, 100ns), ProfileResult2D::Success);
+    ASSERT_EQ(profiler.EndFrame(110ns), ProfileResult2D::Success);
+
+    EXPECT_EQ(profiler.BeginFrame(2U, 109ns), ProfileResult2D::NonMonotonicTimestamp);
+    ASSERT_EQ(profiler.BeginFrame(2U, 110ns), ProfileResult2D::Success);
+    ASSERT_EQ(profiler.EndFrame(110ns), ProfileResult2D::Success);
+
+    EXPECT_EQ(profiler.Metrics().committedFrameCount, 2U);
+    EXPECT_EQ(profiler.Metrics().invalidFrameCount, 0U);
+}
+
 TEST(Profile2DTests, ReusesBoundedFrameRingWithoutCapacityGrowth)
 {
     CpuProfiler2D profiler{};
