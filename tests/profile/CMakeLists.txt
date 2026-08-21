@@ -1,5 +1,6 @@
 add_executable(trace2d_profile_tests
     Profile2DTests.cpp
+    ProfileReport2DTests.cpp
     StructuralProfile2DTests.cpp
 )
 

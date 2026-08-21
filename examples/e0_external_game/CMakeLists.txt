@@ -51,6 +51,13 @@ target_link_libraries(trace2d_e0_external_headless PRIVATE trace2d_e0_external_g
 target_compile_features(trace2d_e0_external_headless PRIVATE cxx_std_20)
 trace2d_e0_enable_warnings(trace2d_e0_external_headless)
 
+add_executable(trace2d_e0_profile_contract
+    ProfileContractMain.cpp
+)
+target_link_libraries(trace2d_e0_profile_contract PRIVATE Trace2D::Profile)
+target_compile_features(trace2d_e0_profile_contract PRIVATE cxx_std_20)
+trace2d_e0_enable_warnings(trace2d_e0_profile_contract)
+
 add_executable(trace2d_e0_external_windowed
     WindowedMain.cpp
 )
@@ -66,6 +73,7 @@ trace2d_e0_enable_warnings(trace2d_e0_external_windowed)
 if(BUILD_TESTING)
     add_test(NAME trace2d_e0_external_game_headless COMMAND trace2d_e0_external_headless)
     set_tests_properties(trace2d_e0_external_game_headless PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME trace2d_e0_profile_contract COMMAND trace2d_e0_profile_contract)
 endif()
 
 if(TRACE2D_E0_STANDALONE)
