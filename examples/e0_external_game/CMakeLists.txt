@@ -38,6 +38,7 @@ target_link_libraries(trace2d_e0_external_game
         Trace2D::Application
         Trace2D::Agent
         Trace2D::Profile
+        Trace2D::ProfileAdapters
 )
 
 target_compile_features(trace2d_e0_external_game PUBLIC cxx_std_20)
