@@ -86,10 +86,10 @@ TEST(ProfileReport2DTests, ComposesWrappedCpuHistoryChronologicallyWithExactAggr
     ASSERT_EQ(BuildProfileReportJson(structural, profiler, TestContext(), jsonText), ProfileReportResult2D::Success);
     const auto report = nlohmann::json::parse(jsonText);
 
-    EXPECT_EQ(report.at("schema"), ProfileReportSchema2D);
+    EXPECT_EQ(report.at("schema").get<std::string>(), std::string{ProfileReportSchema2D});
     EXPECT_EQ(report.at("context").at("cpu_identity").at("availability"), "not_measured");
     EXPECT_TRUE(report.at("context").at("cpu_identity").at("value").is_null());
-    EXPECT_EQ(report.at("structural").at("schema"), StructuralProfileSchema2D);
+    EXPECT_EQ(report.at("structural").at("schema").get<std::string>(), std::string{StructuralProfileSchema2D});
     ASSERT_EQ(report.at("structural").at("metrics").size(), 1U);
     EXPECT_EQ(report.at("structural").at("metrics").at(0).at("name"), "renderer.draw_calls");
 
