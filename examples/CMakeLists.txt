@@ -1,3 +1,4 @@
 add_subdirectory(e0_external_game)
 add_subdirectory(p0_tiny_playable)
 add_subdirectory(p1_presentation_playground)
+add_subdirectory(p2_combat_gamefeel)

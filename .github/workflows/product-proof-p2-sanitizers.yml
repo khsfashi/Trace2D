@@ -1,0 +1,64 @@
+name: P2 Combat Sanitizers
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "examples/p2_combat_gamefeel/**"
+      - ".github/workflows/product-proof-p2-sanitizers.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/p2_combat_gamefeel/**"
+      - ".github/workflows/product-proof-p2-sanitizers.yml"
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+  ASAN_OPTIONS: halt_on_error=1:detect_leaks=1
+  UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+jobs:
+  linux-clang-p2:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Linux build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends autoconf autoconf-archive automake libltdl-dev libtool ninja-build pkg-config
+
+      - name: Install pinned vcpkg
+        run: |
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          git clone https://github.com/microsoft/vcpkg "$vcpkg_root"
+          git -C "$vcpkg_root" checkout "$TRACE2D_VCPKG_BASELINE"
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+
+      - name: Configure P2 sanitizer build
+        env:
+          CC: clang
+          CXX: clang++
+        run: >-
+          cmake -S . -B build/p2-sanitizers -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DTRACE2D_WARNINGS_AS_ERRORS=ON
+          -DTRACE2D_INSTALL_SDK=OFF
+          -DTRACE2D_ENABLE_ASAN_UBSAN=ON
+          -DBUILD_TESTING=ON
+
+      - name: Build P2 headless sanitizer target
+        run: cmake --build build/p2-sanitizers --parallel --target trace2d_p2_combat_gamefeel_headless
+
+      - name: Run P2 under ASan and UBSan
+        run: ctest --test-dir build/p2-sanitizers -R "^trace2d_p2_combat_gamefeel_headless$" --output-on-failure
