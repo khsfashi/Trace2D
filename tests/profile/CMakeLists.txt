@@ -9,7 +9,6 @@ target_link_libraries(trace2d_profile_tests
         Trace2D::Profile
         Trace2D::ProfileAdapters
         GTest::gtest_main
-        nlohmann_json::nlohmann_json
 )
 
 target_compile_features(trace2d_profile_tests PRIVATE cxx_std_20)
