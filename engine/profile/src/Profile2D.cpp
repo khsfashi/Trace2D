@@ -225,7 +225,7 @@ ProfileResult2D CpuProfiler2D::BeginFrame(
     {
         return ProfileResult2D::FrameAlreadyActive;
     }
-    if (timestamp.count() < 0)
+    if (timestamp.count() < 0 || (scopeRegistryFrozen_ && timestamp < lastTimestamp_))
     {
         return ProfileResult2D::NonMonotonicTimestamp;
     }
