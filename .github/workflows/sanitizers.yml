@@ -120,6 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           cmake --build build/sanitizers --parallel --target \
+            trace2d_profile_cli \
             trace2d_profile_tests \
             trace2d_runtime_tests \
             trace2d_scene_tests \
