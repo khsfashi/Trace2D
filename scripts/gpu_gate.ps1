@@ -17,6 +17,27 @@ function Invoke-NativeChecked {
 function Get-GpuFixturePolicy {
     param([string]$TestName)
 
+    if ($TestName -eq "GpuConformanceTests.StructuredFailureCategoryVocabularyIsStable") {
+        return [ordered]@{
+            test = $TestName
+            subsystem = "gpu_qa_outcome_contract"
+            comparison_mode = "metadata_exact"
+            tolerance = $null
+        }
+    }
+    if ($TestName -eq "GpuConformanceTests.StructuredOutcomeProbeTraversesRealGpuValidationPhases") {
+        return [ordered]@{
+            test = $TestName
+            subsystem = "gpu_qa_outcome_contract"
+            comparison_mode = "tolerant_semantic_pixels"
+            tolerance = [ordered]@{
+                metric = "max_per_channel_absolute_difference"
+                value = 8
+                alpha = "included"
+                source = "tests/render/GpuQaStructuredOutcomeConformanceTests.cpp"
+            }
+        }
+    }
     if ($TestName.StartsWith("GpuConformanceTests.")) {
         return [ordered]@{
             test = $TestName
@@ -97,10 +118,43 @@ function Resolve-FailureCategory {
         "discover" { return "test_discovery_failure" }
         "gpu_execution" { return "gpu_fixture_failure" }
         "environment_probe" { return "environment_probe_failure" }
+        "fixture_outcomes" { return "fixture_outcome_contract_failure" }
         "evidence" { return "evidence_generation_failure" }
         default { return "evidence_generation_failure" }
     }
 }
+
+function Get-GpuFixtureOutcomes {
+    param([string]$GpuText)
+
+    $matches = [regex]::Matches(
+        $GpuText,
+        'TRACE2D_GPUQA_FIXTURE_V1\s+test=(?<test>\S+)\s+phase=(?<phase>\S+)\s+failure_category=(?<category>\S+)')
+    $latest = [ordered]@{}
+    foreach ($match in $matches) {
+        $testName = $match.Groups["test"].Value
+        $latest[$testName] = [ordered]@{
+            test = $testName
+            phase = $match.Groups["phase"].Value
+            failure_category = $match.Groups["category"].Value
+        }
+    }
+    return @($latest.Values)
+}
+
+$fixtureFailureCategories = @(
+    "unsupported_capability",
+    "gpu_device_initialization_failure",
+    "shader_compile_or_reflection_failure",
+    "pipeline_or_resource_creation_failure",
+    "render_submit_or_device_loss_failure",
+    "readback_or_capture_failure",
+    "comparison_mismatch"
+)
+$requiredStructuredOutcomeTests = @(
+    "GpuConformanceTests.StructuredFailureCategoryVocabularyIsStable",
+    "GpuConformanceTests.StructuredOutcomeProbeTraversesRealGpuValidationPhases"
+)
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $repositoryRoot
@@ -110,6 +164,7 @@ $failureCategory = $null
 $errorMessage = $null
 $selectedTests = @()
 $fixturePolicies = @()
+$fixtureOutcomes = @()
 $headSha = "unavailable"
 $testLogPath = $null
 $gpuEnvironment = $null
@@ -165,6 +220,12 @@ try {
         throw "GPU gate selected zero tests with regex '$GpuTestRegex'."
     }
     $fixturePolicies = @($selectedTests | ForEach-Object { Get-GpuFixturePolicy -TestName $_ })
+    foreach ($requiredTest in $requiredStructuredOutcomeTests) {
+        if ($selectedTests -notcontains $requiredTest) {
+            $failureCategory = "fixture_outcome_contract_failure"
+            throw "GPU gate did not select required structured outcome fixture '$requiredTest'."
+        }
+    }
 
     $phase = "gpu_execution"
     $previousGpuSmoke = $env:TRACE2D_RUN_GPU_SMOKE
@@ -176,13 +237,42 @@ try {
         $gpuText | Set-Content -Path $testLogPath -Encoding utf8
         $gpuOutput | ForEach-Object { Write-Host $_ }
 
+        $fixtureOutcomes = @(Get-GpuFixtureOutcomes -GpuText $gpuText)
         if ($gpuExitCode -ne 0) {
-            $failureCategory = "gpu_fixture_failure"
+            $structuredFailures = @($fixtureOutcomes | Where-Object {
+                $_.failure_category -ne "none" -and
+                $fixtureFailureCategories -contains $_.failure_category
+            })
+            if ($structuredFailures.Count -gt 0) {
+                $failureCategory = $structuredFailures[0].failure_category
+            } else {
+                $failureCategory = "gpu_fixture_failure"
+            }
             throw "Real-GPU tests failed with exit code $gpuExitCode."
         }
         if ($gpuText -match '(?im)\*\*\*Skipped|\[\s*SKIPPED\s*\]') {
-            $failureCategory = "unsupported_or_skipped_fixture"
+            $declaredUnsupported = @($fixtureOutcomes | Where-Object {
+                $_.failure_category -eq "unsupported_capability"
+            })
+            if ($declaredUnsupported.Count -gt 0) {
+                $failureCategory = "unsupported_capability"
+            } else {
+                $failureCategory = "unexpected_skipped_fixture"
+            }
             throw "Real-GPU evidence is invalid because at least one selected test was skipped."
+        }
+
+        $phase = "fixture_outcomes"
+        foreach ($requiredTest in $requiredStructuredOutcomeTests) {
+            $outcome = @($fixtureOutcomes | Where-Object { $_.test -eq $requiredTest })
+            if ($outcome.Count -ne 1) {
+                $failureCategory = "fixture_outcome_contract_failure"
+                throw "Expected exactly one final structured outcome for '$requiredTest', found $($outcome.Count)."
+            }
+            if ($outcome[0].phase -ne "complete" -or $outcome[0].failure_category -ne "none") {
+                $failureCategory = $outcome[0].failure_category
+                throw "Structured GPU fixture '$requiredTest' did not finish with complete/none."
+            }
         }
 
         $phase = "environment_probe"
@@ -270,6 +360,13 @@ finally {
             selected_test_count = $selectedTests.Count
             selected_tests = $selectedTests
             fixture_policies = $fixturePolicies
+            fixture_outcome_contract = [ordered]@{
+                marker_schema = "trace2d.gpuqa.fixture-outcome.v1"
+                required_tests = $requiredStructuredOutcomeTests
+                failure_categories = $fixtureFailureCategories
+                unexpected_skip_category = "unexpected_skipped_fixture"
+            }
+            fixture_outcomes = $fixtureOutcomes
             runner = [ordered]@{
                 name = $env:RUNNER_NAME
                 os = $env:RUNNER_OS
