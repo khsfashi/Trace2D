@@ -1,6 +1,6 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-20**
+Last explanatory handoff update: **2026-08-24**
 
 This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state.
 
@@ -227,8 +227,9 @@ Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state fi
 
 - #321 is complete; do not return to Asset Studio depth.
 - #89, #90 and #327 are complete and consumed.
-- **#76 Physics2D V1 and #77 Audio V1 are complete; #329 Combat Product Proof is the exact next core-lane item.**
-- Do not add speculative Physics2D/Audio breadth; let #329 expose the smallest concrete follow-up if one is needed.
+- #76 Physics2D V1, #77 Audio V1, #329 Combat Product Proof, #91 Profiler and #78 Linux/non-MSVC portability are complete.
+- **#92 tiered real-GPU QA is the exact next core-lane item.**
+- Do not reopen completed portability or subsystem breadth; #92 owns real-GPU conformance/release validation and reuses #91 profiling/timing vocabulary.
 - Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
 - Do not start #322/#323 before #331 is accepted.
 - Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
