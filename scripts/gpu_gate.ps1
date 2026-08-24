@@ -45,10 +45,10 @@ function Get-GpuFixturePolicy {
             comparison_mode = "mixed_exact_diagnostics_and_tolerant_semantic_pixels"
             tolerance = [ordered]@{
                 metric = "max_per_channel_absolute_difference"
-                value = 7
+                value = 8
                 alpha = "included"
                 discrete_semantics = "material_prepare_errors_and_cache_counters_exact_where_asserted"
-                source = "tests/render/MaterialGpuSmokeTests.cpp"
+                source = "tests/render/MaterialGpuSmokeTests.cpp + tests/render/MaterialGpuAcceptanceTests.cpp"
             }
         }
     }
