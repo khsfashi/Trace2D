@@ -25,6 +25,33 @@ function Get-GpuFixturePolicy {
             tolerance = $null
         }
     }
+    if ($TestName.StartsWith("CameraViewportGpuConformanceTests.")) {
+        return [ordered]@{
+            test = $TestName
+            subsystem = "camera_viewport"
+            comparison_mode = "tolerant_semantic_pixels"
+            tolerance = [ordered]@{
+                metric = "max_per_channel_absolute_difference"
+                value = 8
+                alpha = "included"
+                source = "tests/render/CameraViewportGpuConformanceTests.cpp"
+            }
+        }
+    }
+    if ($TestName.StartsWith("MaterialGpuSmokeTests.")) {
+        return [ordered]@{
+            test = $TestName
+            subsystem = "material"
+            comparison_mode = "mixed_exact_diagnostics_and_tolerant_semantic_pixels"
+            tolerance = [ordered]@{
+                metric = "max_per_channel_absolute_difference"
+                value = 7
+                alpha = "included"
+                discrete_semantics = "material_prepare_errors_and_cache_counters_exact_where_asserted"
+                source = "tests/render/MaterialGpuSmokeTests.cpp"
+            }
+        }
+    }
     if ($TestName.StartsWith("SpriteRendererGpuConformanceTests.")) {
         return [ordered]@{
             test = $TestName
