@@ -1,6 +1,6 @@
 # Trace2D GPU QA conformance contract
 
-Status: **GPUQA1 active via #387**  
+Status: **GPUQA2 active via #389; GPUQA1 complete via #387/#388**  
 Parent: **#92 GPUQA0**
 
 Trace2D separates backend-independent correctness from explicit real-GPU presentation evidence. GPU QA never moves gameplay truth, readback, fence waits, image comparison, JSON, or filesystem work into ordinary frames.
@@ -17,7 +17,7 @@ The current maintained target is `owner-windows-primary` from `config/gpu-qa-sup
 
 ### Tier C — release matrix
 
-GPUQA1 intentionally has no Tier C targets. `tier_c_claim` remains `not_established` until additional maintained targets have explicit owners and repeatable infrastructure.
+GPUQA2 intentionally has no Tier C targets. `tier_c_claim` remains `not_established` until additional maintained targets have explicit owners and repeatable infrastructure.
 
 ## Evidence schema
 
@@ -32,7 +32,7 @@ The manifest records:
 - actual SDL GPU backend reported by `Renderer::DriverName()` from the real rendering process;
 - capture viewport and normalized capture format from the GPUQA environment probe;
 - CMake/vcpkg/configuration identity;
-- fixture policy metadata for representative conformance suites;
+- fixture policy metadata for representative camera/viewport, Material2D, Sprite and particle conformance suites;
 - SHA-256 of the verbose CTest log;
 - the committed support-matrix schema/path.
 
@@ -47,6 +47,18 @@ The gate requires this marker. It is produced only while `TRACE2D_RUN_GPU_SMOKE=
 ## Comparison policy
 
 There is no global screenshot tolerance.
+
+### Camera2D / Viewport2D
+
+`CameraViewportGpuConformanceTests` reuses the #88 CPU authority instead of introducing a second GPU camera implementation. The fixture resolves a non-zero interpolated camera and a 32x16 logical viewport into a 64x64 Fit presentation, feeds the resulting `ResolvedPresentationView2D::rendererCamera` through the ordinary Renderer, and performs one explicit capture.
+
+The CPU contract predicts the interpolated world center at presentation pixel `(32,32)`. The GPU fixture checks that semantic center and checks the top/bottom Fit letterbox remains clear with maximum per-channel absolute tolerance 8. Before explicit capture, validation readback/fence counters remain zero. The gate records this policy as `camera_viewport` / `tolerant_semantic_pixels`.
+
+### Material2D
+
+Existing `MaterialGpuSmokeTests` already prove real shader compilation/pipeline preparation, cache reuse, deterministic material prepare errors and representative semantic pixels. GPUQA2 makes that evidence explicit in the generic manifest instead of leaving it under `fixture_local`.
+
+Across MAT3 and MAT4, the retained pixel assertions bound the representative white/red/half-flash outputs to a maximum per-channel absolute difference of 8 from their intended values; exact prepare-error/cache/resource assertions remain exact where the fixtures already require them. The gate records this as `mixed_exact_diagnostics_and_tolerant_semantic_pixels`.
 
 ### Sprite SR8
 
@@ -65,11 +77,11 @@ The gate records this as `mixed_exact_and_tolerant_semantics` rather than an exa
 
 ### Other GPU smoke fixtures
 
-Other selected `GpuSmokeTests` remain fixture-local assertions. GPUQA1 does not invent a universal tolerance or imply that smoke coverage is a cross-vendor golden comparison.
+Other selected `GpuSmokeTests` remain fixture-local assertions. GPUQA2 does not invent a universal tolerance or imply that smoke coverage is a cross-vendor golden comparison.
 
 ## Failure and skip policy
 
-GPUQA1 records the gate phase and one of these top-level categories when the generic gate itself fails:
+GPUQA1/2 records the gate phase and one of these top-level categories when the generic gate itself fails:
 
 - `platform_or_dependency_failure` — unsupported host, missing vcpkg/toolchain;
 - `configure_failure`;
@@ -80,7 +92,7 @@ GPUQA1 records the gate phase and one of these top-level categories when the gen
 - `environment_probe_failure` — actual SDL backend/capture identity could not be recorded;
 - `evidence_generation_failure`.
 
-This taxonomy is deliberately not a heuristic parser for arbitrary assertion text. Later #92 slices may add structured fixture-owned categories for shader compilation, resource creation, device loss, readback/capture and comparison mismatch. GPUQA1 does not guess those categories from strings.
+This taxonomy is deliberately not a heuristic parser for arbitrary assertion text. A later #92 slice may add structured fixture-owned categories for shader compilation, resource creation, device loss, readback/capture and comparison mismatch. GPUQA2 does not guess those categories from test names or assertion strings.
 
 A selected Tier B fixture may not silently skip. If a capability is intentionally unsupported, the support matrix must first narrow the claim and a later fixture contract must represent that state explicitly.
 
@@ -104,14 +116,19 @@ Forbidden in ordinary gameplay/render frames solely for validation:
 - filesystem or JSON reporting;
 - timing gates tied to an unstable machine.
 
-Timing evidence continues to use #91's environment-aware profiling vocabulary. GPUQA1 adds no timing threshold.
+Timing evidence continues to use #91's environment-aware profiling vocabulary. GPUQA2 adds no timing threshold.
 
-## External API reference decision
+## External reference decision
 
-SDL3 exposes `SDL_GetGPUDeviceDriver` as the backend identity for a created GPU device. Trace2D already exposes that backend through `Renderer::DriverName()`, so GPUQA1 reuses the existing renderer surface instead of adding another backend probe or private native-handle escape hatch.
+Current references for GPUQA2 follow the repository external-reference protocol:
+
+- **ADAPT — wgpu GPU testing:** keep backend-independent validation separate from real-GPU integration tests and exercise normal public GPU-facing APIs on actual hardware; retain fixture-local expectations rather than a global tolerance.
+- **ADAPT — Godot regression-test project:** use a small reproducible rendering workload that exposes regressions without depending on broad manual visual inspection.
+- **REUSE — SDL3 / Trace2D Renderer:** SDL3 exposes `SDL_GetGPUDeviceDriver` as the backend identity for a created GPU device, already surfaced by `Renderer::DriverName()` and GPUQA1. GPUQA2 adds no second backend probe.
+- **REJECT — new image comparison dependency:** existing bounded semantic-pixel assertions are sufficient for this narrow camera/material evidence gap.
 
 ## Completion boundary
 
-GPUQA1 is complete when exact-head hosted CI and the trusted owner GPU gate are green with the new environment fixture and `trace2d.gpu-gate.v2` manifest.
+GPUQA2 is complete when exact-head hosted CI and the trusted owner GPU gate are green with the new Camera2D/Viewport2D fixture selected with no skips, and the uploaded `trace2d.gpu-gate.v2` manifest explicitly classifies representative camera/viewport, Material2D, Sprite and particle policies alongside the exact GPU environment.
 
-#92 remains open afterward for broader representative camera/material/particle evidence, structured fixture-level failure categories, and any future Tier C targets. No wider support claim is made by this slice.
+#92 remains open afterward for structured fixture-owned failure categories and a final acceptance audit. Tier C remains `not_established` unless separately owned infrastructure is added; lack of Tier C does not block the narrower maintained Tier B claim.
