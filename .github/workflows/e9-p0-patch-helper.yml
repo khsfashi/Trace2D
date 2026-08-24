@@ -1,0 +1,46 @@
+name: E9 P0 Patch Helper
+
+on:
+  push:
+    branches:
+      - agent/e9-linux-clang-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  patch-dead-color:
+    if: github.repository == 'khsfashi/Trace2D' && github.ref == 'refs/heads/agent/e9-linux-clang-baseline'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/e9-linux-clang-baseline
+          fetch-depth: 0
+
+      - name: Remove exact dead color declaration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('examples/p0_tiny_playable/WindowedMain.cpp')
+          source = path.read_text(encoding='utf-8')
+          needle = 'constexpr Color HealthDark{43U, 95U, 65U, 255U};\n'
+          count = source.count(needle)
+          if count != 1:
+              raise SystemExit(f'HealthDark declaration match count was {count}, expected 1')
+          path.write_text(source.replace(needle, '', 1), encoding='utf-8')
+
+      - name: Commit exact cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- examples/p0_tiny_playable/WindowedMain.cpp
+          test -n "$(git status --porcelain -- examples/p0_tiny_playable/WindowedMain.cpp)"
+          git config user.name "trace2d-ci"
+          git config user.email "trace2d-ci@users.noreply.github.com"
+          git add examples/p0_tiny_playable/WindowedMain.cpp
+          git commit -m "E9.1: remove unused tiny-playable color constant"
+          git push origin HEAD:agent/e9-linux-clang-baseline
