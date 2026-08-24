@@ -52,14 +52,20 @@ enum class GpuQaFailureCategory
     using render::MaterialGpuPrepareError2D;
     switch (error)
     {
-    case MaterialGpuPrepareError2D::ShaderCompilationFailed:
-    case MaterialGpuPrepareError2D::ShaderContractMismatch:
-        return GpuQaFailureCategory::ShaderCompileOrReflectionFailure;
-    case MaterialGpuPrepareError2D::PipelineCreationFailed:
-    case MaterialGpuPrepareError2D::InvalidMaterialHandle:
-        return GpuQaFailureCategory::PipelineOrResourceCreationFailure;
     case MaterialGpuPrepareError2D::None:
         return GpuQaFailureCategory::None;
+    case MaterialGpuPrepareError2D::InvalidMaterialHandle:
+    case MaterialGpuPrepareError2D::ParameterPreparationFailed:
+    case MaterialGpuPrepareError2D::PipelineCreationFailed:
+        return GpuQaFailureCategory::PipelineOrResourceCreationFailure;
+    case MaterialGpuPrepareError2D::InvalidShaderHandle:
+    case MaterialGpuPrepareError2D::UnsupportedShaderLanguage:
+    case MaterialGpuPrepareError2D::UnsupportedShaderStage:
+    case MaterialGpuPrepareError2D::InvalidShaderEntryPoint:
+    case MaterialGpuPrepareError2D::ShaderCompilationFailed:
+    case MaterialGpuPrepareError2D::ShaderReflectionFailed:
+    case MaterialGpuPrepareError2D::ShaderContractMismatch:
+        return GpuQaFailureCategory::ShaderCompileOrReflectionFailure;
     }
     return GpuQaFailureCategory::PipelineOrResourceCreationFailure;
 }
