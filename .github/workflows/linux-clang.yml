@@ -1,0 +1,136 @@
+name: Linux Clang
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+  CC: clang-18
+  CXX: clang++-18
+
+jobs:
+  ubuntu-clang18:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout clean candidate
+        uses: actions/checkout@v6
+
+      - name: Install pinned compiler and generator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y clang-18 ninja-build
+          clang++-18 --version
+          cmake --version
+          ninja --version
+          uname -a
+
+      - name: Install pinned vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          vcpkg_downloads="$GITHUB_WORKSPACE/.trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg "$vcpkg_root"
+          git -C "$vcpkg_root" checkout "$TRACE2D_VCPKG_BASELINE"
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$vcpkg_downloads"
+          test "$(git -C "$vcpkg_root" rev-parse HEAD)" = "$TRACE2D_VCPKG_BASELINE"
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+          echo "VCPKG_DOWNLOADS=$vcpkg_downloads" >> "$GITHUB_ENV"
+
+      - name: Restore and save vcpkg source downloads
+        uses: actions/cache@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure Trace2D with Ubuntu Clang
+        run: cmake --preset ci-linux-clang
+
+      - name: Build Trace2D
+        run: cmake --build --preset ci-linux-clang --parallel
+
+      - name: Run applicable headless tests
+        run: ctest --preset ci-linux-clang
+
+      - name: Validate profiler Linux toolchain metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile_json="$RUNNER_TEMP/trace2d-linux-profile.json"
+          ./build/ci-linux-clang/tools/profile/trace2d-profile \
+            --headless \
+            --frames 8 \
+            --warmup 2 \
+            --seed 42 \
+            --output "$profile_json"
+          PROFILE_JSON="$profile_json" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["PROFILE_JSON"]).read_text(encoding="utf-8"))
+          context = report["context"]
+          assert report["schema"] == "trace2d.profile.report.v1"
+          assert context["operating_system"] == "linux"
+          assert context["architecture"] == "x86_64"
+          assert context["compiler"] == "clang"
+          assert context["build_configuration"] == "Debug"
+          assert report["cpu"]["availability"] == "available"
+          assert report["gpu"]["availability"] == "not_supported"
+          PY
+
+      - name: Install SDK for clean consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$RUNNER_TEMP/trace2d-sdk"
+          rm -rf "$sdk_root"
+          cmake --install build/ci-linux-clang --prefix "$sdk_root"
+          test -f "$sdk_root/lib/cmake/Trace2D/Trace2DConfig.cmake"
+          echo "TRACE2D_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "TRACE2D_VCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/ci-linux-clang/vcpkg_installed" >> "$GITHUB_ENV"
+
+      - name: Configure installed-SDK external consumer
+        working-directory: examples/e0_external_game
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build/linux-clang
+          cmake --preset linux-clang
+
+      - name: Build installed-SDK external consumer
+        working-directory: examples/e0_external_game
+        run: cmake --build --preset linux-clang --parallel
+
+      - name: Test installed-SDK external consumer
+        working-directory: examples/e0_external_game
+        run: ctest --preset linux-clang
+
+      - name: Upload Linux portability evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trace2d-linux-clang-e9-evidence
+          path: |
+            ${{ runner.temp }}/trace2d-linux-profile.json
+            build/ci-linux-clang/CMakeCache.txt
+            examples/e0_external_game/build/linux-clang/CMakeCache.txt
+          if-no-files-found: warn
+          retention-days: 30
