@@ -1,0 +1,83 @@
+name: E9 CLI Patch Helper
+
+on:
+  push:
+    branches:
+      - agent/e9-linux-clang-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  patch-cli-serializer:
+    if: github.repository == 'khsfashi/Trace2D' && github.ref == 'refs/heads/agent/e9-linux-clang-baseline'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/e9-linux-clang-baseline
+          fetch-depth: 0
+
+      - name: Apply fail-closed serializer fix
+        shell: python
+        run: |
+          import re
+          from pathlib import Path
+
+          path = Path('tools/trace2d/AgentCommands.cpp')
+          source = path.read_text(encoding='utf-8')
+          pattern = re.compile(
+              r'    case agent::FieldValueKind::String:\n'
+              r'        output << \'"\' << EscapeJson\(value\.stringValue\) << \'"\';\n'
+              r'        return;\n'
+              r'    \}\n\n'
+              r'    throw std::runtime_error\{"Agent snapshot contains an unknown field value kind\."\};'
+          )
+          replacement = (
+              '    case agent::FieldValueKind::String:\n'
+              '        output << \'"\' << EscapeJson(value.stringValue) << \'"\';\n'
+              '        return;\n'
+              '    case agent::FieldValueKind::Float2:\n'
+              '        output << \'[\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[0]);\n'
+              '        output << \',\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[1]);\n'
+              '        output << \']\';\n'
+              '        return;\n'
+              '    case agent::FieldValueKind::Float4:\n'
+              '        output << \'[\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[0]);\n'
+              '        output << \',\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[1]);\n'
+              '        output << \',\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[2]);\n'
+              '        output << \',\';\n'
+              '        WriteJsonFloat(output, value.vectorValue[3]);\n'
+              '        output << \']\';\n'
+              '        return;\n'
+              '    case agent::FieldValueKind::EntityReference:\n'
+              '    case agent::FieldValueKind::ResourceReference:\n'
+              '    case agent::FieldValueKind::EnumName:\n'
+              '        output << \'"\' << EscapeJson(value.stringValue) << \'"\';\n'
+              '        return;\n'
+              '    }\n\n'
+              '    throw std::runtime_error{"Agent snapshot contains an unknown field value kind."};'
+          )
+          source, count = pattern.subn(replacement, source, count=1)
+          if count != 1:
+              raise SystemExit(f'AgentCommands.cpp serializer match count was {count}, expected 1')
+          path.write_text(source, encoding='utf-8')
+
+      - name: Commit exact CLI fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- tools/trace2d/AgentCommands.cpp
+          test -n "$(git status --porcelain -- tools/trace2d/AgentCommands.cpp)"
+          git config user.name "trace2d-ci"
+          git config user.email "trace2d-ci@users.noreply.github.com"
+          git add tools/trace2d/AgentCommands.cpp
+          git commit -m "E9.1: serialize every inspection field kind in CLI"
+          git push origin HEAD:agent/e9-linux-clang-baseline
