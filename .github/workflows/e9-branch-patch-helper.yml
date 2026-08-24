@@ -1,0 +1,100 @@
+name: E9 Branch Patch Helper
+
+on:
+  push:
+    branches:
+      - agent/e9-linux-clang-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  patch-exact-sources:
+    if: github.repository == 'khsfashi/Trace2D' && github.ref == 'refs/heads/agent/e9-linux-clang-baseline'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/e9-linux-clang-baseline
+          fetch-depth: 0
+
+      - name: Apply fail-closed source fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          tile_path = Path('engine/tile/src/TileMap.cpp')
+          tile = tile_path.read_text(encoding='utf-8')
+          dead_helper = '''std::optional<std::uint32_t> ReadRequiredUInt32(
+              const toml::table& table,
+              const std::string_view key,
+              const std::string_view path,
+              std::vector<TileDiagnostic>& diagnostics)
+          {
+              const std::optional<std::int64_t> value = ReadRequiredInteger(table, key, path, diagnostics);
+              if (!value.has_value())
+              {
+                  return std::nullopt;
+              }
+              if (*value < 0 || static_cast<std::uint64_t>(*value) > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
+              {
+                  AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Integer is outside the uint32 range.", table.get(key));
+                  return std::nullopt;
+              }
+              return static_cast<std::uint32_t>(*value);
+          }
+
+          '''
+          if tile.count(dead_helper) != 1:
+              raise SystemExit('TileMap.cpp exact dead-helper match count was not 1')
+          tile_path.write_text(tile.replace(dead_helper, '', 1), encoding='utf-8')
+
+          mcp_path = Path('engine/mcp/src/McpServer.cpp')
+          mcp = mcp_path.read_text(encoding='utf-8')
+          old_switch_tail = '''    case agent::FieldValueKind::String:
+              result["value"] = value.stringValue;
+              break;
+              }
+              return result;
+          }
+          '''
+          new_switch_tail = '''    case agent::FieldValueKind::String:
+              result["value"] = value.stringValue;
+              break;
+          case agent::FieldValueKind::Float2:
+              result["value"] = Json::array({value.vectorValue[0], value.vectorValue[1]});
+              break;
+          case agent::FieldValueKind::Float4:
+              result["value"] = Json::array({
+                  value.vectorValue[0],
+                  value.vectorValue[1],
+                  value.vectorValue[2],
+                  value.vectorValue[3],
+              });
+              break;
+          case agent::FieldValueKind::EntityReference:
+          case agent::FieldValueKind::ResourceReference:
+          case agent::FieldValueKind::EnumName:
+              result["value"] = value.stringValue;
+              break;
+              }
+              return result;
+          }
+          '''
+          if mcp.count(old_switch_tail) != 1:
+              raise SystemExit('McpServer.cpp exact switch-tail match count was not 1')
+          mcp_path.write_text(mcp.replace(old_switch_tail, new_switch_tail, 1), encoding='utf-8')
+
+      - name: Commit exact source fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- engine/tile/src/TileMap.cpp engine/mcp/src/McpServer.cpp
+          test -n "$(git status --porcelain -- engine/tile/src/TileMap.cpp engine/mcp/src/McpServer.cpp)"
+          git config user.name "trace2d-ci"
+          git config user.email "trace2d-ci@users.noreply.github.com"
+          git add engine/tile/src/TileMap.cpp engine/mcp/src/McpServer.cpp
+          git commit -m "E9.1: fix Clang portability findings"
+          git push origin HEAD:agent/e9-linux-clang-baseline
