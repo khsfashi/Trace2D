@@ -46,7 +46,6 @@ constexpr Color GoldDark{129U, 88U, 37U, 255U};
 constexpr Color Gold{236U, 184U, 65U, 255U};
 constexpr Color GoldLight{255U, 231U, 139U, 255U};
 constexpr Color Health{91U, 213U, 126U, 255U};
-constexpr Color HealthDark{43U, 95U, 65U, 255U};
 
 struct PixelArt final
 {

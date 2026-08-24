@@ -18,6 +18,21 @@
         "CMAKE_CONFIGURATION_TYPES": "Debug",
         "BUILD_TESTING": "ON"
       }
+    },
+    {
+      "name": "linux-clang",
+      "displayName": "External Trace2D game - Ubuntu Clang 18 x64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_PREFIX_PATH": "$env{TRACE2D_ROOT}",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++-18",
+        "VCPKG_MANIFEST_DIR": "${sourceDir}/../..",
+        "VCPKG_INSTALLED_DIR": "$env{TRACE2D_VCPKG_INSTALLED_DIR}",
+        "BUILD_TESTING": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -25,6 +40,10 @@
       "name": "windows-debug",
       "configurePreset": "windows-msvc",
       "configuration": "Debug"
+    },
+    {
+      "name": "linux-clang",
+      "configurePreset": "linux-clang"
     }
   ],
   "testPresets": [
@@ -32,6 +51,13 @@
       "name": "windows-debug",
       "configurePreset": "windows-msvc",
       "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-clang",
+      "configurePreset": "linux-clang",
       "output": {
         "outputOnFailure": true
       }

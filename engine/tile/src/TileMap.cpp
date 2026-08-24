@@ -153,25 +153,6 @@ std::optional<std::int32_t> ReadRequiredInt32(
     return static_cast<std::int32_t>(*value);
 }
 
-std::optional<std::uint32_t> ReadRequiredUInt32(
-    const toml::table& table,
-    const std::string_view key,
-    const std::string_view path,
-    std::vector<TileDiagnostic>& diagnostics)
-{
-    const std::optional<std::int64_t> value = ReadRequiredInteger(table, key, path, diagnostics);
-    if (!value.has_value())
-    {
-        return std::nullopt;
-    }
-    if (*value < 0 || static_cast<std::uint64_t>(*value) > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()))
-    {
-        AddDiagnostic(diagnostics, TileErrorCode::SchemaError, std::string{path}, "Integer is outside the uint32 range.", table.get(key));
-        return std::nullopt;
-    }
-    return static_cast<std::uint32_t>(*value);
-}
-
 bool ReadInt32Pair(
     const toml::table& table,
     const std::string_view key,
