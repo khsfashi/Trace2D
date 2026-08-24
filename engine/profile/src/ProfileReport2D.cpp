@@ -65,6 +65,37 @@ struct CpuScopeAggregate2D final
         ? ProfileMetricAvailability2D::NotMeasured
         : ProfileMetricAvailability2D::NotEnabled;
 }
+
+[[nodiscard]] nlohmann::ordered_json IdentityJson(
+    const ProfileMetricAvailability2D availability,
+    const std::string_view value)
+{
+    return nlohmann::ordered_json{
+        {"availability", std::string{ToString(availability)}},
+        {"value", availability == ProfileMetricAvailability2D::Available
+            ? nlohmann::ordered_json(std::string{value})
+            : nlohmann::ordered_json(nullptr)},
+    };
+}
+
+[[nodiscard]] nlohmann::ordered_json UnsupportedGpuJson(const ProfileReportContext2D& context)
+{
+    return nlohmann::ordered_json{
+        {"availability", std::string{ToString(ProfileMetricAvailability2D::NotSupported)}},
+        {"backend", std::string{context.rendererBackend}},
+        {"device_identity", IdentityJson(ProfileMetricAvailability2D::NotMeasured, {})},
+        {"driver_identity", IdentityJson(ProfileMetricAvailability2D::NotMeasured, {})},
+        {"timing_source", nullptr},
+        {"frames", nlohmann::ordered_json::array()},
+        {"aggregate", nlohmann::ordered_json{
+            {"availability", std::string{ToString(ProfileMetricAvailability2D::NotSupported)}},
+            {"measured_frame_count", 0U},
+            {"total_ns", 0U},
+            {"min_ns", 0U},
+            {"max_ns", 0U},
+        }},
+    };
+}
 } // namespace
 
 std::string_view ToString(const ProfileReportResult2D result) noexcept
@@ -79,6 +110,8 @@ std::string_view ToString(const ProfileReportResult2D result) noexcept
         return "cpu_frame_unavailable";
     case ProfileReportResult2D::AggregationOverflow:
         return "aggregation_overflow";
+    case ProfileReportResult2D::InvalidGpuEvidence:
+        return "invalid_gpu_evidence";
     }
 
     return "unknown";
@@ -209,12 +242,7 @@ ProfileReportResult2D BuildProfileReportJson(
         {"operating_system", std::string{context.operatingSystem}},
         {"architecture", std::string{context.architecture}},
         {"compiler", std::string{context.compiler}},
-        {"cpu_identity", nlohmann::ordered_json{
-            {"availability", std::string{ToString(context.cpuIdentityAvailability)}},
-            {"value", context.cpuIdentityAvailability == ProfileMetricAvailability2D::Available
-                ? nlohmann::ordered_json(std::string{context.cpuIdentity})
-                : nlohmann::ordered_json(nullptr)},
-        }},
+        {"cpu_identity", IdentityJson(context.cpuIdentityAvailability, context.cpuIdentity)},
         {"renderer_backend", std::string{context.rendererBackend}},
         {"timing_source", std::string{context.timingSource}},
         {"fixed_timestep_ns", context.fixedTimestepNanoseconds},
@@ -268,6 +296,87 @@ ProfileReportResult2D BuildProfileReportJson(
             {"max_inclusive_ns", aggregate.maxInclusiveNanoseconds},
         });
     }
+
+    report["gpu"] = UnsupportedGpuJson(context);
+
+    std::string nextJson = report.dump();
+    outJson.swap(nextJson);
+    return ProfileReportResult2D::Success;
+}
+
+ProfileReportResult2D BuildProfileReportJson(
+    const StructuralProfileSnapshot2D& structuralSnapshot,
+    const CpuProfiler2D& cpuProfiler,
+    const ProfileReportContext2D& context,
+    const GpuProfileEvidence2D& gpuEvidence,
+    std::string& outJson)
+{
+    const bool hasFrames = !gpuEvidence.frames.empty();
+    if ((gpuEvidence.availability == ProfileMetricAvailability2D::Available) != hasFrames)
+    {
+        return ProfileReportResult2D::InvalidGpuEvidence;
+    }
+
+    std::uint64_t totalNanoseconds = 0U;
+    std::uint64_t minNanoseconds = 0U;
+    std::uint64_t maxNanoseconds = 0U;
+    bool measured = false;
+    nlohmann::ordered_json gpuFrames = nlohmann::ordered_json::array();
+    for (const auto& frame : gpuEvidence.frames)
+    {
+        std::uint64_t nextTotal = 0U;
+        if (!AddChecked(totalNanoseconds, frame.durationNanoseconds, nextTotal))
+        {
+            return ProfileReportResult2D::AggregationOverflow;
+        }
+        totalNanoseconds = nextTotal;
+        if (!measured)
+        {
+            minNanoseconds = frame.durationNanoseconds;
+            maxNanoseconds = frame.durationNanoseconds;
+            measured = true;
+        }
+        else
+        {
+            minNanoseconds = std::min(minNanoseconds, frame.durationNanoseconds);
+            maxNanoseconds = std::max(maxNanoseconds, frame.durationNanoseconds);
+        }
+        gpuFrames.push_back(nlohmann::ordered_json{
+            {"frame_index", frame.frameIndex},
+            {"duration_ns", frame.durationNanoseconds},
+        });
+    }
+
+    std::string baseJson{};
+    const auto baseResult = BuildProfileReportJson(structuralSnapshot, cpuProfiler, context, baseJson);
+    if (baseResult != ProfileReportResult2D::Success)
+    {
+        return baseResult;
+    }
+
+    nlohmann::ordered_json report = nlohmann::ordered_json::parse(baseJson);
+    const auto availability = gpuEvidence.availability;
+    report["gpu"] = nlohmann::ordered_json{
+        {"availability", std::string{ToString(availability)}},
+        {"backend", std::string{context.rendererBackend}},
+        {"device_identity", IdentityJson(
+            gpuEvidence.deviceIdentityAvailability,
+            gpuEvidence.deviceIdentity)},
+        {"driver_identity", IdentityJson(
+            gpuEvidence.driverIdentityAvailability,
+            gpuEvidence.driverIdentity)},
+        {"timing_source", availability == ProfileMetricAvailability2D::Available
+            ? nlohmann::ordered_json(std::string{gpuEvidence.timingSource})
+            : nlohmann::ordered_json(nullptr)},
+        {"frames", std::move(gpuFrames)},
+        {"aggregate", nlohmann::ordered_json{
+            {"availability", std::string{ToString(availability)}},
+            {"measured_frame_count", gpuEvidence.frames.size()},
+            {"total_ns", totalNanoseconds},
+            {"min_ns", minNanoseconds},
+            {"max_ns", maxNanoseconds},
+        }},
+    };
 
     std::string nextJson = report.dump();
     outJson.swap(nextJson);
