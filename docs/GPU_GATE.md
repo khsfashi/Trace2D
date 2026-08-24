@@ -57,7 +57,7 @@ for the selected CTest run only.
 
 ## GPUQA environment probe
 
-`GpuQaEnvironmentConformanceTests` creates the ordinary Trace2D windowed Renderer, verifies validation readback/fence counters remain zero before explicit capture, captures one 64x64 frame, and emits the actual renderer backend through the existing `Renderer::DriverName()` surface:
+`GpuConformanceTests.ReportsActualBackendAndExplicitCaptureBoundary` creates the ordinary Trace2D windowed Renderer, verifies validation readback/fence counters remain zero before explicit capture, captures one 64x64 frame, and emits the actual renderer backend through the existing `Renderer::DriverName()` surface. Its suite name deliberately follows the generic gate naming contract above, so the probe cannot silently fall outside Tier B selection.
 
 ```text
 TRACE2D_GPUQA_ENV_V1 backend=<actual> viewport_width=64 viewport_height=64 capture_format=rgba8 comparison=metadata_exact
