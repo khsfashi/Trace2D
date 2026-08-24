@@ -156,6 +156,22 @@ Json FieldValueToJson(const agent::FieldValue& value)
     case agent::FieldValueKind::String:
         result["value"] = value.stringValue;
         break;
+    case agent::FieldValueKind::Float2:
+        result["value"] = Json::array({value.vectorValue[0], value.vectorValue[1]});
+        break;
+    case agent::FieldValueKind::Float4:
+        result["value"] = Json::array({
+            value.vectorValue[0],
+            value.vectorValue[1],
+            value.vectorValue[2],
+            value.vectorValue[3],
+        });
+        break;
+    case agent::FieldValueKind::EntityReference:
+    case agent::FieldValueKind::ResourceReference:
+    case agent::FieldValueKind::EnumName:
+        result["value"] = value.stringValue;
+        break;
     }
     return result;
 }
