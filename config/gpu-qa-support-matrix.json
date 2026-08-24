@@ -1,0 +1,25 @@
+{
+  "schema": "trace2d.gpu-qa-support-matrix.v1",
+  "policy": {
+    "tier_a": "backend-independent contracts run on applicable hosted CI without requiring a presentation GPU",
+    "tier_b": "a maintained physical environment proves only the exact OS/GPU/driver/SDL backend recorded by its latest green evidence",
+    "tier_c": "broader vendor/backend/platform claims require separately owned maintained targets",
+    "missing_target_narrows_claim": true,
+    "automatic_golden_acceptance": false,
+    "normal_frame_readback_authorized": false
+  },
+  "tier_b_targets": [
+    {
+      "id": "owner-windows-primary",
+      "status": "maintained",
+      "runner_labels": ["self-hosted", "windows", "x64", "trace2d-gpu"],
+      "session": "interactive_windows_logon",
+      "backend_contract": "record_actual_renderer_driver_per_run",
+      "fixture_filter": "Gpu(Smoke|Conformance)Tests",
+      "required_skip_policy": "none",
+      "evidence_path": "artifacts/gpu-gate/manifest.json"
+    }
+  ],
+  "tier_c_targets": [],
+  "tier_c_claim": "not_established"
+}

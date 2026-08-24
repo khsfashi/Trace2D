@@ -1,6 +1,7 @@
 add_executable(trace2d_render_tests
     CameraViewport2DTests.cpp
     CaptureTests.cpp
+    GpuQaEnvironmentConformanceTests.cpp
     InputPointerViewportIntegrationTests.cpp
     Material2DTests.cpp
     MaterialGpuAcceptanceTests.cpp
