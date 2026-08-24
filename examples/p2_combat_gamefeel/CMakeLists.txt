@@ -91,6 +91,23 @@ target_compile_definitions(trace2d_p2_combat_gamefeel_profile
 target_compile_features(trace2d_p2_combat_gamefeel_profile PRIVATE cxx_std_20)
 trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_profile)
 
+add_executable(trace2d_p2_combat_gamefeel_gpu_stress
+    GpuStressMain.cpp
+)
+target_link_libraries(trace2d_p2_combat_gamefeel_gpu_stress
+    PRIVATE
+        trace2d_p2_combat_gamefeel
+        Trace2D::Platform
+        Trace2D::Render
+)
+target_compile_definitions(trace2d_p2_combat_gamefeel_gpu_stress
+    PRIVATE
+        TRACE2D_P2_RUNTIME_DIR="${TRACE2D_P2_RUNTIME_DIR}"
+        TRACE2D_XSTRESS_SOURCE_REVISION="${TRACE2D_XSTRESS_SOURCE_REVISION}"
+)
+target_compile_features(trace2d_p2_combat_gamefeel_gpu_stress PRIVATE cxx_std_20)
+trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_gpu_stress)
+
 add_executable(trace2d_p2_combat_gamefeel_windowed
     WindowedMain.cpp
 )
@@ -115,6 +132,10 @@ if(BUILD_TESTING)
     add_test(
         NAME trace2d_p2_combat_gamefeel_profile
         COMMAND trace2d_p2_combat_gamefeel_profile "${CMAKE_CURRENT_BINARY_DIR}/xstress1-profile.json"
+    )
+    add_test(
+        NAME P2GpuConformanceTests.OwnerCombatWorkload
+        COMMAND trace2d_p2_combat_gamefeel_gpu_stress "${CMAKE_SOURCE_DIR}/artifacts/gpu-gate/p2-xstress2"
     )
 endif()
 
