@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/CameraViewport2D.hpp>
 #include <trace2d/render/Renderer.hpp>
@@ -77,6 +79,11 @@ void RemoveFile(const std::filesystem::path& path)
 
 TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProjectionOnRealGpu)
 {
+    constexpr std::string_view TestName =
+        "CameraViewportGpuConformanceTests.InterpolatedFitViewportMatchesCpuProjectionOnRealGpu";
+    using trace2d::test::GpuQaFailureCategory;
+    trace2d::test::GpuQaFixtureOutcome outcome{TestName};
+
     if (!GpuSmokeEnabled())
     {
         GTEST_SKIP() << "Set TRACE2D_RUN_GPU_SMOKE=1 on a machine with a presentation GPU to run this test.";
@@ -84,6 +91,7 @@ TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProject
 
     using namespace trace2d;
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     render::Viewport2D viewport{};
     viewport.logicalWidth = 32U;
     viewport.logicalHeight = 16U;
@@ -118,6 +126,9 @@ TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProject
     EXPECT_NEAR(cpuPredictedCenter.x, 32.0F, 1.0e-5F);
     EXPECT_NEAR(cpuPredictedCenter.y, 32.0F, 1.0e-5F);
 
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
     platformConfig.windowWidth = 64;
@@ -130,6 +141,9 @@ TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProject
     rendererConfig.clearColor = render::ClearColor{0.0F, 0.0F, 0.0F, 1.0F};
     render::Renderer renderer{rendererConfig, platform};
 
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     constexpr std::array<std::uint8_t, 4U> WhitePixel{255U, 255U, 255U, 255U};
     const render::TextureHandle texture =
         renderer.CreateTextureRgba8(render::Rgba8TextureData{1U, 1U, WhitePixel});
@@ -139,11 +153,17 @@ TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProject
     sprite.halfExtents = render::Float2{0.75F, 0.75F};
     sprite.texture = texture;
 
+    outcome.SetFailurePoint(
+        "render_submit",
+        GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
     renderer.RenderFrame(resolvedView.view.rendererCamera, sprite);
     const render::RenderMetrics beforeCapture = renderer.Metrics();
     EXPECT_EQ(beforeCapture.explicitGpuReadbacks, 0U);
     EXPECT_EQ(beforeCapture.explicitGpuFenceWaits, 0U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path path =
         std::filesystem::temp_directory_path() / "trace2d_camera_viewport_gpuqa2.bmp";
     const render::CapturedFrame frame = renderer.CaptureFrame(
@@ -153,6 +173,7 @@ TEST(CameraViewportGpuConformanceTests, InterpolatedFitViewportMatchesCpuProject
     ASSERT_EQ(frame.width, 64U);
     ASSERT_EQ(frame.height, 64U);
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     // The CPU-resolved interpolated camera predicts this exact presentation center. The real GPU
     // must draw through that same Renderer camera, while Fit mode keeps the 16-pixel letterbox clear.
     ExpectNear(PixelAt(frame, 32U, 32U), 255U, 255U, 255U);
