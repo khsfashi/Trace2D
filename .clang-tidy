@@ -1,0 +1,13 @@
+Checks: >
+  -*,
+  clang-analyzer-core.*,
+  clang-analyzer-cplusplus.NewDelete,
+  clang-analyzer-cplusplus.NewDeleteLeaks,
+  bugprone-string-constructor,
+  bugprone-string-integer-assignment,
+  bugprone-suspicious-memset-usage,
+  bugprone-use-after-move,
+  performance-implicit-conversion-in-loop,
+  performance-move-constructor-init
+HeaderFilterRegex: '.*/(engine|tools|examples)/.*'
+SystemHeaders: false
