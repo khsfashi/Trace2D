@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload frozen fixture qualification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-b1-godot-fixture-qualification
           path: ${{ runner.temp }}/b1-fixture-qualification
