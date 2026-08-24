@@ -153,7 +153,12 @@ $fixtureFailureCategories = @(
 )
 $requiredStructuredOutcomeTests = @(
     "GpuConformanceTests.StructuredFailureCategoryVocabularyIsStable",
-    "GpuConformanceTests.StructuredOutcomeProbeTraversesRealGpuValidationPhases"
+    "GpuConformanceTests.StructuredOutcomeProbeTraversesRealGpuValidationPhases",
+    "GpuConformanceTests.ReportsActualBackendAndExplicitCaptureBoundary",
+    "CameraViewportGpuConformanceTests.InterpolatedFitViewportMatchesCpuProjectionOnRealGpu",
+    "MaterialGpuSmokeTests.CachedFlashMaterialExecutesAndFailedShaderDoesNotPoisonCache",
+    "SpriteRendererGpuConformanceTests.Sr8TrimPivotCw90PresentationMatchesCanonicalGeometry",
+    "ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime"
 )
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
