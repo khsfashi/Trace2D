@@ -31,6 +31,27 @@
       "architecture": "x64",
       "toolset": "v143",
       "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "linux-common",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "TRACE2D_WARNINGS_AS_ERRORS": "ON",
+        "TRACE2D_INSTALL_SDK": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "ci-linux-clang",
+      "displayName": "CI Ubuntu 24.04 Clang 18 x64",
+      "inherits": "linux-common",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++-18"
+      }
     }
   ],
   "buildPresets": [
@@ -48,6 +69,10 @@
       "name": "ci-windows-debug",
       "configurePreset": "ci-windows-msvc",
       "configuration": "Debug"
+    },
+    {
+      "name": "ci-linux-clang",
+      "configurePreset": "ci-linux-clang"
     }
   ],
   "testPresets": [
@@ -63,6 +88,13 @@
       "name": "ci-windows-debug",
       "configurePreset": "ci-windows-msvc",
       "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-clang",
+      "configurePreset": "ci-linux-clang",
       "output": {
         "outputOnFailure": true
       }
