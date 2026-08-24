@@ -198,6 +198,29 @@ void WriteFieldValueJson(std::ostream& output, const agent::FieldValue& value)
     case agent::FieldValueKind::String:
         output << '"' << EscapeJson(value.stringValue) << '"';
         return;
+    case agent::FieldValueKind::Float2:
+        output << '[';
+        WriteJsonFloat(output, value.vectorValue[0]);
+        output << ',';
+        WriteJsonFloat(output, value.vectorValue[1]);
+        output << ']';
+        return;
+    case agent::FieldValueKind::Float4:
+        output << '[';
+        WriteJsonFloat(output, value.vectorValue[0]);
+        output << ',';
+        WriteJsonFloat(output, value.vectorValue[1]);
+        output << ',';
+        WriteJsonFloat(output, value.vectorValue[2]);
+        output << ',';
+        WriteJsonFloat(output, value.vectorValue[3]);
+        output << ']';
+        return;
+    case agent::FieldValueKind::EntityReference:
+    case agent::FieldValueKind::ResourceReference:
+    case agent::FieldValueKind::EnumName:
+        output << '"' << EscapeJson(value.stringValue) << '"';
+        return;
     }
 
     throw std::runtime_error{"Agent snapshot contains an unknown field value kind."};
