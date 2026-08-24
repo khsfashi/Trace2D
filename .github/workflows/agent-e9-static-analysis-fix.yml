@@ -1,0 +1,65 @@
+name: Agent E9 static-analysis source fix
+
+on:
+  push:
+    branches:
+      - agent/e9-static-analysis-fix-tmp
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout temporary patch branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/e9-static-analysis-fix-tmp
+
+      - name: Replace analyzer-hostile conditional reference return
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("engine/ui/src/UiPresentation2D.cpp")
+          text = path.read_text(encoding="utf-8")
+          old = """const UiPresentationMetrics& UiPresentationCache2D::Metrics() const noexcept
+          {
+              static const UiPresentationMetrics Empty{};
+              return impl_ != nullptr ? impl_->metrics : Empty;
+          }
+          """
+          new = """const UiPresentationMetrics& UiPresentationCache2D::Metrics() const noexcept
+          {
+              static const UiPresentationMetrics Empty{};
+              if (impl_ == nullptr)
+              {
+                  return Empty;
+              }
+              return impl_->metrics;
+          }
+          """
+          if old in text:
+              if text.count(old) != 1:
+                  raise SystemExit("expected exactly one Metrics() block")
+              path.write_text(text.replace(old, new), encoding="utf-8")
+          elif new not in text:
+              raise SystemExit("Metrics() block did not match expected old or new form")
+
+      - name: Commit source-only fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- engine/ui/src/UiPresentation2D.cpp
+          git add -- engine/ui/src/UiPresentation2D.cpp
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "trace2d-agent"
+          git config user.email "trace2d-agent@users.noreply.github.com"
+          git commit -m "fix(ui): make metrics fallback analyzer-explicit"
+          git push origin HEAD:agent/e9-static-analysis-fix-tmp
