@@ -58,7 +58,7 @@ The CPU contract predicts the interpolated world center at presentation pixel `(
 
 Existing `MaterialGpuSmokeTests` already prove real shader compilation/pipeline preparation, cache reuse, deterministic material prepare errors and representative semantic pixels. GPUQA2 makes that evidence explicit in the generic manifest instead of leaving it under `fixture_local`.
 
-The retained pixel assertions bound the representative white/red outputs to a maximum per-channel absolute difference of 7 from their intended values; exact prepare-error/cache/resource assertions remain exact where the fixture already requires them. The gate records this as `mixed_exact_diagnostics_and_tolerant_semantic_pixels`.
+Across MAT3 and MAT4, the retained pixel assertions bound the representative white/red/half-flash outputs to a maximum per-channel absolute difference of 8 from their intended values; exact prepare-error/cache/resource assertions remain exact where the fixtures already require them. The gate records this as `mixed_exact_diagnostics_and_tolerant_semantic_pixels`.
 
 ### Sprite SR8
 
