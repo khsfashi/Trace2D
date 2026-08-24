@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/assets/ResourceRegistry.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
@@ -178,6 +180,11 @@ TEST(MaterialGpu2DTests, PrepareDiagnosticsHaveStableNames)
 
 TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoisonCache)
 {
+    constexpr std::string_view TestName =
+        "MaterialGpuSmokeTests.CachedFlashMaterialExecutesAndFailedShaderDoesNotPoisonCache";
+    using trace2d::test::GpuQaFailureCategory;
+    trace2d::test::GpuQaFixtureOutcome outcome{TestName};
+
     if (!GpuSmokeEnabled())
     {
         GTEST_SKIP() << "Set TRACE2D_RUN_GPU_SMOKE=1 on a Windows machine with a presentation GPU to run MAT3.";
@@ -185,6 +192,9 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
 
     using namespace trace2d;
 
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
     platformConfig.windowWidth = 64;
@@ -196,6 +206,9 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
     rendererConfig.enableDebugValidation = true;
     render::Renderer renderer{rendererConfig, platform};
 
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     assets::ResourceRegistry resources{"project"};
     const auto shader = resources.PublishShader2D("shaders/mat3_flash.shader2d", MakeFlashShader());
     ASSERT_TRUE(shader.Succeeded());
@@ -206,28 +219,39 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
 
     const render::MaterialGpuPrepareResult2D prepared =
         renderer.PrepareMaterial2D(resources, material.handle);
+    outcome.SetMaterialPrepareFailure(prepared.error);
     ASSERT_TRUE(prepared.Succeeded()) << prepared.diagnostic;
     EXPECT_FALSE(prepared.reusedPreparedPipeline);
     EXPECT_NE(prepared.material.pipelineIdentity, render::BuiltInSpriteMaterialPipelineIdentity);
     EXPECT_EQ(prepared.material.defaultParameters.ActivePackedBytes(), 32U);
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const render::RenderMetrics afterFirstPrepare = renderer.Metrics();
     EXPECT_EQ(afterFirstPrepare.materialShaderCompilations, 1U);
     EXPECT_EQ(afterFirstPrepare.materialPipelineCreations, 4U);
     EXPECT_EQ(afterFirstPrepare.materialPipelineCacheHits, 0U);
     EXPECT_EQ(afterFirstPrepare.spritePipelineCreations, 21U);
 
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     const render::MaterialGpuPrepareResult2D cached =
         renderer.PrepareMaterial2D(resources, material.handle);
+    outcome.SetMaterialPrepareFailure(cached.error);
     ASSERT_TRUE(cached.Succeeded()) << cached.diagnostic;
     EXPECT_TRUE(cached.reusedPreparedPipeline);
     EXPECT_EQ(cached.material.pipelineIdentity, prepared.material.pipelineIdentity);
+
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const render::RenderMetrics afterCachedPrepare = renderer.Metrics();
     EXPECT_EQ(afterCachedPrepare.materialShaderCompilations, 1U);
     EXPECT_EQ(afterCachedPrepare.materialPipelineCreations, 4U);
     EXPECT_EQ(afterCachedPrepare.materialPipelineCacheHits, 1U);
     EXPECT_EQ(afterCachedPrepare.spritePipelineCreations, 21U);
 
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     constexpr std::array<std::uint8_t, 4U> WhitePixel{255U, 255U, 255U, 255U};
     const render::TextureHandle texture = renderer.CreateSpriteTextureRgba8(
         render::Rgba8TextureData{1U, 1U, WhitePixel},
@@ -242,6 +266,9 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
     custom.materialPipeline = prepared.material.pipelineIdentity;
     custom.materialParameters = &prepared.material.defaultParameters;
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const render::OrthographicCamera camera{{0.0F, 0.0F}, 2.0F};
     const std::filesystem::path output =
         std::filesystem::temp_directory_path() / "trace2d_mat3_flash.bmp";
@@ -251,6 +278,8 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
         custom);
     ASSERT_EQ(customFrame.width, 64U);
     ASSERT_EQ(customFrame.height, 64U);
+
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const Rgba8 customPixel = PixelAt(customFrame, 32U, 32U);
     EXPECT_GE(customPixel.red, 248U);
     EXPECT_LE(customPixel.green, 6U);
@@ -266,18 +295,27 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
     render::SpritePresentationRenderData builtIn{};
     builtIn.presentation = BuildPresentation(asset);
     builtIn.texture = texture;
+
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path builtInOutput =
         std::filesystem::temp_directory_path() / "trace2d_mat3_builtin.bmp";
     const render::CapturedFrame builtInFrame = renderer.CaptureFrame(
         render::CaptureRequest{31U, builtInOutput, render::CaptureImageFormat::Bmp},
         camera,
         builtIn);
+
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const Rgba8 builtInPixel = PixelAt(builtInFrame, 32U, 32U);
     EXPECT_GE(builtInPixel.red, 248U);
     EXPECT_GE(builtInPixel.green, 248U);
     EXPECT_GE(builtInPixel.blue, 248U);
     EXPECT_GE(builtInPixel.alpha, 248U);
 
+    outcome.SetFailurePoint(
+        "shader_compile_or_reflection",
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
     assets::Shader2DResource badShader{};
     badShader.entryPoint = "main";
     badShader.canonicalSource = "float4 main( : SV_Target0 { definitely_not_hlsl }";
@@ -301,6 +339,8 @@ TEST(MaterialGpuSmokeTests, CachedFlashMaterialExecutesAndFailedShaderDoesNotPoi
         renderer.PrepareMaterial2D(resources, badMaterialPublication.handle);
     EXPECT_FALSE(secondFailure.Succeeded());
     EXPECT_EQ(secondFailure.error, render::MaterialGpuPrepareError2D::ShaderCompilationFailed);
+
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     EXPECT_EQ(renderer.Metrics().materialPipelineCacheHits, cacheHitsBeforeFailure);
     EXPECT_EQ(renderer.Metrics().materialPipelineCreations, 4U);
 }

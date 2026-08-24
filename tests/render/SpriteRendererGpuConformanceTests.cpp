@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 #include <trace2d/render/SpritePresentation2D.hpp>
@@ -108,6 +110,11 @@ void RemoveFile(const std::filesystem::path& path)
 
 TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanonicalGeometry)
 {
+    constexpr std::string_view TestName =
+        "SpriteRendererGpuConformanceTests.Sr8TrimPivotCw90PresentationMatchesCanonicalGeometry";
+    using trace2d::test::GpuQaFailureCategory;
+    trace2d::test::GpuQaFixtureOutcome outcome{TestName};
+
     if (!GpuSmokeEnabled())
     {
         GTEST_SKIP() << "Set TRACE2D_RUN_GPU_SMOKE=1 on a Windows machine with a presentation GPU to run this test.";
@@ -115,6 +122,9 @@ TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanon
 
     using namespace trace2d;
 
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
     platformConfig.windowWidth = 64;
@@ -127,6 +137,7 @@ TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanon
     rendererConfig.clearColor = render::ClearColor{0.0F, 0.0F, 0.0F, 1.0F};
     render::Renderer renderer{rendererConfig, platform};
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const assets::SpriteAsset asset = MakeCw90Asset();
     render::ResolvedSpriteRegion selection{};
     ASSERT_TRUE(render::ResolveSpriteRegionByIndices(
@@ -147,6 +158,9 @@ TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanon
     ASSERT_TRUE(render::BuildSpritePresentation2D(
         selection, pose, 1.0F, appearance, presentation).Succeeded());
 
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     // Physical storage is 1x2 after clockwise packing: top red, bottom green. SR2's UV
     // permutation must reconstruct a logical 2x1 Sprite with red on the left and green on the right.
     constexpr std::array<std::uint8_t, 8U> PackedPixels{
@@ -162,11 +176,17 @@ TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanon
     sprite.texture = texture;
 
     const render::OrthographicCamera camera{{0.0F, 0.0F}, 4.0F};
+    outcome.SetFailurePoint(
+        "render_submit",
+        GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
     renderer.RenderFrame(camera, sprite);
     const render::RenderMetrics beforeCapture = renderer.Metrics();
     EXPECT_EQ(beforeCapture.explicitGpuReadbacks, 0U);
     EXPECT_EQ(beforeCapture.explicitGpuFenceWaits, 0U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path path =
         std::filesystem::temp_directory_path() / "trace2d_sprite_sr8_cw90.bmp";
     const render::CapturedFrame frame = renderer.CaptureFrame(
@@ -176,6 +196,7 @@ TEST(SpriteRendererGpuConformanceTests, Sr8TrimPivotCw90PresentationMatchesCanon
     ASSERT_EQ(frame.width, 64U);
     ASSERT_EQ(frame.height, 64U);
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     ExpectNear(PixelAt(frame, 24U, 32U), 255U, 0U, 0U);
     ExpectNear(PixelAt(frame, 40U, 32U), 0U, 255U, 0U);
 

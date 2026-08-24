@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 
@@ -40,6 +42,11 @@ void RemoveCapture(const std::filesystem::path& path) noexcept
 
 TEST(GpuConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
 {
+    constexpr std::string_view TestName =
+        "GpuConformanceTests.ReportsActualBackendAndExplicitCaptureBoundary";
+    using trace2d::test::GpuQaFailureCategory;
+    trace2d::test::GpuQaFixtureOutcome outcome{TestName};
+
     if (!GpuConformanceEnabled())
     {
         GTEST_SKIP() << "Set TRACE2D_RUN_GPU_SMOKE=1 on a maintained presentation-GPU environment.";
@@ -47,6 +54,9 @@ TEST(GpuConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
 
     using namespace trace2d;
 
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
     platformConfig.windowWidth = 64;
@@ -64,6 +74,9 @@ TEST(GpuConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
     EXPECT_EQ(beforeCapture.explicitGpuReadbacks, 0U);
     EXPECT_EQ(beforeCapture.explicitGpuFenceWaits, 0U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const render::OrthographicCamera camera{{0.0F, 0.0F}, 4.0F};
     const std::filesystem::path path =
         std::filesystem::temp_directory_path() / "trace2d_gpuqa_environment.bmp";
@@ -76,6 +89,7 @@ TEST(GpuConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
     ASSERT_EQ(frame.height, 64U);
     ASSERT_EQ(frame.rgba8Pixels.size(), 64U * 64U * 4U);
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const render::RenderMetrics afterCapture = renderer.Metrics();
     EXPECT_GT(afterCapture.explicitGpuReadbacks, beforeCapture.explicitGpuReadbacks);
     EXPECT_GT(afterCapture.explicitGpuFenceWaits, beforeCapture.explicitGpuFenceWaits);
