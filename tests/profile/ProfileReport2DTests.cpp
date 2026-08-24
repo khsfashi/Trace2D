@@ -2,7 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
+#include <limits>
 #include <string>
 #include <string_view>
 
@@ -31,7 +33,7 @@ ProfileReportContext2D TestContext()
 {
     return ProfileReportContext2D{
         .engineVersion = "0.1.0",
-        .sourceRevision = "perf3-test",
+        .sourceRevision = "perf4-test",
         .workload = "profile-report-regression",
         .buildConfiguration = "Debug",
         .operatingSystem = "test-os",
@@ -96,6 +98,7 @@ TEST(ProfileReport2DTests, ComposesWrappedCpuHistoryChronologicallyWithExactAggr
     ExpectContains(jsonText, "\"name\":\"renderer.draw_calls\"");
     ExpectContains(jsonText, "\"cpu\":{\"availability\":\"available\"");
     ExpectContains(jsonText, "\"overwritten_frame_count\":1");
+    ExpectContains(jsonText, "\"gpu\":{\"availability\":\"not_supported\",\"backend\":\"headless\"");
 
     const auto frame2Position = jsonText.find("\"frame_index\":2");
     const auto frame3Position = jsonText.find("\"frame_index\":3");
@@ -148,6 +151,89 @@ TEST(ProfileReport2DTests, DistinguishesDisabledAndEnabledButUnmeasuredCpuCaptur
     ExpectContains(
         unmeasuredJson,
         "{\"name\":\"frame\",\"availability\":\"not_measured\",\"measured_frame_count\":0");
+}
+
+TEST(ProfileReport2DTests, GpuEvidencePreservesMeasuredZeroAndContextIdentity)
+{
+    auto structural = PreparedStructuralSnapshot();
+    ASSERT_TRUE(structural.Prepared());
+
+    CpuProfiler2D profiler{};
+    ASSERT_EQ(profiler.Prepare(1U, 1U, 1U), ProfileResult2D::Success);
+
+    constexpr std::array<GpuProfileFrameTiming2D, 2> frames{
+        GpuProfileFrameTiming2D{42U, 0U},
+        GpuProfileFrameTiming2D{43U, 5U},
+    };
+    const GpuProfileEvidence2D gpu{
+        .availability = ProfileMetricAvailability2D::Available,
+        .deviceIdentityAvailability = ProfileMetricAvailability2D::Available,
+        .deviceIdentity = "test-gpu",
+        .driverIdentityAvailability = ProfileMetricAvailability2D::Available,
+        .driverIdentity = "test-driver",
+        .timingSource = "public-test-timestamps",
+        .frames = frames,
+    };
+
+    std::string jsonText{};
+    ASSERT_EQ(
+        BuildProfileReportJson(structural, profiler, TestContext(), gpu, jsonText),
+        ProfileReportResult2D::Success);
+
+    ExpectContains(jsonText, "\"gpu\":{\"availability\":\"available\",\"backend\":\"headless\"");
+    ExpectContains(jsonText, "\"device_identity\":{\"availability\":\"available\",\"value\":\"test-gpu\"}");
+    ExpectContains(jsonText, "\"driver_identity\":{\"availability\":\"available\",\"value\":\"test-driver\"}");
+    ExpectContains(jsonText, "\"timing_source\":\"public-test-timestamps\"");
+    ExpectContains(jsonText, "{\"frame_index\":42,\"duration_ns\":0}");
+    ExpectContains(
+        jsonText,
+        "\"aggregate\":{\"availability\":\"available\",\"measured_frame_count\":2,"
+        "\"total_ns\":5,\"min_ns\":0,\"max_ns\":5}");
+}
+
+TEST(ProfileReport2DTests, RejectsGpuFramesWhenTimingIsUnavailable)
+{
+    auto structural = PreparedStructuralSnapshot();
+    CpuProfiler2D profiler{};
+    ASSERT_EQ(profiler.Prepare(1U, 1U, 1U), ProfileResult2D::Success);
+
+    constexpr std::array<GpuProfileFrameTiming2D, 1> frames{
+        GpuProfileFrameTiming2D{1U, 10U},
+    };
+    const GpuProfileEvidence2D gpu{
+        .availability = ProfileMetricAvailability2D::NotSupported,
+        .frames = frames,
+    };
+
+    std::string output = "retained-previous-report";
+    EXPECT_EQ(
+        BuildProfileReportJson(structural, profiler, TestContext(), gpu, output),
+        ProfileReportResult2D::InvalidGpuEvidence);
+    EXPECT_EQ(output, "retained-previous-report");
+    EXPECT_EQ(ToString(ProfileReportResult2D::InvalidGpuEvidence), "invalid_gpu_evidence");
+}
+
+TEST(ProfileReport2DTests, GpuAggregationOverflowLeavesPreviousOutputUntouched)
+{
+    auto structural = PreparedStructuralSnapshot();
+    CpuProfiler2D profiler{};
+    ASSERT_EQ(profiler.Prepare(1U, 1U, 1U), ProfileResult2D::Success);
+
+    constexpr std::array<GpuProfileFrameTiming2D, 2> frames{
+        GpuProfileFrameTiming2D{1U, std::numeric_limits<std::uint64_t>::max()},
+        GpuProfileFrameTiming2D{2U, 1U},
+    };
+    const GpuProfileEvidence2D gpu{
+        .availability = ProfileMetricAvailability2D::Available,
+        .timingSource = "overflow-test",
+        .frames = frames,
+    };
+
+    std::string output = "retained-previous-report";
+    EXPECT_EQ(
+        BuildProfileReportJson(structural, profiler, TestContext(), gpu, output),
+        ProfileReportResult2D::AggregationOverflow);
+    EXPECT_EQ(output, "retained-previous-report");
 }
 
 TEST(ProfileReport2DTests, FailureLeavesPreviousOutputUntouched)
