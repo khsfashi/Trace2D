@@ -56,6 +56,41 @@ target_compile_definitions(trace2d_p2_combat_gamefeel_headless
 target_compile_features(trace2d_p2_combat_gamefeel_headless PRIVATE cxx_std_20)
 trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_headless)
 
+set(TRACE2D_XSTRESS_SOURCE_REVISION "unknown")
+find_package(Git QUIET)
+if(Git_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/../.."
+        OUTPUT_VARIABLE TRACE2D_XSTRESS_GIT_REVISION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+        RESULT_VARIABLE TRACE2D_XSTRESS_GIT_RESULT
+    )
+    if(TRACE2D_XSTRESS_GIT_RESULT EQUAL 0 AND TRACE2D_XSTRESS_GIT_REVISION MATCHES "^[0-9a-fA-F]+$")
+        set(TRACE2D_XSTRESS_SOURCE_REVISION "${TRACE2D_XSTRESS_GIT_REVISION}")
+    endif()
+endif()
+
+add_executable(trace2d_p2_combat_gamefeel_profile
+    ProfileStressMain.cpp
+)
+target_link_libraries(trace2d_p2_combat_gamefeel_profile
+    PRIVATE
+        trace2d_p2_combat_gamefeel
+        Trace2D::Assets
+        Trace2D::Core
+        Trace2D::Profile
+        Trace2D::ProfileAdapters
+)
+target_compile_definitions(trace2d_p2_combat_gamefeel_profile
+    PRIVATE
+        TRACE2D_P2_RUNTIME_DIR="${TRACE2D_P2_RUNTIME_DIR}"
+        TRACE2D_XSTRESS_SOURCE_REVISION="${TRACE2D_XSTRESS_SOURCE_REVISION}"
+)
+target_compile_features(trace2d_p2_combat_gamefeel_profile PRIVATE cxx_std_20)
+trace2d_p2_enable_warnings(trace2d_p2_combat_gamefeel_profile)
+
 add_executable(trace2d_p2_combat_gamefeel_windowed
     WindowedMain.cpp
 )
@@ -76,6 +111,10 @@ if(BUILD_TESTING)
     add_test(
         NAME trace2d_p2_combat_gamefeel_headless
         COMMAND trace2d_p2_combat_gamefeel_headless
+    )
+    add_test(
+        NAME trace2d_p2_combat_gamefeel_profile
+        COMMAND trace2d_p2_combat_gamefeel_profile "${CMAKE_CURRENT_BINARY_DIR}/xstress1-profile.json"
     )
 endif()
 

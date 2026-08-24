@@ -1,0 +1,326 @@
+name: XSTRESS1 Cross-platform P2 Profile Proof
+
+on:
+  push:
+    branches:
+      - main
+      - 'agent/**'
+    paths:
+      - "examples/p2_combat_gamefeel/**"
+      - "engine/profile/**"
+      - "engine/profile_adapters/**"
+      - ".github/workflows/product-proof-xstress1.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "examples/p2_combat_gamefeel/**"
+      - "engine/profile/**"
+      - "engine/profile_adapters/**"
+      - ".github/workflows/product-proof-xstress1.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-xstress1-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  windows-p2-profile:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v6
+
+      - name: Install pinned vcpkg
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP 'vcpkg'
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE '.trace2d-vcpkg-downloads'
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
+          & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure Trace2D Release source tree
+        run: cmake --preset windows-msvc
+
+      - name: Build Trace2D Release SDK
+        run: cmake --build --preset windows-release --parallel
+
+      - name: Install Trace2D Release SDK
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'trace2d-xstress1-sdk'
+          cmake --install 'build/windows-msvc' --config Release --prefix $installRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "TRACE2D_ROOT=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure P2 against installed SDK
+        working-directory: examples/p2_combat_gamefeel
+        run: cmake --preset windows-msvc
+
+      - name: Build P2 Release against installed SDK
+        working-directory: examples/p2_combat_gamefeel
+        run: cmake --build --preset windows-release --parallel
+
+      - name: Verify P2 deterministic and profile contracts
+        working-directory: examples/p2_combat_gamefeel
+        run: ctest --preset windows-release -R "^trace2d_p2_combat_gamefeel_(headless|profile)$" --output-on-failure
+
+      - name: Capture Windows P2 profile evidence
+        working-directory: examples/p2_combat_gamefeel
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:GITHUB_WORKSPACE 'artifacts/xstress1-windows'
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          $output = Join-Path $evidence 'profile.json'
+          & '.\build\windows-msvc\Release\trace2d_p2_combat_gamefeel_profile.exe' $output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $output -PathType Leaf)) { throw 'Windows XSTRESS1 profile evidence missing.' }
+
+      - name: Upload Windows P2 profile evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: xstress1-windows-p2-profile
+          path: artifacts/xstress1-windows/profile.json
+          if-no-files-found: error
+          retention-days: 30
+
+  linux-p2-profile:
+    runs-on: ubuntu-24.04
+    env:
+      CC: clang-18
+      CXX: clang++-18
+
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v6
+
+      - name: Install Clang and Linux build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt_options=(
+            -o Acquire::Retries=3
+            -o Acquire::http::Timeout=15
+            -o Acquire::https::Timeout=15
+          )
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install --yes --no-install-recommends \
+            autoconf \
+            autoconf-archive \
+            automake \
+            clang-18 \
+            libltdl-dev \
+            libtool \
+            ninja-build \
+            pkg-config
+          clang++-18 --version
+
+      - name: Install pinned vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          vcpkg_downloads="$GITHUB_WORKSPACE/.trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg "$vcpkg_root"
+          git -C "$vcpkg_root" checkout "$TRACE2D_VCPKG_BASELINE"
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$vcpkg_downloads"
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+          echo "VCPKG_DOWNLOADS=$vcpkg_downloads" >> "$GITHUB_ENV"
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure Trace2D Release with Clang 18
+        run: cmake --preset ci-linux-clang -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build Trace2D Release SDK
+        run: cmake --build --preset ci-linux-clang --parallel
+
+      - name: Install Trace2D Release SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$RUNNER_TEMP/trace2d-xstress1-sdk"
+          cmake --install build/ci-linux-clang --prefix "$sdk_root"
+          test -f "$sdk_root/lib/cmake/Trace2D/Trace2DConfig.cmake"
+          echo "TRACE2D_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "TRACE2D_VCPKG_INSTALLED_DIR=$GITHUB_WORKSPACE/build/ci-linux-clang/vcpkg_installed" >> "$GITHUB_ENV"
+
+      - name: Configure P2 against installed SDK
+        working-directory: examples/p2_combat_gamefeel
+        run: cmake --preset linux-clang-release
+
+      - name: Build P2 Release against installed SDK
+        working-directory: examples/p2_combat_gamefeel
+        run: cmake --build --preset linux-clang-release --parallel
+
+      - name: Verify P2 deterministic and profile contracts
+        working-directory: examples/p2_combat_gamefeel
+        run: ctest --preset linux-clang-release -R "^trace2d_p2_combat_gamefeel_(headless|profile)$" --output-on-failure
+
+      - name: Capture Linux P2 profile evidence
+        working-directory: examples/p2_combat_gamefeel
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$GITHUB_WORKSPACE/artifacts/xstress1-linux"
+          mkdir -p "$evidence"
+          ./build/linux-clang-release/trace2d_p2_combat_gamefeel_profile "$evidence/profile.json"
+          test -s "$evidence/profile.json"
+
+      - name: Upload Linux P2 profile evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: xstress1-linux-p2-profile
+          path: artifacts/xstress1-linux/profile.json
+          if-no-files-found: error
+          retention-days: 30
+
+  compare-portable-structure:
+    runs-on: ubuntu-24.04
+    needs:
+      - windows-p2-profile
+      - linux-p2-profile
+
+    steps:
+      - name: Download Windows evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: xstress1-windows-p2-profile
+          path: evidence/windows
+
+      - name: Download Linux evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: xstress1-linux-p2-profile
+          path: evidence/linux
+
+      - name: Compare only portable deterministic structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          expected_workload = "trace2d.p2-cross-platform-stress.v1"
+          selected_metrics = [
+              "physics.body.attached",
+              "physics.body.capacity",
+              "physics.overlap.hit.capacity",
+              "physics.step.fixed",
+              "physics.body.command",
+              "physics.body.command.failure",
+              "physics.overlap.query",
+              "physics.overlap.capacity_failure",
+              "audio.voice.capacity",
+              "audio.event.capacity",
+              "audio.command.count",
+              "audio.command.failure",
+              "audio.step.count",
+              "resource.ready",
+              "resource.error",
+              "resource.filesystem_query",
+              "resource.snapshot.count",
+          ]
+
+          def load(path: str, expected_os: str, expected_compiler: str):
+              report = json.loads(Path(path).read_text(encoding="utf-8"))
+              assert report["schema"] == "trace2d.profile.report.v1"
+              context = report["context"]
+              assert context["workload"] == expected_workload
+              assert context["operating_system"] == expected_os
+              assert context["compiler"] == expected_compiler
+              assert context["architecture"] == "x86_64"
+              assert context["build_configuration"] == "Release"
+              assert context["renderer_backend"] == "headless"
+              assert context["warmup_frame_count"] == 0
+              assert context["requested_sample_frame_count"] == 90
+              assert context["fixed_timestep_ns"] == 16666667
+              assert report["cpu"]["availability"] == "available"
+              storage = report["cpu"]["storage"]
+              assert storage["committed_frame_count"] == 90
+              assert storage["retained_frame_count"] == 90
+              assert storage["invalid_frame_count"] == 0
+              scopes = {scope["name"]: scope for scope in report["cpu"]["scopes"]}
+              frame_scope = scopes["p2.combat.fixed_frame"]
+              assert frame_scope["availability"] == "available"
+              assert frame_scope["measured_frame_count"] == 90
+              assert frame_scope["call_count"] == 90
+              assert report["gpu"]["availability"] == "not_supported"
+              assert report["gpu"]["backend"] == "headless"
+
+              metrics = {metric["name"]: metric for metric in report["structural"]["metrics"]}
+              assert metrics["render.frame.submitted"]["availability"] == "not_measured"
+              for name in selected_metrics:
+                  assert metrics[name]["availability"] == "available", name
+              return report, metrics
+
+          windows, windows_metrics = load("evidence/windows/profile.json", "windows", "msvc")
+          linux, linux_metrics = load("evidence/linux/profile.json", "linux", "clang")
+          assert windows["context"]["source_revision"] == linux["context"]["source_revision"]
+
+          portable_values = {}
+          for name in selected_metrics:
+              left = windows_metrics[name]["value"]
+              right = linux_metrics[name]["value"]
+              assert left == right, f"portable structural mismatch for {name}: windows={left}, linux={right}"
+              portable_values[name] = left
+
+          assert portable_values["physics.body.attached"] == 7
+          assert portable_values["physics.step.fixed"] == 90
+          assert portable_values["physics.body.command.failure"] == 0
+          assert portable_values["physics.overlap.query"] == 1
+          assert portable_values["physics.overlap.capacity_failure"] == 0
+          assert portable_values["audio.command.failure"] == 0
+          assert portable_values["resource.filesystem_query"] == 0
+
+          comparison = {
+              "schema": "trace2d.xstress1.comparison.v1",
+              "source_revision": windows["context"]["source_revision"],
+              "workload": expected_workload,
+              "portable_structural_metrics": portable_values,
+              "timing_policy": "environment_evidence_only_not_cross_machine_gate",
+              "windows_cpu_total_ns": windows["cpu"]["scopes"][0]["inclusive_total_ns"],
+              "linux_cpu_total_ns": linux["cpu"]["scopes"][0]["inclusive_total_ns"],
+              "gpu_timing": "not_supported_in_hosted_headless_slice",
+          }
+          Path("evidence/comparison.json").write_text(
+              json.dumps(comparison, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(comparison, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload XSTRESS1 comparison evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: xstress1-portable-structure-comparison
+          path: evidence/comparison.json
+          if-no-files-found: error
+          retention-days: 30
