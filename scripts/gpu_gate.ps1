@@ -17,7 +17,7 @@ function Invoke-NativeChecked {
 function Get-GpuFixturePolicy {
     param([string]$TestName)
 
-    if ($TestName.StartsWith("GpuQaEnvironmentConformanceTests.")) {
+    if ($TestName.StartsWith("GpuConformanceTests.")) {
         return [ordered]@{
             test = $TestName
             subsystem = "gpu_qa_environment"
