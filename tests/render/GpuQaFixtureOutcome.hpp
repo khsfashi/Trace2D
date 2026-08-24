@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <exception>
 #include <iostream>
 #include <string_view>
 
@@ -81,7 +82,7 @@ public:
             Emit("skipped", GpuQaFailureCategory::UnsupportedCapability);
             return;
         }
-        if (::testing::Test::HasFailure())
+        if (std::uncaught_exceptions() > 0 || ::testing::Test::HasFailure())
         {
             Emit(phase_, category_);
             return;
