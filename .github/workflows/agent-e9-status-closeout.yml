@@ -1,0 +1,64 @@
+name: Agent E9 status closeout
+
+on:
+  push:
+    branches:
+      - agent/e9-closeout-project-status
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-status:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout closeout branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/e9-closeout-project-status
+
+      - name: Advance explanatory status to GPUQA0
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("PROJECT_STATUS.md")
+          text = path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  "Last explanatory handoff update: **2026-08-20**",
+                  "Last explanatory handoff update: **2026-08-24**",
+              ),
+              (
+                  "- **#76 Physics2D V1 and #77 Audio V1 are complete; #329 Combat Product Proof is the exact next core-lane item.**\n- Do not add speculative Physics2D/Audio breadth; let #329 expose the smallest concrete follow-up if one is needed.",
+                  "- #76 Physics2D V1, #77 Audio V1, #329 Combat Product Proof, #91 Profiler and #78 Linux/non-MSVC portability are complete.\n- **#92 tiered real-GPU QA is the exact next core-lane item.**\n- Do not reopen completed portability or subsystem breadth; #92 owns real-GPU conformance/release validation and reuses #91 profiling/timing vocabulary.",
+              ),
+          ]
+
+          for old, new in replacements:
+              if old in text:
+                  if text.count(old) != 1:
+                      raise SystemExit(f"expected exactly one occurrence: {old!r}")
+                  text = text.replace(old, new)
+              elif new not in text:
+                  raise SystemExit(f"status text did not match expected old or new form: {old!r}")
+
+          path.write_text(text, encoding="utf-8")
+
+      - name: Commit status-only closeout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- PROJECT_STATUS.md
+          git add -- PROJECT_STATUS.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "trace2d-agent"
+          git config user.email "trace2d-agent@users.noreply.github.com"
+          git commit -m "docs: advance core lane to GPUQA0"
+          git push origin HEAD:agent/e9-closeout-project-status
