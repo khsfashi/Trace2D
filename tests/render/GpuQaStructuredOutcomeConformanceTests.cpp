@@ -69,16 +69,37 @@ TEST(GpuConformanceTests, StructuredFailureCategoryVocabularyIsStable)
     EXPECT_EQ(ToString(GpuQaFailureCategory::ComparisonMismatch), "comparison_mismatch");
 
     EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::None),
+        GpuQaFailureCategory::None);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::InvalidMaterialHandle),
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::InvalidShaderHandle),
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::UnsupportedShaderLanguage),
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::UnsupportedShaderStage),
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::InvalidShaderEntryPoint),
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::ParameterPreparationFailed),
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
+    EXPECT_EQ(
         CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::ShaderCompilationFailed),
+        GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
+    EXPECT_EQ(
+        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::ShaderReflectionFailed),
         GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
     EXPECT_EQ(
         CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::ShaderContractMismatch),
         GpuQaFailureCategory::ShaderCompileOrReflectionFailure);
     EXPECT_EQ(
         CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::PipelineCreationFailed),
-        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
-    EXPECT_EQ(
-        CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::InvalidMaterialHandle),
         GpuQaFailureCategory::PipelineOrResourceCreationFailure);
 }
 
