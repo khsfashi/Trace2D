@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/particles/ParticleProgram.hpp>
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
@@ -151,6 +153,11 @@ void RemoveCapture(const std::filesystem::path& path) noexcept
 
 TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime)
 {
+    constexpr std::string_view TestName =
+        "ParticleGpuConformanceTests.ExplicitGpuExecutionTracksCpuOracleAcrossRandomSpawnMotionAndLifetime";
+    using trace2d::test::GpuQaFailureCategory;
+    trace2d::test::GpuQaFixtureOutcome outcome{TestName};
+
     if (!GpuConformanceEnabled())
     {
         GTEST_SKIP() << "Set TRACE2D_RUN_GPU_SMOKE=1 on a machine with a presentation GPU to run conformance.";
@@ -158,6 +165,7 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
 
     using namespace trace2d;
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     constexpr std::uint64_t GlobalSeed = 0x0123456789ABCDEFULL;
     constexpr particles::ParticleEmitterStableId StableId = 0x1122334455667788ULL;
     constexpr std::array<std::uint8_t, 16> WhiteTexture{
@@ -179,6 +187,9 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
             program, GlobalSeed, StableId, cpuOracle);
     ASSERT_TRUE(cpuPrepared.Ok());
 
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
     platformConfig.windowWidth = 128;
@@ -189,6 +200,10 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
     render::RendererConfig rendererConfig{};
     rendererConfig.enableDebugValidation = true;
     render::Renderer renderer{rendererConfig, platform};
+
+    outcome.SetFailurePoint(
+        "pipeline_or_resource_creation",
+        GpuQaFailureCategory::PipelineOrResourceCreationFailure);
     const render::TextureHandle texture = renderer.CreateTextureRgba8(
         render::Rgba8TextureData{2U, 2U, WhiteTexture});
 
@@ -204,6 +219,9 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
     const render::GpuParticleStepData step{created.handle, {0.0F, 0.0F}};
     const render::GpuParticleRenderData draw{created.handle, {0.0F, 0.0F}, 0, 0U};
 
+    outcome.SetFailurePoint(
+        "render_submit",
+        GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
     ASSERT_TRUE(cpuOracle.Step());
     ASSERT_TRUE(renderer.StepGpuParticleEmitter(step));
     ASSERT_EQ(cpuOracle.Reference().AliveCount(), 1U);
@@ -214,6 +232,9 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
     ASSERT_GE(sampledLifetime, 3U);
     ASSERT_LE(sampledLifetime, 5U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path firstCapturePath =
         std::filesystem::temp_directory_path() / "trace2d_gpu_particle_conformance_0.bmp";
     const render::CapturedFrame firstCapture = renderer.CaptureFrame(
@@ -222,6 +243,7 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
         {},
         std::span<const render::GpuParticleRenderData>{&draw, 1U});
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     BrightBounds firstBounds{};
     ASSERT_TRUE(TryFindBrightBounds(firstCapture, firstBounds));
     EXPECT_NEAR(
@@ -240,12 +262,18 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
     EXPECT_EQ(metrics.normalFrameReadbacks, 0U);
     EXPECT_EQ(metrics.normalFrameFenceWaits, 0U);
 
+    outcome.SetFailurePoint(
+        "render_submit",
+        GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
     ASSERT_TRUE(cpuOracle.Step());
     ASSERT_TRUE(renderer.StepGpuParticleEmitter(step));
     ASSERT_EQ(cpuOracle.Reference().AliveCount(), 1U);
     ASSERT_TRUE(cpuOracle.Reference().TryGetParticle(0U, cpuParticle));
     ASSERT_EQ(cpuParticle.ageFrames, 1U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path movedCapturePath =
         std::filesystem::temp_directory_path() / "trace2d_gpu_particle_conformance_1.bmp";
     const render::CapturedFrame movedCapture = renderer.CaptureFrame(
@@ -254,6 +282,7 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
         {},
         std::span<const render::GpuParticleRenderData>{&draw, 1U});
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     BrightBounds movedBounds{};
     ASSERT_TRUE(TryFindBrightBounds(movedCapture, movedBounds));
     EXPECT_NEAR(
@@ -265,13 +294,21 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
     std::uint32_t submittedSteps = 2U;
     while (cpuOracle.Reference().AliveCount() != 0U && submittedSteps <= sampledLifetime)
     {
+        outcome.SetFailurePoint(
+            "render_submit",
+            GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
         ASSERT_TRUE(cpuOracle.Step());
         ASSERT_TRUE(renderer.StepGpuParticleEmitter(step));
         ++submittedSteps;
     }
+
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     ASSERT_EQ(cpuOracle.Reference().AliveCount(), 0U);
     EXPECT_EQ(cpuOracle.Reference().Counters().expired, 1U);
 
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path expiredCapturePath =
         std::filesystem::temp_directory_path() / "trace2d_gpu_particle_conformance_expired.bmp";
     const render::CapturedFrame expiredCapture = renderer.CaptureFrame(
@@ -283,6 +320,7 @@ TEST(ParticleGpuConformanceTests, ExplicitGpuExecutionTracksCpuOracleAcrossRando
         {},
         std::span<const render::GpuParticleRenderData>{&draw, 1U});
 
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     BrightBounds expiredBounds{};
     EXPECT_FALSE(TryFindBrightBounds(expiredCapture, expiredBounds));
 
