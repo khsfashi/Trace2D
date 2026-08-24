@@ -1,3 +1,5 @@
+#include "GpuQaFixtureOutcome.hpp"
+
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 
@@ -8,79 +10,10 @@
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
-#include <span>
 #include <string_view>
 
 namespace
 {
-enum class GpuQaFailureCategory
-{
-    None,
-    UnsupportedCapability,
-    GpuDeviceInitializationFailure,
-    ShaderCompileOrReflectionFailure,
-    PipelineOrResourceCreationFailure,
-    RenderSubmitOrDeviceLossFailure,
-    ReadbackOrCaptureFailure,
-    ComparisonMismatch,
-};
-
-[[nodiscard]] constexpr std::string_view ToString(const GpuQaFailureCategory category) noexcept
-{
-    switch (category)
-    {
-    case GpuQaFailureCategory::None:
-        return "none";
-    case GpuQaFailureCategory::UnsupportedCapability:
-        return "unsupported_capability";
-    case GpuQaFailureCategory::GpuDeviceInitializationFailure:
-        return "gpu_device_initialization_failure";
-    case GpuQaFailureCategory::ShaderCompileOrReflectionFailure:
-        return "shader_compile_or_reflection_failure";
-    case GpuQaFailureCategory::PipelineOrResourceCreationFailure:
-        return "pipeline_or_resource_creation_failure";
-    case GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure:
-        return "render_submit_or_device_loss_failure";
-    case GpuQaFailureCategory::ReadbackOrCaptureFailure:
-        return "readback_or_capture_failure";
-    case GpuQaFailureCategory::ComparisonMismatch:
-        return "comparison_mismatch";
-    }
-    return "unknown";
-}
-
-[[nodiscard]] constexpr GpuQaFailureCategory CategoryForMaterialPrepareError(
-    const trace2d::render::MaterialGpuPrepareError2D error) noexcept
-{
-    using trace2d::render::MaterialGpuPrepareError2D;
-    switch (error)
-    {
-    case MaterialGpuPrepareError2D::ShaderCompilationFailed:
-    case MaterialGpuPrepareError2D::ShaderContractMismatch:
-        return GpuQaFailureCategory::ShaderCompileOrReflectionFailure;
-    case MaterialGpuPrepareError2D::PipelineCreationFailed:
-    case MaterialGpuPrepareError2D::InvalidMaterialHandle:
-        return GpuQaFailureCategory::PipelineOrResourceCreationFailure;
-    case MaterialGpuPrepareError2D::None:
-        return GpuQaFailureCategory::None;
-    }
-    return GpuQaFailureCategory::PipelineOrResourceCreationFailure;
-}
-
-void EmitFixtureOutcome(
-    const std::string_view test,
-    const std::string_view phase,
-    const GpuQaFailureCategory category)
-{
-    std::cout
-        << "TRACE2D_GPUQA_FIXTURE_V1"
-        << " test=" << test
-        << " phase=" << phase
-        << " failure_category=" << ToString(category)
-        << '\n';
-}
-
 [[nodiscard]] bool GpuConformanceEnabled() noexcept
 {
 #if defined(_WIN32)
@@ -109,6 +42,13 @@ void RemoveCapture(const std::filesystem::path& path) noexcept
 TEST(GpuConformanceTests, StructuredFailureCategoryVocabularyIsStable)
 {
     using trace2d::render::MaterialGpuPrepareError2D;
+    using trace2d::test::CategoryForMaterialPrepareError;
+    using trace2d::test::GpuQaFailureCategory;
+    using trace2d::test::GpuQaFixtureOutcome;
+    using trace2d::test::ToString;
+
+    GpuQaFixtureOutcome outcome{
+        "GpuConformanceTests.StructuredFailureCategoryVocabularyIsStable"};
 
     EXPECT_EQ(ToString(GpuQaFailureCategory::UnsupportedCapability), "unsupported_capability");
     EXPECT_EQ(
@@ -140,17 +80,16 @@ TEST(GpuConformanceTests, StructuredFailureCategoryVocabularyIsStable)
     EXPECT_EQ(
         CategoryForMaterialPrepareError(MaterialGpuPrepareError2D::InvalidMaterialHandle),
         GpuQaFailureCategory::PipelineOrResourceCreationFailure);
-
-    EmitFixtureOutcome(
-        "GpuConformanceTests.StructuredFailureCategoryVocabularyIsStable",
-        "complete",
-        GpuQaFailureCategory::None);
 }
 
 TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases)
 {
     constexpr std::string_view TestName =
         "GpuConformanceTests.StructuredOutcomeProbeTraversesRealGpuValidationPhases";
+
+    using trace2d::test::GpuQaFailureCategory;
+    using trace2d::test::GpuQaFixtureOutcome;
+    GpuQaFixtureOutcome outcome{TestName};
 
     if (!GpuConformanceEnabled())
     {
@@ -159,7 +98,9 @@ TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases
 
     using namespace trace2d;
 
-    EmitFixtureOutcome(TestName, "device_initialization", GpuQaFailureCategory::GpuDeviceInitializationFailure);
+    outcome.SetFailurePoint(
+        "device_initialization",
+        GpuQaFailureCategory::GpuDeviceInitializationFailure);
 
     platform::PlatformConfig platformConfig{};
     platformConfig.mode = platform::StartupMode::Windowed;
@@ -173,11 +114,9 @@ TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases
     rendererConfig.clearColor = render::ClearColor{0.0F, 0.0F, 0.0F, 1.0F};
     render::Renderer renderer{rendererConfig, platform};
 
-    EmitFixtureOutcome(
-        TestName,
+    outcome.SetFailurePoint(
         "pipeline_or_resource_creation",
         GpuQaFailureCategory::PipelineOrResourceCreationFailure);
-
     constexpr std::array<std::uint8_t, 4U> WhitePixel{255U, 255U, 255U, 255U};
     const render::TextureHandle texture =
         renderer.CreateTextureRgba8(render::Rgba8TextureData{1U, 1U, WhitePixel});
@@ -188,14 +127,18 @@ TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases
     sprite.texture = texture;
     const render::OrthographicCamera camera{{0.0F, 0.0F}, 4.0F};
 
-    EmitFixtureOutcome(TestName, "render_submit", GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
+    outcome.SetFailurePoint(
+        "render_submit",
+        GpuQaFailureCategory::RenderSubmitOrDeviceLossFailure);
     renderer.RenderFrame(camera, sprite);
 
     const render::RenderMetrics beforeCapture = renderer.Metrics();
     EXPECT_EQ(beforeCapture.explicitGpuReadbacks, 0U);
     EXPECT_EQ(beforeCapture.explicitGpuFenceWaits, 0U);
 
-    EmitFixtureOutcome(TestName, "readback_capture", GpuQaFailureCategory::ReadbackOrCaptureFailure);
+    outcome.SetFailurePoint(
+        "readback_capture",
+        GpuQaFailureCategory::ReadbackOrCaptureFailure);
     const std::filesystem::path path =
         std::filesystem::temp_directory_path() / "trace2d_gpuqa_structured_outcome.bmp";
     const render::CapturedFrame frame = renderer.CaptureFrame(
@@ -207,7 +150,7 @@ TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases
     ASSERT_EQ(frame.height, 64U);
     ASSERT_EQ(frame.rgba8Pixels.size(), 64U * 64U * 4U);
 
-    EmitFixtureOutcome(TestName, "comparison", GpuQaFailureCategory::ComparisonMismatch);
+    outcome.SetFailurePoint("comparison", GpuQaFailureCategory::ComparisonMismatch);
     const std::size_t centerOffset = (32U * 64U + 32U) * 4U;
     EXPECT_GE(frame.rgba8Pixels[centerOffset], 248U);
     EXPECT_GE(frame.rgba8Pixels[centerOffset + 1U], 248U);
@@ -220,11 +163,4 @@ TEST(GpuConformanceTests, StructuredOutcomeProbeTraversesRealGpuValidationPhases
 
     renderer.DestroyTexture(texture);
     RemoveCapture(path);
-
-    if (::testing::Test::HasFailure())
-    {
-        EmitFixtureOutcome(TestName, "comparison", GpuQaFailureCategory::ComparisonMismatch);
-        return;
-    }
-    EmitFixtureOutcome(TestName, "complete", GpuQaFailureCategory::None);
 }
