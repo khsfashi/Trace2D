@@ -60,7 +60,7 @@ jobs:
       - name: Build debug P2 for deterministic verification
         run: >-
           cmake --build --preset windows-debug --parallel
-          --target trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_windowed
+          --target trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_profile trace2d_p2_combat_gamefeel_windowed
 
       - name: Verify deterministic combat trajectory
         run: ctest --preset windows-debug -R "^trace2d_p2_combat_gamefeel_headless$" --output-on-failure
@@ -69,8 +69,8 @@ jobs:
         run: >-
           cmake --build --preset windows-release --parallel
           --target trace2d_application trace2d_agent trace2d_audio trace2d_physics
-          trace2d_platform trace2d_render trace2d_tile trace2d_text
-          trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_windowed
+          trace2d_platform trace2d_profile trace2d_profile_adapters trace2d_render trace2d_tile trace2d_text
+          trace2d_p2_combat_gamefeel_headless trace2d_p2_combat_gamefeel_profile trace2d_p2_combat_gamefeel_windowed
 
       - name: Install release candidate Trace2D SDK
         shell: pwsh
