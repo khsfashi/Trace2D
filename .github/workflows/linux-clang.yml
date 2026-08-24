@@ -28,16 +28,43 @@ jobs:
       - name: Checkout clean candidate
         uses: actions/checkout@v6
 
-      - name: Install pinned compiler and generator
+      - name: Install pinned compiler and Linux build prerequisites
+        id: toolchain
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y clang-18 ninja-build
+
+          apt_mirror_list="/etc/apt/apt-mirrors.txt"
+          if [[ -f "$apt_mirror_list" ]]; then
+            sudo sed -i \
+              -e 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              -e 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              "$apt_mirror_list"
+          fi
+
+          apt_options=(
+            -o Acquire::Retries=3
+            -o Acquire::http::Timeout=15
+            -o Acquire::https::Timeout=15
+          )
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install --yes --no-install-recommends \
+            autoconf \
+            autoconf-archive \
+            automake \
+            clang-18 \
+            libltdl-dev \
+            libtool \
+            ninja-build \
+            pkg-config
+
           clang++-18 --version
           cmake --version
           ninja --version
           uname -a
+          clang_version="$(clang++-18 -dumpfullversion -dumpversion)"
+          test -n "$clang_version"
+          echo "clang-version=$clang_version" >> "$GITHUB_OUTPUT"
 
       - name: Install pinned vcpkg
         shell: bash
@@ -59,6 +86,15 @@ jobs:
           path: .trace2d-vcpkg-downloads
           key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
           enableCrossOsArchive: true
+
+      - name: Restore Linux vcpkg binary archives
+        id: vcpkg-binary-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: trace2d-linux-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-
 
       - name: Configure Trace2D with Ubuntu Clang
         run: cmake --preset ci-linux-clang
@@ -122,6 +158,13 @@ jobs:
       - name: Test installed-SDK external consumer
         working-directory: examples/e0_external_game
         run: ctest --preset linux-clang
+
+      - name: Save Linux vcpkg binary archives
+        if: always() && steps.vcpkg-binary-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: trace2d-linux-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Upload Linux portability evidence
         if: always()
