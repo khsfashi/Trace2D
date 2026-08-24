@@ -38,7 +38,7 @@ void RemoveCapture(const std::filesystem::path& path) noexcept
 }
 } // namespace
 
-TEST(GpuQaEnvironmentConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
+TEST(GpuConformanceTests, ReportsActualBackendAndExplicitCaptureBoundary)
 {
     if (!GpuConformanceEnabled())
     {
