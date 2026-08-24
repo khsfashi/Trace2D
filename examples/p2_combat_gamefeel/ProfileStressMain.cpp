@@ -11,6 +11,8 @@
 #include <trace2d/profile/StructuralProfile2D.hpp>
 #include <trace2d/profile_adapters/ProfileAdapters2D.hpp>
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <fstream>
