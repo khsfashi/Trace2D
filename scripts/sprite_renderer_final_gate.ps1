@@ -38,7 +38,12 @@ try {
         throw "Sprite GPU gate did not produce manifest.json."
     }
     $gpuManifest = Get-Content -Raw -Path $gpuManifestPath | ConvertFrom-Json
-    if ($gpuManifest.status -ne "passed" -or $gpuManifest.commit -ne $headSha) {
+    switch ($gpuManifest.schema) {
+        "trace2d.gpu-gate.v1" { $gpuGateStatus = $gpuManifest.status }
+        "trace2d.gpu-gate.v2" { $gpuGateStatus = $gpuManifest.gate.status }
+        default { throw "Unsupported generic GPU gate manifest schema '$($gpuManifest.schema)'." }
+    }
+    if ($gpuGateStatus -ne "passed" -or $gpuManifest.commit -ne $headSha) {
         throw "Sprite GPU gate evidence does not match the current successful commit."
     }
 
