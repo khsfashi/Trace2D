@@ -2,7 +2,7 @@
 
 Trace2D uses a narrow **Linux Clang ASan + UBSan headless CI lane** to catch memory-safety defects and undefined behavior that ordinary unit tests and static analysis may miss.
 
-This lane is verification infrastructure only. It does **not** declare Linux a maintained Trace2D platform and does not supersede the later #78 non-MSVC/Linux toolchain work.
+This lane is verification infrastructure within the maintained Ubuntu/Clang toolchain contract documented in `docs/PORTABILITY.md`. It does not replace the ordinary Linux build/SDK consumer gate, static analysis, or real-GPU validation.
 
 ## Scope
 
@@ -25,15 +25,20 @@ The CMake option deliberately accepts only Linux + Clang and applies:
 -fno-sanitize-recover=all
 ```
 
-The CI runtime also makes sanitizer findings fatal and enables UBSan stack traces.
+The CI runtime also makes sanitizer findings fatal, enables leak detection, and enables UBSan stack traces.
 
-Only the test suites carrying the `sanitizer-headless` CTest label are executed:
+The workflow builds the profile CLI plus the sanitizer-covered test executables, then executes only CTest cases carrying the `sanitizer-headless` label. The current covered test executables are:
 
+- `trace2d_profile_tests`
 - `trace2d_runtime_tests`
 - `trace2d_scene_tests`
+- `trace2d_physics_tests`
 - `trace2d_assets_tests`
+- `trace2d_audio_tests`
 
-This keeps the memory/UB lane focused on deterministic CPU-side engine state and avoids turning it into a duplicate GPU/platform acceptance lane.
+`trace2d_profile_cli` is also built in the sanitizer configuration so its public/report composition closure remains compiler/link checked; it is not itself a CTest suite.
+
+This keeps the memory/UB lane focused on deterministic/headless CPU-side state and avoids turning it into a duplicate GPU/platform acceptance lane.
 
 ## Local reproduction
 
@@ -52,9 +57,13 @@ cmake -S . -B build/sanitizers \
   -DBUILD_TESTING=ON
 
 cmake --build build/sanitizers --parallel --target \
+  trace2d_profile_cli \
+  trace2d_profile_tests \
   trace2d_runtime_tests \
   trace2d_scene_tests \
-  trace2d_assets_tests
+  trace2d_physics_tests \
+  trace2d_assets_tests \
+  trace2d_audio_tests
 
 ASAN_OPTIONS=halt_on_error=1:detect_leaks=1 \
 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
@@ -65,10 +74,14 @@ ctest --test-dir build/sanitizers -L sanitizer-headless --output-on-failure
 
 A sanitizer report is a correctness failure for the covered code path. Do not suppress a report merely to make CI green. If a finding is proven to originate in third-party code or an intentional low-level contract, document the evidence and keep any suppression as narrow as possible.
 
+Sanitizer success means the covered executions produced no ASan/UBSan finding in that run. It is not proof that all memory or undefined-behavior defects are absent.
+
 The sanitizer lane complements, rather than replaces:
 
-- Windows MSVC build/tests,
-- CodeQL,
+- Windows MSVC and Ubuntu/Clang ordinary build/tests,
+- the installed-SDK external consumer gates,
+- bounded Clang-Tidy correctness/performance checks,
+- CodeQL security analysis,
 - deterministic subsystem/conformance tests,
 - real-GPU smoke/conformance gates.
 
@@ -76,5 +89,6 @@ The sanitizer lane complements, rather than replaces:
 
 - Clang AddressSanitizer documentation: https://clang.llvm.org/docs/AddressSanitizer.html
 - Clang UndefinedBehaviorSanitizer documentation: https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+- Trace2D portability contract: `docs/PORTABILITY.md`
 
 Decision: **ADOPT** Clang's standard compile/link sanitizer instrumentation and frame-pointer guidance; **ADAPT** it into a bounded headless Trace2D CI lane; **DEFER** ThreadSanitizer until Trace2D has a demonstrated multithreaded ownership/race-verification need and a stable compatible test surface.
