@@ -1,0 +1,128 @@
+name: Static Analysis
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".clang-tidy"
+      - ".github/workflows/static-analysis.yml"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "cmake/**"
+      - "engine/**"
+      - "tools/**"
+      - "examples/**"
+      - "vcpkg.json"
+      - "vcpkg-configuration.json"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".clang-tidy"
+      - ".github/workflows/static-analysis.yml"
+      - "CMakeLists.txt"
+      - "CMakePresets.json"
+      - "cmake/**"
+      - "engine/**"
+      - "tools/**"
+      - "examples/**"
+      - "vcpkg.json"
+      - "vcpkg-configuration.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trace2d-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+  CC: clang-18
+  CXX: clang++-18
+
+jobs:
+  linux-clang-tidy18:
+    name: Ubuntu Clang-Tidy 18 bounded gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout clean candidate
+        uses: actions/checkout@v6
+
+      - name: Install pinned analysis toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          apt_mirror_list="/etc/apt/apt-mirrors.txt"
+          if [[ -f "$apt_mirror_list" ]]; then
+            sudo sed -i \
+              -e 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              -e 's|https://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' \
+              "$apt_mirror_list"
+          fi
+
+          apt_options=(
+            -o Acquire::Retries=3
+            -o Acquire::http::Timeout=15
+            -o Acquire::https::Timeout=15
+          )
+          sudo apt-get "${apt_options[@]}" update
+          sudo apt-get "${apt_options[@]}" install --yes --no-install-recommends \
+            autoconf \
+            autoconf-archive \
+            automake \
+            clang-18 \
+            clang-tidy-18 \
+            libltdl-dev \
+            libtool \
+            ninja-build \
+            pkg-config
+
+          clang++-18 --version
+          clang-tidy-18 --version
+          cmake --version
+          ninja --version
+          clang_version="$(clang++-18 -dumpfullversion -dumpversion)"
+          test -n "$clang_version"
+          echo "clang-version=$clang_version" >> "$GITHUB_OUTPUT"
+
+      - name: Install pinned vcpkg
+        shell: bash
+        run: |
+          set -euo pipefail
+          vcpkg_root="$RUNNER_TEMP/vcpkg"
+          vcpkg_downloads="$GITHUB_WORKSPACE/.trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg "$vcpkg_root"
+          git -C "$vcpkg_root" checkout "$TRACE2D_VCPKG_BASELINE"
+          "$vcpkg_root/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$vcpkg_downloads"
+          test "$(git -C "$vcpkg_root" rev-parse HEAD)" = "$TRACE2D_VCPKG_BASELINE"
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+          echo "VCPKG_DOWNLOADS=$vcpkg_downloads" >> "$GITHUB_ENV"
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Restore Linux vcpkg binary archives
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/vcpkg/archives
+          key: trace2d-linux-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: |
+            trace2d-sanitizer-vcpkg-${{ runner.os }}-${{ runner.arch }}-clang-${{ steps.toolchain.outputs.clang-version }}-${{ env.TRACE2D_VCPKG_BASELINE }}-
+
+      - name: Configure bounded static-analysis build
+        run: cmake --preset ci-linux-clang-tidy
+
+      - name: Build Trace2D-owned targets under clang-tidy
+        run: cmake --build --preset ci-linux-clang-tidy --parallel

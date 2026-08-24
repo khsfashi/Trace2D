@@ -52,6 +52,17 @@
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "clang++-18"
       }
+    },
+    {
+      "name": "ci-linux-clang-tidy",
+      "displayName": "CI Ubuntu 24.04 Clang-Tidy 18",
+      "inherits": "linux-common",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++-18",
+        "CMAKE_CXX_CLANG_TIDY": "clang-tidy-18;--warnings-as-errors=*",
+        "TRACE2D_INSTALL_SDK": "OFF",
+        "BUILD_TESTING": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -73,6 +84,10 @@
     {
       "name": "ci-linux-clang",
       "configurePreset": "ci-linux-clang"
+    },
+    {
+      "name": "ci-linux-clang-tidy",
+      "configurePreset": "ci-linux-clang-tidy"
     }
   ],
   "testPresets": [

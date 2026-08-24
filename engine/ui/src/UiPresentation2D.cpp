@@ -1151,7 +1151,11 @@ UiPresentationCacheConfig UiPresentationCache2D::Config() const noexcept
 const UiPresentationMetrics& UiPresentationCache2D::Metrics() const noexcept
 {
     static const UiPresentationMetrics Empty{};
-    return impl_ != nullptr ? impl_->metrics : Empty;
+    if (impl_ == nullptr)
+    {
+        return Empty;
+    }
+    return impl_->metrics;
 }
 
 void UiPresentationCache2D::Reset() noexcept
