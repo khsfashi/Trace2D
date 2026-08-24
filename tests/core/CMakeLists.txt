@@ -1,4 +1,5 @@
 add_executable(trace2d_core_tests
+    FileTransactionTests.cpp
     VersionTests.cpp
 )
 
