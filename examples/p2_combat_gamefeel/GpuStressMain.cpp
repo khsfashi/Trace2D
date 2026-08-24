@@ -9,6 +9,8 @@
 #include <trace2d/ui/Ui.hpp>
 
 #include <array>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
@@ -19,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #ifndef TRACE2D_P2_RUNTIME_DIR
@@ -365,8 +368,21 @@ void WriteEvidence(
 
 [[nodiscard]] bool Enabled() noexcept
 {
+#if defined(_WIN32)
+    char* value = nullptr;
+    std::size_t valueSize = 0U;
+    if (_dupenv_s(&value, &valueSize, "TRACE2D_RUN_GPU_SMOKE") != 0 || value == nullptr)
+    {
+        return false;
+    }
+
+    const bool enabled = std::string_view{value} == "1";
+    std::free(value);
+    return enabled;
+#else
     const char* const value = std::getenv("TRACE2D_RUN_GPU_SMOKE");
     return value != nullptr && std::string_view{value} == "1";
+#endif
 }
 } // namespace
 
