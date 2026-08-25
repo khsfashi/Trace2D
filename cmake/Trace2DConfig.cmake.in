@@ -16,19 +16,19 @@ set(Trace2D_VERSION "@PROJECT_VERSION@")
 set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
 set_and_check(
     Trace2D_PUBLIC_API_INDEX
-    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/agent-public-api-v1.json"
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/agent-public-api-v1.json"
 )
 set_and_check(
     Trace2D_PUBLIC_API_GUIDE
-    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/AGENT_PUBLIC_API.md"
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/AGENT_PUBLIC_API.md"
 )
 set_and_check(
     Trace2D_EXTERNAL_PROJECT_GUIDE
-    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/EXTERNAL_PROJECT_E1.md"
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/EXTERNAL_PROJECT_E1.md"
 )
 set_and_check(
     Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT
-    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/examples/e0_external_game"
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/examples/e0_external_game"
 )
 
 if(NOT Trace2D_FIND_QUIETLY)
