@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import unittest
@@ -24,8 +25,33 @@ class ProjectStateContractTests(unittest.TestCase):
     def load_fixture(self, name: str) -> dict:
         return json.loads((self.fixture_dir / name).read_text(encoding="utf-8"))
 
+    def legacy_config(self) -> dict:
+        config = copy.deepcopy(self.config)
+        config["owner_detours"] = [
+            detour for detour in config["owner_detours"] if detour.get("issue") != 400
+        ]
+        return config
+
+    def test_r08_stop_gate_outranks_feature_lane(self) -> None:
+        snapshot = self.load_fixture("spp2_ready.json")
+        snapshot["issues"].append(
+            {
+                "number": 400,
+                "title": "P0: stop feature work and fix public Agent authoring bottleneck exposed by R08",
+                "state": "open",
+                "body": "",
+            }
+        )
+        state = project_state.derive_state(self.config, snapshot)
+
+        self.assertEqual(state["core"]["current"]["kind"], "owner_detour")
+        self.assertEqual(state["core"]["current"]["issue"], 400)
+        self.assertEqual(state["core"]["current"]["state"], "ready")
+        self.assertEqual(state["next_action"]["kind"], "implement_issue")
+        self.assertEqual(state["next_action"]["issue"], 400)
+
     def test_active_draft_owner_detour_outranks_stale_core_prose(self) -> None:
-        state = project_state.derive_state(self.config, self.load_fixture("active_draft.json"))
+        state = project_state.derive_state(self.legacy_config(), self.load_fixture("active_draft.json"))
 
         self.assertTrue(state["live"]["available"])
         self.assertEqual(state["core"]["current"]["kind"], "owner_detour")
@@ -35,7 +61,7 @@ class ProjectStateContractTests(unittest.TestCase):
         self.assertEqual(state["next_action"]["pull_request"], 160)
 
     def test_completed_detours_and_spp1_resolve_spp2_as_next_ready_stage(self) -> None:
-        state = project_state.derive_state(self.config, self.load_fixture("spp2_ready.json"))
+        state = project_state.derive_state(self.legacy_config(), self.load_fixture("spp2_ready.json"))
 
         self.assertEqual(state["core"]["current"]["kind"], "core_stage")
         self.assertEqual(state["core"]["current"]["id"], "SPP2")
@@ -55,7 +81,7 @@ class ProjectStateContractTests(unittest.TestCase):
 
     def test_sa2_hardening_detour_blocks_spp2_after_first_detour_completes(self) -> None:
         snapshot = self.load_fixture("sa2_detour_ready.json")
-        state = project_state.derive_state(self.config, snapshot)
+        state = project_state.derive_state(self.legacy_config(), snapshot)
 
         self.assertEqual(state["core"]["current"]["kind"], "owner_detour")
         self.assertEqual(state["core"]["current"]["issue"], 159)
