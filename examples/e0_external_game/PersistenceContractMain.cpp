@@ -1,26 +1,30 @@
 #include <trace2d/persistence/SaveDocument.hpp>
 
-#include <iostream>
-
 int main()
 {
     trace2d::persistence::SaveDocument document{};
-    document.saveId = "external-consumer-contract";
+    document.saveId = "e0.persistence-contract";
 
-    const auto serialized = trace2d::persistence::SerializeSaveDocumentJson(document);
-    if (!serialized.Succeeded() || serialized.text.empty())
+    const trace2d::persistence::SaveSerializeResult first =
+        trace2d::persistence::SerializeSaveDocumentJson(document);
+    if (!first.Succeeded() || first.text.empty())
     {
-        std::cerr << "Trace2D::Persistence installed-package contract failed to serialize a minimal save document.\n";
         return 1;
     }
 
-    const auto parsed = trace2d::persistence::ParseSaveDocumentJson(
-        serialized.text,
-        "external-consumer-contract");
-    if (!parsed.Succeeded() || parsed.document->saveId != document.saveId)
+    const trace2d::persistence::SaveParseResult parsed =
+        trace2d::persistence::ParseSaveDocumentJson(first.text, "e0.persistence-contract");
+    if (!parsed.Succeeded() || !parsed.document.has_value() ||
+        parsed.document->saveId != document.saveId)
     {
-        std::cerr << "Trace2D::Persistence installed-package contract failed canonical roundtrip.\n";
         return 2;
+    }
+
+    const trace2d::persistence::SaveSerializeResult second =
+        trace2d::persistence::SerializeSaveDocumentJson(*parsed.document);
+    if (!second.Succeeded() || second.text != first.text)
+    {
+        return 3;
     }
 
     return 0;
