@@ -10,6 +10,36 @@
     "external_project_guide": "docs/EXTERNAL_PROJECT_E1.md",
     "canonical_external_example_root": "examples/e0_external_game"
   },
+  "cmake_dependencies": [
+    {
+      "package": "box2d",
+      "find_mode": "config"
+    },
+    {
+      "package": "Freetype",
+      "find_mode": "default"
+    },
+    {
+      "package": "SDL3",
+      "find_mode": "config"
+    },
+    {
+      "package": "SDL3_shadercross",
+      "find_mode": "config"
+    },
+    {
+      "package": "nlohmann_json",
+      "find_mode": "config"
+    },
+    {
+      "package": "tomlplusplus",
+      "find_mode": "config"
+    }
+  ],
+  "consumer_build": {
+    "library_linkage": "static",
+    "msvc_configuration_policy": "match-installed-library-configuration"
+  },
   "public_targets": [
     "Core",
     "Input",
