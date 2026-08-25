@@ -16,7 +16,7 @@ set(Trace2D_VERSION "@PROJECT_VERSION@")
 set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
 set_and_check(
     Trace2D_SDK_ROOT_LOCATOR
-    "${PACKAGE_PREFIX_DIR}/trace2d.sdk.locator.json"
+    "@PACKAGE_TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH@"
 )
 set_and_check(
     Trace2D_SDK_METADATA
