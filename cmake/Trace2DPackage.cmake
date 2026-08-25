@@ -93,6 +93,14 @@ function(trace2d_configure_sdk_package)
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/docs"
     )
 
+    # The API index references examples/e0_external_game/* as the canonical
+    # public usage source. Ship that same ordinary external-consumer example so
+    # an installed-SDK-only author can follow those references without a source checkout.
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/examples/e0_external_game/"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/examples/e0_external_game"
+        PATTERN "build" EXCLUDE
+    )
+
     install(PROGRAMS
         "${PROJECT_SOURCE_DIR}/scripts/trace2d_doctor.ps1"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/tools"
