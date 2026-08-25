@@ -52,6 +52,7 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_SOURCE_DIR}/cmake/Trace2DConfig.cmake.in"
         "${PROJECT_BINARY_DIR}/Trace2DConfig.cmake"
         INSTALL_DESTINATION "${_trace2d_package_directory}"
+        PATH_VARS CMAKE_INSTALL_DATADIR
     )
 
     write_basic_package_version_file(
@@ -87,6 +88,8 @@ function(trace2d_configure_sdk_package)
 
     install(FILES
         "${PROJECT_SOURCE_DIR}/docs/EXTERNAL_PROJECT_E1.md"
+        "${PROJECT_SOURCE_DIR}/docs/AGENT_PUBLIC_API.md"
+        "${PROJECT_SOURCE_DIR}/docs/agent-public-api-v1.json"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/docs"
     )
 
