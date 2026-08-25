@@ -4,6 +4,16 @@ Trace2D agents and external-consumer tooling must discover public C++ APIs from 
 
 The machine-readable index is [`agent-public-api-v1.json`](agent-public-api-v1.json). It maps supported public symbols to the include path that actually declares them and to a compiling canonical external-consumer example.
 
+For an installed SDK, the same discovery contract is packaged at:
+
+```text
+<Trace2D root>/share/Trace2D/docs/agent-public-api-v1.json
+<Trace2D root>/share/Trace2D/docs/AGENT_PUBLIC_API.md
+<Trace2D root>/share/Trace2D/examples/e0_external_game/
+```
+
+`find_package(Trace2D CONFIG REQUIRED)` exposes the stable CMake variables `Trace2D_PUBLIC_API_INDEX`, `Trace2D_PUBLIC_API_GUIDE`, and `Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT`. A normal non-quiet configure also prints the public API index and canonical example paths, so an external project or coding agent can start from the indexed public surface instead of enumerating installed headers. The example root is packaged with the SDK, so the `canonical_example` references in the JSON remain inspectable even when the engine source checkout is unavailable.
+
 ## Discovery rule
 
 For a public type such as `trace2d::application::Game`:

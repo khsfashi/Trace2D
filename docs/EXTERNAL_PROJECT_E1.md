@@ -116,6 +116,7 @@ The SDK does **not** export repository test libraries, MCP implementation target
 Because Trace2D currently exports static libraries, a downstream final link still needs the imported targets used by those archives. `Trace2DConfig.cmake` therefore calls `find_dependency` for the direct external CMake packages required by the exported target graph:
 
 ```text
+box2d
 Freetype
 SDL3
 SDL3_shadercross
@@ -124,6 +125,26 @@ tomlplusplus
 ```
 
 The representative external project pins the same vcpkg baseline and declares those dependencies in its own `vcpkg.json`. The #74 F0 text foundation deliberately requests FreeType with vcpkg default features disabled; optional WOFF2/bzip2/PNG embedded-bitmap integrations remain outside the current TTF/OTF outline contract until a concrete requirement promotes them.
+
+### Canonical public API discovery
+
+The installed SDK carries the same machine-readable API discovery contract used in the repository:
+
+```text
+<Trace2D root>/share/Trace2D/docs/agent-public-api-v1.json
+<Trace2D root>/share/Trace2D/docs/AGENT_PUBLIC_API.md
+<Trace2D root>/share/Trace2D/docs/EXTERNAL_PROJECT_E1.md
+```
+
+`find_package(Trace2D CONFIG REQUIRED)` exposes:
+
+```cmake
+Trace2D_PUBLIC_API_INDEX
+Trace2D_PUBLIC_API_GUIDE
+Trace2D_EXTERNAL_PROJECT_GUIDE
+```
+
+A normal non-quiet configure prints the API-index path once. External authors and coding agents should query the JSON index before guessing header names or scanning the installed include tree. The index points each supported symbol to its exact public include and canonical external-consumer example; it is a discovery contract, not runtime reflection and adds no frame-loop work.
 
 ## 4. Source-tree vs installed/package semantics
 
@@ -147,7 +168,7 @@ After the repository build:
 cmake --install build/windows-msvc --config Debug --prefix D:\Trace2D-sdk
 ```
 
-The prefix contains public headers/static libraries, `Trace2DConfig.cmake`, version metadata, license/notices, this E1 contract, and the doctor script.
+The prefix contains public headers/static libraries, `Trace2DConfig.cmake`, version metadata, license/notices, this E1 contract, the public API discovery index/guide, and the doctor script.
 
 ### Build a real external project
 
@@ -170,6 +191,8 @@ target_link_libraries(game PRIVATE Trace2D::Application)
 ```
 
 No engine-source modification, hidden editor state, or path into `engine/*/src` is required.
+
+On MSVC, the current static SDK is configuration-specific. The consumer must use the same configuration as the installed Trace2D libraries: a Debug SDK is consumed by Debug, and a Release SDK by Release. Mixing a Release-installed SDK into a Debug consumer can produce `_ITERATOR_DEBUG_LEVEL` or C/C++ runtime-library link mismatches and is not a supported discovery workaround. External starters and automation must publish the matching build preset instead of making the user diagnose that mismatch after link failure.
 
 ### Create a package
 
@@ -331,7 +354,7 @@ E1 CI proves on a clean checkout that:
 
 1. the E0 game remains buildable in the engine repository,
 2. Trace2D installs an exported public SDK with stable `Trace2D::...` targets,
-3. CPack produces a package carrying SDK metadata/license/notices,
+3. CPack produces a package carrying SDK metadata/license/notices and the public API discovery contract,
 4. a healthy project doctor returns versioned machine-readable success,
 5. a deliberately missing vcpkg root returns a stable setup-failure classification,
 6. the package is extracted and the E0 game configures without access to internal engine targets,
