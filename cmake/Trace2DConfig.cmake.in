@@ -26,9 +26,14 @@ set_and_check(
     Trace2D_EXTERNAL_PROJECT_GUIDE
     "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/EXTERNAL_PROJECT_E1.md"
 )
+set_and_check(
+    Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT
+    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/examples/e0_external_game"
+)
 
 if(NOT Trace2D_FIND_QUIETLY)
     message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
+    message(STATUS "Trace2D canonical external example: ${Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT}")
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/Trace2DTargets.cmake")
