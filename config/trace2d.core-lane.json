@@ -3,6 +3,11 @@
   "repository": "khsfashi/Trace2D",
   "owner_detours": [
     {
+      "id": "r08-public-agent-authoring-stop-gate",
+      "issue": 400,
+      "reason": "Owner-directed stop-the-line: resolve the R08 public Agent authoring bottleneck and rerun the same practical comparison before any further feature breadth"
+    },
+    {
       "id": "live-project-state-hardening",
       "issue": 158,
       "reason": "Owner-directed repository-state hardening before SPP2"
