@@ -15,6 +15,14 @@ find_dependency(tomlplusplus CONFIG REQUIRED)
 set(Trace2D_VERSION "@PROJECT_VERSION@")
 set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
 set_and_check(
+    Trace2D_SDK_ROOT_LOCATOR
+    "${PACKAGE_PREFIX_DIR}/trace2d.sdk.locator.json"
+)
+set_and_check(
+    Trace2D_SDK_METADATA
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/trace2d.sdk.json"
+)
+set_and_check(
     Trace2D_PUBLIC_API_INDEX
     "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/agent-public-api-v1.json"
 )
@@ -32,6 +40,8 @@ set_and_check(
 )
 
 if(NOT Trace2D_FIND_QUIETLY)
+    message(STATUS "Trace2D SDK locator: ${Trace2D_SDK_ROOT_LOCATOR}")
+    message(STATUS "Trace2D SDK metadata: ${Trace2D_SDK_METADATA}")
     message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
     message(STATUS "Trace2D canonical external example: ${Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT}")
 endif()
