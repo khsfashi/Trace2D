@@ -4,25 +4,35 @@ Trace2D agents and external-consumer tooling must discover public C++ APIs from 
 
 The machine-readable index is [`agent-public-api-v1.json`](agent-public-api-v1.json). It maps supported public symbols to the include path that actually declares them and to a compiling canonical external-consumer example.
 
-For an installed SDK, the same discovery contract is packaged at:
+For an installed SDK, discovery starts at the SDK root before CMake configure or include-tree enumeration:
 
 ```text
+<Trace2D root>/trace2d.sdk.locator.json
+```
+
+That locator is intentionally tiny and points to the canonical SDK metadata at `share/Trace2D/trace2d.sdk.json`. The canonical metadata then publishes the public API guide/index/example locations, the direct downstream CMake packages required by the exported static target graph, and the MSVC configuration-matching policy. It is the machine-readable setup/discovery entry point; do not infer dependencies or build configuration by waiting for a configure/link failure.
+
+The same public API discovery contract is packaged at:
+
+```text
+<Trace2D root>/share/Trace2D/trace2d.sdk.json
 <Trace2D root>/share/Trace2D/docs/agent-public-api-v1.json
 <Trace2D root>/share/Trace2D/docs/AGENT_PUBLIC_API.md
 <Trace2D root>/share/Trace2D/examples/e0_external_game/
 ```
 
-`find_package(Trace2D CONFIG REQUIRED)` exposes the stable CMake variables `Trace2D_PUBLIC_API_INDEX`, `Trace2D_PUBLIC_API_GUIDE`, and `Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT`. A normal non-quiet configure also prints the public API index and canonical example paths, so an external project or coding agent can start from the indexed public surface instead of enumerating installed headers. The example root is packaged with the SDK, so the `canonical_example` references in the JSON remain inspectable even when the engine source checkout is unavailable.
+`find_package(Trace2D CONFIG REQUIRED)` exposes the stable CMake variables `Trace2D_SDK_ROOT_LOCATOR`, `Trace2D_SDK_METADATA`, `Trace2D_PUBLIC_API_INDEX`, `Trace2D_PUBLIC_API_GUIDE`, and `Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT`. A normal non-quiet configure also prints the locator, metadata, public API index and canonical example paths. The example root is packaged with the SDK, so the `canonical_example` references in the JSON remain inspectable even when the engine source checkout is unavailable.
 
 ## Discovery rule
 
 For a public type such as `trace2d::application::Game`:
 
-1. Query the machine-readable index for the fully qualified symbol.
-2. Use its `include` field verbatim.
-3. Inspect the referenced canonical example for normal construction/lifecycle usage.
-4. If a symbol is not indexed, inspect the public include tree and current examples/tests before assuming support.
-5. **Never manufacture a per-type header from the C++ type name.** Absence of `Game.hpp`, `SceneTemplate.hpp`, or a similar guessed file is not evidence that the engine is missing the type.
+1. If using an installed SDK, read `<Trace2D root>/trace2d.sdk.locator.json`, then its canonical `sdk_metadata` target before configuring or scanning headers.
+2. Query the machine-readable public API index for the fully qualified symbol.
+3. Use its `include` field verbatim.
+4. Inspect the referenced canonical example for normal construction/lifecycle usage.
+5. If a symbol is not indexed, inspect the public include tree and current examples/tests before assuming support.
+6. **Never manufacture a per-type header from the C++ type name.** Absence of `Game.hpp`, `SceneTemplate.hpp`, or a similar guessed file is not evidence that the engine is missing the type.
 
 For the current application boundary, the canonical declaration is:
 
