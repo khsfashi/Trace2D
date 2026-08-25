@@ -14,6 +14,22 @@ find_dependency(tomlplusplus CONFIG REQUIRED)
 
 set(Trace2D_VERSION "@PROJECT_VERSION@")
 set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
+set_and_check(
+    Trace2D_PUBLIC_API_INDEX
+    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/agent-public-api-v1.json"
+)
+set_and_check(
+    Trace2D_PUBLIC_API_GUIDE
+    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/AGENT_PUBLIC_API.md"
+)
+set_and_check(
+    Trace2D_EXTERNAL_PROJECT_GUIDE
+    "${PACKAGE_CMAKE_INSTALL_DATADIR}/Trace2D/docs/EXTERNAL_PROJECT_E1.md"
+)
+
+if(NOT Trace2D_FIND_QUIETLY)
+    message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/Trace2DTargets.cmake")
 check_required_components(Trace2D)
