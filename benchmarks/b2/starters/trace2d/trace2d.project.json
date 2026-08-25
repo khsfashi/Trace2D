@@ -12,7 +12,7 @@
   },
   "build": {
     "configure_preset": "windows-msvc",
-    "build_preset": "windows-debug",
+    "build_preset": "windows-release",
     "headless_target": "trace2d_b2_scored_starter",
     "windowed_target": "trace2d_b2_scored_starter"
   },
