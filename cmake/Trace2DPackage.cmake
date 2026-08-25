@@ -67,6 +67,12 @@ function(trace2d_configure_sdk_package)
         @ONLY
     )
 
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/cmake/Trace2DSdkLocator.json.in"
+        "${PROJECT_BINARY_DIR}/trace2d.sdk.locator.json"
+        @ONLY
+    )
+
     install(EXPORT Trace2DTargets
         FILE Trace2DTargets.cmake
         NAMESPACE Trace2D::
@@ -77,6 +83,11 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_BINARY_DIR}/Trace2DConfig.cmake"
         "${PROJECT_BINARY_DIR}/Trace2DConfigVersion.cmake"
         DESTINATION "${_trace2d_package_directory}"
+    )
+
+    install(FILES
+        "${PROJECT_BINARY_DIR}/trace2d.sdk.locator.json"
+        DESTINATION "."
     )
 
     install(FILES
