@@ -15,6 +15,37 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     include(CTest)
     find_package(Trace2D 0.1 CONFIG REQUIRED)
+    if(NOT DEFINED Trace2D_SDK_ROOT_LOCATOR OR NOT EXISTS "${Trace2D_SDK_ROOT_LOCATOR}")
+        message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_SDK_ROOT_LOCATOR.")
+    endif()
+    if(NOT DEFINED Trace2D_SDK_METADATA OR NOT EXISTS "${Trace2D_SDK_METADATA}")
+        message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_SDK_METADATA.")
+    endif()
+
+    file(READ "${Trace2D_SDK_ROOT_LOCATOR}" _trace2d_sdk_locator_json)
+    string(JSON _trace2d_locator_kind
+        ERROR_VARIABLE _trace2d_locator_kind_error
+        GET "${_trace2d_sdk_locator_json}" "artifact_kind"
+    )
+    if(NOT _trace2d_locator_kind_error STREQUAL "NOTFOUND" OR NOT _trace2d_locator_kind STREQUAL "trace2d-sdk-root-locator")
+        message(FATAL_ERROR "Installed Trace2D SDK root locator has an invalid artifact_kind.")
+    endif()
+    string(JSON _trace2d_locator_metadata
+        ERROR_VARIABLE _trace2d_locator_metadata_error
+        GET "${_trace2d_sdk_locator_json}" "sdk_metadata"
+    )
+    if(NOT _trace2d_locator_metadata_error STREQUAL "NOTFOUND")
+        message(FATAL_ERROR "Installed Trace2D SDK root locator has no valid sdk_metadata path.")
+    endif()
+
+    get_filename_component(_trace2d_sdk_root "${Trace2D_SDK_ROOT_LOCATOR}" DIRECTORY)
+    cmake_path(APPEND _trace2d_sdk_root "${_trace2d_locator_metadata}" OUTPUT_VARIABLE _trace2d_locator_metadata_path)
+    cmake_path(NORMAL_PATH _trace2d_locator_metadata_path)
+    cmake_path(NORMAL_PATH Trace2D_SDK_METADATA OUTPUT_VARIABLE _trace2d_package_metadata_path)
+    if(NOT _trace2d_locator_metadata_path STREQUAL _trace2d_package_metadata_path)
+        message(FATAL_ERROR "Installed Trace2D SDK root locator does not resolve to Trace2D_SDK_METADATA.")
+    endif()
+
     if(NOT DEFINED Trace2D_PUBLIC_API_INDEX OR NOT EXISTS "${Trace2D_PUBLIC_API_INDEX}")
         message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_PUBLIC_API_INDEX.")
     endif()
