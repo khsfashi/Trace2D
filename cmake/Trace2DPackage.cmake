@@ -38,6 +38,7 @@ endfunction()
 
 function(trace2d_configure_sdk_package)
     set(_trace2d_package_directory "${CMAKE_INSTALL_LIBDIR}/cmake/Trace2D")
+    set(TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH "trace2d.sdk.locator.json")
 
     file(READ "${PROJECT_SOURCE_DIR}/vcpkg.json" _trace2d_vcpkg_manifest)
     string(JSON TRACE2D_VCPKG_BASELINE
@@ -52,7 +53,9 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_SOURCE_DIR}/cmake/Trace2DConfig.cmake.in"
         "${PROJECT_BINARY_DIR}/Trace2DConfig.cmake"
         INSTALL_DESTINATION "${_trace2d_package_directory}"
-        PATH_VARS CMAKE_INSTALL_DATADIR
+        PATH_VARS
+            CMAKE_INSTALL_DATADIR
+            TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH
     )
 
     write_basic_package_version_file(
