@@ -15,6 +15,10 @@ set_and_check(
     "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/trace2d.sdk.json"
 )
 set_and_check(
+    Trace2D_AGENT_INDEX
+    "@PACKAGE_TRACE2D_AGENT_INDEX_INSTALL_PATH@"
+)
+set_and_check(
     Trace2D_PUBLIC_AUTHORING_HEADER
     "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/trace2d/Trace2D.hpp"
 )
@@ -50,6 +54,7 @@ find_dependency(tomlplusplus CONFIG REQUIRED)
 if(NOT Trace2D_FIND_QUIETLY)
     message(STATUS "Trace2D SDK locator: ${Trace2D_SDK_ROOT_LOCATOR}")
     message(STATUS "Trace2D SDK metadata: ${Trace2D_SDK_METADATA}")
+    message(STATUS "Trace2D Agent index: ${Trace2D_AGENT_INDEX}")
     message(STATUS "Trace2D public authoring header: ${Trace2D_PUBLIC_AUTHORING_HEADER}")
     message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
     message(STATUS "Trace2D canonical external example: ${Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT}")

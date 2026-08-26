@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "artifact_kind": "trace2d-agent-index",
+  "trace2d_version": "@PROJECT_VERSION@",
+  "purpose": "Small deterministic routing map for ordinary installed-SDK authoring. Select only task-relevant surface metadata before opening larger guides, examples, or headers.",
+  "policy": {
+    "routing": "deterministic-first",
+    "max_primary_surfaces": 3,
+    "avoid_recursive_sdk_scan": true,
+    "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+  },
+  "surfaces": [
+    {
+      "id": "gameplay",
+      "match": ["game", "gameplay", "application", "fixed-step", "lifecycle"],
+      "metadata": "share/Trace2D/agent/gameplay-v1.json"
+    },
+    {
+      "id": "scene",
+      "match": ["scene", "entity", "component", "transform", "hierarchy"],
+      "metadata": "share/Trace2D/agent/scene-v1.json"
+    },
+    {
+      "id": "input",
+      "match": ["input", "action", "keyboard", "gamepad", "pointer"],
+      "metadata": "share/Trace2D/agent/input-v1.json"
+    },
+    {
+      "id": "ui",
+      "match": ["ui", "hud", "progress", "button", "text-input"],
+      "metadata": "share/Trace2D/agent/ui-v1.json"
+    }
+  ]
+}

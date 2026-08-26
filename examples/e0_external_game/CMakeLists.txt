@@ -21,6 +21,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(NOT DEFINED Trace2D_SDK_METADATA OR NOT EXISTS "${Trace2D_SDK_METADATA}")
         message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_SDK_METADATA.")
     endif()
+    if(NOT DEFINED Trace2D_AGENT_INDEX OR NOT EXISTS "${Trace2D_AGENT_INDEX}")
+        message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_AGENT_INDEX.")
+    endif()
     if(NOT DEFINED Trace2D_PUBLIC_AUTHORING_HEADER OR NOT EXISTS "${Trace2D_PUBLIC_AUTHORING_HEADER}")
         message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_PUBLIC_AUTHORING_HEADER.")
     endif()
@@ -40,6 +43,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(NOT _trace2d_locator_metadata_error STREQUAL "NOTFOUND")
         message(FATAL_ERROR "Installed Trace2D SDK root locator has no valid sdk_metadata path.")
     endif()
+    string(JSON _trace2d_locator_agent_index
+        ERROR_VARIABLE _trace2d_locator_agent_index_error
+        GET "${_trace2d_sdk_locator_json}" "agent_index"
+    )
+    if(NOT _trace2d_locator_agent_index_error STREQUAL "NOTFOUND")
+        message(FATAL_ERROR "Installed Trace2D SDK root locator has no valid agent_index path.")
+    endif()
 
     get_filename_component(_trace2d_sdk_root "${Trace2D_SDK_ROOT_LOCATOR}" DIRECTORY)
     cmake_path(APPEND _trace2d_sdk_root "${_trace2d_locator_metadata}" OUTPUT_VARIABLE _trace2d_locator_metadata_path)
@@ -48,11 +58,103 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(NOT _trace2d_locator_metadata_path STREQUAL _trace2d_package_metadata_path)
         message(FATAL_ERROR "Installed Trace2D SDK root locator does not resolve to Trace2D_SDK_METADATA.")
     endif()
+    cmake_path(APPEND _trace2d_sdk_root "${_trace2d_locator_agent_index}" OUTPUT_VARIABLE _trace2d_locator_agent_index_path)
+    cmake_path(NORMAL_PATH _trace2d_locator_agent_index_path)
+    cmake_path(NORMAL_PATH Trace2D_AGENT_INDEX OUTPUT_VARIABLE _trace2d_package_agent_index_path)
+    if(NOT _trace2d_locator_agent_index_path STREQUAL _trace2d_package_agent_index_path)
+        message(FATAL_ERROR "Installed Trace2D SDK root locator does not resolve to Trace2D_AGENT_INDEX.")
+    endif()
 
     if(NOT DEFINED Trace2D_DIR OR NOT EXISTS "${Trace2D_DIR}/Trace2DConfig.cmake")
         message(FATAL_ERROR "Installed Trace2D package config is unavailable for SDK metadata verification.")
     endif()
     file(READ "${Trace2D_SDK_METADATA}" _trace2d_sdk_metadata_json)
+
+    string(JSON _trace2d_agent_index_root_relative
+        ERROR_VARIABLE _trace2d_agent_index_root_relative_error
+        GET "${_trace2d_sdk_metadata_json}" "discovery" "agent_index_root_relative"
+    )
+    if(NOT _trace2d_agent_index_root_relative_error STREQUAL "NOTFOUND")
+        message(FATAL_ERROR "Installed Trace2D SDK metadata has no valid agent_index_root_relative contract.")
+    endif()
+    cmake_path(APPEND _trace2d_sdk_root "${_trace2d_agent_index_root_relative}" OUTPUT_VARIABLE _trace2d_metadata_agent_index)
+    cmake_path(NORMAL_PATH _trace2d_metadata_agent_index)
+    if(NOT _trace2d_metadata_agent_index STREQUAL _trace2d_package_agent_index_path)
+        message(FATAL_ERROR "Installed Trace2D SDK metadata agent index does not resolve to Trace2D_AGENT_INDEX.")
+    endif()
+
+    file(READ "${Trace2D_AGENT_INDEX}" _trace2d_agent_index_json)
+    string(JSON _trace2d_agent_index_kind
+        ERROR_VARIABLE _trace2d_agent_index_kind_error
+        GET "${_trace2d_agent_index_json}" "artifact_kind"
+    )
+    if(NOT _trace2d_agent_index_kind_error STREQUAL "NOTFOUND" OR NOT _trace2d_agent_index_kind STREQUAL "trace2d-agent-index")
+        message(FATAL_ERROR "Installed Trace2D Agent index has an invalid artifact_kind.")
+    endif()
+    string(JSON _trace2d_agent_routing
+        ERROR_VARIABLE _trace2d_agent_routing_error
+        GET "${_trace2d_agent_index_json}" "policy" "routing"
+    )
+    if(NOT _trace2d_agent_routing_error STREQUAL "NOTFOUND" OR NOT _trace2d_agent_routing STREQUAL "deterministic-first")
+        message(FATAL_ERROR "Installed Trace2D Agent index has an invalid routing policy.")
+    endif()
+    string(JSON _trace2d_agent_max_primary_surfaces
+        ERROR_VARIABLE _trace2d_agent_max_primary_surfaces_error
+        GET "${_trace2d_agent_index_json}" "policy" "max_primary_surfaces"
+    )
+    if(NOT _trace2d_agent_max_primary_surfaces_error STREQUAL "NOTFOUND" OR _trace2d_agent_max_primary_surfaces LESS 1 OR _trace2d_agent_max_primary_surfaces GREATER 3)
+        message(FATAL_ERROR "Installed Trace2D Agent index has an invalid max_primary_surfaces policy.")
+    endif()
+    string(JSON _trace2d_agent_surface_count
+        ERROR_VARIABLE _trace2d_agent_surface_count_error
+        LENGTH "${_trace2d_agent_index_json}" "surfaces"
+    )
+    if(NOT _trace2d_agent_surface_count_error STREQUAL "NOTFOUND" OR _trace2d_agent_surface_count LESS 1)
+        message(FATAL_ERROR "Installed Trace2D Agent index has no valid surfaces.")
+    endif()
+    set(_trace2d_agent_surface_ids)
+    math(EXPR _trace2d_agent_surface_last "${_trace2d_agent_surface_count} - 1")
+    foreach(_trace2d_agent_surface_index RANGE 0 ${_trace2d_agent_surface_last})
+        string(JSON _trace2d_agent_surface_id
+            ERROR_VARIABLE _trace2d_agent_surface_id_error
+            GET "${_trace2d_agent_index_json}" "surfaces" ${_trace2d_agent_surface_index} "id"
+        )
+        string(JSON _trace2d_agent_surface_metadata
+            ERROR_VARIABLE _trace2d_agent_surface_metadata_error
+            GET "${_trace2d_agent_index_json}" "surfaces" ${_trace2d_agent_surface_index} "metadata"
+        )
+        if(NOT _trace2d_agent_surface_id_error STREQUAL "NOTFOUND" OR
+           NOT _trace2d_agent_surface_metadata_error STREQUAL "NOTFOUND" OR
+           _trace2d_agent_surface_id STREQUAL "" OR _trace2d_agent_surface_metadata STREQUAL "")
+            message(FATAL_ERROR "Installed Trace2D Agent index contains an invalid surface record.")
+        endif()
+        list(FIND _trace2d_agent_surface_ids "${_trace2d_agent_surface_id}" _trace2d_agent_surface_duplicate)
+        if(NOT _trace2d_agent_surface_duplicate EQUAL -1)
+            message(FATAL_ERROR "Installed Trace2D Agent index contains duplicate surface id '${_trace2d_agent_surface_id}'.")
+        endif()
+        list(APPEND _trace2d_agent_surface_ids "${_trace2d_agent_surface_id}")
+
+        cmake_path(APPEND _trace2d_sdk_root "${_trace2d_agent_surface_metadata}" OUTPUT_VARIABLE _trace2d_agent_surface_metadata_path)
+        cmake_path(NORMAL_PATH _trace2d_agent_surface_metadata_path)
+        if(NOT EXISTS "${_trace2d_agent_surface_metadata_path}")
+            message(FATAL_ERROR "Installed Trace2D Agent surface '${_trace2d_agent_surface_id}' metadata is missing.")
+        endif()
+        file(READ "${_trace2d_agent_surface_metadata_path}" _trace2d_agent_surface_json)
+        string(JSON _trace2d_agent_surface_kind
+            ERROR_VARIABLE _trace2d_agent_surface_kind_error
+            GET "${_trace2d_agent_surface_json}" "kind"
+        )
+        string(JSON _trace2d_agent_surface_identity
+            ERROR_VARIABLE _trace2d_agent_surface_identity_error
+            GET "${_trace2d_agent_surface_json}" "surface"
+        )
+        if(NOT _trace2d_agent_surface_kind_error STREQUAL "NOTFOUND" OR
+           NOT _trace2d_agent_surface_kind STREQUAL "trace2d-agent-surface" OR
+           NOT _trace2d_agent_surface_identity_error STREQUAL "NOTFOUND" OR
+           NOT _trace2d_agent_surface_identity STREQUAL _trace2d_agent_surface_id)
+            message(FATAL_ERROR "Installed Trace2D Agent surface '${_trace2d_agent_surface_id}' metadata identity is invalid.")
+        endif()
+    endforeach()
 
     string(JSON _trace2d_public_authoring_include
         ERROR_VARIABLE _trace2d_public_authoring_include_error

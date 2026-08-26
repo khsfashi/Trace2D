@@ -1,5 +1,6 @@
 {
   "format_version": 1,
   "artifact_kind": "trace2d-sdk-root-locator",
-  "sdk_metadata": "share/Trace2D/trace2d.sdk.json"
+  "sdk_metadata": "share/Trace2D/trace2d.sdk.json",
+  "agent_index": "trace2d.agent-index.json"
 }
