@@ -39,6 +39,7 @@ endfunction()
 function(trace2d_configure_sdk_package)
     set(_trace2d_package_directory "${CMAKE_INSTALL_LIBDIR}/cmake/Trace2D")
     set(TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH "trace2d.sdk.locator.json")
+    set(TRACE2D_AGENT_INDEX_INSTALL_PATH "trace2d.agent-index.json")
 
     file(READ "${PROJECT_SOURCE_DIR}/vcpkg.json" _trace2d_vcpkg_manifest)
     string(JSON TRACE2D_VCPKG_BASELINE
@@ -57,6 +58,7 @@ function(trace2d_configure_sdk_package)
             CMAKE_INSTALL_INCLUDEDIR
             CMAKE_INSTALL_DATADIR
             TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH
+            TRACE2D_AGENT_INDEX_INSTALL_PATH
     )
 
     write_basic_package_version_file(
@@ -77,6 +79,12 @@ function(trace2d_configure_sdk_package)
         @ONLY
     )
 
+    configure_file(
+        "${PROJECT_SOURCE_DIR}/cmake/Trace2DAgentIndex.json.in"
+        "${PROJECT_BINARY_DIR}/trace2d.agent-index.json"
+        @ONLY
+    )
+
     install(EXPORT Trace2DTargets
         FILE Trace2DTargets.cmake
         NAMESPACE Trace2D::
@@ -91,6 +99,7 @@ function(trace2d_configure_sdk_package)
 
     install(FILES
         "${PROJECT_BINARY_DIR}/trace2d.sdk.locator.json"
+        "${PROJECT_BINARY_DIR}/trace2d.agent-index.json"
         DESTINATION "."
     )
 
@@ -106,6 +115,14 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_SOURCE_DIR}/docs/AGENT_PUBLIC_API.md"
         "${PROJECT_SOURCE_DIR}/docs/agent-public-api-v1.json"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/docs"
+    )
+
+    install(FILES
+        "${PROJECT_SOURCE_DIR}/docs/agent/gameplay-v1.json"
+        "${PROJECT_SOURCE_DIR}/docs/agent/scene-v1.json"
+        "${PROJECT_SOURCE_DIR}/docs/agent/input-v1.json"
+        "${PROJECT_SOURCE_DIR}/docs/agent/ui-v1.json"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/agent"
     )
 
     # The API index references examples/e0_external_game/* as the canonical
