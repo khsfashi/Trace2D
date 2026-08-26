@@ -1,3 +1,16 @@
+if(TRACE2D_INSTALL_SDK)
+    add_test(
+        NAME trace2d_package_agent_index_failure_path_contract
+        COMMAND ${CMAKE_COMMAND}
+            "-DTRACE2D_PACKAGE_CONFIG=${PROJECT_BINARY_DIR}/Trace2DConfig.cmake"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/PackageConfigAgentIndexContract.cmake"
+    )
+    set_tests_properties(
+        trace2d_package_agent_index_failure_path_contract
+        PROPERTIES LABELS "sanitizer-headless"
+    )
+endif()
+
 find_package(GTest CONFIG REQUIRED)
 
 add_subdirectory(core)
