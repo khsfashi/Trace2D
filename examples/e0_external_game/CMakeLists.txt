@@ -21,6 +21,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     if(NOT DEFINED Trace2D_SDK_METADATA OR NOT EXISTS "${Trace2D_SDK_METADATA}")
         message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_SDK_METADATA.")
     endif()
+    if(NOT DEFINED Trace2D_PUBLIC_AUTHORING_HEADER OR NOT EXISTS "${Trace2D_PUBLIC_AUTHORING_HEADER}")
+        message(FATAL_ERROR "Installed Trace2D package did not expose a valid Trace2D_PUBLIC_AUTHORING_HEADER.")
+    endif()
 
     file(READ "${Trace2D_SDK_ROOT_LOCATOR}" _trace2d_sdk_locator_json)
     string(JSON _trace2d_locator_kind
@@ -50,6 +53,21 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         message(FATAL_ERROR "Installed Trace2D package config is unavailable for SDK metadata verification.")
     endif()
     file(READ "${Trace2D_SDK_METADATA}" _trace2d_sdk_metadata_json)
+
+    string(JSON _trace2d_public_authoring_include
+        ERROR_VARIABLE _trace2d_public_authoring_include_error
+        GET "${_trace2d_sdk_metadata_json}" "discovery" "public_authoring_include"
+    )
+    if(NOT _trace2d_public_authoring_include_error STREQUAL "NOTFOUND" OR NOT _trace2d_public_authoring_include STREQUAL "trace2d/Trace2D.hpp")
+        message(FATAL_ERROR "Installed Trace2D SDK metadata has an invalid public_authoring_include contract.")
+    endif()
+    cmake_path(APPEND _trace2d_sdk_root "include" "${_trace2d_public_authoring_include}" OUTPUT_VARIABLE _trace2d_metadata_authoring_header)
+    cmake_path(NORMAL_PATH _trace2d_metadata_authoring_header)
+    cmake_path(NORMAL_PATH Trace2D_PUBLIC_AUTHORING_HEADER OUTPUT_VARIABLE _trace2d_package_authoring_header)
+    if(NOT _trace2d_metadata_authoring_header STREQUAL _trace2d_package_authoring_header)
+        message(FATAL_ERROR "Installed Trace2D SDK metadata authoring include does not resolve to Trace2D_PUBLIC_AUTHORING_HEADER.")
+    endif()
+
     string(JSON _trace2d_dependency_count
         ERROR_VARIABLE _trace2d_dependency_count_error
         LENGTH "${_trace2d_sdk_metadata_json}" "cmake_dependencies"
