@@ -1,19 +1,19 @@
 @PACKAGE_INIT@
 
-include(CMakeFindDependencyMacro)
-
-# Trace2D is currently distributed as static C++ libraries. Private link
-# dependencies of static archives still need imported targets to be available
-# when a downstream executable links the archive.
-find_dependency(box2d CONFIG REQUIRED)
-find_dependency(Freetype REQUIRED)
-find_dependency(SDL3 CONFIG REQUIRED)
-find_dependency(SDL3_shadercross CONFIG REQUIRED)
-find_dependency(nlohmann_json CONFIG REQUIRED)
-find_dependency(tomlplusplus CONFIG REQUIRED)
-
+# Resolve Trace2D-owned installed locations before loading dependency package
+# configs. On CMake 3.29 and older, a nested find_dependency()/find_package()
+# may change PACKAGE_PREFIX_DIR; PATH_VARS are therefore consumed while this
+# package's @PACKAGE_INIT@ prefix is still authoritative.
 set(Trace2D_VERSION "@PROJECT_VERSION@")
 set(Trace2D_VCPKG_BASELINE "@TRACE2D_VCPKG_BASELINE@")
+set_and_check(
+    Trace2D_SDK_ROOT_LOCATOR
+    "@PACKAGE_TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH@"
+)
+set_and_check(
+    Trace2D_SDK_METADATA
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/trace2d.sdk.json"
+)
 set_and_check(
     Trace2D_PUBLIC_API_INDEX
     "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/agent-public-api-v1.json"
@@ -31,7 +31,21 @@ set_and_check(
     "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/examples/e0_external_game"
 )
 
+include(CMakeFindDependencyMacro)
+
+# Trace2D is currently distributed as static C++ libraries. Private link
+# dependencies of static archives still need imported targets to be available
+# when a downstream executable links the archive.
+find_dependency(box2d CONFIG REQUIRED)
+find_dependency(Freetype REQUIRED)
+find_dependency(SDL3 CONFIG REQUIRED)
+find_dependency(SDL3_shadercross CONFIG REQUIRED)
+find_dependency(nlohmann_json CONFIG REQUIRED)
+find_dependency(tomlplusplus CONFIG REQUIRED)
+
 if(NOT Trace2D_FIND_QUIETLY)
+    message(STATUS "Trace2D SDK locator: ${Trace2D_SDK_ROOT_LOCATOR}")
+    message(STATUS "Trace2D SDK metadata: ${Trace2D_SDK_METADATA}")
     message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
     message(STATUS "Trace2D canonical external example: ${Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT}")
 endif()
