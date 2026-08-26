@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-surface",
+  "surface": "gameplay",
+  "purpose": "Ordinary external Game/Application lifecycle and fixed-step authoring without scanning the installed SDK.",
+  "read_policy": "Use these contracts first. Open only the named exact header or canonical example when a missing signature or behavior still needs confirmation.",
+  "preferred_include": "trace2d/Trace2D.hpp",
+  "exact_headers": [
+    "trace2d/application/Application.hpp"
+  ],
+  "canonical_examples": [
+    "share/Trace2D/examples/e0_external_game/ExampleGame.hpp",
+    "share/Trace2D/examples/e0_external_game/ExampleGame.cpp",
+    "share/Trace2D/examples/e0_external_game/HeadlessMain.cpp"
+  ],
+  "contracts": [
+    {
+      "symbol": "trace2d::application::Game",
+      "summary": "Derive a caller-owned game. OnFixedUpdate(GameContext&, const FixedUpdate&) is required; OnStart(GameContext&) and OnStop(GameContext&) are optional."
+    },
+    {
+      "symbol": "trace2d::application::GameContext",
+      "summary": "Fixed-step callback context. Scene(), Input(), Actions(), and Ui() expose the ordinary gameplay authorities."
+    },
+    {
+      "symbol": "trace2d::application::FixedUpdate",
+      "summary": "Authoritative fixed-step input with frame, simulationTime, and fixedDelta."
+    },
+    {
+      "symbol": "trace2d::application::Application",
+      "summary": "Construct with Game&, or with Game& plus caller-owned ComponentRegistry& when custom typed components are used. Start(), StepFrames(), ApplyInput()/ScheduleInput(), Present(), and Stop() are the explicit host lifecycle."
+    }
+  ],
+  "related_surfaces": ["scene", "input", "ui"],
+  "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+}
