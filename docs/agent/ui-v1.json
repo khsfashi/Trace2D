@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-surface",
+  "surface": "ui",
+  "purpose": "Retained semantic UI/HUD authoring through UiDocument without scanning the full UI implementation.",
+  "read_policy": "Use these common retained-state contracts first. Open Ui.hpp only when a less-common layout, navigation, image, scroll, or text-input signature is required.",
+  "preferred_include": "trace2d/Trace2D.hpp",
+  "exact_headers": [
+    "trace2d/ui/Ui.hpp"
+  ],
+  "contracts": [
+    {
+      "symbol": "trace2d::ui::UiDocument::AddElement",
+      "summary": "Add retained UiElement records with stable semantic id, kind, bounds, text/name, visibility, and enabled state."
+    },
+    {
+      "symbol": "trace2d::ui::UiDocument::ConfigureProgress",
+      "summary": "Specialize an existing non-scroll Panel as deterministic progress state with explicit value/maximum."
+    },
+    {
+      "symbol": "trace2d::ui::UiDocument::SetProgress",
+      "summary": "Mutate an already-configured progress Panel; unchanged value/maximum pairs do not advance revision or trigger layout."
+    },
+    {
+      "symbol": "trace2d::application::GameContext::Ui",
+      "summary": "Use Ui() from Game callbacks to author or mutate the same semantic UI state inspected by deterministic tooling."
+    }
+  ],
+  "related_surfaces": ["gameplay", "input"],
+  "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+}
