@@ -13,7 +13,12 @@
 // systems remain explicit includes so consumers do not pay unnecessary compile
 // context for subsystems they do not use.
 //
-// Installed-SDK discovery metadata and exact symbol/header mappings remain in:
+// Installed-SDK Agent discovery should prefer the tiny deterministic index
+// before reading larger guides/examples/headers:
+//   trace2d.agent-index.json
+// `find_package(Trace2D CONFIG REQUIRED)` exposes its exact relocatable path as
+// `Trace2D_AGENT_INDEX`. Canonical setup metadata and exact symbol/header
+// mappings remain in:
 //   trace2d.sdk.locator.json
 //   share/Trace2D/trace2d.sdk.json
 //   share/Trace2D/docs/agent-public-api-v1.json
