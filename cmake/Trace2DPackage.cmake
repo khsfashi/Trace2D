@@ -54,6 +54,7 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_BINARY_DIR}/Trace2DConfig.cmake"
         INSTALL_DESTINATION "${_trace2d_package_directory}"
         PATH_VARS
+            CMAKE_INSTALL_INCLUDEDIR
             CMAKE_INSTALL_DATADIR
             TRACE2D_SDK_ROOT_LOCATOR_INSTALL_PATH
     )

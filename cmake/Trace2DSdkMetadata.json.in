@@ -5,6 +5,7 @@
   "vcpkg_builtin_baseline": "@TRACE2D_VCPKG_BASELINE@",
   "cmake_namespace": "Trace2D::",
   "discovery": {
+    "public_authoring_include": "trace2d/Trace2D.hpp",
     "public_api_index": "docs/agent-public-api-v1.json",
     "public_api_guide": "docs/AGENT_PUBLIC_API.md",
     "external_project_guide": "docs/EXTERNAL_PROJECT_E1.md",
