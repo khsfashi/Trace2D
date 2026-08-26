@@ -4,6 +4,7 @@
   "purpose": "Machine-readable discovery of supported public C++ symbols, headers, and canonical external-consumer examples. Agents must not infer a per-type header from a C++ symbol name.",
   "policy": {
     "public_include_root": "engine",
+    "preferred_authoring_include": "trace2d/Trace2D.hpp",
     "infer_per_type_headers": false,
     "missing_symbol_means_supported": false,
     "canonical_example_root": "examples/e0_external_game"
