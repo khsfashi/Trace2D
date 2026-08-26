@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-surface",
+  "surface": "input",
+  "purpose": "Semantic fixed-step input Actions and host/virtual input without scanning the input header tree.",
+  "read_policy": "Prefer semantic ActionMap authoring for gameplay. Open only the named exact header when a less-common control or signature needs confirmation.",
+  "preferred_include": "trace2d/Trace2D.hpp",
+  "exact_headers": [
+    "trace2d/input/ActionMap.hpp",
+    "trace2d/input/Input.hpp"
+  ],
+  "contracts": [
+    {
+      "symbol": "trace2d::input::ActionMap",
+      "summary": "Author semantic bindings with AddButtonAction()/BindButton() and AddAxis1DAction(). Application finalizes OnStart-authored actions and resolves them before each Game::OnFixedUpdate callback."
+    },
+    {
+      "symbol": "trace2d::input::ActionMap::Pressed/Held/Released",
+      "summary": "Query ButtonActionId state during fixed-step gameplay; Axis1D(Axis1DActionId) returns the resolved semantic axis value."
+    },
+    {
+      "symbol": "trace2d::application::GameContext::Actions",
+      "summary": "Use Actions() inside Game callbacks for the authoritative semantic map; use Input() only for lower-level physical state when explicitly needed."
+    },
+    {
+      "symbol": "trace2d::application::Application::ApplyInput/ScheduleInput",
+      "summary": "Host/test/Agent input converges through Application before fixed-step action resolution. ScheduleInput(frame, event) is the deterministic future-frame path."
+    }
+  ],
+  "related_surfaces": ["gameplay"],
+  "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+}
