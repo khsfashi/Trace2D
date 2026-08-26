@@ -1,8 +1,7 @@
 #pragma once
 
-#include <trace2d/application/Application.hpp>
+#include <trace2d/Trace2D.hpp>
 #include <trace2d/assets/ResourceRegistry.hpp>
-#include <trace2d/scene/Components.hpp>
 #include <trace2d/scene/SceneText.hpp>
 
 #include <cstdint>
