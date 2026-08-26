@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "candidate_id": "trace2d-merge-9ef6b531b174216831e7580c4abcc71d8452f7ef",
+  "source_event": "merge",
+  "event_id": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+  "significance": "candidate",
+  "significance_source": "structured-knowledge",
+  "significance_override": null,
+  "lifecycle": "discovered",
+  "sources": {
+    "issues": [
+      {
+        "id": "#411",
+        "url": "https://github.com/khsfashi/Trace2D/issues/411"
+      }
+    ],
+    "pull_requests": [],
+    "commits": [
+      {
+        "sha": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+        "authored_at": "2026-08-26T18:12:05+09:00",
+        "subject": "AUTHOR5: expose Agent index before dependency failure (#412)",
+        "author_name": "khsfashi",
+        "repository": "khsfashi/Trace2D",
+        "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+      }
+    ],
+    "tags": []
+  },
+  "areas": [
+    "build"
+  ],
+  "topics": [],
+  "facts": {
+    "decisions": [
+      {
+        "id": "decisions-001",
+        "text": "Expose the existing installed Agent index on the earliest normal package-config path, before downstream dependency discovery can fail.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Decision",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ]
+      }
+    ],
+    "constraints": [
+      {
+        "id": "constraints-001",
+        "text": "Preserve Trace2D-owned PATH_VARS resolution before nested dependency package loads for CMake 3.28/3.29 compatibility.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Constraint",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ]
+      },
+      {
+        "id": "constraints-002",
+        "text": "find_dependency(...) remains dependency authority; successful configure must not print a duplicate Agent-index status.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Constraint",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ]
+      }
+    ],
+    "rejected_alternatives": [
+      {
+        "id": "rejected-alternatives-001",
+        "text": "another metadata/index layer | attempt 9 did not justify more retrieval architecture.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Rejected",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ],
+        "alternative": "another metadata/index layer",
+        "reason": "attempt 9 did not justify more retrieval architecture."
+      },
+      {
+        "id": "rejected-alternatives-002",
+        "text": "benchmark-specific prompt/API shortcut | product fix must remain a general installed-SDK behavior.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Rejected",
+            "ordinal": 2,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ],
+        "alternative": "benchmark-specific prompt/API shortcut",
+        "reason": "product fix must remain a general installed-SDK behavior."
+      }
+    ],
+    "directives": [
+      {
+        "id": "directives-001",
+        "text": "If the post-AUTHOR5 practical rerun still ignores the index, stop extending discovery metadata and reassess #400 from remaining package/config/public-API cost.",
+        "evidence": [
+          {
+            "source_type": "commit_trailer",
+            "commit": "9ef6b531b174216831e7580c4abcc71d8452f7ef",
+            "trailer": "Directive",
+            "ordinal": 1,
+            "url": "https://github.com/khsfashi/Trace2D/commit/9ef6b531b174216831e7580c4abcc71d8452f7ef"
+          }
+        ]
+      }
+    ],
+    "implemented": [],
+    "tested": [],
+    "not_tested": [],
+    "gates": [],
+    "limitations": [],
+    "benchmark_metrics": [],
+    "supersedes": []
+  },
+  "artifacts": {
+    "captures": [],
+    "videos": [],
+    "diagrams": [],
+    "benchmark_reports": [],
+    "repro_cases": []
+  },
+  "references": [],
+  "related": [
+    "#400"
+  ],
+  "related_candidates": [],
+  "platform_records": [],
+  "notes": null
+}
