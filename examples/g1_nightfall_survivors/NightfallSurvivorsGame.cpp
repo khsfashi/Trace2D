@@ -12,7 +12,6 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
-#include <limits>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -131,11 +130,7 @@ trace2d::scene::EntityId NightfallSurvivorsGame::CreateAudioSource(
     source.volume = volume;
     source.pitch = 1.0F;
     source.group = trace2d::audio::AudioGroup2D::Sfx;
-    if (context.Scene().AddComponent(entity, audioTypes_.source, std::move(source)) !=
-        trace2d::scene::ComponentAttachResult::Success)
-    {
-        throw std::runtime_error{"Nightfall Survivors could not attach an audio source."};
-    }
+    static_cast<void>(context.Scene().AddComponent(entity, audioTypes_.source, std::move(source)));
     return entity;
 }
 
@@ -250,7 +245,7 @@ void NightfallSurvivorsGame::PlaySfx(const trace2d::scene::EntityId entity) noex
 
 void NightfallSurvivorsGame::SpawnEnemy(const trace2d::scene::Vector2& playerPosition)
 {
-    auto slot = std::find_if(enemies_.begin(), enemies_.end(), [](const Enemy& enemy) { return !enemy.active; });
+    const auto slot = std::find_if(enemies_.begin(), enemies_.end(), [](const Enemy& enemy) { return !enemy.active; });
     if (slot == enemies_.end()) return;
 
     const float angle = Random01() * 2.0F * Pi;
@@ -298,7 +293,7 @@ void NightfallSurvivorsGame::SpawnProjectile(
     trace2d::scene::Vector2 direction,
     const float angleOffsetRadians)
 {
-    auto slot = std::find_if(projectiles_.begin(), projectiles_.end(), [](const Projectile& projectile) {
+    const auto slot = std::find_if(projectiles_.begin(), projectiles_.end(), [](const Projectile& projectile) {
         return !projectile.active;
     });
     if (slot == projectiles_.end()) return;
@@ -359,7 +354,7 @@ void NightfallSurvivorsGame::SpawnGem(
     const trace2d::scene::Vector2 position,
     const std::uint16_t value)
 {
-    auto slot = std::find_if(gems_.begin(), gems_.end(), [](const Gem& gem) { return !gem.active; });
+    const auto slot = std::find_if(gems_.begin(), gems_.end(), [](const Gem& gem) { return !gem.active; });
     if (slot == gems_.end()) return;
     *slot = Gem{
         .active = true,
@@ -376,7 +371,7 @@ void NightfallSurvivorsGame::SpawnEffect(
     const float startScale,
     const float endScale)
 {
-    auto slot = std::find_if(effects_.begin(), effects_.end(), [](const Effect& effect) { return !effect.active; });
+    const auto slot = std::find_if(effects_.begin(), effects_.end(), [](const Effect& effect) { return !effect.active; });
     if (slot == effects_.end()) return;
     *slot = Effect{
         .active = true,
@@ -468,8 +463,8 @@ void NightfallSurvivorsGame::UpdateRunning(
         return;
     }
 
-    float horizontal = context.Actions().Axis1D(horizontalAction_);
-    float vertical = context.Actions().Axis1D(verticalAction_);
+    const float horizontal = context.Actions().Axis1D(horizontalAction_);
+    const float vertical = context.Actions().Axis1D(verticalAction_);
     const trace2d::scene::Vector2 normalized = NormalizeOr({horizontal, vertical}, {});
     if (horizontal != 0.0F || vertical != 0.0F)
     {
@@ -697,10 +692,12 @@ trace2d::audio::AudioSystem2D& NightfallSurvivorsGame::Audio()
     if (audio_ == nullptr) throw std::runtime_error{"Nightfall Survivors audio requested before startup."};
     return *audio_;
 }
+
 const trace2d::audio::AudioSystem2D& NightfallSurvivorsGame::Audio() const
 {
     if (audio_ == nullptr) throw std::runtime_error{"Nightfall Survivors audio requested before startup."};
     return *audio_;
 }
+
 trace2d::assets::ResourceRegistry& NightfallSurvivorsGame::Resources() noexcept { return resources_; }
 const trace2d::assets::ResourceRegistry& NightfallSurvivorsGame::Resources() const noexcept { return resources_; }
