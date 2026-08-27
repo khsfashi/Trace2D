@@ -19,7 +19,8 @@ class NightfallSurvivorsGame final : public trace2d::application::Game
 public:
     enum class State : std::uint8_t
     {
-        Running = 0,
+        Idle = 0,
+        Running,
         LevelUp,
         Won,
         Lost,
@@ -38,6 +39,20 @@ public:
         Death,
         LevelUp,
         PlayerHurt,
+    };
+
+    struct RunConfig final
+    {
+        std::uint32_t characterIndex{0U};
+        std::uint32_t stageIndex{0U};
+        float durationSeconds{180.0F};
+        float moveSpeedMultiplier{1.0F};
+        float damageMultiplier{1.0F};
+        float fireIntervalMultiplier{1.0F};
+        float maximumHealthMultiplier{1.0F};
+        float enemyHealthMultiplier{1.0F};
+        float enemySpeedMultiplier{1.0F};
+        float spawnRateMultiplier{1.0F};
     };
 
     struct Enemy final
@@ -88,12 +103,12 @@ public:
     static constexpr float CanvasWidth = 960.0F;
     static constexpr float CanvasHeight = 540.0F;
     static constexpr float CameraVerticalSize = 9.0F;
+    static constexpr float CameraHorizontalSize = 16.0F;
     static constexpr float PlayerRadius = 0.38F;
     static constexpr std::size_t MaximumEnemies = 384U;
     static constexpr std::size_t MaximumProjectiles = 128U;
     static constexpr std::size_t MaximumGems = 256U;
     static constexpr std::size_t MaximumEffects = 384U;
-    static constexpr float RunDurationSeconds = 180.0F;
 
     NightfallSurvivorsGame(
         trace2d::audio::AudioComponentTypes2D audioTypes,
@@ -105,7 +120,13 @@ public:
         const trace2d::application::FixedUpdate& update) override;
     void OnStop(trace2d::application::GameContext& context) override;
 
+    void BeginRun(RunConfig config) noexcept;
+    void ReturnToIdle() noexcept;
+    void SetSfxVolume(float volume) noexcept;
+
     [[nodiscard]] State CurrentState() const noexcept;
+    [[nodiscard]] const RunConfig& CurrentRunConfig() const noexcept;
+    [[nodiscard]] float RunDurationSeconds() const noexcept;
     [[nodiscard]] trace2d::scene::EntityId Player() const noexcept;
     [[nodiscard]] trace2d::scene::Vector2 MoveIntent() const noexcept;
     [[nodiscard]] trace2d::scene::Vector2 Facing() const noexcept;
@@ -187,7 +208,10 @@ private:
     std::array<Gem, MaximumGems> gems_{};
     std::array<Effect, MaximumEffects> effects_{};
 
-    State state_{State::Running};
+    RunConfig activeRun_{};
+    RunConfig pendingRun_{};
+    bool startRequested_{false};
+    State state_{State::Idle};
     trace2d::scene::Vector2 moveIntent_{};
     trace2d::scene::Vector2 facing_{1.0F, 0.0F};
     std::uint32_t health_{100U};
