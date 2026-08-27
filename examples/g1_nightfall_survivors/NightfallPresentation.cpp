@@ -49,7 +49,6 @@ constexpr Color Cyan{0.34F, 0.82F, 1.0F, 1.0F};
 constexpr Color Gold{1.0F, 0.76F, 0.24F, 1.0F};
 constexpr Color Red{1.0F, 0.30F, 0.34F, 1.0F};
 constexpr Color Green{0.38F, 0.92F, 0.58F, 1.0F};
-constexpr Color Purple{0.68F, 0.52F, 1.0F, 1.0F};
 constexpr Color Panel{0.035F, 0.045F, 0.075F, 1.0F};
 constexpr Color PanelLight{0.10F, 0.13F, 0.20F, 1.0F};
 
