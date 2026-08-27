@@ -4,6 +4,8 @@ endif()
 
 file(MAKE_DIRECTORY "${TRACE2D_G1_RUNTIME_DIR}/textures")
 file(MAKE_DIRECTORY "${TRACE2D_G1_RUNTIME_DIR}/audio")
+file(MAKE_DIRECTORY "${TRACE2D_G1_RUNTIME_DIR}/fonts")
+file(MAKE_DIRECTORY "${TRACE2D_G1_RUNTIME_DIR}/licenses")
 
 function(trace2d_g1_fetch url relative_path)
     set(destination "${TRACE2D_G1_RUNTIME_DIR}/${relative_path}")
@@ -18,7 +20,7 @@ function(trace2d_g1_fetch url relative_path)
         STATUS download_status
         SHOW_PROGRESS
         TLS_VERIFY ON
-        TIMEOUT 45
+        TIMEOUT 90
     )
     list(GET download_status 0 status_code)
     list(GET download_status 1 status_message)
@@ -57,6 +59,16 @@ trace2d_g1_fetch(
 trace2d_g1_fetch(
     "https://raw.githubusercontent.com/Tiddybub/2d-assets/e0cbe0d995554a490d4c182fe9beb8769ffbb606/effects/puzzle-pack-2/PNG/Particles%20white/particleWhite_3.png"
     "textures/particle.png"
+)
+
+# Noto Sans KR is licensed under SIL Open Font License 1.1. The exact Google Fonts hotfix commit is pinned.
+trace2d_g1_fetch(
+    "https://raw.githubusercontent.com/google/fonts/4efc2774c63917927efe769ca845def6bd6debae/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf"
+    "fonts/NotoSansKR.ttf"
+)
+trace2d_g1_fetch(
+    "https://raw.githubusercontent.com/google/fonts/4efc2774c63917927efe769ca845def6bd6debae/ofl/notosanskr/OFL.txt"
+    "licenses/NotoSansKR-OFL.txt"
 )
 
 # Brickstorm's credits map these MP3 fallbacks to Kenney CC0 packs. Pin the exact source commit.
