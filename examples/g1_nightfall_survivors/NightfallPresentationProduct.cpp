@@ -47,6 +47,7 @@ constexpr float SubheadingPpu = 46.0F;
 constexpr float BodyPpu = 57.0F;
 constexpr float SmallPpu = 70.0F;
 constexpr float TinyPpu = 82.0F;
+constexpr float MicroPpu = 112.0F;
 
 constexpr Color White{0.96F, 0.97F, 1.0F, 1.0F};
 constexpr Color Muted{0.68F, 0.73F, 0.82F, 1.0F};
@@ -662,7 +663,7 @@ private:
     {
         AddText(eyebrow, -7.15F, 3.94F, SmallPpu, Cyan, false, 70);
         AddText(title, -7.15F, 3.44F, HeadingPpu, White, false, 70);
-        AddPanel(-7.15F + 2.0F, 2.94F, 4.0F, 0.055F, Cyan, 0.85F, 43);
+        AddPanel(-5.15F, 2.94F, 4.0F, 0.055F, Cyan, 0.85F, 43);
     }
 
     void DrawFooter(std::string_view help)
@@ -753,11 +754,12 @@ private:
             const std::size_t row = rightColumn ? i - 3U : i;
             const float x = rightColumn ? 0.55F : -6.25F;
             const float y = 1.72F - static_cast<float>(row) * 1.52F;
-            AddPanel(x + 0.20F, y - 0.30F, 6.05F, 1.20F, unlocked ? PanelRaised : {0.045F, 0.052F, 0.072F, 1.0F}, 1.0F, 42);
+            const Color card = unlocked ? PanelRaised : Color{0.045F, 0.052F, 0.072F, 1.0F};
+            AddPanel(x + 0.20F, y - 0.30F, 6.05F, 1.20F, card, 1.0F, 42);
             AddPanel(x - 2.64F, y - 0.30F, 0.12F, 1.20F, unlocked ? Green : Dim, 1.0F, 43);
             AddText(unlocked ? "달성" : "미달성", x - 2.35F, y + 0.12F, TinyPpu, unlocked ? Green : Dim, false, 72);
             AddText(definition.nameKo, x - 1.20F, y + 0.15F, BodyPpu, unlocked ? White : Muted, false, 72);
-            AddText(definition.descriptionKo, x - 2.35F, y - 0.43F, TinyPpu, Dim, false, 72);
+            AddText(definition.descriptionKo, x - 2.35F, y - 0.43F, MicroPpu, Dim, false, 72);
         }
         DrawFooter("ENTER 또는 ESC  ·  돌아가기");
     }
@@ -798,16 +800,23 @@ private:
             const bool unlocked = product_.IsCharacterUnlocked(id);
             const bool selected = product_.Selection() == i;
             const Color accent = CharacterAccent(i);
-            AddCardFrame(X[i], -0.22F, 4.45F, 5.55F, unlocked ? accent : Dim, selected);
-            AddVisual(heroes_[i], {X[i], 1.24F}, {2.65F, 2.65F}, 0.0F,
+            AddCardFrame(X[i], -0.05F, 4.45F, 4.65F, unlocked ? accent : Dim, selected);
+            AddVisual(heroes_[i], {X[i], 1.12F}, {2.45F, 2.45F}, 0.0F,
                 unlocked ? White : Dim, unlocked ? 1.0F : 0.52F,
                 trace2d::render::SpriteBlendMode::Normal, 45);
-            AddText(unlocked ? definition.nameKo : "잠김", X[i], 0.05F, SubheadingPpu,
+            AddText(unlocked ? definition.nameKo : "잠김", X[i], -0.12F, SubheadingPpu,
                 unlocked ? accent : Red, true, 73);
-            AddText(definition.subtitleKo, X[i], -0.63F, SmallPpu, unlocked ? Muted : Dim, true, 73);
-            AddText(unlocked ? definition.descriptionKo : "해금 조건 필요", X[i], -1.55F, TinyPpu,
-                unlocked ? Dim : Red, true, 73);
+            AddText(definition.subtitleKo, X[i], -0.78F, TinyPpu, unlocked ? Muted : Dim, true, 73);
+            if (!unlocked)
+                AddText("해금 조건 필요", X[i], -1.48F, MicroPpu, Red, true, 73);
         }
+        const std::size_t selectedIndex = std::min<std::size_t>(product_.Selection(), 2U);
+        const auto selectedId = static_cast<CharacterId>(selectedIndex);
+        const bool selectedUnlocked = product_.IsCharacterUnlocked(selectedId);
+        AddPanel(0.0F, -2.92F, 13.7F, 0.68F, Panel, 0.98F, 42);
+        AddText(
+            selectedUnlocked ? NightfallProduct::Character(selectedId).descriptionKo : "해금 후 상세 능력을 확인할 수 있습니다.",
+            0.0F, -2.70F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
         DrawFooter("A/D 또는 W/S 선택  ·  ENTER 확인  ·  ESC 뒤로");
     }
 
@@ -822,8 +831,8 @@ private:
             const bool unlocked = product_.IsStageUnlocked(id);
             const bool selected = product_.Selection() == i;
             const Color accent = StageAccent(i);
-            AddCardFrame(X[i], -0.22F, 4.45F, 5.55F, unlocked ? accent : Dim, selected);
-            AddPanel(X[i], 1.30F, 3.55F, 1.62F, {0.025F, 0.03F, 0.05F, 1.0F}, 1.0F, 43);
+            AddCardFrame(X[i], -0.05F, 4.45F, 4.65F, unlocked ? accent : Dim, selected);
+            AddPanel(X[i], 1.22F, 3.55F, 1.48F, {0.025F, 0.03F, 0.05F, 1.0F}, 1.0F, 43);
             for (int py = 0; py < 2; ++py)
             {
                 for (int px = 0; px < 4; ++px)
@@ -831,21 +840,27 @@ private:
                     const Visual& tile = ((px + py) & 1) == 0 ? floorsA_[i] : floorsB_[i];
                     AddVisual(tile,
                         {X[i] - 1.35F + static_cast<float>(px) * 0.90F,
-                         0.95F + static_cast<float>(py) * 0.70F},
-                        {0.90F, 0.70F}, 0.0F, unlocked ? White : Dim,
+                         0.90F + static_cast<float>(py) * 0.64F},
+                        {0.90F, 0.64F}, 0.0F, unlocked ? White : Dim,
                         unlocked ? 1.0F : 0.50F,
                         trace2d::render::SpriteBlendMode::Normal, 44);
                 }
             }
-            AddText(unlocked ? definition.nameKo : "잠김", X[i], 0.05F, SubheadingPpu,
+            AddText(unlocked ? definition.nameKo : "잠김", X[i], -0.12F, SubheadingPpu,
                 unlocked ? accent : Red, true, 73);
-            AddText(definition.subtitleKo, X[i], -0.64F, SmallPpu, unlocked ? White : Dim, true, 73);
-            AddText(definition.descriptionKo, X[i], -1.52F, TinyPpu, unlocked ? Dim : Red, true, 73);
+            AddText(definition.subtitleKo, X[i], -0.78F, TinyPpu, unlocked ? White : Dim, true, 73);
         }
+        const std::size_t selectedIndex = std::min<std::size_t>(product_.Selection(), 2U);
+        const auto selectedStage = static_cast<StageId>(selectedIndex);
+        const bool selectedUnlocked = product_.IsStageUnlocked(selectedStage);
+        AddPanel(0.0F, -2.92F, 13.7F, 0.68F, Panel, 0.98F, 42);
+        AddText(
+            selectedUnlocked ? NightfallProduct::Stage(selectedStage).descriptionKo : "이전 스테이지를 클리어하면 해금됩니다.",
+            0.0F, -2.70F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
         const auto selectedCharacter = product_.SelectedCharacter();
         AddText(
             "현재 장착  ·  " + std::string{NightfallProduct::Character(selectedCharacter).nameKo},
-            0.0F, -3.46F, SmallPpu, Gold, true, 74);
+            0.0F, -3.42F, TinyPpu, Gold, true, 74);
         DrawFooter("A/D 또는 W/S 선택  ·  ENTER 시작  ·  ESC 뒤로");
     }
 
@@ -871,8 +886,8 @@ private:
         {
             if (!enemy.active) continue;
             const std::size_t kind = static_cast<std::size_t>(enemy.kind);
-            float scale = kind == 1U ? 1.28F : (kind == 2U ? 0.86F : 1.0F);
-            Color tint = enemy.hitFlashFrames > 0U ? Color{1.0F, 0.86F, 0.38F, 1.0F} : White;
+            const float scale = kind == 1U ? 1.28F : (kind == 2U ? 0.86F : 1.0F);
+            const Color tint = enemy.hitFlashFrames > 0U ? Color{1.0F, 0.86F, 0.38F, 1.0F} : White;
             const float bob = std::sin(phase * 1.4F + static_cast<float>(enemy.stableId) * 0.31F) * 0.035F;
             AddVisual(enemies_[std::min<std::size_t>(kind, 2U)],
                 {enemy.position.x, enemy.position.y + bob}, {scale, scale}, 0.0F, tint, 1.0F,
@@ -919,7 +934,7 @@ private:
             ? std::sin(phase * 2.4F) * 0.055F
             : std::sin(phase) * 0.025F;
         const float facingScale = game_.Facing().x < 0.0F ? -1.30F : 1.30F;
-        Color heroTint = game_.PlayerFlashFrames() > 0U && (game_.FrameCounter() & 1U) != 0U
+        const Color heroTint = game_.PlayerFlashFrames() > 0U && (game_.FrameCounter() & 1U) != 0U
             ? Color{1.0F, 0.45F, 0.45F, 1.0F}
             : White;
         AddVisual(heroes_[characterIndex],
