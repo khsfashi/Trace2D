@@ -54,11 +54,11 @@ target_link_libraries(trace2d_g1_nightfall_survivors
 target_compile_features(trace2d_g1_nightfall_survivors PUBLIC cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors)
 
-# Compile the complete owner-facing windowed source in ordinary ALL builds without touching the
-# network. Runtime asset lookup is deliberately relative so the explicit playable package remains
-# movable after build/CI artifact download.
+# Ordinary builds compile the complete product host/presentation without fetching runtime assets.
+# This keeps Linux/static-analysis coverage on the real owner-facing code path.
 add_library(trace2d_g1_nightfall_survivors_windowed_compile OBJECT
     WindowedMain.cpp
+    NightfallPresentation.cpp
 )
 target_link_libraries(trace2d_g1_nightfall_survivors_windowed_compile
     PRIVATE
@@ -77,9 +77,15 @@ target_compile_definitions(trace2d_g1_nightfall_survivors_windowed_compile
 target_compile_features(trace2d_g1_nightfall_survivors_windowed_compile PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed_compile)
 
-add_executable(trace2d_g1_nightfall_survivors_windowed EXCLUDE_FROM_ALL
-    $<TARGET_OBJECTS:trace2d_g1_nightfall_survivors_windowed_compile>
-)
+if(WIN32)
+    add_executable(trace2d_g1_nightfall_survivors_windowed WIN32 EXCLUDE_FROM_ALL
+        $<TARGET_OBJECTS:trace2d_g1_nightfall_survivors_windowed_compile>
+    )
+else()
+    add_executable(trace2d_g1_nightfall_survivors_windowed EXCLUDE_FROM_ALL
+        $<TARGET_OBJECTS:trace2d_g1_nightfall_survivors_windowed_compile>
+    )
+endif()
 add_dependencies(
     trace2d_g1_nightfall_survivors_windowed
     trace2d_g1_nightfall_survivors_assets
