@@ -5,7 +5,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(
         Trace2DG1NightfallSurvivors
         VERSION 0.1.0
-        DESCRIPTION "A game-first survivors-like Trace2D vertical slice with web-sourced CC0 assets."
+        DESCRIPTION "A closed-loop survivors-like Trace2D product dogfood game."
         LANGUAGES CXX
     )
 
@@ -32,12 +32,13 @@ add_custom_target(trace2d_g1_nightfall_survivors_assets
     COMMAND ${CMAKE_COMMAND}
         "-DTRACE2D_G1_RUNTIME_DIR=${TRACE2D_G1_FETCH_RUNTIME_DIR}"
         -P "${TRACE2D_G1_FETCH_SCRIPT}"
-    COMMENT "Fetching pinned CC0 Nightfall Survivors assets"
+    COMMENT "Fetching pinned free/open Nightfall Survivors assets"
     VERBATIM
 )
 
 add_library(trace2d_g1_nightfall_survivors STATIC
     NightfallSurvivorsGame.cpp
+    NightfallProduct.cpp
 )
 target_include_directories(trace2d_g1_nightfall_survivors
     PUBLIC
@@ -67,6 +68,7 @@ target_link_libraries(trace2d_g1_nightfall_survivors_windowed_compile
         Trace2D::Platform
         Trace2D::Render
         Trace2D::Runtime
+        Trace2D::Text
 )
 target_compile_definitions(trace2d_g1_nightfall_survivors_windowed_compile
     PRIVATE
@@ -90,6 +92,7 @@ target_link_libraries(trace2d_g1_nightfall_survivors_windowed
         Trace2D::Platform
         Trace2D::Render
         Trace2D::Runtime
+        Trace2D::Text
 )
 target_compile_features(trace2d_g1_nightfall_survivors_windowed PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed)
