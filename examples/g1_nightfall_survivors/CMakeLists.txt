@@ -53,11 +53,29 @@ target_link_libraries(trace2d_g1_nightfall_survivors
 target_compile_features(trace2d_g1_nightfall_survivors PUBLIC cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors)
 
-# The owner-playable target is intentionally excluded from the default ALL build because its
-# art/audio inputs are fetched from pinned public web sources. Game logic still compiles in normal
-# Trace2D CI; explicitly building this target performs the small reproducible asset fetch first.
-add_executable(trace2d_g1_nightfall_survivors_windowed EXCLUDE_FROM_ALL
+# Compile the complete owner-facing windowed source in ordinary ALL builds without touching the
+# network. The explicit playable executable below reuses this object and adds only the asset fetch.
+add_library(trace2d_g1_nightfall_survivors_windowed_compile OBJECT
     WindowedMain.cpp
+)
+target_link_libraries(trace2d_g1_nightfall_survivors_windowed_compile
+    PRIVATE
+        trace2d_g1_nightfall_survivors
+        Trace2D::Assets
+        Trace2D::Audio
+        Trace2D::Platform
+        Trace2D::Render
+        Trace2D::Runtime
+)
+target_compile_definitions(trace2d_g1_nightfall_survivors_windowed_compile
+    PRIVATE
+        TRACE2D_G1_RUNTIME_DIR="${TRACE2D_G1_RUNTIME_DIR}"
+)
+target_compile_features(trace2d_g1_nightfall_survivors_windowed_compile PRIVATE cxx_std_20)
+trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed_compile)
+
+add_executable(trace2d_g1_nightfall_survivors_windowed EXCLUDE_FROM_ALL
+    $<TARGET_OBJECTS:trace2d_g1_nightfall_survivors_windowed_compile>
 )
 add_dependencies(
     trace2d_g1_nightfall_survivors_windowed
@@ -71,10 +89,6 @@ target_link_libraries(trace2d_g1_nightfall_survivors_windowed
         Trace2D::Platform
         Trace2D::Render
         Trace2D::Runtime
-)
-target_compile_definitions(trace2d_g1_nightfall_survivors_windowed
-    PRIVATE
-        TRACE2D_G1_RUNTIME_DIR="${TRACE2D_G1_RUNTIME_DIR}"
 )
 target_compile_features(trace2d_g1_nightfall_survivors_windowed PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed)
