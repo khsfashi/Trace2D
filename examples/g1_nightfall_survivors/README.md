@@ -4,7 +4,7 @@
 
 ## Product loop
 
-The executable now owns the full loop instead of booting directly into a combat demo:
+The executable owns the full loop instead of booting directly into a combat demo:
 
 1. main menu
 2. profile / achievements / settings
@@ -22,13 +22,15 @@ Progress is saved to `save/nightfall_profile.v1` beside the packaged game workin
 - **잿불 기사** — slower, harder-hitting, higher-health character; unlocked by clearing 월광 폐허
 - **달빛 사냥꾼** — fast rapid-fire character; unlocked at 150 cumulative kills
 
+The three playable characters use three separate source sprites. Nightfall does not present one shared sprite as three characters by recoloring it.
+
 ## Stages
 
 - **월광 폐허** — survive 3:00
 - **잿불 지하묘지** — survive 3:30; unlocked by clearing 월광 폐허
 - **성운 심연** — survive 4:00; unlocked by clearing 잿불 지하묘지
 
-Each stage changes enemy health, speed, and spawn pressure rather than only changing the displayed timer.
+Each stage changes enemy health, speed, and spawn pressure and now has its own pinned two-tile floor identity.
 
 ## Controls
 
@@ -48,7 +50,7 @@ Each stage changes enemy health, speed, and spawn pressure rather than only chan
 - `Esc` — pause
 - `R` — restart the current run
 
-The Korean level-up overlay explains what each upgrade changes instead of relying on unexplained English labels.
+Rapid, Might, and Orbit use separate source icons in the HUD and level-up cards; projectile and orbit presentation also use their corresponding product resources.
 
 ## Progression and achievements
 
@@ -56,15 +58,23 @@ The profile records total runs, kills, clears, best level, best survival time, a
 
 ## Presentation
 
-- real 8x4 walk spritesheet through `SpriteAnimationClip2D` / `SpriteAnimator2D`
-- correct down/up/left/right direction mapping
-- automatic aspect-ratio-safe camera fitting: the authored 16:9 gameplay core is never cropped on narrower or wider windows; extra world is revealed instead
-- dynamic floor coverage for the actual visible camera extent
-- health, XP, timer, kill, level, and build HUD
+- one shared 16:9 safe-grid and typography scale across menu, profile, achievements, settings, character select, stage select, HUD, level-up, pause, and result screens
+- Galmuri11 Bold Korean pixel UI font, pinned under SIL OFL 1.1
 - Korean menu/HUD/result text rendered through Trace2D production text (`FontResource -> GlyphAtlas -> TextLayoutRun -> TextPresentation2D`)
-- Noto Sans KR fetched from a pinned Google Fonts commit under SIL OFL 1.1
-- hit/death/level-up/projectile additive VFX and camera hit shake
+- glyph-atlas binding resync when layout grows the prepared atlas
+- three distinct playable character source sprites
+- three distinct enemy archetype source sprites
+- three distinct skill icon source sprites
+- three stage-specific two-tile floor sets
+- automatic aspect-ratio-safe camera fitting: the authored 16:9 gameplay core is never cropped on narrower or wider windows; extra world is revealed instead
+- hit/death/level-up VFX and camera hit shake
 - physical SFX through `AudioSystem2D -> AudioOutput2D`
+
+## Windows distribution safety
+
+The owner-playable workflow stages only the executable, runtime assets, and an explicit DLL allowlist. It rejects script files, emits `SHA256SUMS.txt`, and runs a Microsoft Defender artifact gate when Defender is enabled on the hosted runner. Builds detected by Defender are not uploaded as owner playables. Defender availability and scan evidence are retained separately for diagnosis.
+
+Do not restore or allowlist a Nightfall binary that Microsoft Defender quarantines. That distribution problem is tracked as product work rather than being pushed onto the player.
 
 ## Build from the Trace2D repo
 
