@@ -207,7 +207,7 @@ void ReleaseVisual(
     trace2d::render::Renderer& renderer,
     Visual& visual) noexcept
 {
-    if (visual.texture.IsValid())
+    if (visual.texture.generation != 0U)
     {
         renderer.DestroyTexture(visual.texture);
         static_cast<void>(resources.Unload(visual.texture.Untyped()));
@@ -299,7 +299,7 @@ public:
     {
         textLayout_.reset();
         glyphAtlas_.reset();
-        if (glyphTexture_.IsValid())
+        if (glyphTexture_.generation != 0U)
         {
             renderer_.DestroyTexture(glyphTexture_);
             static_cast<void>(game_.Resources().Unload(glyphTexture_.Untyped()));
