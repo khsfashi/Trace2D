@@ -6,11 +6,13 @@
 #include <trace2d/platform/Platform.hpp>
 #include <trace2d/render/Renderer.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <thread>
 
 #if !defined(_WIN32)
@@ -134,8 +136,6 @@ int RunNightfall()
                 }
                 else if (event.input.type == trace2d::input::InputEventType::Release)
                 {
-                    // Always release canonical game controls so pausing while a key is held cannot
-                    // leave movement or a level-up binding latched when gameplay resumes.
                     application.ApplyInput(event.input);
                 }
                 else if (product.CurrentScreen() == NightfallProduct::Screen::Playing)
