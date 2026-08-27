@@ -58,7 +58,7 @@ trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors)
 # This keeps Linux/static-analysis coverage on the real owner-facing code path.
 add_library(trace2d_g1_nightfall_survivors_windowed_compile OBJECT
     WindowedMain.cpp
-    NightfallPresentationProduct.cpp
+    NightfallPresentationMeasured.cpp
 )
 target_link_libraries(trace2d_g1_nightfall_survivors_windowed_compile
     PRIVATE
