@@ -30,30 +30,29 @@ function(trace2d_g1_fetch url relative_path)
     endif()
 endfunction()
 
-# Character: OpenGameArt CC0 walk cycle, mirrored through Tiddybub's CC0-only archive.
-# The source sheet is 192x128, 8 columns x 4 rows (24x32 cells).
-trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/Tiddybub/2d-assets/e0cbe0d995554a490d4c182fe9beb8769ffbb606/fantasy/oga-2d-rpg-character-walk-spritesheet/rpg_sprite_walk.png"
-    "textures/warden-walk.png"
-)
+set(TRACE2D_G1_KENNEY_ROOT
+    "https://raw.githubusercontent.com/wyatt-raex/2d_survivors_game/72db959453fedc08409416ef60567955955f9e2b/assets/kenney_tiny-dungeon/Tiles")
 
-# Kenney Tiny Dungeon 1.0, CC0. These exact source files are pinned through the public sample repo.
-trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/wyatt-raex/2d_survivors_game/72db959453fedc08409416ef60567955955f9e2b/assets/kenney_tiny-dungeon/Tiles/tile_0048.png"
-    "textures/floor.png"
-)
-trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/wyatt-raex/2d_survivors_game/72db959453fedc08409416ef60567955955f9e2b/assets/kenney_tiny-dungeon/Tiles/tile_0049.png"
-    "textures/floor-alt.png"
-)
-trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/wyatt-raex/2d_survivors_game/72db959453fedc08409416ef60567955955f9e2b/assets/kenney_tiny-dungeon/Tiles/tile_0084.png"
-    "textures/ghoul.png"
-)
-trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/wyatt-raex/2d_survivors_game/72db959453fedc08409416ef60567955955f9e2b/assets/kenney_tiny-dungeon/Tiles/tile_0085.png"
-    "textures/brute.png"
-)
+# Kenney Tiny Dungeon 1.0, CC0. Nightfall deliberately assigns separate source
+# resources to every playable character, enemy archetype, stage floor pair, and skill icon.
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0085.png" "textures/hero-star.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0086.png" "textures/hero-ember.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0087.png" "textures/hero-moon.png")
+
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0084.png" "textures/enemy-ghoul.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0088.png" "textures/enemy-brute.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0089.png" "textures/enemy-wisp.png")
+
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0048.png" "textures/stage-moon-floor-a.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0049.png" "textures/stage-moon-floor-b.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0050.png" "textures/stage-ember-floor-a.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0051.png" "textures/stage-ember-floor-b.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0052.png" "textures/stage-astral-floor-a.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0053.png" "textures/stage-astral-floor-b.png")
+
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0104.png" "textures/skill-rapid.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0105.png" "textures/skill-might.png")
+trace2d_g1_fetch("${TRACE2D_G1_KENNEY_ROOT}/tile_0106.png" "textures/skill-orbit.png")
 
 # Kenney Puzzle Pack 2 particle sprite, CC0, from the pinned CC0-only archive.
 trace2d_g1_fetch(
@@ -61,14 +60,15 @@ trace2d_g1_fetch(
     "textures/particle.png"
 )
 
-# Noto Sans KR is licensed under SIL Open Font License 1.1. The exact Google Fonts hotfix commit is pinned.
+# Galmuri11 Bold is a Korean pixel UI font under SIL Open Font License 1.1.
+# Pin the exact upstream release commit so the product typography is reproducible.
 trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/google/fonts/4efc2774c63917927efe769ca845def6bd6debae/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf"
-    "fonts/NotoSansKR.ttf"
+    "https://raw.githubusercontent.com/quiple/galmuri/71e1cacf1437a11220307120e63e30bc275312d4/dist/Galmuri11-Bold.ttf"
+    "fonts/Galmuri11-Bold.ttf"
 )
 trace2d_g1_fetch(
-    "https://raw.githubusercontent.com/google/fonts/4efc2774c63917927efe769ca845def6bd6debae/ofl/notosanskr/OFL.txt"
-    "licenses/NotoSansKR-OFL.txt"
+    "https://raw.githubusercontent.com/quiple/galmuri/71e1cacf1437a11220307120e63e30bc275312d4/ofl.md"
+    "licenses/Galmuri-OFL.txt"
 )
 
 # Brickstorm's credits map these MP3 fallbacks to Kenney CC0 packs. Pin the exact source commit.
