@@ -416,9 +416,11 @@ private:
         if (!atlas.Succeeded()) throw std::runtime_error{"Nightfall could not prepare Korean glyph atlas."};
         glyphAtlas_ = std::move(atlas.atlas);
 
-        // Prewarm every static Hangul/ASCII symbol used by menus plus numeric runtime HUD output.
+        // Prewarm every glyph used by static product copy plus numeric runtime HUD output. The
+        // presentation contract intentionally invalidates a GPU binding when a later layout grows
+        // the atlas, so this corpus must cover every fixed UI character before the first upload.
         constexpr std::string_view Corpus =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 %/:+-.[]()·<>"
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 %/:+-.[]()·<>,←→"
             "NIGHTFALL SURVIVORS Trace2D WASD QEF ESC ENTER SPACE"
             "게임 시작 프로필 업적 설정 종료 돌아가기 캐릭터 선택 스테이지 선택 잠김 해금 달성 미달성"
             "별의 전사 균형형 자동 사격 기본에 충실한 전사 이동 화력 체력이 모두 안정적입니다"
@@ -434,7 +436,7 @@ private:
             "효과음 볼륨 화면 흔들림 켜짐 꺼짐 좌우 조절 선택 확인 일시정지 계속하기 메인 메뉴"
             "레벨 업 연사 공격 간격 감소 레벨마다 탄환 화력 투사체와 궤도 공격력 증가 궤도 주변 회전무기 최대 개"
             "체력 경험치 남은 시간 레벨 처치 현재 강화 패배 스테이지 클리어 다시 도전 획득 새 캐릭터 새 스테이지 새 업적"
-            "조작 이동 자동공격 ESC 일시정지 R 재시작";
+            "조작 이동 자동공격 ESC 일시정지 R 재시작 액션 뒤 또 후";
         if (!glyphAtlas_->WarmUtf8(Corpus).Succeeded())
             throw std::runtime_error{"Nightfall could not warm Korean glyph atlas."};
 
@@ -596,7 +598,14 @@ private:
             requiredCount,
             measurement);
         if (!status.Succeeded() || requiredCount > textScratch_.size())
-            throw std::runtime_error{"Nightfall Korean text presentation failed."};
+        {
+            throw std::runtime_error{
+                "Nightfall Korean text presentation failed: " +
+                std::string{trace2d::text::ToString(status.error)} +
+                " glyph=" + std::to_string(status.glyphIndex) +
+                " slot=" + std::to_string(status.fontSlot) +
+                " required=" + std::to_string(requiredCount)};
+        }
 
         for (std::size_t index = 0U; index < requiredCount; ++index)
         {
