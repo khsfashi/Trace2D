@@ -72,6 +72,11 @@ constexpr char HurtClip[] = "audio/life-lost.mp3";
     return ma_decoder_init_file(native.c_str(), nullptr, &decoder);
 #endif
 }
+
+[[nodiscard]] float PositiveOr(const float value, const float fallback) noexcept
+{
+    return std::isfinite(value) && value > 0.0F ? value : fallback;
+}
 } // namespace
 
 NightfallSurvivorsGame::NightfallSurvivorsGame(
@@ -180,7 +185,36 @@ void NightfallSurvivorsGame::OnStart(trace2d::application::GameContext& context)
     if (!audio_->SetVoiceLimits(limits))
         throw std::runtime_error{"Nightfall Survivors could not set audio voice limits."};
 
-    ResetRound(context);
+    state_ = State::Idle;
+}
+
+void NightfallSurvivorsGame::BeginRun(RunConfig config) noexcept
+{
+    config.durationSeconds = PositiveOr(config.durationSeconds, 180.0F);
+    config.moveSpeedMultiplier = PositiveOr(config.moveSpeedMultiplier, 1.0F);
+    config.damageMultiplier = PositiveOr(config.damageMultiplier, 1.0F);
+    config.fireIntervalMultiplier = PositiveOr(config.fireIntervalMultiplier, 1.0F);
+    config.maximumHealthMultiplier = PositiveOr(config.maximumHealthMultiplier, 1.0F);
+    config.enemyHealthMultiplier = PositiveOr(config.enemyHealthMultiplier, 1.0F);
+    config.enemySpeedMultiplier = PositiveOr(config.enemySpeedMultiplier, 1.0F);
+    config.spawnRateMultiplier = PositiveOr(config.spawnRateMultiplier, 1.0F);
+    pendingRun_ = config;
+    startRequested_ = true;
+}
+
+void NightfallSurvivorsGame::ReturnToIdle() noexcept
+{
+    startRequested_ = false;
+    state_ = State::Idle;
+    moveIntent_ = {};
+}
+
+void NightfallSurvivorsGame::SetSfxVolume(const float volume) noexcept
+{
+    if (audio_ == nullptr) return;
+    static_cast<void>(audio_->SetGroupVolume(
+        trace2d::audio::AudioGroup2D::Sfx,
+        std::clamp(volume, 0.0F, 1.0F)));
 }
 
 void NightfallSurvivorsGame::ResetRound(trace2d::application::GameContext& context)
@@ -197,8 +231,10 @@ void NightfallSurvivorsGame::ResetRound(trace2d::application::GameContext& conte
     state_ = State::Running;
     moveIntent_ = {};
     facing_ = {1.0F, 0.0F};
-    health_ = 100U;
-    maximumHealth_ = 100U;
+    maximumHealth_ = std::max<std::uint32_t>(
+        1U,
+        static_cast<std::uint32_t>(std::lround(100.0F * activeRun_.maximumHealthMultiplier)));
+    health_ = maximumHealth_;
     level_ = 1U;
     experience_ = 0U;
     experienceToNextLevel_ = 10U;
@@ -210,15 +246,19 @@ void NightfallSurvivorsGame::ResetRound(trace2d::application::GameContext& conte
     screenShakeFrames_ = 0U;
     invulnerabilityFrames_ = 0U;
     nextStableId_ = 1U;
-    randomState_ = 0xA341316CU;
+    randomState_ = 0xA341316CU ^ (activeRun_.stageIndex * 0x9E3779B9U) ^
+        (activeRun_.characterIndex * 0x85EBCA6BU);
     frameCounter_ = 0U;
     elapsedSeconds_ = 0.0F;
     enemySpawnAccumulator_ = 0.0F;
-    fireCooldownSeconds_ = 0.20F;
+    fireCooldownSeconds_ = 0.20F * activeRun_.fireIntervalMultiplier;
     lastHitSfxFrame_ = 0U;
     lastKillSfxFrame_ = 0U;
 
-    for (std::size_t index = 0U; index < 12U; ++index)
+    const std::size_t openingEnemies = std::min<std::size_t>(
+        20U,
+        12U + static_cast<std::size_t>(activeRun_.stageIndex) * 2U);
+    for (std::size_t index = 0U; index < openingEnemies; ++index)
         SpawnEnemy(player->LocalTransform().position);
 }
 
@@ -250,15 +290,15 @@ void NightfallSurvivorsGame::SpawnEnemy(const trace2d::scene::Vector2& playerPos
 
     const float angle = Random01() * 2.0F * Pi;
     const float radius = 7.5F + Random01() * 3.2F;
-    const float difficulty = std::clamp(elapsedSeconds_ / RunDurationSeconds, 0.0F, 1.0F);
+    const float difficulty = std::clamp(elapsedSeconds_ / activeRun_.durationSeconds, 0.0F, 1.0F);
     const float roll = Random01();
 
     EnemyKind kind = EnemyKind::Ghoul;
-    if (elapsedSeconds_ > 70.0F && roll > 0.78F) kind = EnemyKind::Wisp;
-    else if (elapsedSeconds_ > 25.0F && roll > 0.62F) kind = EnemyKind::Brute;
+    if (elapsedSeconds_ > activeRun_.durationSeconds * 0.38F && roll > 0.78F) kind = EnemyKind::Wisp;
+    else if (elapsedSeconds_ > activeRun_.durationSeconds * 0.14F && roll > 0.62F) kind = EnemyKind::Brute;
 
-    float health = 2.5F + difficulty * 9.0F;
-    float speed = 0.88F + difficulty * 0.52F;
+    float health = (2.5F + difficulty * 9.0F) * activeRun_.enemyHealthMultiplier;
+    float speed = (0.88F + difficulty * 0.52F) * activeRun_.enemySpeedMultiplier;
     float enemyRadius = 0.36F;
     if (kind == EnemyKind::Brute)
     {
@@ -300,7 +340,8 @@ void NightfallSurvivorsGame::SpawnProjectile(
 
     direction = NormalizeOr(direction, facing_);
     direction = Rotate(direction, angleOffsetRadians);
-    const float damage = BaseProjectileDamage * (1.0F + static_cast<float>(mightLevel_) * 0.34F);
+    const float damage = BaseProjectileDamage * activeRun_.damageMultiplier *
+        (1.0F + static_cast<float>(mightLevel_) * 0.34F);
     *slot = Projectile{
         .active = true,
         .position = position,
@@ -455,8 +496,9 @@ void NightfallSurvivorsGame::UpdateRunning(
     if (player == nullptr) throw std::runtime_error{"Nightfall Survivors lost the canonical player."};
 
     elapsedSeconds_ += deltaSeconds;
-    if (elapsedSeconds_ >= RunDurationSeconds)
+    if (elapsedSeconds_ >= activeRun_.durationSeconds)
     {
+        elapsedSeconds_ = activeRun_.durationSeconds;
         state_ = State::Won;
         SpawnEffect(EffectKind::LevelUp, player->LocalTransform().position, 1.0F, 0.5F, 4.0F);
         PlaySfx(levelSfx_);
@@ -477,21 +519,24 @@ void NightfallSurvivorsGame::UpdateRunning(
     }
 
     auto& playerPosition = player->LocalTransform().position;
-    playerPosition.x += moveIntent_.x * PlayerMoveSpeed * deltaSeconds;
-    playerPosition.y += moveIntent_.y * PlayerMoveSpeed * deltaSeconds;
+    const float moveSpeed = PlayerMoveSpeed * activeRun_.moveSpeedMultiplier;
+    playerPosition.x += moveIntent_.x * moveSpeed * deltaSeconds;
+    playerPosition.y += moveIntent_.y * moveSpeed * deltaSeconds;
 
     if (invulnerabilityFrames_ > 0U) --invulnerabilityFrames_;
     if (playerFlashFrames_ > 0U) --playerFlashFrames_;
     if (screenShakeFrames_ > 0U) --screenShakeFrames_;
 
-    const float difficulty = std::clamp(elapsedSeconds_ / RunDurationSeconds, 0.0F, 1.0F);
-    const float spawnInterval = std::max(0.105F, 0.48F - difficulty * 0.375F);
+    const float difficulty = std::clamp(elapsedSeconds_ / activeRun_.durationSeconds, 0.0F, 1.0F);
+    const float baseSpawnInterval = std::max(0.105F, 0.48F - difficulty * 0.375F);
+    const float spawnInterval = std::max(0.075F, baseSpawnInterval / activeRun_.spawnRateMultiplier);
     enemySpawnAccumulator_ += deltaSeconds;
     while (enemySpawnAccumulator_ >= spawnInterval)
     {
         enemySpawnAccumulator_ -= spawnInterval;
         SpawnEnemy(playerPosition);
-        if (elapsedSeconds_ > 95.0F && Random01() > 0.68F) SpawnEnemy(playerPosition);
+        if (elapsedSeconds_ > activeRun_.durationSeconds * 0.52F && Random01() > 0.68F)
+            SpawnEnemy(playerPosition);
     }
 
     fireCooldownSeconds_ -= deltaSeconds;
@@ -499,7 +544,9 @@ void NightfallSurvivorsGame::UpdateRunning(
     {
         FireVolley(playerPosition);
         const float rapidMultiplier = std::pow(0.88F, static_cast<float>(rapidLevel_));
-        fireCooldownSeconds_ = std::max(0.14F, 0.54F * rapidMultiplier);
+        fireCooldownSeconds_ = std::max(
+            0.09F,
+            0.54F * rapidMultiplier * activeRun_.fireIntervalMultiplier);
     }
 
     for (Enemy& enemy : enemies_)
@@ -558,7 +605,11 @@ void NightfallSurvivorsGame::UpdateRunning(
                 const float hitRadius = enemy.radius + 0.28F;
                 if (DistanceSquared(bladePosition, enemy.position) > hitRadius * hitRadius) continue;
                 enemies_[enemyIndex].orbitHitCooldownFrames = 15U;
-                DamageEnemy(enemyIndex, 1.35F * (1.0F + static_cast<float>(mightLevel_) * 0.22F), bladePosition);
+                DamageEnemy(
+                    enemyIndex,
+                    1.35F * activeRun_.damageMultiplier *
+                        (1.0F + static_cast<float>(mightLevel_) * 0.22F),
+                    bladePosition);
             }
         }
     }
@@ -633,7 +684,13 @@ void NightfallSurvivorsGame::OnFixedUpdate(
 {
     ++frameCounter_;
 
-    if (context.Actions().Pressed(restartAction_))
+    if (startRequested_)
+    {
+        activeRun_ = pendingRun_;
+        startRequested_ = false;
+        ResetRound(context);
+    }
+    else if (state_ != State::Idle && context.Actions().Pressed(restartAction_))
     {
         ResetRound(context);
     }
@@ -647,7 +704,7 @@ void NightfallSurvivorsGame::OnFixedUpdate(
     {
         UpdateRunning(context, std::chrono::duration<float>{update.fixedDelta}.count());
     }
-    else
+    else if (state_ == State::Won || state_ == State::Lost)
     {
         for (Effect& effect : effects_)
         {
@@ -666,6 +723,8 @@ void NightfallSurvivorsGame::OnStop(trace2d::application::GameContext&)
 }
 
 NightfallSurvivorsGame::State NightfallSurvivorsGame::CurrentState() const noexcept { return state_; }
+const NightfallSurvivorsGame::RunConfig& NightfallSurvivorsGame::CurrentRunConfig() const noexcept { return activeRun_; }
+float NightfallSurvivorsGame::RunDurationSeconds() const noexcept { return activeRun_.durationSeconds; }
 trace2d::scene::EntityId NightfallSurvivorsGame::Player() const noexcept { return player_; }
 trace2d::scene::Vector2 NightfallSurvivorsGame::MoveIntent() const noexcept { return moveIntent_; }
 trace2d::scene::Vector2 NightfallSurvivorsGame::Facing() const noexcept { return facing_; }
