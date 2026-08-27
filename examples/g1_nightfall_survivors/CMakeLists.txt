@@ -1,0 +1,84 @@
+cmake_minimum_required(VERSION 3.28)
+
+set(TRACE2D_G1_STANDALONE OFF)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    project(
+        Trace2DG1NightfallSurvivors
+        VERSION 0.1.0
+        DESCRIPTION "A game-first survivors-like Trace2D vertical slice with web-sourced CC0 assets."
+        LANGUAGES CXX
+    )
+
+    set(CMAKE_CXX_STANDARD 20)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+
+    find_package(Trace2D 0.1 CONFIG REQUIRED)
+    set(TRACE2D_G1_STANDALONE ON)
+endif()
+
+function(trace2d_g1_enable_warnings target_name)
+    if(COMMAND trace2d_enable_warnings)
+        trace2d_enable_warnings(${target_name})
+    endif()
+endfunction()
+
+find_path(TRACE2D_G1_MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
+
+set(TRACE2D_G1_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
+set(TRACE2D_G1_FETCH_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/FetchAssets.cmake")
+
+add_custom_target(trace2d_g1_nightfall_survivors_assets
+    COMMAND ${CMAKE_COMMAND}
+        "-DTRACE2D_G1_RUNTIME_DIR=${TRACE2D_G1_RUNTIME_DIR}"
+        -P "${TRACE2D_G1_FETCH_SCRIPT}"
+    COMMENT "Fetching pinned CC0 Nightfall Survivors assets"
+    VERBATIM
+)
+
+add_library(trace2d_g1_nightfall_survivors STATIC
+    NightfallSurvivorsGame.cpp
+)
+target_include_directories(trace2d_g1_nightfall_survivors
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    SYSTEM PRIVATE
+        ${TRACE2D_G1_MINIAUDIO_INCLUDE_DIR}
+)
+target_link_libraries(trace2d_g1_nightfall_survivors
+    PUBLIC
+        Trace2D::Application
+        Trace2D::Audio
+)
+target_compile_features(trace2d_g1_nightfall_survivors PUBLIC cxx_std_20)
+trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors)
+
+# The owner-playable target is intentionally excluded from the default ALL build because its
+# art/audio inputs are fetched from pinned public web sources. Game logic still compiles in normal
+# Trace2D CI; explicitly building this target performs the small reproducible asset fetch first.
+add_executable(trace2d_g1_nightfall_survivors_windowed EXCLUDE_FROM_ALL
+    WindowedMain.cpp
+)
+add_dependencies(
+    trace2d_g1_nightfall_survivors_windowed
+    trace2d_g1_nightfall_survivors_assets
+)
+target_link_libraries(trace2d_g1_nightfall_survivors_windowed
+    PRIVATE
+        trace2d_g1_nightfall_survivors
+        Trace2D::Assets
+        Trace2D::Audio
+        Trace2D::Platform
+        Trace2D::Render
+        Trace2D::Runtime
+)
+target_compile_definitions(trace2d_g1_nightfall_survivors_windowed
+    PRIVATE
+        TRACE2D_G1_RUNTIME_DIR="${TRACE2D_G1_RUNTIME_DIR}"
+)
+target_compile_features(trace2d_g1_nightfall_survivors_windowed PRIVATE cxx_std_20)
+trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed)
+
+if(TRACE2D_G1_STANDALONE)
+    message(STATUS "Trace2D G1 Nightfall Survivors is consuming the installed Trace2D package contract.")
+endif()
