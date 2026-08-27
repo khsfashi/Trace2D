@@ -291,9 +291,10 @@ void AddVisual(
 
 [[nodiscard]] std::uint32_t DirectionRow(const NightfallSurvivorsGame& game) noexcept
 {
+    // arikel's rpg_sprite_walk.png row order is down, up, left, right.
     const auto facing = game.Facing();
-    if (std::abs(facing.x) > std::abs(facing.y)) return facing.x < 0.0F ? 1U : 2U;
-    return facing.y > 0.0F ? 3U : 0U;
+    if (std::abs(facing.x) > std::abs(facing.y)) return facing.x < 0.0F ? 2U : 3U;
+    return facing.y > 0.0F ? 1U : 0U;
 }
 
 void AddHud(PresentationState& state, const trace2d::scene::Vector2 center, std::uint64_t& order)
