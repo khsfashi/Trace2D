@@ -1,0 +1,88 @@
+name: Nightfall Survivors Playable
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "examples/g1_nightfall_survivors/**"
+      - ".github/workflows/nightfall-survivors-playable.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  windows-playable:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pinned vcpkg
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
+          & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore vcpkg source downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: .trace2d-vcpkg-downloads
+          key: trace2d-vcpkg-downloads-v5-${{ env.TRACE2D_VCPKG_BASELINE }}
+          enableCrossOsArchive: true
+
+      - name: Configure
+        run: cmake --preset windows-msvc
+
+      - name: Build playable Release target and fetch CC0 assets
+        run: cmake --build --preset windows-release --target trace2d_g1_nightfall_survivors_windowed --parallel
+
+      - name: Stage portable playable package
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path "build/windows-msvc" -Recurse -File -Filter "trace2d_g1_nightfall_survivors_windowed.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Nightfall Survivors executable was not produced." }
+          $runtime = Join-Path $exe.Directory.FullName "runtime"
+          if (-not (Test-Path $runtime)) { throw "Nightfall Survivors packaged runtime directory is missing." }
+
+          $package = Join-Path $env:RUNNER_TEMP "nightfall-survivors-windows"
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item $exe.FullName (Join-Path $package $exe.Name)
+          Copy-Item $runtime (Join-Path $package "runtime") -Recurse
+
+          Get-ChildItem -Path $exe.Directory.FullName -File -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName (Join-Path $package $_.Name) -Force
+          }
+          Get-ChildItem -Path "build/windows-msvc/vcpkg_installed/x64-windows/bin" -File -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+            Copy-Item $_.FullName (Join-Path $package $_.Name) -Force
+          }
+
+          Copy-Item "examples/g1_nightfall_survivors/README.md" (Join-Path $package "README.md")
+          Copy-Item "examples/g1_nightfall_survivors/CREDITS.md" (Join-Path $package "CREDITS.md")
+          @'
+          @echo off
+          cd /d "%~dp0"
+          trace2d_g1_nightfall_survivors_windowed.exe
+          if errorlevel 1 pause
+          '@ | Set-Content -Path (Join-Path $package "PLAY_NIGHTFALL.bat") -Encoding ascii
+
+          "TRACE2D_NIGHTFALL_PACKAGE=$package" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Upload Windows playable
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightfall-survivors-windows
+          path: ${{ env.TRACE2D_NIGHTFALL_PACKAGE }}
+          if-no-files-found: error
+          retention-days: 14

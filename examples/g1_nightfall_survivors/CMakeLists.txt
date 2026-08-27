@@ -25,12 +25,12 @@ endfunction()
 
 find_path(TRACE2D_G1_MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
 
-set(TRACE2D_G1_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
+set(TRACE2D_G1_FETCH_RUNTIME_DIR "${CMAKE_CURRENT_BINARY_DIR}/runtime")
 set(TRACE2D_G1_FETCH_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/FetchAssets.cmake")
 
 add_custom_target(trace2d_g1_nightfall_survivors_assets
     COMMAND ${CMAKE_COMMAND}
-        "-DTRACE2D_G1_RUNTIME_DIR=${TRACE2D_G1_RUNTIME_DIR}"
+        "-DTRACE2D_G1_RUNTIME_DIR=${TRACE2D_G1_FETCH_RUNTIME_DIR}"
         -P "${TRACE2D_G1_FETCH_SCRIPT}"
     COMMENT "Fetching pinned CC0 Nightfall Survivors assets"
     VERBATIM
@@ -54,7 +54,8 @@ target_compile_features(trace2d_g1_nightfall_survivors PUBLIC cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors)
 
 # Compile the complete owner-facing windowed source in ordinary ALL builds without touching the
-# network. The explicit playable executable below reuses this object and adds only the asset fetch.
+# network. Runtime asset lookup is deliberately relative so the explicit playable package remains
+# movable after build/CI artifact download.
 add_library(trace2d_g1_nightfall_survivors_windowed_compile OBJECT
     WindowedMain.cpp
 )
@@ -69,7 +70,7 @@ target_link_libraries(trace2d_g1_nightfall_survivors_windowed_compile
 )
 target_compile_definitions(trace2d_g1_nightfall_survivors_windowed_compile
     PRIVATE
-        TRACE2D_G1_RUNTIME_DIR="${TRACE2D_G1_RUNTIME_DIR}"
+        TRACE2D_G1_RUNTIME_DIR="runtime"
 )
 target_compile_features(trace2d_g1_nightfall_survivors_windowed_compile PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed_compile)
@@ -92,6 +93,17 @@ target_link_libraries(trace2d_g1_nightfall_survivors_windowed
 )
 target_compile_features(trace2d_g1_nightfall_survivors_windowed PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed)
+
+add_custom_command(
+    TARGET trace2d_g1_nightfall_survivors_windowed
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E rm -rf "$<TARGET_FILE_DIR:trace2d_g1_nightfall_survivors_windowed>/runtime"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${TRACE2D_G1_FETCH_RUNTIME_DIR}"
+        "$<TARGET_FILE_DIR:trace2d_g1_nightfall_survivors_windowed>/runtime"
+    COMMENT "Packaging Nightfall Survivors runtime assets beside the executable"
+    VERBATIM
+)
 
 if(TRACE2D_G1_STANDALONE)
     message(STATUS "Trace2D G1 Nightfall Survivors is consuming the installed Trace2D package contract.")
