@@ -1,18 +1,24 @@
 # Nightfall Survivors asset credits
 
-Nightfall Survivors uses free/open runtime assets fetched from pinned public GitHub commits. Game art and SFX are CC0; the Korean UI font is under SIL Open Font License 1.1.
+Nightfall Survivors uses free/open runtime assets fetched from pinned public GitHub commits. Game art and SFX are CC0; the Korean pixel UI font is under SIL Open Font License 1.1.
 
 ## Visuals
 
-- Player walk sheet: `rpg_sprite_walk.png`, OpenGameArt “2D RPG character walk spritesheet”, CC0. Pinned mirror: `Tiddybub/2d-assets@e0cbe0d995554a490d4c182fe9beb8769ffbb606`.
-- Floor/enemy tiles: Kenney Tiny Dungeon 1.0, CC0. Pinned public sample repository: `wyatt-raex/2d_survivors_game@72db959453fedc08409416ef60567955955f9e2b`.
+Nightfall deliberately uses separate source resources for playable characters, enemy archetypes, skill icons, and each stage floor identity instead of reusing one sprite with tint-only variants.
+
+- Playable characters: three separate Kenney Tiny Dungeon tiles (`hero-star.png`, `hero-ember.png`, `hero-moon.png`), CC0.
+- Enemy archetypes: three separate Kenney Tiny Dungeon tiles (`enemy-ghoul.png`, `enemy-brute.png`, `enemy-wisp.png`), CC0.
+- Stage floors: six separate Kenney Tiny Dungeon tiles, two per stage (`stage-moon-*`, `stage-ember-*`, `stage-astral-*`), CC0.
+- Skill icons: three separate Kenney Tiny Dungeon tiles (`skill-rapid.png`, `skill-might.png`, `skill-orbit.png`), CC0.
+- Kenney Tiny Dungeon source is pinned through `wyatt-raex/2d_survivors_game@72db959453fedc08409416ef60567955955f9e2b`.
 - Particle sprite: Kenney Puzzle Pack 2, CC0. Pinned mirror: `Tiddybub/2d-assets@e0cbe0d995554a490d4c182fe9beb8769ffbb606`.
 
 ## Font
 
-- `NotoSansKR.ttf`: Noto Sans KR from Google Fonts, SIL Open Font License 1.1. Pinned source: `google/fonts@4efc2774c63917927efe769ca845def6bd6debae`.
-- The package also carries `runtime/licenses/NotoSansKR-OFL.txt` beside the font.
-- Nightfall routes this font through Trace2D `FontResource -> GlyphAtlas -> TextLayoutRun -> TextPresentation2D`; Korean labels are not baked into images.
+- `Galmuri11-Bold.ttf`: Galmuri11 Bold by Minseo Lee / quiple, SIL Open Font License 1.1.
+- Pinned source: `quiple/galmuri@71e1cacf1437a11220307120e63e30bc275312d4` (v2.404).
+- The package carries `runtime/licenses/Galmuri-OFL.txt` beside the font.
+- Nightfall routes the font through Trace2D `FontResource -> GlyphAtlas -> TextLayoutRun -> TextPresentation2D`; Korean labels are real text, not baked images.
 
 ## Audio
 
