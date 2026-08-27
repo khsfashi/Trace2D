@@ -23,6 +23,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Initialize Defender evidence
+        shell: pwsh
+        run: |
+          $evidence = Join-Path $env:RUNNER_TEMP "nightfall-defender-evidence"
+          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
+          "initialized=true" | Set-Content (Join-Path $evidence "status.txt") -Encoding utf8
+          "TRACE2D_NIGHTFALL_DEFENDER_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Install pinned vcpkg
         shell: pwsh
         run: |
@@ -102,9 +110,8 @@ jobs:
       - name: Microsoft Defender artifact gate
         shell: pwsh
         run: |
-          $evidence = Join-Path $env:RUNNER_TEMP "nightfall-defender-evidence"
-          New-Item -ItemType Directory -Force -Path $evidence | Out-Null
-          "TRACE2D_NIGHTFALL_DEFENDER_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $evidence = $env:TRACE2D_NIGHTFALL_DEFENDER_EVIDENCE
+          if ([string]::IsNullOrWhiteSpace($evidence)) { throw "Defender evidence path was not initialized." }
 
           $statusCommand = Get-Command Get-MpComputerStatus -ErrorAction SilentlyContinue
           if (-not $statusCommand) {
