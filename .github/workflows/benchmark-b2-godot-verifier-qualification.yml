@@ -73,7 +73,7 @@ jobs:
 
       - name: Upload Godot verifier qualification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-b2-godot-verifier-qualification
           path: ${{ runner.temp }}/b2-godot-verifier-qualification

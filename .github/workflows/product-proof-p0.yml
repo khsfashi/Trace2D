@@ -90,7 +90,7 @@ jobs:
         run: Get-ChildItem -Recurse "examples/p0_tiny_playable/build/windows-msvc/Debug" | Select-Object FullName, Length
 
       - name: Upload owner-playable Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trace2d-p0-tiny-playable-windows
           path: |
