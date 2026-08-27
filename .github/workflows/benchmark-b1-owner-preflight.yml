@@ -30,7 +30,7 @@ jobs:
           Get-ChildItem -LiteralPath $env:GITHUB_WORKSPACE -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 
       - name: Checkout exact B1 branch head
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           clean: true
           fetch-depth: 0
