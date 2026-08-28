@@ -908,10 +908,10 @@ private:
             const Color accent = CharacterAccent(i);
             cards[i] = AddPanel(X[i], 0.08F, 4.40F, 4.55F, selected ? PanelRaised : Panel, 0.98F, 41);
             static_cast<void>(AddPanel(X[i], 2.31F, 4.40F, 0.08F, unlocked ? accent : Dim, 1.0F, 42));
-            const Rect hero = AddVisual(heroes_[i], {X[i], 1.15F}, {2.25F, 2.25F}, 0.0F,
+            const Rect hero = AddVisual(heroes_[i], {X[i], 1.15F}, {2.04F, 2.04F}, 0.0F,
                 unlocked ? White : Dim, unlocked ? 1.0F : 0.52F,
                 trace2d::render::SpriteBlendMode::Normal, 45);
-            const Rect name = AddText(unlocked ? definition.nameKo : "잠김", X[i], -0.05F, BodyPpu,
+            const Rect name = AddText(unlocked ? definition.nameKo : "잠김", X[i], -0.20F, BodyPpu,
                 unlocked ? accent : Red, true, 73);
             const Rect role = AddText(definition.subtitleKo, X[i], -0.66F, MicroPpu, unlocked ? Muted : Dim, true, 73);
             RequireInside("character.hero", hero, "character.card", cards[i], 0.16F);
