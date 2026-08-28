@@ -563,7 +563,7 @@ private:
             cards[i] = PanelRect(x[i], 0.08F, 4.40F, 4.55F);
             const Rect hero = Sprite(heroes_[i], x[i], 1.15F, 2.04F, 2.04F);
             const Rect name = Text(unlocked || i == 0U ? definition.nameKo : "잠김", x[i], -0.20F, BodyPpu, true);
-            const Rect role = Text(definition.subtitleKo, x[i], -0.66F, MicroPpu, true);
+            const Rect role = Text(definition.subtitleKo, x[i], -0.72F, MicroPpu, true);
             RequireInside(scenario, "character.hero", hero, "character.card", cards[i], 0.16F);
             RequireInside(scenario, "character.name", name, "character.card", cards[i], 0.16F);
             RequireInside(scenario, "character.role", role, "character.card", cards[i], 0.16F);

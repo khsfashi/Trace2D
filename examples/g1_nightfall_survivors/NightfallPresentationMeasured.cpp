@@ -913,7 +913,7 @@ private:
                 trace2d::render::SpriteBlendMode::Normal, 45);
             const Rect name = AddText(unlocked ? definition.nameKo : "잠김", X[i], -0.20F, BodyPpu,
                 unlocked ? accent : Red, true, 73);
-            const Rect role = AddText(definition.subtitleKo, X[i], -0.66F, MicroPpu, unlocked ? Muted : Dim, true, 73);
+            const Rect role = AddText(definition.subtitleKo, X[i], -0.72F, MicroPpu, unlocked ? Muted : Dim, true, 73);
             RequireInside("character.hero", hero, "character.card", cards[i], 0.16F);
             RequireInside("character.name", name, "character.card", cards[i], 0.16F);
             RequireInside("character.role", role, "character.card", cards[i], 0.16F);
