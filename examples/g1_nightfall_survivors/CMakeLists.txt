@@ -77,6 +77,30 @@ target_compile_definitions(trace2d_g1_nightfall_survivors_windowed_compile
 target_compile_features(trace2d_g1_nightfall_survivors_windowed_compile PRIVATE cxx_std_20)
 trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_windowed_compile)
 
+# Product contract sweep deliberately avoids Platform/Renderer construction. It still uses the
+# actual Galmuri glyph atlas, TextPresentation2D geometry, decoded product PNGs and
+# SpritePresentation2D geometry, so layout regressions fail before an owner artifact is staged.
+add_executable(trace2d_g1_nightfall_survivors_contract EXCLUDE_FROM_ALL
+    NightfallLayoutContractMain.cpp
+)
+add_dependencies(
+    trace2d_g1_nightfall_survivors_contract
+    trace2d_g1_nightfall_survivors_assets
+)
+target_link_libraries(trace2d_g1_nightfall_survivors_contract
+    PRIVATE
+        trace2d_g1_nightfall_survivors
+        Trace2D::Assets
+        Trace2D::Render
+        Trace2D::Text
+)
+target_compile_definitions(trace2d_g1_nightfall_survivors_contract
+    PRIVATE
+        TRACE2D_G1_RUNTIME_DIR="${TRACE2D_G1_FETCH_RUNTIME_DIR}"
+)
+target_compile_features(trace2d_g1_nightfall_survivors_contract PRIVATE cxx_std_20)
+trace2d_g1_enable_warnings(trace2d_g1_nightfall_survivors_contract)
+
 if(WIN32)
     add_executable(trace2d_g1_nightfall_survivors_windowed WIN32 EXCLUDE_FROM_ALL
         $<TARGET_OBJECTS:trace2d_g1_nightfall_survivors_windowed_compile>
