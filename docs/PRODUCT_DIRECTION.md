@@ -21,7 +21,7 @@ Judgment rule:
 
 ## What Nightfall proved — and did not prove
 
-PR #418 / #420 provided owner-accepted evidence that Trace2D can support a real closed game-shaped product loop.
+PR #418 / #420 provided owner-accepted evidence that Trace2D can support a real closed game-shaped product loop. The consumed historical PR #418 head is pinned at `3974489c75b3b7fa460d07835855657cebbe3f3c`.
 
 That changes roadmap economics: another bespoke flagship game with substantially the same capability mix would mostly repeat evidence.
 
@@ -38,13 +38,30 @@ Accordingly:
 Optimize these together:
 
 1. **compact semantic authoring** — typed/transactional operations over canonical state;
-2. **deterministic execution** — explicit fixed-step control and stable semantic identity;
-3. **cheap structured observation** — inspect engine-owned facts directly;
-4. **replayable verification** — exact inputs, frames, assertions and bounded failure evidence;
-5. **human-visible closure** — playable output, targeted feedback and verified revision;
-6. **clean external-tool boundaries** — do not duplicate upstream production tools when stable interchange is sufficient.
+2. **progressive workflow discovery** — reveal canonical Trace2D usage only when the task needs it, then narrow to exact APIs/tools/examples;
+3. **deterministic execution** — explicit fixed-step control and stable semantic identity;
+4. **cheap structured observation** — inspect engine-owned facts directly;
+5. **replayable verification** — exact inputs, frames, assertions and bounded failure evidence;
+6. **human-visible closure** — playable output, targeted feedback and verified revision;
+7. **clean external-tool boundaries** — do not duplicate upstream production tools when stable interchange is sufficient.
 
 A feature is not automatically valuable because it increases breadth. A tool is not automatically valuable because it exposes another internal operation.
+
+## Progressive disclosure is part of the public Agent surface
+
+Trace2D should answer Agent discovery questions in layers rather than forcing broad repository reading up front:
+
+```text
+Capability: can Trace2D do this?
+ -> Skill: what is the canonical Trace2D workflow?
+ -> API/tool discovery: which exact public surface is needed now?
+```
+
+Capability metadata remains truth about availability/evidence. Skills should contain workflow knowledge and important authority/ordering rules that are not efficiently recoverable from raw symbol/tool descriptions. Public API/tool indexes remain the source for exact declarations and callable primitives.
+
+Do not duplicate whole API references into skills, and do not preload all skills/tool schemas into every context. Keep descriptors small, bounded and cacheable where practical.
+
+#424 is the P0 implementation of this direction after SAVE1 and before SAVE2.
 
 ## Agent Complexity is a product metric
 
@@ -114,7 +131,7 @@ For mature-engine capabilities:
 - require measured evidence before broad abstractions;
 - prefer runtime expressiveness that unlocks materially new game classes over repeated product demos.
 
-After persistence/qualification, the promoted breadth is currently Mesh2D then native deterministic skeleton.
+The immediate owner-approved order is SAVE1 -> #424 progressive discovery -> remaining persistence. After persistence/qualification, the promoted breadth is currently Mesh2D then native deterministic skeleton.
 
 ## Decision test for future work
 
@@ -128,6 +145,7 @@ Before adding a subsystem, Agent tool or product surface, ask:
 6. Is a proposed schema designed from a concrete consumer backward?
 7. Does the work add new information rather than repeat a proof already accepted?
 8. Can engine-owned facts be verified structurally without screenshot inference?
+9. Can a fresh Agent discover the canonical workflow without broad unrelated context loading?
 
 If the answers are mostly no, postpone the work.
 
