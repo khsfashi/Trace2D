@@ -962,7 +962,7 @@ private:
                 {
                     const Visual& tile = ((px + py) & 1) == 0 ? floorsA_[i] : floorsB_[i];
                     static_cast<void>(AddVisual(tile,
-                        {X[i] - 1.31F + static_cast<float>(px) * 0.875F,
+                        {X[i] - 1.3125F + static_cast<float>(px) * 0.875F,
                          0.86F + static_cast<float>(py) * 0.64F},
                         {0.875F, 0.64F}, 0.0F, unlocked ? White : Dim,
                         unlocked ? 1.0F : 0.50F,
@@ -1187,7 +1187,7 @@ private:
         const auto center = player->LocalTransform().position;
         const auto& summary = product_.LastRunSummary();
         static_cast<void>(AddPanel(center.x, center.y, CoreWidth, CoreHeight, Ink, 0.90F, 50));
-        const Rect panel = AddPanel(center.x, center.y, 11.20F, 7.00F, Panel, 0.99F, 51);
+        const Rect panel = AddPanel(center.x, center.y, 11.20F, 8.40F, Panel, 0.99F, 51);
         const Rect result = AddText(summary.cleared ? "CLEAR" : "GAME OVER", center.x, center.y + 3.00F,
             TinyPpu, summary.cleared ? Gold : Red, true, 74);
         const Rect title = AddText(summary.cleared ? "스테이지 클리어" : "패배", center.x, center.y + 2.48F,
@@ -1205,27 +1205,30 @@ private:
         RequireDisjoint("result.title", title, "result.stat", stat, 0.05F);
         RequireDisjoint("result.stat", stat, "result.reward", reward, 0.03F);
 
-        float unlockY = center.y + 0.28F;
+        float unlockY = center.y + 0.30F;
         for (std::size_t i = 0U; i < NightfallProduct::CharacterCount(); ++i)
         {
             if ((summary.newlyUnlockedCharactersMask & (1U << static_cast<std::uint32_t>(i))) == 0U) continue;
-            static_cast<void>(AddText("새 캐릭터  ·  " + std::string{NightfallProduct::Character(static_cast<CharacterId>(i)).nameKo},
-                center.x, unlockY, TinyPpu, CharacterAccent(i), true, 74));
-            unlockY -= 0.48F;
+            const Rect unlockLine = AddText("새 캐릭터  ·  " + std::string{NightfallProduct::Character(static_cast<CharacterId>(i)).nameKo},
+                center.x, unlockY, TinyPpu, CharacterAccent(i), true, 74);
+            RequireInside("result.unlock.character", unlockLine, "result.panel", panel, 0.18F);
+            unlockY -= 0.40F;
         }
         for (std::size_t i = 0U; i < NightfallProduct::StageCount(); ++i)
         {
             if ((summary.newlyUnlockedStagesMask & (1U << static_cast<std::uint32_t>(i))) == 0U) continue;
-            static_cast<void>(AddText("새 스테이지  ·  " + std::string{NightfallProduct::Stage(static_cast<StageId>(i)).nameKo},
-                center.x, unlockY, TinyPpu, StageAccent(i), true, 74));
-            unlockY -= 0.48F;
+            const Rect unlockLine = AddText("새 스테이지  ·  " + std::string{NightfallProduct::Stage(static_cast<StageId>(i)).nameKo},
+                center.x, unlockY, TinyPpu, StageAccent(i), true, 74);
+            RequireInside("result.unlock.stage", unlockLine, "result.panel", panel, 0.18F);
+            unlockY -= 0.40F;
         }
         for (std::size_t i = 0U; i < NightfallProduct::AchievementCount(); ++i)
         {
             if ((summary.newlyUnlockedAchievementsMask & (1U << static_cast<std::uint32_t>(i))) == 0U) continue;
-            static_cast<void>(AddText("새 업적  ·  " + std::string{NightfallProduct::Achievement(static_cast<AchievementId>(i)).nameKo},
-                center.x, unlockY, TinyPpu, Green, true, 74));
-            unlockY -= 0.44F;
+            const Rect unlockLine = AddText("새 업적  ·  " + std::string{NightfallProduct::Achievement(static_cast<AchievementId>(i)).nameKo},
+                center.x, unlockY, TinyPpu, Green, true, 74);
+            RequireInside("result.unlock.achievement", unlockLine, "result.panel", panel, 0.18F);
+            unlockY -= 0.38F;
         }
 
         constexpr std::array<std::string_view, 2U> items{"다시 도전", "메인 메뉴"};
@@ -1234,10 +1237,10 @@ private:
             const float x = center.x + (i == 0U ? -2.35F : 2.35F);
             const bool selected = product_.Selection() == i;
             if (selected)
-                static_cast<void>(AddPanel(x, center.y - 2.30F, 3.90F, 0.76F, {0.10F, 0.28F, 0.44F, 1.0F}, 1.0F, 53));
-            static_cast<void>(AddText(items[i], x, center.y - 2.03F, BodyPpu, selected ? White : Muted, true, 74));
+                static_cast<void>(AddPanel(x, center.y - 3.24F, 3.90F, 0.76F, {0.10F, 0.28F, 0.44F, 1.0F}, 1.0F, 53));
+            static_cast<void>(AddText(items[i], x, center.y - 3.00F, BodyPpu, selected ? White : Muted, true, 74));
         }
-        static_cast<void>(AddText("W/S 선택  ·  ENTER 확인", center.x, center.y - 3.15F, TinyPpu, Dim, true, 74));
+        static_cast<void>(AddText("W/S 선택  ·  ENTER 확인", center.x, center.y - 3.68F, TinyPpu, Dim, true, 74));
     }
 
     trace2d::render::Renderer& renderer_;

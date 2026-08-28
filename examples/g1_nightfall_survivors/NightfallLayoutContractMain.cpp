@@ -623,7 +623,7 @@ private:
                     const Visual& tile = ((px + py) & 1) == 0 ? floorsA_[i] : floorsB_[i];
                     const Rect tileBounds = Sprite(
                         tile,
-                        x[i] - 1.31F + static_cast<float>(px) * 0.875F,
+                        x[i] - 1.3125F + static_cast<float>(px) * 0.875F,
                         0.86F + static_cast<float>(py) * 0.64F,
                         0.875F, 0.64F);
                     RequireInside(scenario, "stage.tile", tileBounds, "stage.preview", preview, 0.0F);
@@ -727,7 +727,7 @@ private:
     void CheckResult(const std::string& scenario, const bool worstCase)
     {
         ++scenarioCount_;
-        const Rect panel = PanelRect(0.0F, 0.0F, 11.20F, 7.00F);
+        const Rect panel = PanelRect(0.0F, 0.0F, 11.20F, 8.40F);
         const Rect result = Text(worstCase ? "CLEAR" : "GAME OVER", 0.0F, 3.00F, TinyPpu, true);
         const Rect title = Text(worstCase ? "스테이지 클리어" : "패배", 0.0F, 2.48F, HeadingPpu, true);
         const Rect stat = Text(
@@ -742,34 +742,34 @@ private:
         RequireDisjoint(scenario, "result.title", title, "result.stat", stat, 0.05F);
         RequireDisjoint(scenario, "result.stat", stat, "result.reward", reward, 0.03F);
 
-        float unlockY = 0.28F;
+        float unlockY = 0.30F;
         if (worstCase)
         {
-            for (std::size_t i = 0U; i < NightfallProduct::CharacterCount(); ++i)
+            for (std::size_t i = 0U; i < 2U; ++i)
             {
-                const Rect line = Text("새 캐릭터  ·  " + std::string{NightfallProduct::Character(static_cast<CharacterId>(i)).nameKo},
+                const Rect line = Text("새 캐릭터  ·  " + std::string{NightfallProduct::Character(static_cast<CharacterId>(i + 1U)).nameKo},
                     0.0F, unlockY, TinyPpu, true);
                 RequireInside(scenario, "result.unlock.character", line, "result.panel", panel, 0.18F);
-                unlockY -= 0.48F;
+                unlockY -= 0.40F;
             }
-            for (std::size_t i = 0U; i < NightfallProduct::StageCount(); ++i)
+            for (std::size_t i = 0U; i < 1U; ++i)
             {
-                const Rect line = Text("새 스테이지  ·  " + std::string{NightfallProduct::Stage(static_cast<StageId>(i)).nameKo},
+                const Rect line = Text("새 스테이지  ·  " + std::string{NightfallProduct::Stage(static_cast<StageId>(i + 1U)).nameKo},
                     0.0F, unlockY, TinyPpu, true);
                 RequireInside(scenario, "result.unlock.stage", line, "result.panel", panel, 0.18F);
-                unlockY -= 0.48F;
+                unlockY -= 0.40F;
             }
-            for (std::size_t i = 0U; i < NightfallProduct::AchievementCount(); ++i)
+            for (std::size_t i = 0U; i < 5U; ++i)
             {
                 const Rect line = Text("새 업적  ·  " + std::string{NightfallProduct::Achievement(static_cast<AchievementId>(i)).nameKo},
                     0.0F, unlockY, TinyPpu, true);
                 RequireInside(scenario, "result.unlock.achievement", line, "result.panel", panel, 0.18F);
-                unlockY -= 0.44F;
+                unlockY -= 0.38F;
             }
         }
-        const Rect retry = Text("다시 도전", -2.35F, -2.03F, BodyPpu, true);
-        const Rect menu = Text("메인 메뉴", 2.35F, -2.03F, BodyPpu, true);
-        const Rect help = Text("W/S 선택  ·  ENTER 확인", 0.0F, -3.15F, TinyPpu, true);
+        const Rect retry = Text("다시 도전", -2.35F, -3.00F, BodyPpu, true);
+        const Rect menu = Text("메인 메뉴", 2.35F, -3.00F, BodyPpu, true);
+        const Rect help = Text("W/S 선택  ·  ENTER 확인", 0.0F, -3.68F, TinyPpu, true);
         RequireInside(scenario, "result.retry", retry, "result.panel", panel, 0.18F);
         RequireInside(scenario, "result.menu", menu, "result.panel", panel, 0.18F);
         RequireInside(scenario, "result.help", help, "result.panel", panel, 0.18F);
