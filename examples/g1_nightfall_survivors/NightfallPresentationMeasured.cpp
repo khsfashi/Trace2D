@@ -787,12 +787,12 @@ private:
             White, 1.0F, trace2d::render::SpriteBlendMode::Normal, 45);
 
         const auto& profile = product_.PlayerProfile();
-        const Rect recordHeader = AddText("전투 기록", 3.05F, 1.82F, TinyPpu, Dim, false, 72);
-        const Rect stars = AddText("별가루  " + std::to_string(profile.stars), 3.05F, 1.23F, BodyPpu, Gold, false, 72);
-        const Rect runs = AddText("플레이  " + std::to_string(profile.totalRuns) + "회", 3.05F, 0.54F, SmallPpu, Muted, false, 72);
-        const Rect clears = AddText("클리어  " + std::to_string(profile.totalClears) + "회", 3.05F, -0.05F, SmallPpu, Muted, false, 72);
-        const Rect kills = AddText("누적 처치  " + std::to_string(profile.totalKills), 3.05F, -0.64F, SmallPpu, Muted, false, 72);
-        const Rect level = AddText("최고 레벨  " + std::to_string(profile.bestLevel), 3.05F, -1.23F, SmallPpu, Muted, false, 72);
+        const Rect recordHeader = AddText("전투 기록", 2.65F, 1.82F, TinyPpu, Dim, false, 72);
+        const Rect stars = AddText("별가루  " + std::to_string(profile.stars), 2.65F, 1.23F, BodyPpu, Gold, false, 72);
+        const Rect runs = AddText("플레이  " + std::to_string(profile.totalRuns) + "회", 2.65F, 0.54F, SmallPpu, Muted, false, 72);
+        const Rect clears = AddText("클리어  " + std::to_string(profile.totalClears) + "회", 2.65F, -0.05F, SmallPpu, Muted, false, 72);
+        const Rect kills = AddText("누적 처치  " + std::to_string(profile.totalKills), 2.65F, -0.64F, SmallPpu, Muted, false, 72);
+        const Rect level = AddText("최고 레벨  " + std::to_string(profile.bestLevel), 2.65F, -1.23F, SmallPpu, Muted, false, 72);
 
         RequireInside("main.characterHeader", characterHeader, "main.infoPanel", infoPanel, 0.20F);
         RequireInside("main.characterName", characterName, "main.infoPanel", infoPanel, 0.20F);
