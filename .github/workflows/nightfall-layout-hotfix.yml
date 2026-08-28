@@ -1,0 +1,50 @@
+name: Nightfall Layout Hotfix
+
+on:
+  push:
+    branches: [game/nightfall-survivors]
+    paths:
+      - .github/workflows/nightfall-layout-hotfix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: game/nightfall-survivors
+      - name: Apply exact layout patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path('examples/g1_nightfall_survivors/NightfallPresentationMeasured.cpp'): [
+                  ('X[i], -0.66F, MicroPpu, unlocked ? Muted : Dim, true, 73', 'X[i], -0.72F, MicroPpu, unlocked ? Muted : Dim, true, 73'),
+              ],
+              Path('examples/g1_nightfall_survivors/NightfallLayoutContractMain.cpp'): [
+                  ('x[i], -0.66F, MicroPpu, true', 'x[i], -0.72F, MicroPpu, true'),
+              ],
+          }
+
+          for path, pairs in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected exactly one {old!r}, found {count}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+      - name: Commit patch and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/nightfall-layout-hotfix.yml
+          git add examples/g1_nightfall_survivors/NightfallPresentationMeasured.cpp examples/g1_nightfall_survivors/NightfallLayoutContractMain.cpp
+          git commit -m "fix: separate Nightfall character name and role bounds"
+          git push origin HEAD:game/nightfall-survivors
