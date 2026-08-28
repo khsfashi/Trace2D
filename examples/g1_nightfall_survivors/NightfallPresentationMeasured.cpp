@@ -932,10 +932,10 @@ private:
         const std::size_t selectedIndex = std::min<std::size_t>(product_.Selection(), 2U);
         const auto selectedId = static_cast<CharacterId>(selectedIndex);
         const bool selectedUnlocked = product_.IsCharacterUnlocked(selectedId);
-        const Rect detailPanel = AddPanel(0.0F, -2.63F, 13.65F, 0.72F, Panel, 0.98F, 42);
+        const Rect detailPanel = AddPanel(0.0F, -2.75F, 13.65F, 0.72F, Panel, 0.98F, 42);
         const Rect detail = AddText(
             selectedUnlocked ? NightfallProduct::Character(selectedId).descriptionKo : "해금 후 상세 능력을 확인할 수 있습니다.",
-            0.0F, -2.39F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
+            0.0F, -2.51F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
         RequireInside("character.detail", detail, "character.detailPanel", detailPanel, 0.10F);
         RequireDisjoint("character.cards", UnionRect(cards[0], cards[2]), "character.detailPanel", detailPanel, 0.12F);
         DrawFooter("A/D 또는 W/S 선택  ·  ENTER 확인  ·  ESC 뒤로");
@@ -984,11 +984,12 @@ private:
         const std::size_t selectedIndex = std::min<std::size_t>(product_.Selection(), 2U);
         const auto selectedStage = static_cast<StageId>(selectedIndex);
         const bool selectedUnlocked = product_.IsStageUnlocked(selectedStage);
-        const Rect detailPanel = AddPanel(0.0F, -2.60F, 13.65F, 0.68F, Panel, 0.98F, 42);
+        const Rect detailPanel = AddPanel(0.0F, -2.72F, 13.65F, 0.68F, Panel, 0.98F, 42);
         const Rect detail = AddText(
             selectedUnlocked ? NightfallProduct::Stage(selectedStage).descriptionKo : "이전 스테이지를 클리어하면 해금됩니다.",
-            0.0F, -2.38F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
+            0.0F, -2.50F, MicroPpu, selectedUnlocked ? Muted : Dim, true, 74);
         RequireInside("stage.detail", detail, "stage.detailPanel", detailPanel, 0.09F);
+        RequireDisjoint("stage.cards", UnionRect(cards[0], cards[2]), "stage.detailPanel", detailPanel, 0.12F);
         const auto selectedCharacter = product_.SelectedCharacter();
         const Rect equipped = AddText(
             "현재 장착  ·  " + std::string{NightfallProduct::Character(selectedCharacter).nameKo},

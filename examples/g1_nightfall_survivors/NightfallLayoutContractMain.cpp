@@ -120,6 +120,12 @@ struct Visual final
     return stream.str();
 }
 
+[[nodiscard]] std::vector<std::string>& LayoutViolations()
+{
+    static std::vector<std::string> violations{};
+    return violations;
+}
+
 void RequireInside(
     const std::string_view scenario,
     const std::string_view childId,
@@ -129,10 +135,10 @@ void RequireInside(
     const float margin = 0.0F)
 {
     if (Contains(parent, child, margin)) return;
-    throw std::runtime_error{
+    LayoutViolations().push_back(
         "Nightfall headless layout violation [" + std::string{scenario} + "]: " +
         std::string{childId} + " escapes " + std::string{parentId} +
-        " child=" + RectString(child) + " parent=" + RectString(parent)};
+        " child=" + RectString(child) + " parent=" + RectString(parent));
 }
 
 void RequireDisjoint(
@@ -144,10 +150,10 @@ void RequireDisjoint(
     const float gap = 0.0F)
 {
     if (!Intersects(left, right, gap)) return;
-    throw std::runtime_error{
+    LayoutViolations().push_back(
         "Nightfall headless layout violation [" + std::string{scenario} + "]: " +
         std::string{leftId} + " intersects " + std::string{rightId} +
-        " first=" + RectString(left) + " second=" + RectString(right)};
+        " first=" + RectString(left) + " second=" + RectString(right));
 }
 
 [[nodiscard]] std::vector<std::uint8_t> ReadBinary(const std::filesystem::path& path)
@@ -187,6 +193,7 @@ public:
 
     void Run()
     {
+        LayoutViolations().clear();
         constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 3U> Viewports{{
             {960U, 540U},
             {1024U, 768U},
@@ -211,6 +218,13 @@ public:
             CheckPause("pause/" + suffix);
             CheckResult("result/normal/" + suffix, false);
             CheckResult("result/worst-unlocks/" + suffix, true);
+        }
+        if (!LayoutViolations().empty())
+        {
+            std::ostringstream stream{};
+            stream << "Nightfall headless layout sweep found " << LayoutViolations().size() << " violation(s):";
+            for (const auto& violation : LayoutViolations()) stream << "\n" << violation;
+            throw std::runtime_error{stream.str()};
         }
     }
 
@@ -580,11 +594,11 @@ private:
         RequireDisjoint(scenario, "character.card1", cards[1], "character.card2", cards[2], 0.16F);
         for (std::size_t i = 0U; i < 3U; ++i)
         {
-            const Rect detailPanel = PanelRect(0.0F, -2.63F, 13.65F, 0.72F);
+            const Rect detailPanel = PanelRect(0.0F, -2.75F, 13.65F, 0.72F);
             const Rect detail = Text(
                 unlocked || i == 0U ? NightfallProduct::Character(static_cast<CharacterId>(i)).descriptionKo
                                      : "해금 후 상세 능력을 확인할 수 있습니다.",
-                0.0F, -2.39F, MicroPpu, true);
+                0.0F, -2.51F, MicroPpu, true);
             RequireInside(scenario, "character.detail", detail, "character.detailPanel", detailPanel, 0.10F);
             RequireDisjoint(scenario, "character.cards", UnionRect(cards[0], cards[2]), "character.detailPanel", detailPanel, 0.12F);
         }
@@ -627,12 +641,13 @@ private:
         RequireDisjoint(scenario, "stage.card1", cards[1], "stage.card2", cards[2], 0.16F);
         for (std::size_t i = 0U; i < 3U; ++i)
         {
-            const Rect detailPanel = PanelRect(0.0F, -2.60F, 13.65F, 0.68F);
+            const Rect detailPanel = PanelRect(0.0F, -2.72F, 13.65F, 0.68F);
             const Rect detail = Text(
                 unlocked || i == 0U ? NightfallProduct::Stage(static_cast<StageId>(i)).descriptionKo
                                      : "이전 스테이지를 클리어하면 해금됩니다.",
-                0.0F, -2.38F, MicroPpu, true);
+                0.0F, -2.50F, MicroPpu, true);
             RequireInside(scenario, "stage.detail", detail, "stage.detailPanel", detailPanel, 0.09F);
+            RequireDisjoint(scenario, "stage.cards", UnionRect(cards[0], cards[2]), "stage.detailPanel", detailPanel, 0.12F);
             const Rect equipped = Text("현재 장착  ·  달빛 사냥꾼", 0.0F, -3.20F, MicroPpu, true);
             RequireDisjoint(scenario, "stage.detailPanel", detailPanel, "stage.equipped", equipped, 0.06F);
         }
