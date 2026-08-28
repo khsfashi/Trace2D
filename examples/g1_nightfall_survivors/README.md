@@ -61,7 +61,8 @@ The profile records total runs, kills, clears, best level, best survival time, a
 - one shared 16:9 safe-grid and typography scale across menu, profile, achievements, settings, character select, stage select, HUD, level-up, pause, and result screens
 - Galmuri11 Bold Korean pixel UI font, pinned under SIL OFL 1.1
 - Korean menu/HUD/result text rendered through Trace2D production text (`FontResource -> GlyphAtlas -> TextLayoutRun -> TextPresentation2D`)
-- glyph-atlas binding resync when layout grows the prepared atlas
+- frame-stable glyph-atlas residency: the bounded product corpus is prewarmed before draw emission and late glyph mutation fails instead of replacing GPU residency mid-frame
+- measured layout contracts use actual emitted glyph and sprite quad bounds rather than estimated string lengths
 - three distinct playable character source sprites
 - three distinct enemy archetype source sprites
 - three distinct skill icon source sprites
@@ -69,6 +70,12 @@ The profile records total runs, kills, clears, best level, best survival time, a
 - automatic aspect-ratio-safe camera fitting: the authored 16:9 gameplay core is never cropped on narrower or wider windows; extra world is revealed instead
 - hit/death/level-up VFX and camera hit shake
 - physical SFX through `AudioSystem2D -> AudioOutput2D`
+
+## Headless product contract
+
+`trace2d_g1_nightfall_survivors_contract` validates product presentation before an owner ZIP can be staged. It does not construct a window or GPU renderer; instead it loads the actual pinned Galmuri font and product PNGs, runs them through `TextPresentation2D` / `SpritePresentation2D`, and checks named containment and non-overlap contracts from the emitted geometry.
+
+The Windows playable workflow builds and runs this contract before package staging and Defender scanning. A layout or late-glyph regression therefore blocks the playable artifact in CI instead of first appearing when the owner double-clicks the EXE.
 
 ## Windows distribution safety
 
