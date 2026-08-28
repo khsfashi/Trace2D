@@ -16,7 +16,16 @@ env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
 
 jobs:
+  source-preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Run no-build source preflight
+        run: python examples/g1_nightfall_survivors/preflight_source.py
+
   windows-playable:
+    needs: source-preflight
     runs-on: windows-2022
 
     steps:
@@ -30,9 +39,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path $evidence | Out-Null
           "initialized=true" | Set-Content (Join-Path $evidence "status.txt") -Encoding utf8
           "TRACE2D_NIGHTFALL_DEFENDER_EVIDENCE=$evidence" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      - name: Run no-build source preflight
-        run: python examples/g1_nightfall_survivors/preflight_source.py
 
       - name: Install pinned vcpkg
         shell: pwsh
