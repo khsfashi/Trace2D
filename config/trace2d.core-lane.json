@@ -78,11 +78,9 @@
     {"id": "cross-platform-stress-product-proof", "issue": 330},
     {"id": "save-migration", "issue": 79},
     {"id": "save-product-proof", "issue": 331},
-    {"id": "asset-studio-approved-lineage", "issue": 322},
-    {"id": "asset-studio-batch-proof", "issue": 323},
-    {"id": "flagship-game", "issue": 12},
+    {"id": "asset-interchange-v1", "issue": 422},
+    {"id": "flagship-qualification", "issue": 12},
     {"id": "mesh2d", "issue": 60},
-    {"id": "asset-intelligence-ir", "issue": 177},
     {"id": "native-deterministic-skeleton", "issue": 176},
     {"id": "spine-license-gate", "issue": 61}
   ]
