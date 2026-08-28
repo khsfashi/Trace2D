@@ -278,7 +278,7 @@ private:
             "일시정지 계속하기 메인 메뉴 레벨 업 하나를 선택하세요 연사 화력 궤도 공격 간격 감소 투사체 공격력 증가"
             "주변 회전무기 최대 이후 체력 강화 체력 남은 시간 다시 도전 획득 새 달성 미달성 조작 이동 자동공격 재시작"
             "현재 장착 보유 전투 기록 모험 준비 완료 패배 회 분 초 상세 능력을 확인할 수 있습니다 이전 클리어하면 해금됩니다"
-            "공격 방어 속도 장착 캐릭터선택 스테이지선택 생존자 첫 번째 밤 최종 결과 해금 후";
+            "공격 방어 속도 장착 조절 캐릭터선택 스테이지선택 생존자 첫 번째 밤 최종 결과 해금 후";
         for (std::size_t i = 0U; i < NightfallProduct::CharacterCount(); ++i)
         {
             const auto& definition = NightfallProduct::Character(static_cast<CharacterId>(i));
