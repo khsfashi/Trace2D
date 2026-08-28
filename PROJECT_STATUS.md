@@ -1,235 +1,126 @@
 # Trace2D Project Status
 
-Last explanatory handoff update: **2026-08-24**
+Last owner roadmap review: **2026-08-28**
 
-This file is context, not live state authority. Operational next action is derived from committed `config/trace2d.core-lane.json` plus live GitHub issue/PR/CI state.
+This file is explanatory context, not live-state authority. Operational next action comes from:
+
+1. compiling code/tests,
+2. live GitHub PR/issue/CI state,
+3. explicit owner decisions,
+4. `config/trace2d.core-lane.json`.
 
 ## Product rule
 
-Trace2D is an AI-first / AI-operated C++20 2D engine with the product rule:
+Trace2D is an AI-first / AI-operated C++20 2D engine.
 
 > **Humans define intent and judge the result. AI owns the iteration in between.**
 
-Verification rule:
-
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
-Product optimization target:
+Optimization target:
 
 > **Author -> Run -> Observe -> Verify -> Revise through a compact semantic surface.**
 
-A second owner rule now governs breadth:
+## What Nightfall changed
 
-> **Subsystem existence is not enough. Repeatedly prove that public Trace2D surfaces can make an actual game/product workflow.**
+PR #418 / #420 produced a closed owner-playable Nightfall Survivors loop covering menu/product screens, character/stage selection, survival gameplay, pause, result/unlocks and persistent progression. Owner playtest accepted the product-completion goal; #418 was intentionally closed without merge so the project could return to engine work.
 
-See `docs/PRODUCT_PROOF_POLICY.md`.
+This evidence means Trace2D no longer needs another bespoke game merely to prove that a real game-shaped product can run.
 
-## Global engineering benchmark rule
+#12 is now a **flagship qualification** checkpoint: reuse Nightfall evidence and close only missing current-public-engine deltas after persistence, rather than rebuilding gameplay/content.
 
-All non-trivial Trace2D work must follow `docs/EXTERNAL_REFERENCE_PROTOCOL.md` before the design is frozen.
+See `docs/POST_NIGHTFALL_DIRECTION.md`.
 
-The default is:
+## Asset-production boundary
 
-```text
-recover Trace2D decisions
- -> benchmark mature current GitHub/public implementations
- -> check whether direct reuse is practical
- -> ADOPT / ADAPT / REJECT / DEFER
- -> implement only the smallest missing Trace2D-owned part
- -> verify the borrowed lesson with Trace2D evidence
-```
-
-Do not independently rebuild an already-solved engineering capability merely because custom implementation is possible. Prefer mature, maintained, well-tested implementations or proven contracts when their license, dependency weight, runtime cost, portability and authority model fit Trace2D.
-
-TraceResearch owns controlled comparative claims about Agent efficiency. Trace2D may retain representative product/Agent evidence, but must not grow benchmark-specific architecture merely to improve a research score.
-
-## Completed production foundation
-
-The minimum external-game sequence through B2 and the first playable proof is complete:
+Actual TraceSprite repository state now makes the separation explicit:
 
 ```text
-#69 Game/Application
- -> #70 external project / SDK package
- -> #71 Scene hierarchy + typed authored components
- -> #86 unified typed resource lifecycle
- -> #87 scene templates + world lifecycle
- -> #88 Camera2D + Viewport2D
- -> #72 Input Actions / device input / text-IME
- -> #73 deterministic TileSet / TileMap / TileLayer
- -> #74 production UTF-8 font/text/localization
- -> #75 practical deterministic UI
- -> #178 Sprite transactional Agent authoring
- -> #179 Particle transactional Agent authoring
- -> #104 Benchmark B2
- -> #315 tiny external playable product proof
+TraceSprite / external tools
+  = import/generate/process/animate/review/approve/export
+
+Trace2D
+  = deterministic interchange/import
+  + canonical runtime assets
+  + render/animation/runtime semantics
+  + engine-owned verification
 ```
 
-#315 is consumed evidence. Do not reopen it merely to obtain a preferred presentation result.
+Trace2D already has SPP3/SPP4 deterministic Sprite import foundations. The missing promoted boundary is #422 **Asset Interchange V1**, including reciprocal supported metadata export.
 
-## Frozen Sprite continuity
+Asset Studio #318/#322/#323 and broad Asset Intelligence #177 are deferred/non-core while TraceSprite incubates the production workflow.
 
-The completed production Sprite program remains frozen continuity for later work. In particular:
+## Current implementation lane
 
-- **#144 / SA0** deterministic Sprite animation timing/frame/event contract remains complete and frozen,
-- SA1-SA4 remain the authoritative deterministic Sprite animation continuation built on SA0,
-- SR0-SR8 remain the production Sprite renderer/presentation authority,
-- SPP0-SPP5 remain the deterministic processing, extraction, quality/repair, import, generator-manifest and provider-neutral generation-orchestration authority,
-- SE2E/SPERF remain end-to-end and performance evidence continuity.
+As of this review, persistence remains the active program. PR #398 owns SAVE1 / #397 and progresses #79. Always inspect its current live CI/head before acting; do not infer readiness from this file.
 
-Later systems must compose these contracts rather than create parallel Sprite truth or weaken frozen animation/runtime semantics.
-
-## Immutable benchmark lessons
-
-### B1
-
-B1 remains immutable pre-improvement evidence. Its important product lesson is that runtime correctness and Agent usability are separate: several Trace2D final workspaces verified successfully despite Agent-budget failure. Do not rerun B1 to obtain a preferred score.
-
-### B2
-
-B2 and acceptance-v1-v5 remain consumed evidence. V5 ended in Agent/CLI completion-result timeout after partial workspace side effects; no gameplay-verifier or presentation-quality defect was demonstrated by that run. Do not create V6 merely to force a pass.
-
-These results reinforce the need for real product proofs and compact Agent surfaces instead of benchmark-shaped architecture growth.
-
-## Asset Studio checkpoint — minimal foundation complete
-
-#318 remains the long-term Asset Studio umbrella, but it is not an operational blocker.
-
-### #320 — production intent / Art Profile — COMPLETE
-
-Merged via PR #325.
-
-### #321 — bounded candidate comparison substrate — COMPLETE
-
-Merged via PR #326. It remains intentionally minimal: candidate grouping/references compose existing WorkResult/Workspace authority and do not own provider config, lifecycle/approval state, aesthetic score, lineage DB or runtime truth.
-
-### #322 / #323 — DEFERRED
-
-Approved-library lineage and one-provider batch proof stay behind the broader production foundation and the new product-proof checkpoints. Do not resume Asset Studio depth early.
-
-## Fixed continuation lane — owner amendment 2026-08-19
-
-Operational order is now:
+The persistence sequence remains conceptually:
 
 ```text
-#89  Material2D / Shader2D
- -> #90  Tween / Sequence
- -> #327 Presentation Product Proof
- -> #76  Physics2D
- -> #77  Audio
- -> #329 Combat Product Proof
- -> #91  Profiler
- -> #78  Linux / non-MSVC toolchain
- -> #92  tiered GPU QA
- -> #330 Cross-platform Stress Product Proof
- -> #79  Save / Migration
- -> #331 Save Product Proof
- -> #322 approved asset lineage
- -> #323 one-provider Asset Studio batch proof
- -> #12  broad flagship external game
- -> #60  Mesh2D
- -> #177 Asset Intelligence / Asset IR
- -> #176 native deterministic skeleton
- -> #61  Spine license gate
+#397 / PR #398 SAVE1
+ -> #399 SAVE2 typed gameplay adapters
+ -> remaining #79 persistence/migration slices
+ -> #331 real exit/restart/migration product proof
 ```
+
+No post-Nightfall roadmap change waives those acceptance gates.
+
+## Revised continuation after #331
 
 Machine authority is `config/trace2d.core-lane.json`.
 
-#328 Presentation Recipes is a long-lived product vocabulary/backlog, not a blocking lane item. Recipes are pulled into concrete product proofs as needed rather than implemented speculatively.
-
-#312 Semantic Project Graph / Project Index remains research-gated and does not enter this lane automatically.
-
-## Material / Tween / presentation direction
-
-### #89 Material2D / Shader2D — COMPLETE
-
-#89 is complete through MAT1-MAT4: typed fixed-capacity parameters, canonical #86 Shader2D/Material2D ownership, lifecycle-safe cached custom fragment execution, exact contiguous painter-order batching, deterministic failure/cache evidence and explicit retained pipeline/attachment costs. It adds no public render graph, material graph or effect-specific C++ vocabulary.
-
-Finished effects do not become engine-core features merely because they use a shader.
-
-### #90 Tween / Sequence — COMPLETE
-
-#90 completed the DOTween-class practical surface while keeping Trace2D semantics explicit and allocation-disciplined:
-
-- explicit `simulation` time domain for authoritative fixed-step tweening,
-- explicit `presentation` time domain advanced only by supplied/manual delta with no hidden wall-clock query,
-- resolved typed property/material bindings,
-- finite stable easing vocabulary,
-- absolute/relative and capture-current-on-start semantics,
-- first-class `Append`, `Join`, `Insert`, `Interval`, repeat/yoyo and deterministic conflict policies,
-- stale-safe reusable pooled storage/generational identity or equivalent,
-- no steady-step string lookup/heap allocation at retained capacity,
-- presentation completion/callbacks cannot become hidden gameplay authority.
-
-#327 subsequently consumed this surface in the bounded Presentation Product Proof; do not reopen #90 for speculative tween breadth.
-
-### #327 Presentation Product Proof — COMPLETE
-
-#327 is consumed product evidence for Material2D + Tween composition. Continue to use #328 as a recipe vocabulary/backlog rather than promoting one-off visual effects into engine-core systems.
-
-## Physics2D V1 — complete through PHYS3
-
-#76 is complete through the bounded PHYS1/PHYS2/PHYS3 program on pinned Box2D 3.1.1:
-
-- PHYS1 established typed body/collider authoring, fixed-step Scene authority, stable raycasts, lifecycle pruning and the private Box2D backend;
-- PHYS2 added stable contact/sensor events plus bounded circle/box overlap queries;
-- PHYS3 adds runtime linear/angular velocity control, dynamic center force/impulse, coherent teleport, and bounded stable circle/rotated-box shape casts.
-
-The V1 production-depth decisions are explicit in `docs/PHYSICS2D_PHYS3.md`: bullet/continuous-collision policy is supported through the pinned backend, shape casts are supported, and friction/restitution remain finite typed collider scalars. Compound colliders, joints/constraints, one-way platforms, a Trace2D-owned character controller, hierarchy-aware rigid bodies, debug geometry, custom hit thresholds and extra force/torque conveniences are deferred until representative product evidence demonstrates a common need.
-
-Do not open a speculative PHYS4 merely to exhaust the wishlist. #329 Combat Product Proof is now the next core-lane item and is where any concrete Physics2D gap should be rediscovered and minimized.
-
-## Audio V1 — complete through AUDIO4
-
-#77 is complete through the bounded AUDIO1-AUDIO4 program:
-
-- AUDIO1 established canonical `AudioClipResource` identity, typed authored sources, deterministic semantic playback/events/groups and lifecycle-safe retain/release behavior;
-- AUDIO2 added explicit preload/stream preparation with bounded decoded/streaming ownership and no ordinary hot-path file discovery;
-- AUDIO3 added finite global/per-group voice limits plus deterministic `reject_new` / `steal_oldest` admission with observable stolen/rejected counters;
-- AUDIO4 adds SDL3 presentation-only physical output, bounded preload/refill storage, explicit pump work outside `AudioSystem2D::Step()`, suspend/resume and recoverable device loss/format-change handling, and exact Trace2D-owned memory/device/stream counters.
-
-`AudioSystem2D` remains semantic authority. SDL3 mirrors semantic voices and observes playback-device events without consuming the shared Platform SDL event queue. Spatial audio and DSP/effect graphs remain deferred unless #329 demonstrates a concrete need.
-
-The next core-lane item is #329 Combat Product Proof. Compose the public Physics2D + Audio surfaces in a representative combat/game-feel loop before adding more subsystem breadth.
-
-## Official Presentation Recipes
-
-Trace2D owns an **Official Presentation Recipe** layer above engine primitives and below game-specific art direction. See `docs/PRESENTATION_RECIPES.md` and umbrella #328.
-
-Representative recipe vocabulary may include hit flash, outline, dissolve, palette/UV effects, button punch, panel slide, damage-number motion, screen flash and composite hit impact.
-
-Binding promotion rule:
-
 ```text
-external technique / real game need
- -> first reproduce with existing Trace2D primitives as a recipe
- -> prove it in a real sample + retain cost/quality evidence
- -> only if multiple independent recipes repeatedly need the same missing capability,
-    or measured performance/quality cannot be achieved,
-    promote the smallest common primitive into engine core
+#422 Asset Interchange V1
+ -> #12 Nightfall-based flagship qualification
+ -> #60 Mesh2D
+ -> #176 Native Deterministic Skeletal Animation
+ -> #61 Spine license gate
 ```
 
-Do not implement `one cool effect = one C++ subsystem`.
+### #422 Asset Interchange V1
 
-## Recurring Product Proof rule
+Keep this deliberately small. Reuse existing SPP3/SPP4/S1/SA authority; add only the versioned tool-neutral handoff/export contract required for approved external assets. No generation provider, candidate browser, semantic VLM analysis or Asset Studio UI.
 
-Product proofs are deliberately inserted between groups of substantial subsystems:
+### #12 Flagship qualification
 
-- #89 + #90 -> #327 presentation playground,
-- #76 + #77 -> #329 small combat/game-feel loop,
-- #91 + #78 + #92 -> #330 same-workload cross-platform/stress proof,
-- #79 -> #331 real exit/restart/migration proof.
+Do not build a second game. Reuse #418/#420 where they already prove product behavior and qualify only remaining current-main/public-SDK deltas such as persistence, portability, GPU/profiler evidence and public external-consumer closure.
 
-A proof should primarily compose public capabilities. If it exposes a concrete gap, fix the smallest demonstrated gap. Preserve owner-rejected/failed evidence rather than rerunning solely to erase an unfavorable result.
+### #60 Mesh2D
 
-## Continuation rule
+Expand runtime presentation capability to arbitrary textured indexed geometry without turning SpriteRenderer into a general render graph.
 
-Every future `@GitHub Trace2D 다음 작업 진행해줘` resolves live state first.
+### #176 Native deterministic skeleton
 
-- #321 is complete; do not return to Asset Studio depth.
-- #89, #90 and #327 are complete and consumed.
-- #76 Physics2D V1, #77 Audio V1, #329 Combat Product Proof, #91 Profiler and #78 Linux/non-MSVC portability are complete.
-- **#92 tiered real-GPU QA is the exact next core-lane item.**
-- Do not reopen completed portability or subsystem breadth; #92 owns real-GPU conformance/release validation and reuses #91 profiling/timing vocabulary.
-- Follow the later proof checkpoints in `config/trace2d.core-lane.json`.
-- Do not start #322/#323 before #331 is accepted.
-- Live issue/PR/CI state plus `config/trace2d.core-lane.json` wins if explanatory prose becomes stale.
+Own deterministic skeleton IR/evaluation/events/mixing/inspection and scoped Mesh2D skinning. Auto-rigging/generative E2E is no longer required for engine completion; external tools may later export compatible data through a narrowly promoted interchange contract.
+
+## Deferred / not automatic continuation
+
+- #318 Asset Studio umbrella
+- #322 approved asset lineage
+- #323 live-provider batch proof
+- #177 broad Asset Intelligence / Asset IR
+- #312 Semantic Project Graph (research-gated)
+- #93 later lighting/navigation/platform/networking/hot-reload breadth
+
+These require fresh owner/evidence promotion. Finishing an older prerequisite does not activate them automatically.
+
+## Nightfall dogfood follow-ups
+
+- #417 practical keyboard/InputControl completeness
+- #421 deterministic UI containment/overlap diagnostics
+- #419 Windows Defender/distribution safety
+
+These are real findings. Promote them when they block/recur in product work; #419 must be respected before affected public distribution. Their existence alone does not rewrite the core lane.
+
+## Critical direction rule
+
+A successful Nightfall product does **not** prove Trace2D is categorically better than mature engine + Agent workflows. That comparative thesis remains falsifiable and belongs to TraceResearch / #369.
+
+The next phase should maximize new information:
+
+- finish missing lifecycle correctness (save/restart/migration),
+- reduce duplicated product ownership through clean tool boundaries,
+- expand genuinely new runtime expressiveness (Mesh2D/skeleton),
+- continue measuring Agent complexity separately from feature breadth.
+
+Do not add another proof, subsystem or IR merely because it looks like a conventional engine checklist item.
