@@ -460,7 +460,7 @@ private:
         const Rect characterHeader = Text("현재 캐릭터", -1.86F, 1.82F, TinyPpu);
         const Rect characterName = Text(character.nameKo, -1.86F, 1.28F, HeadingPpu);
         const Rect characterRole = Text(character.subtitleKo, -1.86F, characterName.bottom - 0.08F, MicroPpu);
-        const Rect hero = Sprite(heroes_[characterIndex], -0.28F, -0.82F, 2.65F, 2.65F);
+        const Rect hero = Sprite(heroes_[characterIndex], -0.28F, -1.14F, 2.65F, 2.65F);
         const Rect recordHeader = Text("전투 기록", 3.05F, 1.82F, TinyPpu);
         const std::string starsText = largeProfile ? "별가루  999999" : "별가루  0";
         const std::string runsText = largeProfile ? "플레이  999회" : "플레이  0회";

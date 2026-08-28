@@ -783,7 +783,7 @@ private:
         const Rect characterRole = AddText(character.subtitleKo, -1.86F, characterName.bottom - 0.08F, MicroPpu, Muted, false, 72);
         const float bob = std::sin(static_cast<float>(game_.FrameCounter() % 120U) * 0.0523598776F) * 0.04F;
         const Rect hero = AddVisual(
-            heroes_[characterIndex], {-0.28F, -0.82F + bob}, {2.65F, 2.65F}, 0.0F,
+            heroes_[characterIndex], {-0.28F, -1.18F + bob}, {2.65F, 2.65F}, 0.0F,
             White, 1.0F, trace2d::render::SpriteBlendMode::Normal, 45);
 
         const auto& profile = product_.PlayerProfile();
