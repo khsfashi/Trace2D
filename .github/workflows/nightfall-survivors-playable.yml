@@ -56,6 +56,19 @@ jobs:
       - name: Build playable Release target and fetch CC0 assets
         run: cmake --build --preset windows-release --target trace2d_g1_nightfall_survivors_windowed --parallel
 
+      - name: Build headless product contract sweep
+        run: cmake --build --preset windows-release --target trace2d_g1_nightfall_survivors_contract --parallel
+
+      - name: Run headless product contract sweep
+        shell: pwsh
+        run: |
+          $contract = Get-ChildItem -Path "build/windows-msvc" -Recurse -File -Filter "trace2d_g1_nightfall_survivors_contract.exe" | Select-Object -First 1
+          if (-not $contract) { throw "Nightfall headless product contract executable was not produced." }
+          & $contract.FullName
+          if ($LASTEXITCODE -ne 0) {
+            throw "Nightfall headless product contract sweep failed with exit code $LASTEXITCODE."
+          }
+
       - name: Stage portable playable package
         shell: pwsh
         run: |
