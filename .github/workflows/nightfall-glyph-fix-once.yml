@@ -1,0 +1,47 @@
+name: Nightfall glyph corpus fix once
+
+on:
+  push:
+    branches:
+      - game/nightfall-survivors
+    paths:
+      - ".nightfall-glyph-fix-trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: game/nightfall-survivors
+          fetch-depth: 0
+      - name: Add missing deterministic glyph corpus
+        shell: python
+        run: |
+          from pathlib import Path
+
+          paths = [
+              Path('examples/g1_nightfall_survivors/NightfallPresentationMeasured.cpp'),
+              Path('examples/g1_nightfall_survivors/NightfallLayoutContractMain.cpp'),
+          ]
+          old = '공격 방어 속도 장착 캐릭터선택 스테이지선택 생존자 첫 번째 밤 최종 결과 해금 후'
+          new = '공격 방어 속도 장착 조절 캐릭터선택 스테이지선택 생존자 첫 번째 밤 최종 결과 해금 후'
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one corpus occurrence, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add examples/g1_nightfall_survivors/NightfallPresentationMeasured.cpp examples/g1_nightfall_survivors/NightfallLayoutContractMain.cpp
+          git commit -m "fix: prewarm Nightfall settings glyphs"
+          git push origin HEAD:game/nightfall-survivors
