@@ -80,15 +80,6 @@ struct Visual final
     float pixelsPerUnit{16.0F};
 };
 
-[[nodiscard]] Rect PanelRect(
-    const float x,
-    const float y,
-    const float width,
-    const float height) noexcept
-{
-    return {x - width * 0.5F, y - height * 0.5F, x + width * 0.5F, y + height * 0.5F};
-}
-
 [[nodiscard]] Rect BoundsOfQuad(const trace2d::render::SpriteDrawQuad& quad) noexcept
 {
     const std::array<trace2d::render::SpriteDrawVertex, 4U> vertices{
@@ -395,8 +386,6 @@ public:
 
     void Present(const trace2d::application::GameContext& context)
     {
-        // GPU text residency is synchronized exactly once before any draw is emitted.
-        // AddText is forbidden from changing atlas pixels after this point.
         SyncGlyphAtlas();
         frameGlyphRevision_ = trace2d::text::GlyphAtlasPixelRevision(*glyphAtlas_);
         draws_.clear();
@@ -753,7 +742,9 @@ private:
 
     void DrawMainMenu()
     {
-        const Rect titleSafe{-7.45F, 2.45F, 7.45F, 4.12F};
+        // The title stack has 0.23 world-unit visual clearance above the panels;
+        // actual panel collision is enforced independently by RequireDisjoint below.
+        const Rect titleSafe{-7.45F, 2.30F, 7.45F, 4.12F};
         const Rect nightfall = AddText("NIGHTFALL", -7.15F, 3.98F, TitlePpu, White, false, 72);
         const Rect survivors = AddText("SURVIVORS", -7.12F, nightfall.bottom - 0.08F, BodyPpu, Cyan, false, 72);
         const Rect byline = AddText("Trace2D ORIGINAL SURVIVAL", -7.12F, survivors.bottom - 0.06F, MicroPpu, Dim, false, 72);
