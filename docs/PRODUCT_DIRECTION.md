@@ -1,10 +1,11 @@
 # Trace2D Product Direction
 
-Status: **owner-approved product rule**
+Status: **owner-approved product rule**  
+Last amended: **2026-08-28**
 
-Trace2D is not competing to expose the largest editor API, the most MCP tools, or the broadest clone of a mature game engine.
+Trace2D is not competing to expose the largest editor API, the most MCP tools, or the broadest clone of a mature engine.
 
-The product claim to prove is narrower:
+The product claim to prove remains narrower:
 
 > **A coding Agent should be able to author, run, observe, verify and revise a 2D game through a compact semantic surface with low discovery, context and revision cost.**
 
@@ -14,123 +15,138 @@ Short loop:
 Author -> Run -> Observe -> Verify -> Revise
 ```
 
-The judgment rule remains:
+Judgment rule:
 
 > **Deterministic where possible. Multimodal where necessary. Human judgment at the end.**
 
+## What Nightfall proved — and did not prove
+
+PR #418 / #420 provided owner-accepted evidence that Trace2D can support a real closed game-shaped product loop. The consumed historical PR #418 head is pinned at `3974489c75b3b7fa460d07835855657cebbe3f3c`.
+
+That changes roadmap economics: another bespoke flagship game with substantially the same capability mix would mostly repeat evidence.
+
+Nightfall does **not** prove the stronger comparative thesis that Trace2D is more Agent-efficient than mature-engine + Agent workflows. That remains a falsifiable research/product question under #369 / TraceResearch.
+
+Accordingly:
+
+- #12 is now a delta qualification checkpoint over the proven Nightfall workload, not a second game build;
+- future product proofs should add new information, not merely more screens/content;
+- real dogfood gaps are more valuable than checklist breadth when choosing polish work.
+
 ## Product moat
 
-Trace2D should optimize these together:
+Optimize these together:
 
-1. **compact semantic authoring** — typed/transactional operations over canonical state instead of forcing low-level representation edits;
-2. **deterministic execution** — explicit fixed-step control and stable semantic identity;
-3. **cheap structured observation** — inspect engine-owned facts directly instead of inferring them from screenshots;
-4. **replayable verification** — exact inputs, frames, assertions and bounded failure evidence;
-5. **human-visible closure** — a real playable result, targeted owner feedback and a verified revision loop.
+1. **compact semantic authoring** — typed/transactional operations over canonical state;
+2. **progressive workflow discovery** — reveal canonical Trace2D usage only when the task needs it, then narrow to exact APIs/tools/examples;
+3. **deterministic execution** — explicit fixed-step control and stable semantic identity;
+4. **cheap structured observation** — inspect engine-owned facts directly;
+5. **replayable verification** — exact inputs, frames, assertions and bounded failure evidence;
+6. **human-visible closure** — playable output, targeted feedback and verified revision;
+7. **clean external-tool boundaries** — do not duplicate upstream production tools when stable interchange is sufficient.
 
-A feature is not automatically valuable because it increases engine breadth. A tool is not automatically valuable because it exposes another internal operation.
+A feature is not automatically valuable because it increases breadth. A tool is not automatically valuable because it exposes another internal operation.
+
+## Progressive disclosure is part of the public Agent surface
+
+Trace2D should answer Agent discovery questions in layers rather than forcing broad repository reading up front:
+
+```text
+Capability: can Trace2D do this?
+ -> Skill: what is the canonical Trace2D workflow?
+ -> API/tool discovery: which exact public surface is needed now?
+```
+
+Capability metadata remains truth about availability/evidence. Skills should contain workflow knowledge and important authority/ordering rules that are not efficiently recoverable from raw symbol/tool descriptions. Public API/tool indexes remain the source for exact declarations and callable primitives.
+
+Do not duplicate whole API references into skills, and do not preload all skills/tool schemas into every context. Keep descriptors small, bounded and cacheable where practical.
+
+#424 is the P0 implementation of this direction after SAVE1 and before SAVE2.
 
 ## Agent Complexity is a product metric
 
-Measure at least:
+Measure where practical:
 
-- time/tool calls to first correct target discovery,
-- files/resources read and rereads,
-- input/output tokens,
-- raw-text edits versus semantic transactions,
-- authored revisions,
-- build/run/validation calls,
-- visual-feedback calls,
-- human interventions,
-- bounded evidence bytes,
+- time/tool calls to first correct target discovery;
+- files/resources read and rereads;
+- input/output tokens;
+- raw-text edits vs semantic transactions;
+- authored revisions;
+- build/run/validation calls;
+- visual-feedback calls;
+- human interventions;
+- bounded evidence bytes;
 - verified outcome and failure class.
 
-Do not solve context pressure primarily by increasing prompts/budgets, adding benchmark-shaped shortcuts, proliferating narrow MCP tools, or returning complete project/resource state by default.
-
-Prefer fewer discoverable concepts, bounded outputs, typed mutations and cached/resolved setup state.
+Do not solve context pressure primarily by increasing prompts/budgets, adding benchmark-shaped shortcuts, proliferating narrow tools or dumping complete project state by default.
 
 ## Product lane vs research lane
 
-Trace2D keeps benchmark evidence, but benchmark machinery must not become the product.
+Trace2D owns practical runtime/public Agent contracts, external-game authoring, deterministic verification, public SDK usability and real product dogfood.
 
-The product lane owns runtime/public Agent contracts, external game authoring, deterministic verification, WorkResult/Workspace review, real playable proofs and general usability fixes justified by retained evidence.
+TraceResearch owns controlled comparative claims and should be allowed to produce negative results. A successful Trace2D game is product evidence, not self-issued proof of superiority.
 
-Repeated matched experiments, retrieval comparisons and benchmark methodology belong in benchmark/TraceResearch work where possible. Research may justify a product change, but a successor benchmark is not itself a product milestone.
+## External asset-production boundary
 
-## Benchmark closure rule
+TraceSprite now actively incubates the standalone asset-production workflow. Trace2D should consume approved results through stable deterministic interchange rather than rebuild the same product inside the engine.
 
-A frozen cohort remains immutable even when it fails. Post-score acceptance work may diagnose and repair **general** product/execution surfaces, but must not become rerun-until-success.
+Current split:
 
-After a consumed acceptance cohort fails:
+```text
+TraceSprite / external tools
+  = import/generate/process/animate/review/approve/export
 
-1. preserve it unchanged;
-2. perform bounded read-only diagnosis when useful;
-3. fix only a demonstrated general product/execution defect;
-4. create a new append-only acceptance version only when the fix materially changes the blocked layer and the owner explicitly decides another proof is worth the cost;
-5. otherwise close the benchmark with failed acceptance preserved as part of the conclusion.
+Trace2D
+  = deterministic interchange/import
+  + canonical runtime assets
+  + render/animation/runtime semantics
+  + engine-owned verification
+```
 
-Provider capacity, transport instability or other external execution failure is valid evidence. It does not create an obligation to keep adding acceptance versions until one happens to pass.
+#422 is the promoted engine-side integration task. #318/#322/#323 and broad #177 are deferred/non-core until real evidence demonstrates missing engine-context value.
 
-## B2 conclusion
+## Build consumers before broad IRs
 
-B2 scored execution is complete and immutable. Acceptance-v5 is also consumed and must not be rerun.
+Do not design a large semantic Asset IR, graph, provider abstraction or analysis pipeline before a concrete consumer exists.
 
-The read-only V5 diagnostic (`32123441180`) showed the common failure clearly:
+Preferred order:
 
-- both Agent subprocesses timed out after 885 seconds,
-- both produced no valid final Agent result or retained Codex event stream,
-- both were correctly classified as non-authoritative infrastructure `agent_result_failure`,
-- deterministic verification and presentation review were correctly skipped,
-- both workspaces nevertheless contain partial authoring side effects.
+```text
+runtime/product consumer
+ -> exact missing handoff or observability gap
+ -> smallest stable contract
+ -> implementation + evidence
+```
 
-Those partial workspaces are evidence, not valid V5 candidates. They must not be promoted, retroactively verified as accepted turns, or used to reinterpret the consumed cohort.
-
-The diagnostic did not demonstrate a Trace2D gameplay-verifier or presentation defect, and it did not demonstrate a general Trace2D-owned fix that would justify an automatic V6. Therefore B2 may close with:
-
-- scored benchmark complete,
-- post-score remediations preserved,
-- final full-loop acceptance **not proven**,
-- the Agent execution/result timeout explicitly recorded.
-
-Failure to prove the full loop is a benchmark result, not a reason to distort the benchmark.
-
-## Playable proof before breadth
-
-After B2 closes, the core lane moves to **#315 — tiny external playable product proof** before #89 Material2D/Shader2D.
-
-This checkpoint intentionally uses capabilities Trace2D already has. It should not wait for Physics2D, Audio, Save, Mesh or every mature-engine subsystem.
-
-The question is:
-
-> Can a human give a small game intent, receive something genuinely playable, review it, request one concrete change, and receive a deterministically re-verified revision without the Agent getting lost in the engine?
-
-Only blockers demonstrated by that proof should interrupt it with new general engine work. #12 remains the later broad flagship proof.
+This is why #176 native skeleton runtime remains core while #177 broad Asset Intelligence is deferred. Runtime semantics should define what external tools actually need to export.
 
 ## Breadth policy
 
-For mature-engine capabilities such as materials, physics, audio and persistence:
+For mature-engine capabilities:
 
 - own the Trace2D semantic/deterministic contract;
-- prefer proven backends where they satisfy the contract instead of reimplementing solved infrastructure for its own sake;
-- keep backend details out of gameplay and Agent-facing semantics;
-- avoid normal-frame parsing, filesystem discovery, repeated string lookup or duplicate authority models;
-- require measured evidence before broad abstractions such as generic render graphs.
+- prefer proven backends when they fit;
+- keep backend details out of gameplay/Agent-facing semantics;
+- avoid normal-frame parsing, filesystem discovery, repeated string lookup and duplicate authority models;
+- require measured evidence before broad abstractions;
+- prefer runtime expressiveness that unlocks materially new game classes over repeated product demos.
 
-## Semantic Project Index
-
-#312 remains research-gated. Do not build a generic "RAG graph" merely because it sounds AI-native.
-
-First prove repository/project rediscovery remains a material cost. If promoted, prefer compiler-backed C/C++ semantics plus Trace2D-owned project/resource relationships and bounded deterministic retrieval. Repository indexing or embedding work must not enter the gameplay runtime.
+The immediate owner-approved order is SAVE1 -> #424 progressive discovery -> remaining persistence. After persistence/qualification, the promoted breadth is currently Mesh2D then native deterministic skeleton.
 
 ## Decision test for future work
 
-Before adding a subsystem, Agent tool or abstraction, ask:
+Before adding a subsystem, Agent tool or product surface, ask:
 
-1. Does a current playable/product workflow need it?
-2. Is the blocker demonstrated by retained evidence?
-3. Does it reduce Agent concepts/context/revisions or merely expose more surface?
-4. Can a proven backend satisfy the need behind a Trace2D-owned contract?
-5. Can the result be verified without screenshot inference where the engine owns the truth?
-6. Will this make the next real external game easier to author and approve?
+1. Does a current workload need it?
+2. Does it unlock materially new runtime capability or reduce repeated Agent/human cost?
+3. Is the blocker demonstrated by retained evidence?
+4. Is another Trace project or mature external tool already the better upstream owner?
+5. Can a smaller interchange/import/runtime contract solve it?
+6. Is a proposed schema designed from a concrete consumer backward?
+7. Does the work add new information rather than repeat a proof already accepted?
+8. Can engine-owned facts be verified structurally without screenshot inference?
+9. Can a fresh Agent discover the canonical workflow without broad unrelated context loading?
 
-If the answer is mostly no, postpone the work.
+If the answers are mostly no, postpone the work.
+
+See `POST_NIGHTFALL_DIRECTION.md` for the current roadmap amendment.
