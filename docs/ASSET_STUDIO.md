@@ -1,121 +1,93 @@
 # Trace2D Asset Studio
 
-Tracking issue: #318. Existing review surface: #99 / `docs/WORKSPACE.md`.
+Tracking umbrella: #318  
+Current promoted engine-side boundary: #422
 
-## Product role
+## State — 2026-08-28
 
-Asset Studio is the long-term Trace2D-owned human-facing product for AI-operated game-asset production.
+**Deferred product direction. TraceSprite currently incubates the standalone asset-production workflow.**
 
-It is not a separate TracePixel app and it is not a Unity/Aseprite-style mandatory manual editor.
+Trace2D should not duplicate a second generation/pixel-processing/animation-review/approval application while TraceSprite is actively proving that workflow.
 
-Target eventual human loop:
-
-```text
-Request -> Compare candidates/evidence -> Give feedback / choose -> Approve
-```
-
-The product direction remains valid, but its deeper library/provider model is intentionally **not** being completed while Trace2D's production capability set is still Sprite-heavy.
-
-## Existing authority to reuse
-
-Asset Studio composes existing production contracts rather than creating parallel truth.
-
-- Sprite S1 / SA / SR own canonical Sprite, animation and rendering semantics.
-- SPP0-SPP5 own Sprite processing/import/provider-neutral generation orchestration.
-- #97 owns project-visible intent / Definition of Done.
-- #98 owns WorkResult, verification, diagnosis, revision and artifact evidence.
-- #99 Workspace owns human review, feedback and approval presentation.
-- #178/#179 own transactional Sprite/Particle authoring.
-- Later Material/Tween/Physics/Audio/etc. add production primitives that the eventual Studio should compose rather than anticipate with a Sprite-only database.
-
-Generated pixels and external provider state remain inputs/evidence. Canonical Trace2D project/runtime state remains authority.
-
-## Completed immediate foundation
-
-### #320 — set-level production intent and Art Profile — complete
-
-`AssetProductionSpec` makes set-level creative intent recoverable from committed project state:
-
-- production set and item identities,
-- exact target dimensions,
-- required deliverables/directions,
-- structural constraints,
-- bounded candidate/provider-call budget intent,
-- exact #97 human-review acceptance reference,
-- compact Art Profile and approved canonical references.
-
-It owns no completion state, candidate lifecycle, provider configuration or aesthetic score.
-
-### #321 — bounded Candidate Set comparison substrate — current
-
-`AssetCandidateSet` is intentionally smaller than the original showroom proposal. It owns only:
-
-- production-set/item binding,
-- exact WorkResult/work revision binding,
-- stable candidate identity and bounded ordinal,
-- references to artifacts already owned by that revision.
-
-Workspace composition validates that the revision is current and every referenced artifact is owned by that exact current revision. Approval/rejection/feedback remain ordinary WorkResult/Workspace truth.
-
-See `docs/ASSET_CANDIDATE_SET.md`.
-
-## Deferred depth
-
-### #322 — approved Asset Library / lineage — deferred
-
-Do not implement immediately after #321. Return only after the broader production foundation through #79 is complete. At that point the library contract can be evaluated against the asset classes and authoring primitives that actually exist instead of being prematurely Sprite-specific.
-
-### #323 — one-provider end-to-end production proof — deferred
-
-Return after #322. At implementation time, review one then-current practical provider/backend and prove a real coherent game-ready batch. Do not add provider SDK/auth/network/retry infrastructure now.
-
-## Owner-fixed sequencing — 2026-08-19
+## Responsibility split
 
 ```text
-#315 tiny playable product proof       complete
- -> #320 production intent             complete
- -> #321 candidate comparison substrate
- -> #89 Material2D / Shader2D
- -> #90 deterministic Tween
- -> #76 Physics2D
- -> #77 Audio
- -> #91 Profiler
- -> #78 Linux / non-MSVC
- -> #92 tiered GPU QA
- -> #79 Save / Migration
- -> #322 approved asset lineage
- -> #323 one-provider batch proof
- -> #12 broad flagship external game
+TraceSprite / external authoring tools
+  -> import or generate source assets
+  -> process / pixelize / normalize
+  -> produce/review animation
+  -> human approve/reject
+  -> export game-ready PNG / sprite sheet / bounded metadata
+
+Trace2D
+  -> validate deterministic interchange
+  -> import into canonical Sprite/runtime assets
+  -> render / animate / simulate
+  -> expose engine-owned structured verification
 ```
 
-#318 remains open as a product umbrella but is not an operational blocker after #321.
+Trace2D already owns substantial import authority through SPP3/SPP4. #422 adds the missing stable tool-neutral interchange/export boundary rather than another Asset Studio UI.
 
-## Art Profile / approved references
+## Existing completed work
 
-Coherent production still needs project style memory. Prefer compact project-owned creative constraints plus references to approved canonical assets over ever-growing prose prompts.
+#320 and #321 remain valid completed foundations/evidence:
 
-These references are creative evidence, not deterministic aesthetic truth. Final visual quality remains human judgment.
+- set-level production intent / Art Profile references;
+- bounded candidate comparison references composed with WorkResult/Workspace.
 
-## Candidate comparison rule
+They are not deleted, but they no longer imply that Trace2D must finish an in-engine provider/library product.
 
-Candidate production/review is bounded:
+## Deferred work
+
+### #322 approved lineage
+
+Deferred and non-core. Resume only if real external-tool use proves that canonical Trace2D project/runtime identity needs engine-side lineage beyond #422.
+
+### #323 provider batch proof
+
+Deferred and non-core. TraceSprite is the current environment for proving provider-backed production. Do not reproduce the same provider/auth/candidate workflow in Trace2D without a demonstrated engine-context advantage.
+
+### #177 Asset Intelligence / Asset IR
+
+Deferred and non-core. Do not freeze semantic parts/masks/rig inference/VLM analysis before a concrete runtime consumer exists. Native skeleton runtime should be built first; any later handoff schema is designed from that consumer backward.
+
+## Current integration rule
+
+Preferred boundary:
 
 ```text
-finite candidates
- -> objective processing evidence where available
- -> exact result artifacts
- -> Workspace comparison
- -> human feedback/approval through existing authority
+approved external asset
+ + versioned bounded interchange metadata
+ -> existing Trace2D deterministic importer
+ -> canonical engine asset
 ```
 
-Never implement `generate until aesthetic_score >= threshold`.
+Reciprocal export should expose only metadata Trace2D actually owns. It must not pretend to reconstruct source-tool candidate history, prompts, model state, layer state or approval UI state.
 
-## Generator policy when #323 resumes
+## Product promotion rule
 
-Trace2D does not need to own the best generative model. Providers remain replaceable inputs behind the provider-neutral boundary.
+A deeper Trace2D Asset Studio slice requires retained evidence that an external tool boundary is insufficient **because of Trace2D-specific runtime/project context**.
 
-When live generation is actually needed, integrate one practical provider/backend, freeze current license/version/deployment facts, and prove the owner loop before considering more.
+Valid signals may include:
 
-## TracePixel relationship
+- repeated canonical-identity/revision handoff failures;
+- owner review that genuinely requires live game context;
+- measurable Agent/human rediscovery caused by missing engine-owned linkage;
+- a new canonical runtime asset class whose handoff cannot be represented by the existing interchange contract.
 
-TracePixel remains a deterministic raster R&D lab/reference backend. A technique may be promoted only after matched evidence shows a concrete Trace2D advantage. Generic processing already owned by SPP is not reimplemented merely to preserve TracePixel scope.
+When that happens, promote the smallest missing engine-side contract rather than copying TraceSprite wholesale.
+
+## Human judgment
+
+`TECHNICAL_PASS != OWNER_APPROVED` remains valid across both projects. Deterministic checks reject objective defects; aesthetic approval remains human.
+
+## Non-goals while deferred
+
+- no Trace2D provider SDK/auth integration;
+- no duplicate candidate showroom;
+- no automatic aesthetic score;
+- no runtime generation;
+- no second asset database;
+- no broad semantic/VLM analysis pipeline without a runtime consumer.
+
+See `POST_NIGHTFALL_DIRECTION.md` for the broader roadmap rationale.

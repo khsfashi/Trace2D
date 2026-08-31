@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-surface",
+  "surface": "scene",
+  "purpose": "Entity, transform, hierarchy, and typed component authoring through the public Scene surface.",
+  "read_policy": "Use these contracts first. Open only the exact header when a template signature or failure enum still needs confirmation.",
+  "preferred_include": "trace2d/Trace2D.hpp",
+  "exact_headers": [
+    "trace2d/scene/Components.hpp",
+    "trace2d/scene/Scene.hpp"
+  ],
+  "contracts": [
+    {
+      "symbol": "trace2d::scene::ComponentRegistry::Register<T>",
+      "summary": "Register stable typed components before the registry is frozen; the returned ComponentTypeHandle<T> is used by Scene component operations."
+    },
+    {
+      "symbol": "trace2d::scene::Scene::CreateEntity",
+      "summary": "Create an entity from EntityDescriptor; semanticId, name, tags, and Transform2D are authored directly in the descriptor."
+    },
+    {
+      "symbol": "trace2d::scene::Scene::AddComponent<T>",
+      "summary": "Attach a typed component with the registry-owned ComponentTypeHandle<T>; validation is applied before insertion."
+    },
+    {
+      "symbol": "trace2d::scene::Scene::TryGetComponent<T>",
+      "summary": "Resolve an attached typed component without string lookup. FindBySemanticId() is available when semantic entity lookup is required."
+    },
+    {
+      "symbol": "trace2d::scene::Entity::Transform",
+      "summary": "Mutate the entity Transform2D directly for ordinary semantic position/rotation/scale state."
+    }
+  ],
+  "related_surfaces": ["gameplay"],
+  "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+}
