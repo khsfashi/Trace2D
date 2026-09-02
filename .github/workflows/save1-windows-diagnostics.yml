@@ -6,12 +6,54 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
 
 jobs:
+  apply-save1-scalar-fix:
+    if: github.event.pull_request.number == 398
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Replace scalar JSON initializer-list construction
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("engine/persistence/src/SaveDocument.cpp")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              "return OrderedJson{value.booleanValue};": "return OrderedJson(value.booleanValue);",
+              "return OrderedJson{value.signedIntegerValue};": "return OrderedJson(value.signedIntegerValue);",
+              "return OrderedJson{value.unsignedIntegerValue};": "return OrderedJson(value.unsignedIntegerValue);",
+              "return OrderedJson{value.floatValue};": "return OrderedJson(value.floatValue);",
+              "return OrderedJson{value.textValue};": "return OrderedJson(value.textValue);",
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one occurrence of {old!r}, found {count}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+
+      - name: Commit exact fix to PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff -- engine/persistence/src/SaveDocument.cpp
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add engine/persistence/src/SaveDocument.cpp
+          git commit -m "fix: serialize SAVE1 semantic scalars as JSON scalars"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   windows-ctest-diagnostics:
     runs-on: windows-2022
 
