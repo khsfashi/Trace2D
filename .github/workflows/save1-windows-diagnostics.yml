@@ -29,16 +29,16 @@ jobs:
           path = Path("engine/persistence/src/SaveDocument.cpp")
           text = path.read_text(encoding="utf-8")
           replacements = {
-              "return OrderedJson{value.booleanValue};": "return OrderedJson(value.booleanValue);",
-              "return OrderedJson{value.signedIntegerValue};": "return OrderedJson(value.signedIntegerValue);",
-              "return OrderedJson{value.unsignedIntegerValue};": "return OrderedJson(value.unsignedIntegerValue);",
-              "return OrderedJson{value.floatValue};": "return OrderedJson(value.floatValue);",
-              "return OrderedJson{value.textValue};": "return OrderedJson(value.textValue);",
+              "return OrderedJson{value.booleanValue};": ("return OrderedJson(value.booleanValue);", 1),
+              "return OrderedJson{value.signedIntegerValue};": ("return OrderedJson(value.signedIntegerValue);", 1),
+              "return OrderedJson{value.unsignedIntegerValue};": ("return OrderedJson(value.unsignedIntegerValue);", 1),
+              "return OrderedJson{value.floatValue};": ("return OrderedJson(value.floatValue);", 1),
+              "return OrderedJson{value.textValue};": ("return OrderedJson(value.textValue);", 2),
           }
-          for old, new in replacements.items():
+          for old, (new, expected) in replacements.items():
               count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"expected exactly one occurrence of {old!r}, found {count}")
+              if count != expected:
+                  raise SystemExit(f"expected {expected} occurrence(s) of {old!r}, found {count}")
               text = text.replace(old, new)
           path.write_text(text, encoding="utf-8")
 
