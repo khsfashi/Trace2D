@@ -211,20 +211,20 @@ std::optional<OrderedJson> SerializeSemanticValue(
     switch (value.kind)
     {
     case scene::SemanticValueKind::Boolean:
-        return OrderedJson{value.booleanValue};
+        return OrderedJson(value.booleanValue);
     case scene::SemanticValueKind::SignedInteger:
-        return OrderedJson{value.signedIntegerValue};
+        return OrderedJson(value.signedIntegerValue);
     case scene::SemanticValueKind::UnsignedInteger:
-        return OrderedJson{value.unsignedIntegerValue};
+        return OrderedJson(value.unsignedIntegerValue);
     case scene::SemanticValueKind::Float:
         if (!std::isfinite(value.floatValue))
         {
             AddDiagnostic(diagnostics, {}, std::string{path}, "Floating value must be finite.");
             return std::nullopt;
         }
-        return OrderedJson{value.floatValue};
+        return OrderedJson(value.floatValue);
     case scene::SemanticValueKind::Text:
-        return OrderedJson{value.textValue};
+        return OrderedJson(value.textValue);
     case scene::SemanticValueKind::EntityReference:
     case scene::SemanticValueKind::ResourceReference:
     case scene::SemanticValueKind::EnumName:
@@ -233,7 +233,7 @@ std::optional<OrderedJson> SerializeSemanticValue(
             AddDiagnostic(diagnostics, {}, std::string{path}, "Semantic reference/name value must not be empty.");
             return std::nullopt;
         }
-        return OrderedJson{value.textValue};
+        return OrderedJson(value.textValue);
     case scene::SemanticValueKind::Float2:
     {
         if (!std::isfinite(value.vectorValue[0]) || !std::isfinite(value.vectorValue[1]))
