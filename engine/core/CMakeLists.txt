@@ -1,4 +1,5 @@
 add_library(trace2d_core STATIC
+    src/FileTransaction.cpp
     src/Version.cpp
 )
 
