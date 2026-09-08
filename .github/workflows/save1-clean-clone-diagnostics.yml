@@ -1,0 +1,69 @@
+name: SAVE1 Clean Clone Diagnostics
+
+on:
+  push:
+    branches:
+      - agent/save1-versioned-persistence
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TRACE2D_VCPKG_BASELINE: d92484ed3c5020c6679d095ad3e5add907887b62
+
+jobs:
+  clean-clone-diagnostics:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout clean candidate
+        uses: actions/checkout@v6
+
+      - name: Install README-pinned vcpkg baseline
+        shell: pwsh
+        run: |
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP "vcpkg"
+          $vcpkgDownloads = Join-Path $env:GITHUB_WORKSPACE ".trace2d-vcpkg-downloads"
+          git clone https://github.com/microsoft/vcpkg $vcpkgRoot
+          git -C $vcpkgRoot checkout $env:TRACE2D_VCPKG_BASELINE
+          & "$vcpkgRoot\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $vcpkgDownloads | Out-Null
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "VCPKG_DOWNLOADS=$vcpkgDownloads" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure exactly as README quick start
+        run: cmake --preset windows-msvc
+
+      - name: Build exactly as README quick start
+        run: cmake --build --preset windows-debug --parallel
+
+      - name: Enumerate tests
+        shell: pwsh
+        run: ctest --preset windows-debug -N | Tee-Object -FilePath "$env:RUNNER_TEMP\save1-test-list.txt"
+
+      - name: Test exactly as README quick start
+        run: ctest --preset windows-debug
+
+      - name: Collect CTest diagnostics
+        if: always()
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "save1-clean-clone-diagnostics"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $last = Join-Path $env:GITHUB_WORKSPACE "build\windows-msvc\Testing\Temporary\LastTest.log"
+          if (Test-Path $last) { Copy-Item $last (Join-Path $out "LastTest.log") }
+          $failed = Join-Path $env:GITHUB_WORKSPACE "build\windows-msvc\Testing\Temporary\LastTestsFailed.log"
+          if (Test-Path $failed) { Copy-Item $failed (Join-Path $out "LastTestsFailed.log") }
+          $list = Join-Path $env:RUNNER_TEMP "save1-test-list.txt"
+          if (Test-Path $list) { Copy-Item $list (Join-Path $out "test-list.txt") }
+          git rev-parse HEAD | Out-File -Encoding utf8 (Join-Path $out "head.txt")
+
+      - name: Upload clean-clone CTest diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: save1-clean-clone-ctest-diagnostics
+          path: ${{ runner.temp }}/save1-clean-clone-diagnostics
+          if-no-files-found: error
+          retention-days: 7
