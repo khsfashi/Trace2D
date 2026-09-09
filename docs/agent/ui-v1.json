@@ -2,16 +2,22 @@
   "schema_version": 1,
   "kind": "trace2d-agent-surface",
   "surface": "ui",
-  "purpose": "Retained semantic UI/HUD authoring through UiDocument without scanning the full UI implementation.",
-  "read_policy": "Use these common retained-state contracts first. Open Ui.hpp only when a less-common layout, navigation, image, scroll, or text-input signature is required.",
+  "purpose": "Retained semantic UI/HUD authoring and interaction through UiDocument without scanning the full UI implementation.",
+  "read_policy": "Use these common retained-state and activation contracts first. Open Ui.hpp only when a less-common layout, navigation, image, scroll, text-input, or failure signature is required.",
   "preferred_include": "trace2d/Trace2D.hpp",
-  "exact_headers": [
-    "trace2d/ui/Ui.hpp"
-  ],
+  "exact_headers": ["trace2d/ui/Ui.hpp"],
   "contracts": [
     {
       "symbol": "trace2d::ui::UiDocument::AddElement",
       "summary": "Add retained UiElement records with stable semantic id, kind, bounds, text/name, visibility, and enabled state."
+    },
+    {
+      "symbol": "trace2d::ui::UiDocument::Find",
+      "summary": "Resolve retained semantic UI state by stable id. UiElement::activationCount is monotonic retained evidence used for exactly-once game consumption."
+    },
+    {
+      "symbol": "trace2d::ui::UiDocument::Activate",
+      "summary": "Activate one semantic element by stable id and return structured UiActionResult; activatable buttons increment retained activationCount."
     },
     {
       "symbol": "trace2d::ui::UiDocument::ConfigureProgress",

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-skill-registry",
+  "purpose": "Bounded workflow discovery for ordinary Trace2D authoring. Select descriptors first and load only the chosen skill body before narrowing to exact surfaces, APIs, tools, examples, or tests.",
+  "policy": {
+    "selection": "descriptor-first",
+    "body_loading": "selected-only",
+    "max_primary_skills": 2,
+    "skill_is_not_tool": true,
+    "avoid_broad_document_preload": true,
+    "capability_authority": "trace2d.capabilities.toml",
+    "exact_api_authority": "share/Trace2D/docs/agent-public-api-v1.json",
+    "tool_authority": "MCP tools/list for the connected runtime"
+  },
+  "skills": [
+    {
+      "id": "held-input-movement",
+      "version": 1,
+      "description": "Use when continuous player or entity movement must remain active while a semantic input action is held across fixed simulation frames.",
+      "match": ["held input", "hold key", "continuous movement", "player movement", "move player", "keyboard movement", "gamepad movement", "axis movement"],
+      "body": "held-input-movement/SKILL.md",
+      "required_capabilities": ["runtime.fixed_step"],
+      "related_capabilities": ["scene.semantic_inspection"],
+      "surfaces": ["gameplay", "input", "scene"]
+    },
+    {
+      "id": "semantic-menu-flow",
+      "version": 1,
+      "description": "Use when a retained semantic UI button or menu activation must drive exactly-once game state or screen-flow transitions.",
+      "match": ["menu button", "start button", "semantic ui", "ui transition", "screen transition", "button activation", "menu flow"],
+      "body": "semantic-menu-flow/SKILL.md",
+      "required_capabilities": ["ui.semantic_interaction", "runtime.fixed_step"],
+      "related_capabilities": ["scene.semantic_inspection"],
+      "surfaces": ["ui", "gameplay", "scene"]
+    },
+    {
+      "id": "combat-hit-feedback",
+      "version": 1,
+      "description": "Use when an accepted deterministic combat hit must update gameplay state first, then emit non-authoritative audio and presentation feedback with separate verification.",
+      "match": ["combat hit", "hit feedback", "damage feedback", "hit reaction", "impact sound", "damage audio", "combat audio", "attack impact"],
+      "body": "combat-hit-feedback/SKILL.md",
+      "required_capabilities": ["runtime.fixed_step", "audio.deterministic_runtime"],
+      "related_capabilities": ["scene.semantic_inspection"],
+      "surfaces": ["gameplay", "scene", "audio"]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "kind": "trace2d-agent-surface",
+  "surface": "audio",
+  "purpose": "Deterministic semantic 2D audio commands, events, voice inspection, and failure results without scanning the audio implementation.",
+  "read_policy": "Use the command/result/event contracts first. Open only AudioSystem2D.hpp or AudioComponents2D.hpp when an exact enum, source field, or less-common voice operation is required.",
+  "preferred_include": "trace2d/audio/AudioSystem2D.hpp",
+  "exact_headers": [
+    "trace2d/audio/AudioSystem2D.hpp",
+    "trace2d/audio/AudioComponents2D.hpp"
+  ],
+  "contracts": [
+    {
+      "symbol": "trace2d::audio::AudioSystem2D::Play",
+      "summary": "Start audio for an entity that owns a valid AudioSource2D. The returned AudioPlayResult2D contains a machine-distinguishable AudioCommandResult2D and generation-safe voice handle."
+    },
+    {
+      "symbol": "trace2d::audio::AudioSystem2D::Step",
+      "summary": "Advance semantic audio state explicitly by a validated delta and publish bounded semantic events; this is not an audio-output callback."
+    },
+    {
+      "symbol": "trace2d::audio::AudioSystem2D::Events",
+      "summary": "Read semantic Started/Stopped/Stolen/Looped/Finished/Detached evidence after commands/steps. ClearEvents() explicitly resets retained event evidence."
+    },
+    {
+      "symbol": "trace2d::audio::AudioSystem2D::InspectVoice",
+      "summary": "Inspect a live generation-safe voice without backend-handle exposure; stale/finished identities resolve to no snapshot."
+    },
+    {
+      "symbol": "trace2d::audio::AudioCommandResult2D",
+      "summary": "Structured command failure contract including not-found/source-invalid/clip-not-ready/stale/invalid-state/voice-limit/capacity outcomes."
+    }
+  ],
+  "related_surfaces": ["gameplay", "scene"],
+  "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+}

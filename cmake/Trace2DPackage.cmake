@@ -113,6 +113,8 @@ function(trace2d_configure_sdk_package)
     install(FILES
         "${PROJECT_SOURCE_DIR}/docs/EXTERNAL_PROJECT_E1.md"
         "${PROJECT_SOURCE_DIR}/docs/AGENT_PUBLIC_API.md"
+        "${PROJECT_SOURCE_DIR}/docs/AGENT_SKILLS.md"
+        "${PROJECT_SOURCE_DIR}/docs/AGENT_TOOL_SURFACE_AUDIT.md"
         "${PROJECT_SOURCE_DIR}/docs/agent-public-api-v1.json"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/docs"
     )
@@ -122,7 +124,13 @@ function(trace2d_configure_sdk_package)
         "${PROJECT_SOURCE_DIR}/docs/agent/scene-v1.json"
         "${PROJECT_SOURCE_DIR}/docs/agent/input-v1.json"
         "${PROJECT_SOURCE_DIR}/docs/agent/ui-v1.json"
+        "${PROJECT_SOURCE_DIR}/docs/agent/audio-v1.json"
+        "${PROJECT_SOURCE_DIR}/config/trace2d.capabilities.toml"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/agent"
+    )
+
+    install(DIRECTORY "${PROJECT_SOURCE_DIR}/docs/agent/skills/"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/agent/skills"
     )
 
     # The API index references examples/e0_external_game/* as the canonical
@@ -135,6 +143,7 @@ function(trace2d_configure_sdk_package)
 
     install(PROGRAMS
         "${PROJECT_SOURCE_DIR}/scripts/trace2d_doctor.ps1"
+        "${PROJECT_SOURCE_DIR}/scripts/trace2d_agent_skill.py"
         DESTINATION "${CMAKE_INSTALL_DATADIR}/Trace2D/tools"
     )
 endfunction()

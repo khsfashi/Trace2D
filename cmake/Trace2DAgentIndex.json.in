@@ -2,12 +2,24 @@
   "format_version": 1,
   "artifact_kind": "trace2d-agent-index",
   "trace2d_version": "@PROJECT_VERSION@",
-  "purpose": "Small deterministic routing map for ordinary installed-SDK authoring. Select only task-relevant surface metadata before opening larger guides, examples, or headers.",
+  "purpose": "Small deterministic routing map for ordinary installed-SDK authoring. Select only task-relevant capability/skill/surface metadata before opening larger guides, examples, headers, or tool schemas.",
   "policy": {
     "routing": "deterministic-first",
     "max_primary_surfaces": 3,
+    "max_primary_skills": 2,
     "avoid_recursive_sdk_scan": true,
+    "avoid_skill_body_preload": true,
     "fallback_public_api_index": "share/Trace2D/docs/agent-public-api-v1.json"
+  },
+  "capabilities": {
+    "authority": "share/Trace2D/agent/trace2d.capabilities.toml"
+  },
+  "skills": {
+    "registry": "share/Trace2D/agent/skills/registry-v1.json",
+    "tool": "share/Trace2D/tools/trace2d_agent_skill.py",
+    "guide": "share/Trace2D/docs/AGENT_SKILLS.md",
+    "selection": "descriptor-first",
+    "body_loading": "selected-only"
   },
   "surfaces": [
     {
@@ -22,13 +34,18 @@
     },
     {
       "id": "input",
-      "match": ["input", "action", "keyboard", "gamepad", "pointer"],
+      "match": ["input", "action", "keyboard", "gamepad", "pointer", "held", "movement"],
       "metadata": "share/Trace2D/agent/input-v1.json"
     },
     {
       "id": "ui",
-      "match": ["ui", "hud", "progress", "button", "text-input"],
+      "match": ["ui", "hud", "progress", "button", "menu", "text-input"],
       "metadata": "share/Trace2D/agent/ui-v1.json"
+    },
+    {
+      "id": "audio",
+      "match": ["audio", "sound", "sfx", "music", "voice", "hit-feedback"],
+      "metadata": "share/Trace2D/agent/audio-v1.json"
     }
   ]
 }

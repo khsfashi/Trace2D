@@ -19,6 +19,22 @@ set_and_check(
     "@PACKAGE_TRACE2D_AGENT_INDEX_INSTALL_PATH@"
 )
 set_and_check(
+    Trace2D_AGENT_SKILL_REGISTRY
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/agent/skills/registry-v1.json"
+)
+set_and_check(
+    Trace2D_AGENT_SKILL_TOOL
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/tools/trace2d_agent_skill.py"
+)
+set_and_check(
+    Trace2D_AGENT_SKILL_GUIDE
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/docs/AGENT_SKILLS.md"
+)
+set_and_check(
+    Trace2D_AGENT_CAPABILITIES
+    "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/agent/trace2d.capabilities.toml"
+)
+set_and_check(
     Trace2D_PUBLIC_AUTHORING_HEADER
     "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@/trace2d/Trace2D.hpp"
 )
@@ -39,11 +55,12 @@ set_and_check(
     "@PACKAGE_CMAKE_INSTALL_DATADIR@/Trace2D/examples/e0_external_game"
 )
 
-# Keep the compact Agent discovery entry point visible even when the first
-# downstream dependency lookup fails. The remaining package details stay on
-# the successful configure path below, and QUIET consumers remain quiet.
+# Keep the compact Agent discovery entry points visible even when the first
+# downstream dependency lookup fails. Remaining package details stay on the
+# successful configure path below, and QUIET consumers remain quiet.
 if(NOT Trace2D_FIND_QUIETLY)
     message(STATUS "Trace2D Agent index: ${Trace2D_AGENT_INDEX}")
+    message(STATUS "Trace2D Agent skill registry: ${Trace2D_AGENT_SKILL_REGISTRY}")
 endif()
 
 include(CMakeFindDependencyMacro)
@@ -61,6 +78,9 @@ find_dependency(tomlplusplus CONFIG REQUIRED)
 if(NOT Trace2D_FIND_QUIETLY)
     message(STATUS "Trace2D SDK locator: ${Trace2D_SDK_ROOT_LOCATOR}")
     message(STATUS "Trace2D SDK metadata: ${Trace2D_SDK_METADATA}")
+    message(STATUS "Trace2D Agent skill tool: ${Trace2D_AGENT_SKILL_TOOL}")
+    message(STATUS "Trace2D Agent skill guide: ${Trace2D_AGENT_SKILL_GUIDE}")
+    message(STATUS "Trace2D Agent capabilities: ${Trace2D_AGENT_CAPABILITIES}")
     message(STATUS "Trace2D public authoring header: ${Trace2D_PUBLIC_AUTHORING_HEADER}")
     message(STATUS "Trace2D public API index: ${Trace2D_PUBLIC_API_INDEX}")
     message(STATUS "Trace2D canonical external example: ${Trace2D_CANONICAL_EXTERNAL_EXAMPLE_ROOT}")
