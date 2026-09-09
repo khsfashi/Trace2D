@@ -65,6 +65,7 @@ if(TRACE2D_INSTALL_SDK)
     trace2d_install_public_target(trace2d_text Text "${CMAKE_CURRENT_SOURCE_DIR}/engine/text/include")
     trace2d_install_public_target(trace2d_ui Ui "${CMAKE_CURRENT_SOURCE_DIR}/engine/ui/include")
     trace2d_install_public_target(trace2d_application Application "${CMAKE_CURRENT_SOURCE_DIR}/engine/application/include")
+    trace2d_install_public_target(trace2d_persistence Persistence "${CMAKE_CURRENT_SOURCE_DIR}/engine/persistence/include")
     trace2d_install_public_target(trace2d_agent Agent "${CMAKE_CURRENT_SOURCE_DIR}/engine/agent/include")
     trace2d_configure_sdk_package()
 
