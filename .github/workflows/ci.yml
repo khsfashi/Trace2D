@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout full history
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -172,7 +172,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up pinned Node.js
         uses: actions/setup-node@v4
@@ -299,7 +299,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install pinned vcpkg
         shell: pwsh
@@ -357,7 +357,7 @@ jobs:
 
     steps:
       - name: Checkout clean candidate
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install README-pinned vcpkg baseline
         shell: pwsh

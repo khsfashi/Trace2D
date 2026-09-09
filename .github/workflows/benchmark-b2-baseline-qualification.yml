@@ -35,7 +35,7 @@ jobs:
   godot-agent-loop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.TRACE2D_B2_NODE_VERSION_PIN }}
@@ -159,7 +159,7 @@ jobs:
   satellite-godot-mcp:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.TRACE2D_B2_NODE_VERSION_PIN }}
