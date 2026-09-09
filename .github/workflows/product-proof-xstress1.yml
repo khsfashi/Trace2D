@@ -97,7 +97,7 @@ jobs:
           if (-not (Test-Path $output -PathType Leaf)) { throw 'Windows XSTRESS1 profile evidence missing.' }
 
       - name: Upload Windows P2 profile evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xstress1-windows-p2-profile
           path: artifacts/xstress1-windows/profile.json
@@ -194,7 +194,7 @@ jobs:
           test -s "$evidence/profile.json"
 
       - name: Upload Linux P2 profile evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xstress1-linux-p2-profile
           path: artifacts/xstress1-linux/profile.json
@@ -318,7 +318,7 @@ jobs:
           PY
 
       - name: Upload XSTRESS1 comparison evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xstress1-portable-structure-comparison
           path: evidence/comparison.json

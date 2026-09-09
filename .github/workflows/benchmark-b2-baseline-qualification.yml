@@ -149,7 +149,7 @@ jobs:
           PY
       - name: Upload Agent Loop evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: b2-godot-agent-loop-qualification-${{ github.sha }}
           path: ${{ env.TRACE2D_B2_AGENT_LOOP_EVIDENCE }}
@@ -258,7 +258,7 @@ jobs:
           fi
       - name: Upload satellite evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: b2-satellite-godot-mcp-qualification-${{ github.sha }}
           path: ${{ env.TRACE2D_B2_SATELLITE_EVIDENCE }}

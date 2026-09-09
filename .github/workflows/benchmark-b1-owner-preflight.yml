@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload B1 preflight evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-b1-preflight-${{ github.sha }}
           path: artifacts/b1-preflight/*.zip

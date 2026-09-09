@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload Godot AI non-scored qualification evidence
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: b2-godot-ai-qualification-${{ github.sha }}
           path: ${{ env.TRACE2D_B2_GODOT_AI_EVIDENCE }}
