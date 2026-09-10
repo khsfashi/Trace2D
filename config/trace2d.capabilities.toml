@@ -48,6 +48,22 @@ evidence = [
 ]
 
 [[capabilities]]
+id = "audio.deterministic_runtime"
+available = true
+tested = true
+production_supported = false
+deterministic_verification = true
+presentation_evidence = true
+hardware_evidence = false
+human_judgment = false
+evidence = [
+  "engine/audio/include/trace2d/audio/AudioSystem2D.hpp",
+  "tests/audio/Audio2DTests.cpp",
+  "tests/audio/AudioVoiceLimitTests.cpp",
+  "docs/AUDIO2D_AUDIO1.md"
+]
+
+[[capabilities]]
 id = "particles.cpu_reference"
 available = true
 tested = true

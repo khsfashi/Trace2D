@@ -6,6 +6,10 @@
   "cmake_namespace": "Trace2D::",
   "discovery": {
     "agent_index_root_relative": "trace2d.agent-index.json",
+    "agent_skill_registry": "agent/skills/registry-v1.json",
+    "agent_skill_tool": "tools/trace2d_agent_skill.py",
+    "agent_skill_guide": "docs/AGENT_SKILLS.md",
+    "agent_capabilities": "agent/trace2d.capabilities.toml",
     "public_authoring_include": "trace2d/Trace2D.hpp",
     "public_api_index": "docs/agent-public-api-v1.json",
     "public_api_guide": "docs/AGENT_PUBLIC_API.md",
@@ -13,47 +17,19 @@
     "canonical_external_example_root": "examples/e0_external_game"
   },
   "cmake_dependencies": [
-    {
-      "package": "box2d",
-      "find_mode": "config"
-    },
-    {
-      "package": "Freetype",
-      "find_mode": "default"
-    },
-    {
-      "package": "SDL3",
-      "find_mode": "config"
-    },
-    {
-      "package": "SDL3_shadercross",
-      "find_mode": "config"
-    },
-    {
-      "package": "nlohmann_json",
-      "find_mode": "config"
-    },
-    {
-      "package": "tomlplusplus",
-      "find_mode": "config"
-    }
+    {"package": "box2d", "find_mode": "config"},
+    {"package": "Freetype", "find_mode": "default"},
+    {"package": "SDL3", "find_mode": "config"},
+    {"package": "SDL3_shadercross", "find_mode": "config"},
+    {"package": "nlohmann_json", "find_mode": "config"},
+    {"package": "tomlplusplus", "find_mode": "config"}
   ],
   "consumer_build": {
     "library_linkage": "static",
     "msvc_configuration_policy": "match-installed-library-configuration"
   },
   "public_targets": [
-    "Core",
-    "Input",
-    "Platform",
-    "Runtime",
-    "Scene",
-    "Particles",
-    "Assets",
-    "Render",
-    "Ui",
-    "Application",
-    "Agent"
+    "Core", "Input", "Platform", "Runtime", "Scene", "Particles", "Assets", "Render", "Ui", "Application", "Agent"
   ],
   "binary_abi": "not-guaranteed"
 }
